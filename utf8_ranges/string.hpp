@@ -220,11 +220,13 @@ public:
 		return utf8_string_view{ bytes };
 	}
 
+	[[nodiscard]]
 	constexpr auto base() const noexcept
 	{
 		return base_;
 	}
 
+	[[nodiscard]]
 	constexpr std::u8string_view as_view() const noexcept
 	{
 		return base();
@@ -389,11 +391,13 @@ public:
 		base_.shrink_to_fit();
 	}
 
+	[[nodiscard]]
 	constexpr size_type capacity() const
 	{
 		return base_.capacity();
 	}
 
+	[[nodiscard]]
 	constexpr size_type size() const
 	{
 		return base_.size();
@@ -411,11 +415,13 @@ public:
 		base_.reserve(new_cap);
 	}
 
+	[[nodiscard]]
 	constexpr auto base() const& noexcept -> const base_type&
 	{
 		return base_;
 	}
 
+	[[nodiscard]]
 	constexpr auto base() && noexcept -> base_type&&
 	{
 		return std::move(base_);
@@ -426,11 +432,13 @@ public:
 		base_.clear();
 	}
 
+	[[nodiscard]]
 	constexpr const char8_t* data() const noexcept
 	{
 		return base_.data();
 	}
 
+	[[nodiscard]]
 	constexpr const char8_t* c_str() const noexcept
 	{
 		return data();
@@ -441,6 +449,7 @@ public:
 		return as_view();
 	}
 
+	[[nodiscard]]
 	constexpr equivalent_utf8_string_view as_view() const noexcept
 	{
 		return equivalent_utf8_string_view::from_bytes_unchecked(equivalent_string_view{ base_ });
@@ -477,6 +486,7 @@ inline std::ostream& operator<<(std::ostream& os, const utf8_string<Allocator>& 
 	return os << value.as_view();
 }
 
+[[nodiscard]]
 inline constexpr utf8_string_view utf8_char::as_utf8_view() const noexcept
 {
 	return utf8_string_view::from_bytes_unchecked(as_view());

@@ -166,7 +166,7 @@ inline void run_utf8_ranges_tests()
 	}
 	{
 		std::ostringstream oss;
-		oss << utf8_string<>{ utf8_text };
+		oss << utf8_string{ utf8_text };
 		assert(oss.str() == "A\xC3\xA9\xE2\x82\xAC");
 	}
 

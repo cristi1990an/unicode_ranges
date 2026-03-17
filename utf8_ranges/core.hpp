@@ -58,86 +58,86 @@ namespace views
 	class lossy_utf8_view;
 }
 
-template<typename CharT>
-inline constexpr bool is_single_valid_utf8_char(std::basic_string_view<CharT> value) noexcept
+namespace details
 {
-	if (value.empty()) [[unlikely]]
+	template<typename CharT>
+	inline constexpr bool is_single_valid_utf8_char(std::basic_string_view<CharT> value) noexcept
 	{
+		if (value.empty()) [[unlikely]]
+		{
+			return false;
+		}
+
+		const auto byte = [&value](std::size_t index) noexcept -> std::uint8_t
+		{
+			return static_cast<std::uint8_t>(value[index]);
+		};
+
+		const auto is_cont = [&byte](std::size_t index) noexcept -> bool
+		{
+			return (byte(index) & 0xC0u) == 0x80u;
+		};
+
+		const std::size_t size = value.size();
+		const unsigned char b1 = byte(0);
+
+		if (size == 1) [[likely]]
+		{
+			return b1 <= 0x7Fu;
+		}
+
+		if (size == 2)
+		{
+			return b1 >= 0xC2u && b1 <= 0xDFu && is_cont(1);
+		}
+
+		if (size == 3)
+		{
+			const unsigned char b2 = byte(1);
+			return
+				(
+					b1 == 0xE0u &&
+					b2 >= 0xA0u && b2 <= 0xBFu &&
+					is_cont(2)
+				) ||
+				(
+					b1 >= 0xE1u && b1 <= 0xECu &&
+					is_cont(1) && is_cont(2)
+				) ||
+				(
+					b1 == 0xEDu &&
+					b2 >= 0x80u && b2 <= 0x9Fu &&
+					is_cont(2)
+				) ||
+				(
+					b1 >= 0xEEu && b1 <= 0xEFu &&
+					is_cont(1) && is_cont(2)
+				);
+		}
+
+		if (size == 4)
+		{
+			const unsigned char b2 = byte(1);
+			return
+				(
+					b1 == 0xF0u &&
+					b2 >= 0x90u && b2 <= 0xBFu &&
+					is_cont(2) && is_cont(3)
+				) ||
+				(
+					b1 >= 0xF1u && b1 <= 0xF3u &&
+					is_cont(1) && is_cont(2) && is_cont(3)
+				) ||
+				(
+					b1 == 0xF4u &&
+					b2 >= 0x80u && b2 <= 0x8Fu &&
+					is_cont(2) && is_cont(3)
+				);
+		}
+
 		return false;
 	}
 
-	const auto byte = [&value](std::size_t index) noexcept -> std::uint8_t
-	{
-		return static_cast<std::uint8_t>(value[index]);
-	};
-
-	const auto is_cont = [&byte](std::size_t index) noexcept -> bool
-	{
-		return (byte(index) & 0xC0u) == 0x80u;
-	};
-
-	const std::size_t size = value.size();
-	const unsigned char b1 = byte(0);
-
-	if (size == 1) [[likely]]
-	{
-		return b1 <= 0x7Fu;
-	}
-
-	if (size == 2)
-	{
-		return b1 >= 0xC2u && b1 <= 0xDFu && is_cont(1);
-	}
-
-	if (size == 3)
-	{
-		const unsigned char b2 = byte(1);
-		return
-			(
-				b1 == 0xE0u &&
-				b2 >= 0xA0u && b2 <= 0xBFu &&
-				is_cont(2)
-			) ||
-			(
-				b1 >= 0xE1u && b1 <= 0xECu &&
-				is_cont(1) && is_cont(2)
-			) ||
-			(
-				b1 == 0xEDu &&
-				b2 >= 0x80u && b2 <= 0x9Fu &&
-				is_cont(2)
-			) ||
-			(
-				b1 >= 0xEEu && b1 <= 0xEFu &&
-				is_cont(1) && is_cont(2)
-			);
-	}
-
-	if (size == 4)
-	{
-		const unsigned char b2 = byte(1);
-		return
-			(
-				b1 == 0xF0u &&
-				b2 >= 0x90u && b2 <= 0xBFu &&
-				is_cont(2) && is_cont(3)
-			) ||
-			(
-				b1 >= 0xF1u && b1 <= 0xF3u &&
-				is_cont(1) && is_cont(2) && is_cont(3)
-			) ||
-			(
-				b1 == 0xF4u &&
-				b2 >= 0x80u && b2 <= 0x8Fu &&
-				is_cont(2) && is_cont(3)
-			);
-	}
-
-	return false;
-}
-
-namespace details
-{
 	template <typename R, typename T>
 	concept container_compatible_range =
 		std::ranges::input_range<R> &&
@@ -257,7 +257,7 @@ namespace details
 				});
 			}
 
-			if (!is_single_valid_utf8_char(value.substr(index, expected_size))) [[unlikely]]
+			if (!details::is_single_valid_utf8_char(value.substr(index, expected_size))) [[unlikely]]
 			{
 				return std::unexpected(utf8_error{
 					.code = utf8_error_code::invalid_sequence,
@@ -317,7 +317,7 @@ namespace details
 			{
 				std::ranges::copy(pp, p);
 
-				if (!is_single_valid_utf8_char(std::basic_string_view<CharT>{ &p[0], N - 1 }))
+				if (!details::is_single_valid_utf8_char(std::basic_string_view<CharT>{ &p[0], N - 1 }))
 				{
 					throw std::invalid_argument("literal must contain exactly one valid UTF-8 character");
 				}

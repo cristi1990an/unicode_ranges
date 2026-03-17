@@ -296,7 +296,7 @@ namespace views
 				}
 
 				const std::basic_string_view<CharT> candidate{ current_, expected_size };
-				if (!is_single_valid_utf8_char(candidate)) [[unlikely]]
+				if (!details::is_single_valid_utf8_char(candidate)) [[unlikely]]
 				{
 					return;
 				}

@@ -15,6 +15,7 @@ public:
 	static const utf8_char replacement_character;
 	static const utf8_char null_terminator;
 
+	[[nodiscard]]
 	static constexpr std::optional<utf8_char> from_scalar(std::uint32_t scalar) noexcept
 	{
 		utf8_char value;
@@ -26,6 +27,7 @@ public:
 		return value;
 	}
 
+	[[nodiscard]]
 	static constexpr utf8_char from_scalar_unchecked(std::uint32_t scalar) noexcept
 	{
 		utf8_char value;
@@ -34,6 +36,7 @@ public:
 	}
 
 	template<typename CharT>
+	[[nodiscard]]
 	static constexpr utf8_char from_utf8_bytes_unchecked(const CharT* bytes, std::size_t size) noexcept
 	{
 		utf8_char value;
@@ -41,23 +44,19 @@ public:
 		return value;
 	}
 
-	static constexpr utf8_char invalid_sentinel_unchecked() noexcept
-	{
-		utf8_char value;
-		value.bytes_[0] = static_cast<char8_t>(invalid_sentinel_byte);
-		return value;
-	}
-
+	[[nodiscard]]
 	constexpr std::uint32_t as_scalar() const noexcept
 	{
 		return details::decode_valid_utf8_char(std::u8string_view{ bytes_.data(), byte_count() });
 	}
 
+	[[nodiscard]]
 	constexpr operator std::u8string_view() const noexcept
 	{
 		return as_view();
 	}
 
+	[[nodiscard]]
 	constexpr std::u8string_view as_view() const noexcept
 	{
 		return { bytes_.data(), byte_count() };
@@ -379,21 +378,25 @@ public:
 		return old;
 	}
 
+	[[nodiscard]]
 	constexpr bool is_ascii() const noexcept
 	{
 		return bytes_[0] <= 0x7Fu;
 	}
 
+	[[nodiscard]]
 	constexpr bool is_alphabetic() const noexcept
 	{
 		return details::unicode::is_alphabetic(as_scalar());
 	}
 
+	[[nodiscard]]
 	constexpr bool is_alphanumeric() const noexcept
 	{
 		return is_alphabetic() || is_numeric();
 	}
 
+	[[nodiscard]]
 	constexpr bool is_ascii_alphabetic() const noexcept
 	{
 		if (!is_ascii())
@@ -405,11 +408,13 @@ public:
 		return is_ascii_lower_alpha(value) || is_ascii_upper_alpha(value);
 	}
 
+	[[nodiscard]]
 	constexpr bool is_ascii_alphanumeric() const noexcept
 	{
 		return is_ascii_alphabetic() || is_ascii_digit();
 	}
 
+	[[nodiscard]]
 	constexpr bool is_ascii_control() const noexcept
 	{
 		if (!is_ascii())
@@ -421,11 +426,13 @@ public:
 		return value <= 0x1Fu || value == 0x7Fu;
 	}
 
+	[[nodiscard]]
 	constexpr bool is_ascii_digit() const noexcept
 	{
 		return is_ascii() && is_ascii_digit_byte(static_cast<std::uint8_t>(bytes_[0]));
 	}
 
+	[[nodiscard]]
 	constexpr bool is_ascii_graphic() const noexcept
 	{
 		if (!is_ascii())
@@ -437,6 +444,7 @@ public:
 		return value >= 0x21u && value <= 0x7Eu;
 	}
 
+	[[nodiscard]]
 	constexpr bool is_ascii_hexdigit() const noexcept
 	{
 		if (!is_ascii())
@@ -450,11 +458,13 @@ public:
 			|| (value >= 'A' && value <= 'F');
 	}
 
+	[[nodiscard]]
 	constexpr bool is_ascii_lowercase() const noexcept
 	{
 		return is_ascii() && is_ascii_lower_alpha(static_cast<std::uint8_t>(bytes_[0]));
 	}
 
+	[[nodiscard]]
 	constexpr bool is_ascii_octdigit() const noexcept
 	{
 		if (!is_ascii())
@@ -466,16 +476,19 @@ public:
 		return value >= '0' && value <= '7';
 	}
 
+	[[nodiscard]]
 	constexpr bool is_ascii_punctuation() const noexcept
 	{
 		return is_ascii_graphic() && !is_ascii_alphanumeric();
 	}
 
+	[[nodiscard]]
 	constexpr bool is_ascii_uppercase() const noexcept
 	{
 		return is_ascii() && is_ascii_upper_alpha(static_cast<std::uint8_t>(bytes_[0]));
 	}
 
+	[[nodiscard]]
 	constexpr bool is_ascii_whitespace() const noexcept
 	{
 		if (!is_ascii())
@@ -488,6 +501,7 @@ public:
 			|| (value >= '\t' && value <= '\r');
 	}
 
+	[[nodiscard]]
 	constexpr utf8_char ascii_lowercase() const noexcept
 	{
 		if (!is_ascii())
@@ -504,6 +518,7 @@ public:
 		return result;
 	}
 
+	[[nodiscard]]
 	constexpr utf8_char ascii_uppercase() const noexcept
 	{
 		if (!is_ascii())
@@ -520,46 +535,55 @@ public:
 		return result;
 	}
 
+	[[nodiscard]]
 	constexpr bool eq_ignore_ascii_case(utf8_char other) const noexcept
 	{
 		return ascii_lowercase() == other.ascii_lowercase();
 	}
 
+	[[nodiscard]]
 	constexpr void swap(utf8_char& other) noexcept
 	{
 		bytes_.swap(other.bytes_);
 	}
 
+	[[nodiscard]]
 	constexpr bool is_control() const noexcept
 	{
 		return details::unicode::is_control(as_scalar());
 	}
 
+	[[nodiscard]]
 	constexpr bool is_digit() const noexcept
 	{
 		return details::unicode::is_digit(as_scalar());
 	}
 
+	[[nodiscard]]
 	constexpr bool is_lowercase() const noexcept
 	{
 		return details::unicode::is_lowercase(as_scalar());
 	}
 
+	[[nodiscard]]
 	constexpr bool is_numeric() const noexcept
 	{
 		return details::unicode::is_numeric(as_scalar());
 	}
 
+	[[nodiscard]]
 	constexpr bool is_uppercase() const noexcept
 	{
 		return details::unicode::is_uppercase(as_scalar());
 	}
 
+	[[nodiscard]]
 	constexpr bool is_whitespace() const noexcept
 	{
 		return details::unicode::is_whitespace(as_scalar());
 	}
 
+	[[nodiscard]]
 	constexpr std::size_t byte_count() const noexcept
 	{
 		return details::utf8_byte_count_from_lead(static_cast<std::uint8_t>(bytes_[0]));
@@ -603,6 +627,13 @@ private:
 
 	static constexpr std::uint8_t invalid_sentinel_byte = 0xFFu;
 
+	static constexpr utf8_char invalid_sentinel_unchecked() noexcept
+	{
+		utf8_char value;
+		value.bytes_[0] = static_cast<char8_t>(invalid_sentinel_byte);
+		return value;
+	}
+
 	static constexpr bool is_ascii_lower_alpha(std::uint8_t value) noexcept
 	{
 		return value >= 'a' && value <= 'z';
@@ -625,7 +656,14 @@ private:
 
 	constexpr std::size_t maybe_invalid_byte_count() const noexcept
 	{
-		return is_valid() ? byte_count() : 1;
+		if (is_valid()) [[likely]]
+		{
+			return byte_count();
+		}
+		else
+		{
+			return 1;
+		}
 	}
 
 	constexpr void set_ascii(std::uint8_t b0) noexcept
