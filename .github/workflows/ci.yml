@@ -19,7 +19,7 @@ jobs:
         uses: microsoft/setup-msbuild@v2
 
       - name: Build
-        run: msbuild utf8_ranges.vcxproj /p:Configuration=Release /p:Platform=x64
+        run: msbuild utf8_ranges.vcxproj /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143
 
       - name: Run tests
         run: .\x64\Release\utf8_ranges.exe
