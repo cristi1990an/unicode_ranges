@@ -26,21 +26,28 @@ jobs:
 
   linux:
     name: ${{ matrix.name }} (C++23)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: GCC
-            cxx: g++
+            packages: g++-14
+            cxx: g++-14
             output: utf8_ranges_gcc
           - name: Clang
-            cxx: clang++
+            packages: g++-14 clang-18
+            cxx: clang++-18
             output: utf8_ranges_clang
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.packages }}
 
       - name: Show compiler version
         run: ${{ matrix.cxx }} --version
