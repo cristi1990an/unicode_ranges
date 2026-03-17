@@ -34,10 +34,12 @@ jobs:
           - name: GCC
             packages: g++-14
             cxx: g++-14
+            cxxflags: ""
             output: utf8_ranges_gcc
           - name: Clang
-            packages: g++-14 clang-18
+            packages: clang-18 libc++-18-dev libc++abi-18-dev
             cxx: clang++-18
+            cxxflags: "-stdlib=libc++"
             output: utf8_ranges_clang
 
     steps:
@@ -53,7 +55,7 @@ jobs:
         run: ${{ matrix.cxx }} --version
 
       - name: Build
-        run: ${{ matrix.cxx }} -std=c++23 -O2 -Wall -Wextra -pedantic source.cpp -o ${{ matrix.output }}
+        run: ${{ matrix.cxx }} -std=c++23 -O2 -Wall -Wextra -pedantic ${{ matrix.cxxflags }} source.cpp -o ${{ matrix.output }}
 
       - name: Run tests
         run: ./${{ matrix.output }}
