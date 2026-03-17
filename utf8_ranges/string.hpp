@@ -58,7 +58,7 @@ public:
 		else
 		{
 			std::array<char8_t, 4> bytes{};
-			const auto size = ch.encode_utf8<char8_t>(bytes.begin());
+			const auto size = ch.template encode_utf8<char8_t>(bytes.begin());
 			return byte_view().find(std::u8string_view{ bytes.data(), size });
 		}
 	}
