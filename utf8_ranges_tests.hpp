@@ -14,10 +14,7 @@ using namespace utf8_ranges::literals;
 
 inline void run_utf8_ranges_tests()
 {
-	constexpr utf8_char ascii_ch = "A"_u8c;
 	constexpr utf8_char latin1_ch = u8"\u00E9"_u8c;
-	constexpr utf8_char euro_ch = u8"\u20AC"_u8c;
-	constexpr utf8_char emoji_ch = u8"\U0001F600"_u8c;
 	constexpr auto utf8_text = u8"A\u00E9\u20AC"_utf8_sv;
 
 	static_assert("A"_u8c.ascii_lowercase() == "a"_u8c);
@@ -139,21 +136,21 @@ inline void run_utf8_ranges_tests()
 	}());
 	static_assert(utf8_char::from_scalar(0x20ACu).has_value());
 
-	assert(std::format("{}", ascii_ch) == "A");
+	assert(std::format("{}", "A"_u8c) == "A");
 	assert(std::format("{:c}", latin1_ch) == "\xC3\xA9");
-	assert(std::format("{:c}", euro_ch) == "\xE2\x82\xAC");
-	assert(std::format("{:c}", emoji_ch) == "\xF0\x9F\x98\x80");
+	assert(std::format("{:c}", u8"\u20AC"_u8c) == "\xE2\x82\xAC");
+	assert(std::format("{:c}", u8"\U0001F600"_u8c) == "\xF0\x9F\x98\x80");
 
-	assert(std::format("{:d}", ascii_ch) == "65");
+	assert(std::format("{:d}", "A"_u8c) == "65");
 	assert(std::format("{:x}", latin1_ch) == "e9");
 	assert(std::format("{:X}", latin1_ch) == "E9");
 	assert(std::format("{:o}", latin1_ch) == "351");
-	assert(std::format("{:b}", ascii_ch) == "1000001");
-	assert(std::format("{:>4c}", ascii_ch) == "   A");
-	assert(std::format("{:*^5c}", ascii_ch) == "**A**");
-	assert(std::format("{:_<4c}", ascii_ch) == "A___");
-	assert(std::format("{:#06x}", ascii_ch) == "0x0041");
-	assert(std::format("{:#010b}", ascii_ch) == "0b01000001");
+	assert(std::format("{:b}", "A"_u8c) == "1000001");
+	assert(std::format("{:>4c}", "A"_u8c) == "   A");
+	assert(std::format("{:*^5c}", "A"_u8c) == "**A**");
+	assert(std::format("{:_<4c}", "A"_u8c) == "A___");
+	assert(std::format("{:#06x}", "A"_u8c) == "0x0041");
+	assert(std::format("{:#010b}", "A"_u8c) == "0b01000001");
 	assert(std::format("{:>6d}", latin1_ch) == "   233");
 
 	assert(utf8_string<>{}.base().empty());
