@@ -56,13 +56,58 @@ public:
 	{
 		if constexpr (std::same_as<T, char8_t>)
 		{
-			return byte_view().find(ch);
+			if consteval
+			{
+				for (size_type index = 0; index != size(); ++index)
+				{
+					if (byte_view()[index] == ch)
+					{
+						return index;
+					}
+				}
+
+				return npos;
+			}
+			else
+			{
+				return byte_view().find(ch);
+			}
 		}
 		else
 		{
 			std::array<char8_t, 4> bytes{};
-			const auto size = ch.template encode_utf8<char8_t>(bytes.begin());
-			return byte_view().find(std::u8string_view{ bytes.data(), size });
+			const auto needle_size = ch.template encode_utf8<char8_t>(bytes.begin());
+			if consteval
+			{
+				if (needle_size > size())
+				{
+					return npos;
+				}
+
+				for (size_type index = 0; index + needle_size <= size(); ++index)
+				{
+					bool matches = true;
+					for (size_type needle_index = 0; needle_index != needle_size; ++needle_index)
+					{
+						if (byte_view()[index + needle_index] != bytes[needle_index])
+						{
+							matches = false;
+							break;
+						}
+					}
+
+					if (matches)
+					{
+						return index;
+					}
+				}
+
+				return npos;
+			}
+			else
+			{
+				return byte_view().find(std::u8string_view{ bytes.data(), needle_size });
+			}
 		}
 	}
 
