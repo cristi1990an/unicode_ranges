@@ -562,6 +562,22 @@ public:
 			throw std::out_of_range("replace range must be a valid UTF-8 substring");
 		}
 
+#if defined(__cpp_lib_containers_ranges) && __cpp_lib_containers_ranges >= 202202L
+		struct encoded_utf8_char_range
+		{
+			utf8_char ch;
+
+			constexpr auto begin() const noexcept
+			{
+				return ch.as_view().begin();
+			}
+
+			constexpr auto end() const noexcept
+			{
+				return ch.as_view().end();
+			}
+		};
+
 		auto replacement = std::forward<R>(rg)
 			| std::views::transform([](auto&& ch)
 				{
@@ -573,6 +589,15 @@ public:
 			base_.begin() + static_cast<difference_type>(pos),
 			base_.begin() + static_cast<difference_type>(end),
 			replacement);
+#else
+		base_type replacement{ base_.get_allocator() };
+		for (utf8_char ch : std::forward<R>(rg))
+		{
+			replacement.append(ch.as_view());
+		}
+
+		base_.replace(pos, replace_count, replacement);
+#endif
 		return *this;
 	}
 
@@ -590,6 +615,22 @@ public:
 		}
 
 		const auto replace_count = this->char_at_unchecked(pos).byte_count();
+#if defined(__cpp_lib_containers_ranges) && __cpp_lib_containers_ranges >= 202202L
+		struct encoded_utf8_char_range
+		{
+			utf8_char ch;
+
+			constexpr auto begin() const noexcept
+			{
+				return ch.as_view().begin();
+			}
+
+			constexpr auto end() const noexcept
+			{
+				return ch.as_view().end();
+			}
+		};
+
 		auto replacement = std::forward<R>(rg)
 			| std::views::transform([](auto&& ch)
 				{
@@ -601,6 +642,15 @@ public:
 			base_.begin() + static_cast<difference_type>(pos),
 			base_.begin() + static_cast<difference_type>(pos + replace_count),
 			replacement);
+#else
+		base_type replacement{ base_.get_allocator() };
+		for (utf8_char ch : std::forward<R>(rg))
+		{
+			replacement.append(ch.as_view());
+		}
+
+		base_.replace(pos, replace_count, replacement);
+#endif
 		return *this;
 	}
 
@@ -664,21 +714,6 @@ public:
 	}
 
 private:
-	struct encoded_utf8_char_range
-	{
-		utf8_char ch;
-
-		constexpr auto begin() const noexcept
-		{
-			return ch.as_view().begin();
-		}
-
-		constexpr auto end() const noexcept
-		{
-			return ch.as_view().end();
-		}
-	};
-
 	base_type base_;
 };
 
