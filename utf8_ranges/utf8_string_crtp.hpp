@@ -3,7 +3,7 @@
 
 #include "utf8_views.hpp"
 
-namespace utf8_ranges
+namespace unicode_ranges
 {
 
 namespace details

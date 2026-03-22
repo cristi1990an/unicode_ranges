@@ -28,10 +28,10 @@ tracking local work before it is tagged or versioned.
 - `std::uses_allocator` specialization for `utf8_string`
 - `utf8_char::encode_utf16(...)`
 - `utf16_char`
-- `utf8_ranges::views::lossy_utf16_view`
-- `utf8_ranges::views::lossy_utf16`
-- `utf8_ranges::views::utf16_view`
-- `utf8_ranges::views::reversed_utf16_view`
+- `unicode_ranges::views::lossy_utf16_view`
+- `unicode_ranges::views::lossy_utf16`
+- `unicode_ranges::views::utf16_view`
+- `unicode_ranges::views::reversed_utf16_view`
 - `utf16_string_view`
 - `operator ""_utf16_sv`
 - `utf16_string`

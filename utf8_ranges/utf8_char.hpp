@@ -4,7 +4,7 @@
 #include "core.hpp"
 #include "unicode_tables.hpp"
 
-namespace utf8_ranges
+namespace unicode_ranges
 {
 
 inline constexpr std::tuple<std::size_t, std::size_t, std::size_t> unicode_version = details::unicode::unicode_version;
@@ -758,9 +758,9 @@ namespace literals
 namespace std
 {
 	template<>
-	struct hash<utf8_ranges::utf8_char>
+	struct hash<unicode_ranges::utf8_char>
 	{
-		std::size_t operator()(const utf8_ranges::utf8_char& value) const noexcept
+		std::size_t operator()(const unicode_ranges::utf8_char& value) const noexcept
 		{
 			std::array<char, 4> buffer{};
 			const auto len = value.encode_utf8<char>(buffer.begin());
@@ -769,7 +769,7 @@ namespace std
 	};
 
 	template<>
-	struct formatter<utf8_ranges::utf8_char, char>
+	struct formatter<unicode_ranges::utf8_char, char>
 	{
 		static constexpr std::size_t max_spec_size = 64;
 
@@ -839,7 +839,7 @@ namespace std
 		}
 
 		template<typename FormatContext>
-		auto format(const utf8_ranges::utf8_char& value, FormatContext& ctx) const
+		auto format(const unicode_ranges::utf8_char& value, FormatContext& ctx) const
 		{
 			if (use_numeric_formatter_) [[unlikely]]
 			{
@@ -854,7 +854,7 @@ namespace std
 	};
 
 	template<>
-	struct formatter<utf8_ranges::utf8_char, wchar_t>
+	struct formatter<unicode_ranges::utf8_char, wchar_t>
 	{
 		static constexpr std::size_t max_spec_size = 64;
 
@@ -924,7 +924,7 @@ namespace std
 		}
 
 		template<typename FormatContext>
-		auto format(const utf8_ranges::utf8_char& value, FormatContext& ctx) const
+		auto format(const unicode_ranges::utf8_char& value, FormatContext& ctx) const
 		{
 			if (use_numeric_formatter_) [[unlikely]]
 			{
@@ -932,7 +932,7 @@ namespace std
 			}
 
 			std::array<wchar_t, 2> buffer{};
-			const auto len = utf8_ranges::details::encode_unicode_scalar_wchar_unchecked(value.as_scalar(), buffer.data());
+			const auto len = unicode_ranges::details::encode_unicode_scalar_wchar_unchecked(value.as_scalar(), buffer.data());
 			const std::wstring_view text{ buffer.data(), len };
 			return text_formatter_.format(text, ctx);
 		}

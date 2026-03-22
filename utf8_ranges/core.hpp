@@ -25,7 +25,7 @@
 
 #include <uchar.h>
 
-namespace utf8_ranges
+namespace unicode_ranges
 {
 
 class utf8_string_view;
@@ -580,5 +580,7 @@ namespace details
 }
 
 }
+
+namespace utf8_ranges = unicode_ranges;
 
 #endif // UTF8_RANGES_CORE_HPP

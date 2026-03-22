@@ -3,7 +3,7 @@
 
 #include "utf8_string_crtp.hpp"
 
-namespace utf8_ranges
+namespace unicode_ranges
 {
 
 class utf8_string_view : public details::utf8_string_crtp<utf8_string_view, utf8_string_view>
@@ -100,19 +100,19 @@ namespace literals
 namespace std
 {
 	template<>
-	struct hash<utf8_ranges::utf8_string_view>
+	struct hash<unicode_ranges::utf8_string_view>
 	{
-		std::size_t operator()(utf8_ranges::utf8_string_view value) const noexcept
+		std::size_t operator()(unicode_ranges::utf8_string_view value) const noexcept
 		{
 			return std::hash<std::u8string_view>{}(value.base());
 		}
 	};
 
 	template<>
-	struct formatter<utf8_ranges::utf8_string_view, char> : formatter<std::string_view, char>
+	struct formatter<unicode_ranges::utf8_string_view, char> : formatter<std::string_view, char>
 	{
 		template<typename FormatContext>
-		auto format(utf8_ranges::utf8_string_view value, FormatContext& ctx) const
+		auto format(unicode_ranges::utf8_string_view value, FormatContext& ctx) const
 		{
 			const auto text = value.base();
 			return formatter<std::string_view, char>::format(

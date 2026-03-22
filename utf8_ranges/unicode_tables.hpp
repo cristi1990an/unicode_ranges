@@ -1,7 +1,7 @@
 #ifndef UTF8_RANGES_UNICODE_TABLES_HPP
 #define UTF8_RANGES_UNICODE_TABLES_HPP
 
-namespace utf8_ranges
+namespace unicode_ranges
 {
 namespace details::unicode
 {

@@ -3,7 +3,7 @@
 
 #include "utf8_string_view.hpp"
 
-namespace utf8_ranges
+namespace unicode_ranges
 {
 
 template <typename Allocator>
@@ -667,22 +667,22 @@ inline std::ostream& operator<<(std::ostream& os, const basic_utf8_string<Alloca
 namespace std
 {
 	template<typename Allocator>
-	struct formatter<utf8_ranges::basic_utf8_string<Allocator>, char> : formatter<utf8_ranges::utf8_string_view, char>
+	struct formatter<unicode_ranges::basic_utf8_string<Allocator>, char> : formatter<unicode_ranges::utf8_string_view, char>
 	{
 		template<typename FormatContext>
-		auto format(const utf8_ranges::basic_utf8_string<Allocator>& value, FormatContext& ctx) const
+		auto format(const unicode_ranges::basic_utf8_string<Allocator>& value, FormatContext& ctx) const
 		{
-			return formatter<utf8_ranges::utf8_string_view, char>::format(value.as_view(), ctx);
+			return formatter<unicode_ranges::utf8_string_view, char>::format(value.as_view(), ctx);
 		}
 	};
 
 	template<typename Allocator, typename OtherAllocator>
-	struct uses_allocator<utf8_ranges::basic_utf8_string<Allocator>, OtherAllocator> : true_type
+	struct uses_allocator<unicode_ranges::basic_utf8_string<Allocator>, OtherAllocator> : true_type
 	{
 	};
 }
 
-namespace utf8_ranges
+namespace unicode_ranges
 {
 
 namespace literals

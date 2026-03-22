@@ -12,12 +12,12 @@ The current public building blocks are:
 - `utf16_string_view`: borrowed UTF-16 code-unit view, similar to `std::u16string_view` but guaranteed to represent a valid UTF-16 string slice
 - `utf8_string`: an owning UTF-8 string, similar to `std::string` but guaranteed to store valid UTF-8
 - `utf16_string`: an owning UTF-16 string, similar to `std::u16string` but guaranteed to store valid UTF-16
-- `utf8_ranges::views::utf8_view`: lazy iteration over valid UTF-8
-- `utf8_ranges::views::utf16_view`: lazy iteration over valid UTF-16
-- `utf8_ranges::views::reversed_utf8_view`: lazy reverse-order iteration over valid UTF-8
-- `utf8_ranges::views::reversed_utf16_view`: lazy reverse-order iteration over valid UTF-16
-- `utf8_ranges::views::lossy_utf8_view`: lossy iteration over arbitrary byte sequences
-- `utf8_ranges::views::lossy_utf16_view`: lossy iteration over arbitrary UTF-16 code-unit sequences
+- `unicode_ranges::views::utf8_view`: lazy iteration over valid UTF-8
+- `unicode_ranges::views::utf16_view`: lazy iteration over valid UTF-16
+- `unicode_ranges::views::reversed_utf8_view`: lazy reverse-order iteration over valid UTF-8
+- `unicode_ranges::views::reversed_utf16_view`: lazy reverse-order iteration over valid UTF-16
+- `unicode_ranges::views::lossy_utf8_view`: lossy iteration over arbitrary byte sequences
+- `unicode_ranges::views::lossy_utf16_view`: lossy iteration over arbitrary UTF-16 code-unit sequences
 
 The public entry point is:
 
@@ -25,11 +25,15 @@ The public entry point is:
 #include "unicode_ranges.hpp"
 ```
 
-All public library types and functions live in namespace `utf8_ranges`.
+The public umbrella header is named `unicode_ranges.hpp`.
 
-Literal operators live in the nested namespace `utf8_ranges::literals`.
+All public library types and functions live in namespace `unicode_ranges`.
 
-The nested namespace `utf8_ranges::details` contains implementation details only. It is not part of the supported public API and should not be used directly by library users.
+Literal operators live in the nested namespace `unicode_ranges::literals`.
+
+For compatibility, `utf8_ranges` is retained as a namespace alias to `unicode_ranges`.
+
+The nested namespace `unicode_ranges::details` contains implementation details only. It is not part of the supported public API and should not be used directly by library users.
 
 ## Contents
 
@@ -100,9 +104,9 @@ This constant aliases the generated Unicode version used by the Unicode property
 Example:
 
 ```cpp
-static_assert(std::get<0>(utf8_ranges::unicode_version) == 17);
-static_assert(std::get<1>(utf8_ranges::unicode_version) == 0);
-static_assert(std::get<2>(utf8_ranges::unicode_version) == 0);
+static_assert(std::get<0>(unicode_ranges::unicode_version) == 17);
+static_assert(std::get<1>(unicode_ranges::unicode_version) == 0);
+static_assert(std::get<2>(unicode_ranges::unicode_version) == 0);
 ```
 
 ## Quick start
@@ -120,8 +124,8 @@ Suppose you have UTF-8 text such as `café €`, and you want to:
 #include <array>
 #include <string>
 
-using namespace utf8_ranges;
-using namespace utf8_ranges::literals;
+using namespace unicode_ranges;
+using namespace unicode_ranges::literals;
 
 // Compile time validation of UTF-8 string literals.
 constexpr auto text = "café €"_utf8_sv;
@@ -151,8 +155,8 @@ The library is also `constexpr`-friendly. UTF-8 literals and many operations may
 ```cpp
 #include "unicode_ranges.hpp"
 
-using namespace utf8_ranges;
-using namespace utf8_ranges::literals;
+using namespace unicode_ranges;
+using namespace unicode_ranges::literals;
 
 constexpr utf8_char euro = "€"_u8c;
 constexpr auto text = "Aé€"_utf8_sv;
@@ -165,8 +169,8 @@ static_assert(text.char_count() == 3);
 Another literal example:
 
 ```cpp
-using namespace utf8_ranges;
-using namespace utf8_ranges::literals;
+using namespace unicode_ranges;
+using namespace unicode_ranges::literals;
 
 constexpr utf8_char euro = "€"_u8c;
 constexpr utf8_string_view text = "Aé€"_utf8_sv;
@@ -184,8 +188,8 @@ Printing and formatting are also supported for the library UTF-8 string types:
 #include <format>
 #include <sstream>
 
-using namespace utf8_ranges;
-using namespace utf8_ranges::literals;
+using namespace unicode_ranges;
+using namespace unicode_ranges::literals;
 
 const utf8_string text = "café €"_utf8_s;
 
@@ -222,7 +226,7 @@ These are returned by checked construction APIs such as `utf8_string_view::from_
 Example:
 
 ```cpp
-using namespace utf8_ranges;
+using namespace unicode_ranges;
 
 const std::array<char8_t, 3> invalid_bytes{
     static_cast<char8_t>(0xE2),
@@ -260,7 +264,7 @@ These are returned by checked construction APIs such as `utf16_string_view::from
 Example:
 
 ```cpp
-using namespace utf8_ranges;
+using namespace unicode_ranges;
 
 const std::array<char16_t, 1> invalid_code_units{
     static_cast<char16_t>(0xD800u)
@@ -977,7 +981,7 @@ Complexity:
 constexpr auto chars() const noexcept;
 ```
 
-Returns a `utf8_ranges::views::utf8_view` over the contained Unicode scalar values.
+Returns a `unicode_ranges::views::utf8_view` over the contained Unicode scalar values.
 
 Preconditions:
 
@@ -994,7 +998,7 @@ Complexity:
 constexpr auto reversed_chars() const noexcept;
 ```
 
-Returns a `utf8_ranges::views::reversed_utf8_view` over the contained Unicode scalar values, in reverse order.
+Returns a `unicode_ranges::views::reversed_utf8_view` over the contained Unicode scalar values, in reverse order.
 
 Preconditions:
 
@@ -1351,8 +1355,8 @@ For the `char8_t` overload, the comparison is against a single UTF-8 code unit. 
 Example:
 
 ```cpp
-using namespace utf8_ranges;
-using namespace utf8_ranges::literals;
+using namespace unicode_ranges;
+using namespace unicode_ranges::literals;
 
 constexpr auto text = "Aé€"_utf8_sv;
 
@@ -1571,8 +1575,8 @@ Use:
 The `_utf16_s` literal constructs an owning UTF-16 string:
 
 ```cpp
-using namespace utf8_ranges;
-using namespace utf8_ranges::literals;
+using namespace unicode_ranges;
+using namespace unicode_ranges::literals;
 
 const auto owned = u"Aé😀"_utf16_s;
 ```
@@ -1903,8 +1907,8 @@ on either side when one operand is an owning `utf8_string`.
 Example:
 
 ```cpp
-using namespace utf8_ranges;
-using namespace utf8_ranges::literals;
+using namespace unicode_ranges;
+using namespace unicode_ranges::literals;
 
 utf8_string s = "Aé€"_utf8_s;
 s.push_back("!"_u8c);
@@ -1924,7 +1928,7 @@ The view types are split by encoding:
 - UTF-8 views are declared in `utf8_ranges/utf8_views.hpp`
 - UTF-16 views are declared in `utf8_ranges/utf16_views.hpp`
 
-### `utf8_ranges::views::utf8_view`
+### `unicode_ranges::views::utf8_view`
 
 Unchecked forward view over valid UTF-8 bytes.
 
@@ -1942,7 +1946,7 @@ Semantics:
 - dereferencing yields `utf8_char` by value
 - increment uses the current UTF-8 lead byte to advance
 
-### `utf8_ranges::views::utf16_view`
+### `unicode_ranges::views::utf16_view`
 
 Unchecked forward view over valid UTF-16 code units.
 
@@ -1969,7 +1973,7 @@ const auto view = views::utf16_view::from_code_units_unchecked(text);
 assert(std::ranges::equal(view, std::array{ u"A"_u16c, u"é"_u16c, u"😀"_u16c }));
 ```
 
-### `utf8_ranges::views::reversed_utf16_view`
+### `unicode_ranges::views::reversed_utf16_view`
 
 Unchecked forward view that yields the same UTF-16 characters in reverse order.
 
@@ -1997,7 +2001,7 @@ const auto view = views::reversed_utf16_view::from_code_units_unchecked(text);
 assert(std::ranges::equal(view, std::array{ u"😀"_u16c, u"é"_u16c, u"A"_u16c }));
 ```
 
-### `utf8_ranges::views::reversed_utf8_view`
+### `unicode_ranges::views::reversed_utf8_view`
 
 Unchecked forward view that yields the same characters in reverse order.
 
@@ -2016,7 +2020,7 @@ Semantics:
 - `begin()` positions at the last UTF-8 character
 - increment walks backward to the previous UTF-8 lead byte
 
-### `utf8_ranges::views::lossy_utf8_view<CharT>`
+### `unicode_ranges::views::lossy_utf8_view<CharT>`
 
 Lossy forward view over arbitrary integral code units.
 
@@ -2032,7 +2036,7 @@ Semantics:
 - malformed input yields `utf8_char::replacement_character`
 - the iterator advances by the valid character width, or by one code unit when replacement was produced
 
-### `utf8_ranges::views::lossy_utf8`
+### `unicode_ranges::views::lossy_utf8`
 
 Adaptor closure for `lossy_utf8_view`.
 
@@ -2050,7 +2054,7 @@ for (utf8_char ch : input | views::lossy_utf8)
 assert(decoded == "A\xEF\xBF\xBD\xEF\xBF\xBD(\xEF\xBF\xBD");
 ```
 
-### `utf8_ranges::views::lossy_utf16_view<CharT>`
+### `unicode_ranges::views::lossy_utf16_view<CharT>`
 
 Lossy forward view over arbitrary UTF-16 code units.
 
@@ -2066,7 +2070,7 @@ Semantics:
 - malformed input yields `utf16_char::replacement_character`
 - the iterator advances by two code units for a valid surrogate pair, otherwise by one code unit
 
-### `utf8_ranges::views::lossy_utf16`
+### `unicode_ranges::views::lossy_utf16`
 
 Adaptor closure for `lossy_utf16_view`.
 
@@ -2101,8 +2105,8 @@ Validation is performed at compile time.
 Examples:
 
 ```cpp
-using namespace utf8_ranges;
-using namespace utf8_ranges::literals;
+using namespace unicode_ranges;
+using namespace unicode_ranges::literals;
 
 constexpr utf8_char a = "A"_u8c;
 constexpr utf8_char e_acute = "é"_u8c;
@@ -2118,8 +2122,8 @@ Validation is performed at compile time.
 Examples:
 
 ```cpp
-using namespace utf8_ranges;
-using namespace utf8_ranges::literals;
+using namespace unicode_ranges;
+using namespace unicode_ranges::literals;
 
 constexpr auto a = "Aé€"_utf8_sv;
 constexpr auto b = "Aé€"_utf8_sv;
@@ -2134,8 +2138,8 @@ Validation is performed at compile time.
 Examples:
 
 ```cpp
-using namespace utf8_ranges;
-using namespace utf8_ranges::literals;
+using namespace unicode_ranges;
+using namespace unicode_ranges::literals;
 
 constexpr auto text = u"Aé😀"_utf16_sv;
 static_assert(text.size() == 4);
@@ -2151,8 +2155,8 @@ The literal contents are validated before the owning string is produced.
 Example:
 
 ```cpp
-using namespace utf8_ranges;
-using namespace utf8_ranges::literals;
+using namespace unicode_ranges;
+using namespace unicode_ranges::literals;
 
 const auto owned = "Hello"_utf8_s;
 ```
@@ -2166,8 +2170,8 @@ The literal contents are validated before the owning string is produced.
 Example:
 
 ```cpp
-using namespace utf8_ranges;
-using namespace utf8_ranges::literals;
+using namespace unicode_ranges;
+using namespace unicode_ranges::literals;
 
 const auto owned = u"Hello"_utf16_s;
 ```
