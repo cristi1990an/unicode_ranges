@@ -46,69 +46,223 @@ public:
 
 	constexpr bool contains(utf8_char ch) const noexcept
 	{
-		std::array<char8_t, 4> bytes{};
-		const auto size = ch.encode_utf8<char8_t>(bytes.begin());
-		return byte_view().contains(std::u8string_view{ bytes.data(), size });
+		return find(ch) != npos;
 	}
 
-	template <typename T>
-		requires (std::same_as<T, char8_t> || std::same_as<T, utf8_char>)
-	constexpr size_type find(T ch) const noexcept
+	constexpr bool contains(View sv) const noexcept
 	{
-		if constexpr (std::same_as<T, char8_t>)
-		{
-			if consteval
-			{
-				for (size_type index = 0; index != size(); ++index)
-				{
-					if (byte_view()[index] == ch)
-					{
-						return index;
-					}
-				}
+		return find(sv) != npos;
+	}
 
-				return npos;
-			}
-			else
+	constexpr size_type find(char8_t ch, size_type pos = 0) const noexcept
+	{
+		pos = (std::min)(size(), pos);
+		if consteval
+		{
+			for (size_type index = pos; index != size(); ++index)
 			{
-				return byte_view().find(ch);
+				if (byte_view()[index] == ch)
+				{
+					return index;
+				}
 			}
+
+			return npos;
 		}
 		else
 		{
-			std::array<char8_t, 4> bytes{};
-			const auto needle_size = ch.template encode_utf8<char8_t>(bytes.begin());
-			if consteval
+			return byte_view().find(ch, pos);
+		}
+	}
+
+	constexpr size_type find(utf8_char ch, size_type pos = 0) const noexcept
+	{
+		pos = ceil_char_boundary((std::min)(size(), pos));
+		std::array<char8_t, 4> bytes{};
+		const auto needle_size = ch.encode_utf8<char8_t>(bytes.begin());
+		if consteval
+		{
+			if (needle_size > size() - pos)
 			{
-				if (needle_size > size())
-				{
-					return npos;
-				}
-
-				for (size_type index = 0; index + needle_size <= size(); ++index)
-				{
-					bool matches = true;
-					for (size_type needle_index = 0; needle_index != needle_size; ++needle_index)
-					{
-						if (byte_view()[index + needle_index] != bytes[needle_index])
-						{
-							matches = false;
-							break;
-						}
-					}
-
-					if (matches)
-					{
-						return index;
-					}
-				}
-
 				return npos;
 			}
-			else
+
+			for (size_type index = pos; index + needle_size <= size(); ++index)
 			{
-				return byte_view().find(std::u8string_view{ bytes.data(), needle_size });
+				bool matches = true;
+				for (size_type needle_index = 0; needle_index != needle_size; ++needle_index)
+				{
+					if (byte_view()[index + needle_index] != bytes[needle_index])
+					{
+						matches = false;
+						break;
+					}
+				}
+
+				if (matches)
+				{
+					return index;
+				}
 			}
+
+			return npos;
+		}
+		else
+		{
+			return byte_view().find(std::u8string_view{ bytes.data(), needle_size }, pos);
+		}
+	}
+
+	constexpr size_type find(View sv, size_type pos = 0) const noexcept
+	{
+		pos = ceil_char_boundary((std::min)(size(), pos));
+		const auto needle = sv.base();
+		if (needle.empty())
+		{
+			return pos;
+		}
+
+		if consteval
+		{
+			if (needle.size() > size() - pos)
+			{
+				return npos;
+			}
+
+			for (size_type index = pos; index + needle.size() <= size(); ++index)
+			{
+				bool matches = true;
+				for (size_type needle_index = 0; needle_index != needle.size(); ++needle_index)
+				{
+					if (byte_view()[index + needle_index] != needle[needle_index])
+					{
+						matches = false;
+						break;
+					}
+				}
+
+				if (matches)
+				{
+					return index;
+				}
+			}
+
+			return npos;
+		}
+		else
+		{
+			return byte_view().find(needle, pos);
+		}
+	}
+
+	constexpr size_type rfind(char8_t ch, size_type pos = npos) const noexcept
+	{
+		if (empty())
+		{
+			return npos;
+		}
+
+		pos = (std::min)(size() - 1, pos);
+		if consteval
+		{
+			for (size_type index = pos + 1; index != 0;)
+			{
+				--index;
+				if (byte_view()[index] == ch)
+				{
+					return index;
+				}
+			}
+
+			return npos;
+		}
+		else
+		{
+			return byte_view().rfind(ch, pos);
+		}
+	}
+
+	constexpr size_type rfind(utf8_char ch, size_type pos = npos) const noexcept
+	{
+		std::array<char8_t, 4> bytes{};
+		const auto needle_size = ch.encode_utf8<char8_t>(bytes.begin());
+		if (needle_size > size())
+		{
+			return npos;
+		}
+
+		pos = floor_char_boundary((std::min)(size(), pos));
+		pos = floor_char_boundary((std::min)(pos, size() - needle_size));
+		if consteval
+		{
+			for (size_type index = pos + 1; index != 0;)
+			{
+				--index;
+				bool matches = true;
+				for (size_type needle_index = 0; needle_index != needle_size; ++needle_index)
+				{
+					if (byte_view()[index + needle_index] != bytes[needle_index])
+					{
+						matches = false;
+						break;
+					}
+				}
+
+				if (matches)
+				{
+					return index;
+				}
+			}
+
+			return npos;
+		}
+		else
+		{
+			return byte_view().rfind(std::u8string_view{ bytes.data(), needle_size }, pos);
+		}
+	}
+
+	constexpr size_type rfind(View sv, size_type pos = npos) const noexcept
+	{
+		const auto needle = sv.base();
+		pos = floor_char_boundary((std::min)(size(), pos));
+		if (needle.empty())
+		{
+			return pos;
+		}
+
+		if (needle.size() > size())
+		{
+			return npos;
+		}
+
+		pos = floor_char_boundary((std::min)(pos, size() - needle.size()));
+		if consteval
+		{
+			for (size_type index = pos + 1; index != 0;)
+			{
+				--index;
+				bool matches = true;
+				for (size_type needle_index = 0; needle_index != needle.size(); ++needle_index)
+				{
+					if (byte_view()[index + needle_index] != needle[needle_index])
+					{
+						matches = false;
+						break;
+					}
+				}
+
+				if (matches)
+				{
+					return index;
+				}
+			}
+
+			return npos;
+		}
+		else
+		{
+			return byte_view().rfind(needle, pos);
 		}
 	}
 
@@ -232,6 +386,28 @@ public:
 		return byte_view().ends_with(sv.base());
 	}
 
+	constexpr size_type ceil_char_boundary(size_type pos) const noexcept
+	{
+		pos = (std::min)(size(), pos);
+		while (pos != size() && !is_char_boundary(pos))
+		{
+			++pos;
+		}
+
+		return pos;
+	}
+
+	constexpr size_type floor_char_boundary(size_type pos) const noexcept
+	{
+		pos = (std::min)(size(), pos);
+		while (pos != 0 && !is_char_boundary(pos))
+		{
+			--pos;
+		}
+
+		return pos;
+	}
+
 protected:
 	constexpr const Derived& self() const noexcept
 	{
@@ -305,71 +481,85 @@ private:
 };
 
 template <typename Allocator>
-class utf8_string : public utf8_string_crtp<utf8_string<Allocator>, utf8_string_view>
+class basic_utf8_string : public utf8_string_crtp<basic_utf8_string<Allocator>, utf8_string_view>
 {
 	using base_type = std::basic_string<char8_t, std::char_traits<char8_t>, Allocator>;
 	using equivalent_utf8_string_view = utf8_string_view;
 	using equivalent_string_view = std::u8string_view;
 
 public:
-	using base_class = utf8_string_crtp<utf8_string<Allocator>, utf8_string_view>;
+	using base_class = utf8_string_crtp<basic_utf8_string<Allocator>, utf8_string_view>;
 	using allocator_type = Allocator;
 	using value_type = char8_t;
 	using size_type = typename base_class::size_type;
 	using difference_type = typename base_class::difference_type;
 	static constexpr size_type npos = base_class::npos;
 
-	utf8_string() = default;
-	utf8_string(const utf8_string&) = default;
-	utf8_string(utf8_string&&) = default;
-	utf8_string& operator=(const utf8_string&) = default;
-	utf8_string& operator=(utf8_string&&) = default;
+	static constexpr basic_utf8_string from_bytes_unchecked(base_type bytes) noexcept
+	{
+		basic_utf8_string result;
+		result.base_ = std::move(bytes);
+		return result;
+	}
 
-	constexpr utf8_string(const Allocator& alloc)
+	static constexpr basic_utf8_string from_bytes_unchecked(equivalent_string_view bytes, Allocator alloc) noexcept
+	{
+		basic_utf8_string result;
+		result.base_ = base_type{ bytes, std::move(alloc) };
+		return result;
+	}
+
+	basic_utf8_string() = default;
+	basic_utf8_string(const basic_utf8_string&) = default;
+	basic_utf8_string(basic_utf8_string&&) = default;
+	basic_utf8_string& operator=(const basic_utf8_string&) = default;
+	basic_utf8_string& operator=(basic_utf8_string&&) = default;
+
+	constexpr basic_utf8_string(const Allocator& alloc)
 		: base_(alloc)
 	{ }
 
-	constexpr utf8_string(const utf8_string& other, const Allocator& alloc)
+	constexpr basic_utf8_string(const basic_utf8_string& other, const Allocator& alloc)
 		: base_(other.base_, alloc)
 	{ }
 
-	constexpr utf8_string(utf8_string&& other, const Allocator& alloc)
+	constexpr basic_utf8_string(basic_utf8_string&& other, const Allocator& alloc)
 		noexcept(std::allocator_traits<Allocator>::is_always_equal)
 		: base_(std::move(other.base_), alloc)
 	{ }
 
-	constexpr utf8_string(utf8_string_view view, const Allocator& alloc = Allocator())
+	constexpr basic_utf8_string(utf8_string_view view, const Allocator& alloc = Allocator())
 		: base_(view.base(), alloc)
 	{}
 
-	constexpr utf8_string(std::size_t count, utf8_char ch, const Allocator& alloc = Allocator())
+	constexpr basic_utf8_string(std::size_t count, utf8_char ch, const Allocator& alloc = Allocator())
 		: base_(alloc)
 	{
 		append(count, ch);
 	}
 
 	template <details::container_compatible_range<utf8_char> R>
-	constexpr utf8_string(std::from_range_t, R&& rg, const Allocator& alloc = Allocator())
+	constexpr basic_utf8_string(std::from_range_t, R&& rg, const Allocator& alloc = Allocator())
 		: base_(alloc)
 	{
 		append_range(std::forward<R>(rg));
 	}
 
-	constexpr utf8_string(std::initializer_list<utf8_char> ilist, const Allocator& alloc = Allocator())
+	constexpr basic_utf8_string(std::initializer_list<utf8_char> ilist, const Allocator& alloc = Allocator())
 		: base_(alloc)
 	{
 		append(ilist);
 	}
 
 	template <std::input_iterator It, std::sentinel_for<It> Sent>
-	constexpr utf8_string(It it, Sent sent, const Allocator& alloc = Allocator())
+	constexpr basic_utf8_string(It it, Sent sent, const Allocator& alloc = Allocator())
 		: base_(alloc)
 	{
 		append(std::move(it), std::move(sent));
 	}
 
 	template <details::container_compatible_range<utf8_char> R>
-	constexpr utf8_string& append_range(R&& rg)
+	constexpr basic_utf8_string& append_range(R&& rg)
 	{
 		for (utf8_char ch : std::forward<R>(rg))
 		{
@@ -378,7 +568,14 @@ public:
 		return *this;
 	}
 
-	constexpr utf8_string& append(size_type count, utf8_char ch)
+	template <details::container_compatible_range<utf8_char> R>
+	constexpr basic_utf8_string& assign_range(R&& rg)
+	{
+		base_.clear();
+		return append_range(std::forward<R>(rg));
+	}
+
+	constexpr basic_utf8_string& append(size_type count, utf8_char ch)
 	{
 		const auto sv = ch.as_view();
 		const auto total_size = sv.size() * count;
@@ -400,40 +597,66 @@ public:
 		return *this;
 	}
 
-	constexpr utf8_string& append(utf8_string_view sv)
+	constexpr basic_utf8_string& assign(size_type count, utf8_char ch)
+	{
+		base_.clear();
+		return append(count, ch);
+	}
+
+	constexpr basic_utf8_string& append(utf8_string_view sv)
 	{
 		base_.append(sv.base());
 		return *this;
 	}
 
+	constexpr basic_utf8_string& assign(utf8_string_view sv)
+	{
+		base_.assign(sv.base());
+		return *this;
+	}
+
+	constexpr basic_utf8_string& assign(utf8_char ch)
+	{
+		base_.assign(ch.as_view());
+		return *this;
+	}
+
 	template <std::input_iterator It, std::sentinel_for<It> Sent>
-	constexpr utf8_string& append(It it, Sent sent)
+	constexpr basic_utf8_string& append(It it, Sent sent)
 	{
 		return append_range(std::ranges::subrange(std::move(it), std::move(sent)));
 	}
 
-	constexpr utf8_string& append(std::initializer_list<utf8_char> ilist)
+	template <std::input_iterator It, std::sentinel_for<It> Sent>
+	constexpr basic_utf8_string& assign(It it, Sent sent)
+	{
+		base_.clear();
+		return append(std::move(it), std::move(sent));
+	}
+
+	constexpr basic_utf8_string& append(std::initializer_list<utf8_char> ilist)
 	{
 		return append_range(ilist);
 	}
 
-	constexpr utf8_string& operator=(utf8_string_view sv)
+	constexpr basic_utf8_string& assign(std::initializer_list<utf8_char> ilist)
 	{
-		base_.replace(sv.base());
-		return *this;
+		return assign_range(ilist);
 	}
 
-	constexpr utf8_string& operator=(utf8_char ch)
+	constexpr basic_utf8_string& operator=(utf8_string_view sv)
 	{
-		base_.replace(ch.as_view());
-		return *this;
+		return assign(sv);
 	}
 
-	constexpr utf8_string& operator=(std::initializer_list<utf8_char> ilist)
+	constexpr basic_utf8_string& operator=(utf8_char ch)
 	{
-		base_.clear();
-		base_.append(ilist);
-		return *this;
+		return assign(ch);
+	}
+
+	constexpr basic_utf8_string& operator=(std::initializer_list<utf8_char> ilist)
+	{
+		return assign(ilist);
 	}
 
 	constexpr void shrink_to_fit()
@@ -459,6 +682,105 @@ public:
 		return base_.size();
 	}
 
+	constexpr basic_utf8_string& insert(size_type index, utf8_string_view sv)
+	{
+		if (index > size()) [[unlikely]]
+		{
+			throw std::out_of_range("insert index out of range");
+		}
+
+		if (!this->is_char_boundary(index)) [[unlikely]]
+		{
+			throw std::out_of_range("insert index must be at a UTF-8 character boundary");
+		}
+
+		base_.insert(index, sv.base());
+		return *this;
+	}
+
+	constexpr basic_utf8_string& insert(size_type index, utf8_char ch)
+	{
+		return insert(index, ch.as_utf8_view());
+	}
+
+	constexpr basic_utf8_string& insert(size_type index, size_type count, utf8_char ch)
+	{
+		if (index > size()) [[unlikely]]
+		{
+			throw std::out_of_range("insert index out of range");
+		}
+
+		if (!this->is_char_boundary(index)) [[unlikely]]
+		{
+			throw std::out_of_range("insert index must be at a UTF-8 character boundary");
+		}
+
+		base_type inserted{ base_.get_allocator() };
+		const auto sv = ch.as_view();
+		for (size_type i = 0; i != count; ++i)
+		{
+			inserted.append(sv);
+		}
+
+		base_.insert(index, inserted);
+		return *this;
+	}
+
+	template <details::container_compatible_range<utf8_char> R>
+	constexpr basic_utf8_string& insert_range(size_type index, R&& rg)
+	{
+		if (index > size()) [[unlikely]]
+		{
+			throw std::out_of_range("insert index out of range");
+		}
+
+		if (!this->is_char_boundary(index)) [[unlikely]]
+		{
+			throw std::out_of_range("insert index must be at a UTF-8 character boundary");
+		}
+
+#if defined(__cpp_lib_containers_ranges) && __cpp_lib_containers_ranges >= 202202L
+		struct encoded_utf8_char_range
+		{
+			utf8_char ch;
+
+			constexpr auto begin() const noexcept
+			{
+				return ch.as_view().begin();
+			}
+
+			constexpr auto end() const noexcept
+			{
+				return ch.as_view().end();
+			}
+		};
+
+		auto inserted = std::forward<R>(rg)
+			| std::views::transform([](auto&& ch)
+				{
+					return encoded_utf8_char_range{ static_cast<utf8_char>(std::forward<decltype(ch)>(ch)) };
+				})
+			| std::views::join;
+
+		base_.insert_range(base_.begin() + static_cast<difference_type>(index), inserted);
+#else
+		const utf8_string inserted(std::from_range, std::forward<R>(rg));
+		base_.insert(index, inserted.base());
+#endif
+		return *this;
+	}
+
+	template <std::input_iterator It, std::sentinel_for<It> Sent>
+	constexpr basic_utf8_string& insert(size_type index, It first, Sent last)
+	{
+		return insert_range(index, std::ranges::subrange(std::move(first), std::move(last)));
+	}
+
+	constexpr basic_utf8_string& insert(size_type index, std::initializer_list<utf8_char> ilist)
+	{
+		return insert_range(index, ilist);
+	}
+
 	constexpr void pop_back()
 	{
 		const auto bytes_to_remove = (*(this->reversed_chars().begin())).byte_count();
@@ -466,7 +788,7 @@ public:
 		base_.erase(where_idx, bytes_to_remove);
 	}
 
-	constexpr utf8_string& erase(size_type index, size_type count = npos)
+	constexpr basic_utf8_string& erase(size_type index, size_type count = npos)
 	{
 		if (index > size()) [[unlikely]]
 		{
@@ -486,7 +808,7 @@ public:
 		return *this;
 	}
 
-	constexpr utf8_string& replace(size_type pos, size_type count, utf8_string_view other)
+	constexpr basic_utf8_string& replace(size_type pos, size_type count, utf8_string_view other)
 	{
 		if (pos > size()) [[unlikely]]
 		{
@@ -506,12 +828,12 @@ public:
 		return *this;
 	}
 
-	constexpr utf8_string& replace(size_type pos, size_type count, utf8_char other)
+	constexpr basic_utf8_string& replace(size_type pos, size_type count, utf8_char other)
 	{
 		return replace(pos, count, other.as_utf8_view());
 	}
 
-	constexpr utf8_string& replace(size_type pos, utf8_string_view other)
+	constexpr basic_utf8_string& replace(size_type pos, utf8_string_view other)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -528,7 +850,7 @@ public:
 		return *this;
 	}
 
-	constexpr utf8_string& replace(size_type pos, utf8_char other)
+	constexpr basic_utf8_string& replace(size_type pos, utf8_char other)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -546,7 +868,7 @@ public:
 	}
 
 	template <details::container_compatible_range<utf8_char> R>
-	constexpr utf8_string& replace_with_range(size_type pos, size_type count, R&& rg)
+	constexpr basic_utf8_string& replace_with_range(size_type pos, size_type count, R&& rg)
 	{
 		if (pos > size()) [[unlikely]]
 		{
@@ -602,7 +924,7 @@ public:
 	}
 
 	template <details::container_compatible_range<utf8_char> R>
-	constexpr utf8_string& replace_with_range(size_type pos, R&& rg)
+	constexpr basic_utf8_string& replace_with_range(size_type pos, R&& rg)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -706,11 +1028,31 @@ public:
 		base_ += equivalent_string_view{ tmp.data(), size };
 	}
 
-	constexpr void swap(utf8_string& other)
+	constexpr void swap(basic_utf8_string& other)
 		noexcept(std::allocator_traits<Allocator>::propagate_on_container_swap::value ||
 			std::allocator_traits<Allocator>::is_always_equal::value)
 	{
 		base_.swap(other.base_);
+	}
+
+	friend constexpr basic_utf8_string operator+(basic_utf8_string lhs, utf8_string_view rhs)
+	{
+		return from_bytes_unchecked(std::move(lhs.base_) + base_type{ rhs.base() });
+	}
+
+	friend constexpr basic_utf8_string operator+(utf8_string_view lhs, basic_utf8_string rhs)
+	{
+		return from_bytes_unchecked(base_type{ lhs.base() } + std::move(rhs.base_));
+	}
+
+	friend constexpr basic_utf8_string operator+(basic_utf8_string lhs, utf8_char rhs)
+	{
+		return from_bytes_unchecked(std::move(lhs.base_) + base_type{ rhs.as_view() });
+	}
+
+	friend constexpr basic_utf8_string operator+(utf8_char lhs, basic_utf8_string rhs)
+	{
+		return from_bytes_unchecked(base_type{ lhs.as_view() } + std::move(rhs.base_));
 	}
 
 private:
@@ -725,7 +1067,7 @@ inline std::ostream& operator<<(std::ostream& os, utf8_string_view value)
 }
 
 template <typename Allocator>
-inline std::ostream& operator<<(std::ostream& os, const utf8_string<Allocator>& value)
+inline std::ostream& operator<<(std::ostream& os, const basic_utf8_string<Allocator>& value)
 {
 	return os << value.as_view();
 }
@@ -763,17 +1105,17 @@ namespace std
 	};
 
 	template<typename Allocator>
-	struct formatter<utf8_ranges::utf8_string<Allocator>, char> : formatter<utf8_ranges::utf8_string_view, char>
+	struct formatter<utf8_ranges::basic_utf8_string<Allocator>, char> : formatter<utf8_ranges::utf8_string_view, char>
 	{
 		template<typename FormatContext>
-		auto format(const utf8_ranges::utf8_string<Allocator>& value, FormatContext& ctx) const
+		auto format(const utf8_ranges::basic_utf8_string<Allocator>& value, FormatContext& ctx) const
 		{
 			return formatter<utf8_ranges::utf8_string_view, char>::format(value.as_view(), ctx);
 		}
 	};
 
 	template<typename Allocator, typename OtherAllocator>
-	struct uses_allocator<utf8_ranges::utf8_string<Allocator>, OtherAllocator> : true_type
+	struct uses_allocator<utf8_ranges::basic_utf8_string<Allocator>, OtherAllocator> : true_type
 	{
 	};
 }

@@ -783,19 +783,40 @@ Complexity:
 #### `find`
 
 ```cpp
-template <typename T>
-constexpr size_type find(T ch) const noexcept;
+constexpr size_type find(char8_t ch, size_type pos = 0) const noexcept;
+constexpr size_type find(utf8_char ch, size_type pos = 0) const noexcept;
+constexpr size_type find(utf8_string_view sv, size_type pos = 0) const noexcept;
 ```
 
-Constraints:
-
-- `T` is `char8_t` or `utf8_char`
-
-Returns the index of the first matching character, or `npos` if no match exists.
+Returns the byte offset of the first match, or `npos` if no match exists.
 
 The returned index is a byte offset into the underlying UTF-8 sequence.
 
-For the `char8_t` case, the comparison is against a single UTF-8 code unit. In practice this overload is mainly useful for ASCII queries; use `utf8_char` for general Unicode character lookup.
+For the `char8_t` case, `pos` is treated as a raw byte offset.
+
+For the `utf8_char` and `utf8_string_view` overloads, `pos` is clamped to `size()` and rounded up to the next UTF-8 character boundary before searching.
+
+Preconditions:
+
+- None
+
+Complexity:
+
+- Linear in `size()`
+
+#### `rfind`
+
+```cpp
+constexpr size_type rfind(char8_t ch, size_type pos = npos) const noexcept;
+constexpr size_type rfind(utf8_char ch, size_type pos = npos) const noexcept;
+constexpr size_type rfind(utf8_string_view sv, size_type pos = npos) const noexcept;
+```
+
+Returns the byte offset of the last match, or `npos` if no match exists.
+
+For the `char8_t` case, `pos` is treated as a raw byte offset.
+
+For the `utf8_char` and `utf8_string_view` overloads, `pos` is clamped to `size()` and rounded down to a UTF-8 character boundary before searching.
 
 Preconditions:
 
@@ -882,6 +903,22 @@ Preconditions:
 Complexity:
 
 - Constant
+
+#### `ceil_char_boundary`
+
+```cpp
+constexpr size_type ceil_char_boundary(size_type pos) const noexcept;
+```
+
+Clamps `pos` to `size()` and rounds it up to the next UTF-8 character boundary.
+
+#### `floor_char_boundary`
+
+```cpp
+constexpr size_type floor_char_boundary(size_type pos) const noexcept;
+```
+
+Clamps `pos` to `size()` and rounds it down to the previous UTF-8 character boundary.
 
 #### `char_at_unchecked`
 
@@ -1080,57 +1117,81 @@ It shares the same read-only API as `utf8_string_view`.
 
 ```cpp
 template<class Allocator = std::allocator<char8_t>>
-class utf8_string
+class basic_utf8_string;
+
+using utf8_string = basic_utf8_string<>;
+
+template<class Allocator>
+class basic_utf8_string
 {
 public:
-    utf8_string() = default;
+    basic_utf8_string() = default;
 
-    constexpr utf8_string(utf8_string_view view,
-                          const Allocator& alloc = Allocator());
-    constexpr utf8_string(std::size_t count, utf8_char ch,
-                          const Allocator& alloc = Allocator());
+    static constexpr basic_utf8_string from_bytes_unchecked(
+        std::basic_string<char8_t, std::char_traits<char8_t>, Allocator> bytes) noexcept;
+    static constexpr basic_utf8_string from_bytes_unchecked(
+        std::u8string_view bytes, Allocator alloc) noexcept;
+
+    constexpr basic_utf8_string(utf8_string_view view,
+                                const Allocator& alloc = Allocator());
+    constexpr basic_utf8_string(std::size_t count, utf8_char ch,
+                                const Allocator& alloc = Allocator());
 
     template<class R>
-    constexpr utf8_string(std::from_range_t, R&& rg,
-                          const Allocator& alloc = Allocator());
+    constexpr basic_utf8_string(std::from_range_t, R&& rg,
+                                const Allocator& alloc = Allocator());
 
-    constexpr utf8_string(std::initializer_list<utf8_char> ilist,
-                          const Allocator& alloc = Allocator());
+    constexpr basic_utf8_string(std::initializer_list<utf8_char> ilist,
+                                const Allocator& alloc = Allocator());
 
     template<class It, class Sent>
-    constexpr utf8_string(It it, Sent sent,
-                          const Allocator& alloc = Allocator());
+    constexpr basic_utf8_string(It it, Sent sent,
+                                const Allocator& alloc = Allocator());
 
-    constexpr utf8_string& append_range(...);
-    constexpr utf8_string& append(std::size_t count, utf8_char ch);
-    constexpr utf8_string& append(utf8_string_view sv);
-    constexpr utf8_string& append(It it, Sent sent);
-    constexpr utf8_string& append(std::initializer_list<utf8_char> ilist);
+    constexpr basic_utf8_string& append_range(...);
+    constexpr basic_utf8_string& assign_range(...);
+    constexpr basic_utf8_string& append(std::size_t count, utf8_char ch);
+    constexpr basic_utf8_string& assign(std::size_t count, utf8_char ch);
+    constexpr basic_utf8_string& append(utf8_string_view sv);
+    constexpr basic_utf8_string& assign(utf8_string_view sv);
+    constexpr basic_utf8_string& assign(utf8_char ch);
+    constexpr basic_utf8_string& append(It it, Sent sent);
+    constexpr basic_utf8_string& assign(It it, Sent sent);
+    constexpr basic_utf8_string& append(std::initializer_list<utf8_char> ilist);
+    constexpr basic_utf8_string& assign(std::initializer_list<utf8_char> ilist);
 
-    constexpr utf8_string& operator=(utf8_string_view sv);
-    constexpr utf8_string& operator=(utf8_char ch);
-    constexpr utf8_string& operator=(std::initializer_list<utf8_char> ilist);
+    constexpr basic_utf8_string& operator=(utf8_string_view sv);
+    constexpr basic_utf8_string& operator=(utf8_char ch);
+    constexpr basic_utf8_string& operator=(std::initializer_list<utf8_char> ilist);
 
     constexpr void shrink_to_fit();
     constexpr std::size_t capacity() const;
     constexpr Allocator get_allocator() const noexcept;
     constexpr std::size_t size() const;
     constexpr void pop_back();
-    constexpr utf8_string& erase(std::size_t index,
-                                 std::size_t count = npos);
-    constexpr utf8_string& replace(std::size_t pos, std::size_t count,
-                                   utf8_string_view other);
-    constexpr utf8_string& replace(std::size_t pos, std::size_t count,
-                                   utf8_char other);
-    constexpr utf8_string& replace(std::size_t pos,
-                                   utf8_string_view other);
-    constexpr utf8_string& replace(std::size_t pos,
-                                   utf8_char other);
-    constexpr utf8_string& replace_with_range(std::size_t pos,
-                                              std::size_t count,
-                                              R&& rg);
-    constexpr utf8_string& replace_with_range(std::size_t pos,
-                                              R&& rg);
+    constexpr basic_utf8_string& insert(std::size_t index, utf8_string_view sv);
+    constexpr basic_utf8_string& insert(std::size_t index, utf8_char ch);
+    constexpr basic_utf8_string& insert(std::size_t index, std::size_t count,
+                                        utf8_char ch);
+    constexpr basic_utf8_string& insert_range(std::size_t index, R&& rg);
+    constexpr basic_utf8_string& insert(std::size_t index, It it, Sent sent);
+    constexpr basic_utf8_string& insert(std::size_t index,
+                                        std::initializer_list<utf8_char> ilist);
+    constexpr basic_utf8_string& erase(std::size_t index,
+                                       std::size_t count = npos);
+    constexpr basic_utf8_string& replace(std::size_t pos, std::size_t count,
+                                         utf8_string_view other);
+    constexpr basic_utf8_string& replace(std::size_t pos, std::size_t count,
+                                         utf8_char other);
+    constexpr basic_utf8_string& replace(std::size_t pos,
+                                         utf8_string_view other);
+    constexpr basic_utf8_string& replace(std::size_t pos,
+                                         utf8_char other);
+    constexpr basic_utf8_string& replace_with_range(std::size_t pos,
+                                                    std::size_t count,
+                                                    R&& rg);
+    constexpr basic_utf8_string& replace_with_range(std::size_t pos,
+                                                    R&& rg);
     constexpr void reserve(std::size_t new_cap);
     constexpr auto base() const& noexcept;
     constexpr auto base() && noexcept;
@@ -1140,7 +1201,12 @@ public:
     constexpr operator utf8_string_view() const noexcept;
     constexpr utf8_string_view as_view() const noexcept;
     constexpr void push_back(utf8_char ch);
-    constexpr void swap(utf8_string& other) noexcept(...);
+    constexpr void swap(basic_utf8_string& other) noexcept(...);
+
+    friend constexpr basic_utf8_string operator+(basic_utf8_string lhs, utf8_string_view rhs);
+    friend constexpr basic_utf8_string operator+(utf8_string_view lhs, basic_utf8_string rhs);
+    friend constexpr basic_utf8_string operator+(basic_utf8_string lhs, utf8_char rhs);
+    friend constexpr basic_utf8_string operator+(utf8_char lhs, basic_utf8_string rhs);
 };
 ```
 
@@ -1161,6 +1227,10 @@ Construction is available from:
 
 Appends a range whose references are convertible to `utf8_char`.
 
+#### `assign_range`
+
+Replaces the contents with a range whose references are convertible to `utf8_char`.
+
 #### `append(std::size_t count, utf8_char ch)`
 
 Appends `count` copies of `ch`.
@@ -1172,6 +1242,24 @@ Appends a validated UTF-8 string view.
 #### `push_back(utf8_char ch)`
 
 Appends one UTF-8 character.
+
+#### `insert`
+
+Insertion is supported for:
+
+- `utf8_string_view`
+- `utf8_char`
+- repeated `utf8_char`
+- ranges of `utf8_char`
+- iterator/sentinel pairs
+- initializer lists of `utf8_char`
+
+The insertion index is a byte index and must name a UTF-8 character boundary.
+
+Throws:
+
+- `std::out_of_range` if the insertion index is greater than `size()`
+- `std::out_of_range` if the insertion index is not a UTF-8 character boundary
 
 #### `pop_back()`
 
@@ -1264,6 +1352,15 @@ Throws:
 
 - `std::out_of_range` if `pos` is out of range
 - `std::out_of_range` if `pos` is not a UTF-8 character boundary
+
+### Concatenation
+
+`utf8_string` supports `operator+` with:
+
+- `utf8_string_view`
+- `utf8_char`
+
+on either side when one operand is an owning `utf8_string`.
 
 ### Observers and conversions
 

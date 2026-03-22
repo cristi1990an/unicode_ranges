@@ -31,7 +31,9 @@ namespace utf8_ranges
 class utf8_string_view;
 
 template <typename Allocator = std::allocator<char8_t>>
-class utf8_string;
+class basic_utf8_string;
+
+using utf8_string = basic_utf8_string<>;
 
 template <typename Derived, typename View = utf8_string_view>
 class utf8_string_crtp;
