@@ -581,6 +581,4 @@ namespace details
 
 }
 
-namespace utf8_ranges = unicode_ranges;
-
 #endif // UTF8_RANGES_CORE_HPP

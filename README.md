@@ -31,8 +31,6 @@ All public library types and functions live in namespace `unicode_ranges`.
 
 Literal operators live in the nested namespace `unicode_ranges::literals`.
 
-For compatibility, `utf8_ranges` is retained as a namespace alias to `unicode_ranges`.
-
 The nested namespace `unicode_ranges::details` contains implementation details only. It is not part of the supported public API and should not be used directly by library users.
 
 ## Contents

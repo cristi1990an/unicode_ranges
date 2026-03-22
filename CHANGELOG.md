@@ -41,7 +41,7 @@ tracking local work before it is tagged or versioned.
 
 ### Changed
 
-- the public umbrella header is now `unicode_ranges.hpp`, with `utf8_ranges.hpp` retained as a compatibility shim
+- the public umbrella header is now `unicode_ranges.hpp`, with `utf8_ranges.hpp` retained as a compatibility shim during the rename
 - the Visual Studio project files are now named `unicode_ranges.*`
 - `utf8_char::byte_count()` has been renamed to `code_unit_count()`
 - `utf8_string_view::char_at(index)` now interprets `index` as a byte index and returns `std::nullopt` when the index is out of range or not a UTF-8 character boundary
