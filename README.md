@@ -84,10 +84,9 @@ The following versions are the minimum toolchains currently tested in CI:
 - MSVC with the MSVC STL: Visual Studio 2022 toolset `v143` or newer
 - Clang-cl with the MSVC STL: the `ClangCL` toolset shipped with current Visual Studio 2022 builds
 - GCC with libstdc++: GCC 14 / libstdc++ 14 or newer
+- Clang with `libc++`: Clang 22 / `libc++` 22 or newer
 
 These are minimum tested versions, not guaranteed absolute minimum versions. Older toolchains may work, but are not currently part of the test matrix.
-
-Clang with `libc++` is not currently listed as a supported configuration. It is simply not part of the current test matrix.
 
 ## Unicode version
 
