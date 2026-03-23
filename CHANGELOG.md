@@ -10,6 +10,7 @@ tracking local work before it is tagged or versioned.
 ### Added
 
 - generator support for grapheme-segmentation property tables sourced from official Unicode data files
+- `tools/regenerate_unicode_tables.ps1` to regenerate `utf8_ranges/unicode_tables.hpp` as UTF-8 without BOM for Clang-cl compatibility
 - `utf8_string::get_allocator()`
 - `utf8_string::erase(index, count = npos)`
 - `utf8_string::insert(...)` and `utf8_string::insert_range(...)`

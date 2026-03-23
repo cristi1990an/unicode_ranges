@@ -105,7 +105,7 @@ Those tables are generated from versioned Unicode data files. In particular, the
 The update workflow is:
 
 1. refresh the raw Unicode data under `tools/unicode_data/<version>/`
-2. rerun `tools/gen_unicode_tables.rs`
+2. rerun `tools/regenerate_unicode_tables.ps1`
 3. commit the regenerated `utf8_ranges/unicode_tables.hpp`
 4. update the changelog and any affected documentation
 
