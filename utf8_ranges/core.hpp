@@ -25,9 +25,12 @@
 
 #include <uchar.h>
 
+#include "unicode_tables.hpp"
+
 namespace unicode_ranges
 {
 
+struct utf8_char;
 class utf8_string_view;
 class utf16_string_view;
 struct utf16_char;
@@ -41,6 +44,11 @@ template <typename Allocator = std::allocator<char16_t>>
 class basic_utf16_string;
 
 using utf16_string = basic_utf16_string<>;
+
+template <typename T>
+concept unicode_character =
+	std::same_as<std::remove_cvref_t<T>, utf8_char>
+	|| std::same_as<std::remove_cvref_t<T>, utf16_char>;
 
 enum class utf8_error_code
 {
@@ -73,6 +81,9 @@ namespace views
 
 	class reversed_utf8_view;
 
+	template <typename CharT>
+	class grapheme_cluster_view;
+
 	class utf16_view;
 
 	class reversed_utf16_view;
@@ -86,6 +97,12 @@ namespace views
 
 namespace details
 {
+	[[nodiscard]]
+	constexpr utf8_string_view utf8_string_view_from_bytes_unchecked(std::u8string_view bytes) noexcept;
+
+	[[nodiscard]]
+	constexpr utf16_string_view utf16_string_view_from_code_units_unchecked(std::u16string_view code_units) noexcept;
+
 	template <typename Derived, typename View = utf8_string_view>
 	class utf8_string_crtp;
 
@@ -472,9 +489,9 @@ namespace details
 			(static_cast<std::uint32_t>(byte(3) & 0x3Fu));
 	}
 
-	template<typename CharT>
-	inline constexpr std::uint32_t decode_valid_utf16_char(std::basic_string_view<CharT> ch) noexcept
-	{
+		template<typename CharT>
+		inline constexpr std::uint32_t decode_valid_utf16_char(std::basic_string_view<CharT> ch) noexcept
+		{
 		if (ch.size() == 1) [[likely]]
 		{
 			return static_cast<std::uint16_t>(ch[0]);
@@ -482,11 +499,277 @@ namespace details
 
 		const auto high = static_cast<std::uint16_t>(ch[0]) - 0xD800u;
 		const auto low = static_cast<std::uint16_t>(ch[1]) - 0xDC00u;
-		return 0x10000u + (static_cast<std::uint32_t>(high) << 10) + low;
-	}
+			return 0x10000u + (static_cast<std::uint32_t>(high) << 10) + low;
+		}
 
-	namespace literals
-	{
+		struct decoded_scalar
+		{
+			std::uint32_t scalar = 0;
+			std::size_t next_index = 0;
+		};
+
+		inline constexpr decoded_scalar decode_next_scalar(std::u8string_view text, std::size_t index) noexcept
+		{
+			const auto len = utf8_byte_count_from_lead(static_cast<std::uint8_t>(text[index]));
+			return decoded_scalar{
+				.scalar = decode_valid_utf8_char(text.substr(index, len)),
+				.next_index = index + len
+			};
+		}
+
+		inline constexpr decoded_scalar decode_next_scalar(std::u16string_view text, std::size_t index) noexcept
+		{
+			const auto first = static_cast<std::uint16_t>(text[index]);
+			const auto len = is_utf16_high_surrogate(first) ? 2u : 1u;
+			return decoded_scalar{
+				.scalar = decode_valid_utf16_char(text.substr(index, len)),
+				.next_index = index + len
+			};
+		}
+
+		enum class grapheme_emoji_suffix_state
+		{
+			none,
+			extended_pictographic,
+			extended_pictographic_extend,
+			extended_pictographic_extend_zwj
+		};
+
+		enum class grapheme_indic_suffix_state
+		{
+			none,
+			consonant_no_linker,
+			consonant_linker
+		};
+
+		struct grapheme_state
+		{
+			unicode::grapheme_cluster_break_property previous_break = unicode::grapheme_cluster_break_property::other;
+			std::size_t trailing_regional_indicator_count = 0;
+			grapheme_emoji_suffix_state emoji_suffix = grapheme_emoji_suffix_state::none;
+			grapheme_indic_suffix_state indic_suffix = grapheme_indic_suffix_state::none;
+		};
+
+		inline constexpr bool is_grapheme_control(unicode::grapheme_cluster_break_property value) noexcept
+		{
+			using enum unicode::grapheme_cluster_break_property;
+			return value == cr || value == lf || value == control;
+		}
+
+		inline constexpr grapheme_emoji_suffix_state advance_emoji_suffix(
+			grapheme_emoji_suffix_state state,
+			std::uint32_t scalar,
+			unicode::grapheme_cluster_break_property break_property) noexcept
+		{
+			if (unicode::is_extended_pictographic(scalar))
+			{
+				return grapheme_emoji_suffix_state::extended_pictographic;
+			}
+
+			using enum unicode::grapheme_cluster_break_property;
+			switch (break_property)
+			{
+			case extend:
+				if (state == grapheme_emoji_suffix_state::extended_pictographic
+					|| state == grapheme_emoji_suffix_state::extended_pictographic_extend)
+				{
+					return grapheme_emoji_suffix_state::extended_pictographic_extend;
+				}
+				return grapheme_emoji_suffix_state::none;
+			case zwj:
+				if (state == grapheme_emoji_suffix_state::extended_pictographic
+					|| state == grapheme_emoji_suffix_state::extended_pictographic_extend)
+				{
+					return grapheme_emoji_suffix_state::extended_pictographic_extend_zwj;
+				}
+				return grapheme_emoji_suffix_state::none;
+			default:
+				return grapheme_emoji_suffix_state::none;
+			}
+		}
+
+		inline constexpr grapheme_indic_suffix_state advance_indic_suffix(
+			grapheme_indic_suffix_state state,
+			std::uint32_t scalar) noexcept
+		{
+			using enum unicode::indic_conjunct_break_property;
+			switch (unicode::indic_conjunct_break(scalar))
+			{
+			case consonant:
+				return grapheme_indic_suffix_state::consonant_no_linker;
+			case extend:
+				if (state == grapheme_indic_suffix_state::consonant_no_linker
+					|| state == grapheme_indic_suffix_state::consonant_linker)
+				{
+					return state;
+				}
+				return grapheme_indic_suffix_state::none;
+			case linker:
+				if (state == grapheme_indic_suffix_state::consonant_no_linker
+					|| state == grapheme_indic_suffix_state::consonant_linker)
+				{
+					return grapheme_indic_suffix_state::consonant_linker;
+				}
+				return grapheme_indic_suffix_state::none;
+			default:
+				return grapheme_indic_suffix_state::none;
+			}
+		}
+
+		inline constexpr grapheme_state make_initial_grapheme_state(std::uint32_t scalar) noexcept
+		{
+			const auto break_property = unicode::grapheme_cluster_break(scalar);
+			return grapheme_state{
+				.previous_break = break_property,
+				.trailing_regional_indicator_count =
+					break_property == unicode::grapheme_cluster_break_property::regional_indicator ? 1u : 0u,
+				.emoji_suffix = advance_emoji_suffix(grapheme_emoji_suffix_state::none, scalar, break_property),
+				.indic_suffix = advance_indic_suffix(grapheme_indic_suffix_state::none, scalar)
+			};
+		}
+
+		inline constexpr void consume_grapheme_scalar(grapheme_state& state, std::uint32_t scalar) noexcept
+		{
+			const auto break_property = unicode::grapheme_cluster_break(scalar);
+			state.previous_break = break_property;
+			if (break_property == unicode::grapheme_cluster_break_property::regional_indicator)
+			{
+				++state.trailing_regional_indicator_count;
+			}
+			else
+			{
+				state.trailing_regional_indicator_count = 0;
+			}
+
+			state.emoji_suffix = advance_emoji_suffix(state.emoji_suffix, scalar, break_property);
+			state.indic_suffix = advance_indic_suffix(state.indic_suffix, scalar);
+		}
+
+		inline constexpr bool should_continue_grapheme_cluster(
+			const grapheme_state& state,
+			std::uint32_t scalar) noexcept
+		{
+			using enum unicode::grapheme_cluster_break_property;
+
+			const auto current_break = unicode::grapheme_cluster_break(scalar);
+			const auto previous_break = state.previous_break;
+
+			if (previous_break == cr && current_break == lf)
+			{
+				return true;
+			}
+
+			if (is_grapheme_control(previous_break) || is_grapheme_control(current_break))
+			{
+				return false;
+			}
+
+			if (previous_break == l && (current_break == l || current_break == v || current_break == lv || current_break == lvt))
+			{
+				return true;
+			}
+
+			if ((previous_break == lv || previous_break == v) && (current_break == v || current_break == t))
+			{
+				return true;
+			}
+
+			if ((previous_break == lvt || previous_break == t) && current_break == t)
+			{
+				return true;
+			}
+
+			if (state.indic_suffix == grapheme_indic_suffix_state::consonant_linker
+				&& unicode::indic_conjunct_break(scalar) == unicode::indic_conjunct_break_property::consonant)
+			{
+				return true;
+			}
+
+			if (current_break == extend || current_break == zwj)
+			{
+				return true;
+			}
+
+			if (current_break == spacing_mark)
+			{
+				return true;
+			}
+
+			if (previous_break == prepend)
+			{
+				return true;
+			}
+
+			if (state.emoji_suffix == grapheme_emoji_suffix_state::extended_pictographic_extend_zwj
+				&& unicode::is_extended_pictographic(scalar))
+			{
+				return true;
+			}
+
+			if (previous_break == regional_indicator
+				&& current_break == regional_indicator
+				&& (state.trailing_regional_indicator_count % 2u) == 1u)
+			{
+				return true;
+			}
+
+			return false;
+		}
+
+		inline constexpr std::size_t next_grapheme_boundary(std::u8string_view text, std::size_t index) noexcept
+		{
+			if (index >= text.size()) [[unlikely]]
+			{
+				return text.size();
+			}
+
+			auto current = decode_next_scalar(text, index);
+			auto state = make_initial_grapheme_state(current.scalar);
+			std::size_t position = current.next_index;
+
+			while (position < text.size())
+			{
+				const auto next = decode_next_scalar(text, position);
+				if (!should_continue_grapheme_cluster(state, next.scalar))
+				{
+					return position;
+				}
+
+				consume_grapheme_scalar(state, next.scalar);
+				position = next.next_index;
+			}
+
+			return text.size();
+		}
+
+		inline constexpr std::size_t next_grapheme_boundary(std::u16string_view text, std::size_t index) noexcept
+		{
+			if (index >= text.size()) [[unlikely]]
+			{
+				return text.size();
+			}
+
+			auto current = decode_next_scalar(text, index);
+			auto state = make_initial_grapheme_state(current.scalar);
+			std::size_t position = current.next_index;
+
+			while (position < text.size())
+			{
+				const auto next = decode_next_scalar(text, position);
+				if (!should_continue_grapheme_cluster(state, next.scalar))
+				{
+					return position;
+				}
+
+				consume_grapheme_scalar(state, next.scalar);
+				position = next.next_index;
+			}
+
+			return text.size();
+		}
+
+		namespace literals
+		{
 		template<typename CharT, std::size_t N>
 		struct constexpr_utf8_character
 		{

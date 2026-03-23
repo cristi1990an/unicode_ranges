@@ -63,6 +63,8 @@ public:
 		return { bytes_.data(), code_unit_count() };
 	}
 
+	constexpr operator utf16_char() const noexcept;
+
 	constexpr utf8_string_view as_utf8_view() const noexcept;
 
 	constexpr utf8_char& operator++() noexcept

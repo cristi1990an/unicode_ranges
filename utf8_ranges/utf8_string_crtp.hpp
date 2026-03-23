@@ -27,6 +27,8 @@ public:
 		return views::reversed_utf8_view::from_bytes_unchecked(byte_view());
 	}
 
+	constexpr auto graphemes() const noexcept -> views::grapheme_cluster_view<char8_t>;
+
 	constexpr size_type size() const noexcept
 	{
 		return byte_view().size();
@@ -45,6 +47,11 @@ public:
 	constexpr auto char_indices() const noexcept
 	{
 		return chars() | std::views::enumerate;
+	}
+
+	constexpr auto grapheme_indices() const noexcept
+	{
+		return graphemes() | std::views::enumerate;
 	}
 
 	constexpr bool contains(utf8_char ch) const noexcept

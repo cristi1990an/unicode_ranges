@@ -1,7 +1,7 @@
 #ifndef UTF8_RANGES_UTF16_CHAR_HPP
 #define UTF8_RANGES_UTF16_CHAR_HPP
 
-#include "core.hpp"
+#include "utf8_char.hpp"
 
 namespace unicode_ranges
 {
@@ -71,6 +71,8 @@ public:
 	{
 		return { code_units_.data(), code_unit_count() };
 	}
+
+	constexpr operator utf8_char() const noexcept;
 
 	constexpr utf16_char& operator++() noexcept
 	{
@@ -418,6 +420,16 @@ private:
 static_assert(std::is_trivially_copyable_v<utf16_char>);
 inline constexpr utf16_char utf16_char::replacement_character = utf16_char::from_scalar_unchecked(0xFFFDu);
 inline constexpr utf16_char utf16_char::null_terminator = utf16_char{};
+
+inline constexpr utf8_char::operator utf16_char() const noexcept
+{
+	return utf16_char::from_scalar_unchecked(as_scalar());
+}
+
+inline constexpr utf16_char::operator utf8_char() const noexcept
+{
+	return utf8_char::from_scalar_unchecked(as_scalar());
+}
 
 namespace literals
 {

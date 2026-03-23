@@ -154,6 +154,7 @@
     <ClInclude Include="utf8_ranges\utf16_string_view.hpp" />
     <ClInclude Include="utf8_ranges\utf16_string.hpp" />
     <ClInclude Include="utf8_ranges\utf8_char.hpp" />
+    <ClInclude Include="utf8_ranges\grapheme_cluster_view.hpp" />
     <ClInclude Include="utf8_ranges.hpp" />
     <ClInclude Include="unicode_ranges.hpp" />
     <ClInclude Include="utf8_ranges\utf16_views.hpp" />

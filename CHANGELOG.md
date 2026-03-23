@@ -9,6 +9,7 @@ tracking local work before it is tagged or versioned.
 
 ### Added
 
+- generator support for grapheme-segmentation property tables sourced from official Unicode data files
 - `utf8_string::get_allocator()`
 - `utf8_string::erase(index, count = npos)`
 - `utf8_string::insert(...)` and `utf8_string::insert_range(...)`

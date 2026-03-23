@@ -16,6 +16,7 @@ The current public building blocks are:
 - `unicode_ranges::views::utf16_view`: lazy iteration over valid UTF-16
 - `unicode_ranges::views::reversed_utf8_view`: lazy reverse-order iteration over valid UTF-8
 - `unicode_ranges::views::reversed_utf16_view`: lazy reverse-order iteration over valid UTF-16
+- `unicode_ranges::views::grapheme_cluster_view<CharT>`: lazy default Unicode grapheme segmentation over valid UTF-8 or UTF-16 text
 - `unicode_ranges::views::lossy_utf8_view`: lossy iteration over arbitrary byte sequences
 - `unicode_ranges::views::lossy_utf16_view`: lossy iteration over arbitrary UTF-16 code-unit sequences
 
@@ -64,7 +65,7 @@ This library is built around a few explicit design choices:
 
 In particular, Unicode literals and many core operations are intended to remain usable in constant evaluation.
 
-The library is not a grapheme cluster library. A single user-perceived "character" may still consist of multiple Unicode scalar values.
+Default Unicode grapheme segmentation is supported through `graphemes()`, while locale-specific tailoring and higher-level text layout remain out of scope.
 
 ## Requirements
 
@@ -98,6 +99,15 @@ inline constexpr std::tuple<std::size_t, std::size_t, std::size_t> unicode_versi
 ```
 
 This constant aliases the generated Unicode version used by the Unicode property tables.
+
+Those tables are generated from versioned Unicode data files. In particular, the grapheme-segmentation data is sourced from the official Unicode Character Database rather than inferred from ad-hoc predicates.
+
+The update workflow is:
+
+1. refresh the raw Unicode data under `tools/unicode_data/<version>/`
+2. rerun `tools/gen_unicode_tables.rs`
+3. commit the regenerated `utf8_ranges/unicode_tables.hpp`
+4. update the changelog and any affected documentation
 
 Example:
 
@@ -199,6 +209,26 @@ assert(oss.str() == "café €");
 ```
 
 This is intentionally different from `std::u8string`. Standard library types cannot be extended with custom `std::formatter` specializations or stream insertion overloads by user code. These UTF-8 types are library-defined, so providing formatting and `operator<<` support for them is straightforward and well-formed.
+
+Grapheme segmentation is available on the UTF-8 and UTF-16 string-view/string APIs:
+
+```cpp
+#include "unicode_ranges.hpp"
+
+#include <print>
+
+using namespace unicode_ranges;
+using namespace unicode_ranges::literals;
+
+int main()
+{
+    constexpr auto sv = u8"👩‍💻!"_utf8_sv;
+
+    std::println("{}", sv);                // 👩‍💻!
+    std::println("{:m}", sv.chars());      // {0: 👩, 1: ‍, 2: 💻, 3: !}
+    std::println("{::s}", sv.graphemes()); // [👩‍💻, !]
+}
+```
 
 ## Error model
 
@@ -667,6 +697,7 @@ Use `utf16_char` when:
 - your source data is naturally UTF-16
 - you want a scalar value type that preserves UTF-16-native storage
 - you need to emit UTF-16 without re-deriving surrogate pairs by hand
+- you want a scalar type that integrates naturally with `utf16_string_view`, `utf16_string`, and the UTF-16 view layer
 
 Compared to `utf8_char`, the main differences are:
 
@@ -674,12 +705,13 @@ Compared to `utf8_char`, the main differences are:
 - both `utf8_char` and `utf16_char` expose `code_unit_count()`
 - the difference is the encoded code-unit type: UTF-8 bytes versus UTF-16 code units
 - construction is from UTF-16 code units rather than UTF-8 bytes
-- it does not expose `as_utf8_view()`, because there is no `utf16_string_view` type yet
+- `utf16_char` exposes `as_view()` as a `std::u16string_view`, while `utf8_char` exposes both `as_view()` and `as_utf8_view()`
 
 It supports:
 
 - checked and unchecked scalar construction
 - checked and unchecked UTF-16 code-unit construction
+- `std::u16string_view` interop via `as_view()` and implicit conversion
 - conversion back to scalar value
 - UTF-8 and UTF-16 emission
 - direct increment and decrement across Unicode scalar values
@@ -2174,6 +2206,38 @@ using namespace unicode_ranges::literals;
 const auto owned = u"Hello"_utf16_s;
 ```
 
+### `operator ""_grapheme_utf8`
+
+Constructs a `utf8_string_view` from a UTF-8 string literal containing exactly one default Unicode grapheme cluster.
+
+Both UTF-8 validation and grapheme-cluster validation are performed at compile time.
+
+Example:
+
+```cpp
+using namespace unicode_ranges;
+using namespace unicode_ranges::literals;
+
+constexpr auto accented = u8"e\u0301"_grapheme_utf8;
+constexpr auto technologist = u8"👩‍💻"_grapheme_utf8;
+```
+
+### `operator ""_grapheme_utf16`
+
+Constructs a `utf16_string_view` from a UTF-16 string literal containing exactly one default Unicode grapheme cluster.
+
+Both UTF-16 validation and grapheme-cluster validation are performed at compile time.
+
+Example:
+
+```cpp
+using namespace unicode_ranges;
+using namespace unicode_ranges::literals;
+
+constexpr auto accented = u"e\u0301"_grapheme_utf16;
+constexpr auto technologist = u"👩‍💻"_grapheme_utf16;
+```
+
 ## Reference: formatting, streaming, hashing
 
 ### `utf8_char`
@@ -2341,6 +2405,6 @@ In particular, `is_digit()` follows Rust-style semantics and is intentionally na
 
 The `is_ascii_*` family does not consult Unicode tables and always returns `false` for non-ASCII code points.
 
-### 5. This library does not do grapheme segmentation
+### 5. Grapheme segmentation follows default Unicode rules
 
-`utf8_char` is a Unicode scalar value. A user-visible glyph may still consist of multiple `utf8_char` values.
+`utf8_char` and `utf16_char` still represent single Unicode scalar values. When you need user-perceived characters, use `graphemes()` or `views::grapheme_cluster_view<CharT>`, which segment text according to the default extended grapheme cluster rules from UAX #29.

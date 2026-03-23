@@ -27,6 +27,8 @@ public:
 		return views::reversed_utf16_view::from_code_units_unchecked(code_unit_view());
 	}
 
+	constexpr auto graphemes() const noexcept -> views::grapheme_cluster_view<char16_t>;
+
 	constexpr size_type size() const noexcept
 	{
 		return code_unit_view().size();
@@ -45,6 +47,11 @@ public:
 	constexpr auto char_indices() const noexcept
 	{
 		return chars() | std::views::enumerate;
+	}
+
+	constexpr auto grapheme_indices() const noexcept
+	{
+		return graphemes() | std::views::enumerate;
 	}
 
 	constexpr bool contains(utf16_char ch) const noexcept

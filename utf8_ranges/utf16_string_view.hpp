@@ -79,6 +79,12 @@ inline std::ostream& operator<<(std::ostream& os, utf16_string_view value)
 	return os;
 }
 
+[[nodiscard]]
+inline constexpr utf16_string_view details::utf16_string_view_from_code_units_unchecked(std::u16string_view code_units) noexcept
+{
+	return utf16_string_view::from_code_units_unchecked(code_units);
+}
+
 namespace literals
 {
 	template<details::literals::constexpr_utf16_string Str>
@@ -123,5 +129,7 @@ namespace std
 		}
 	};
 }
+
+#include "grapheme_cluster_view.hpp"
 
 #endif // UTF8_RANGES_UTF16_STRING_VIEW_HPP
