@@ -193,6 +193,7 @@ public:
 	}
 
 	constexpr auto graphemes() const noexcept -> views::grapheme_cluster_view<char8_t>;
+	constexpr auto reversed_graphemes() const noexcept -> views::reversed_grapheme_cluster_view<char8_t>;
 	template <typename Allocator = std::allocator<char16_t>>
 	constexpr basic_utf16_string<Allocator> to_utf16(const Allocator& alloc = Allocator()) const;
 
@@ -379,7 +380,7 @@ public:
 		const auto it = std::ranges::find_if(indices, [&](const auto& entry)
 		{
 			const auto [index, current] = entry;
-			return index >= pos && std::ranges::contains(sv.chars(), current);
+			return index >= pos && sv.contains(current);
 		});
 
 		return it == indices.end() ? npos : (*it).first;
@@ -419,7 +420,7 @@ public:
 		const auto it = std::ranges::find_if(indices, [&](const auto& entry)
 		{
 			const auto [index, current] = entry;
-			return index >= pos && !std::ranges::contains(sv.chars(), current);
+			return index >= pos && !sv.contains(current);
 		});
 
 		return it == indices.end() ? npos : (*it).first;
@@ -564,21 +565,24 @@ public:
 		}
 
 		pos = floor_char_boundary((std::min)(size(), pos));
-		size_type result = npos;
-		for (const auto [index, current] : char_indices())
+		if (pos == size())
 		{
-			if (index > pos)
-			{
-				break;
-			}
-
-			if (std::ranges::contains(sv.chars(), current))
-			{
-				result = index;
-			}
+			pos = floor_char_boundary(size() - 1);
 		}
+		for (size_type index = pos;;)
+		{
+			if (sv.contains(char_at_unchecked(index)))
+			{
+				return index;
+			}
 
-		return result;
+			if (index == 0)
+			{
+				return npos;
+			}
+
+			index = floor_char_boundary(index - 1);
+		}
 	}
 
 	constexpr size_type find_last_not_of(char8_t ch, size_type pos = npos) const noexcept
@@ -634,21 +638,24 @@ public:
 		}
 
 		pos = floor_char_boundary((std::min)(size(), pos));
-		size_type result = npos;
-		for (const auto [index, current] : char_indices())
+		if (pos == size())
 		{
-			if (index > pos)
-			{
-				break;
-			}
-
-			if (!std::ranges::contains(sv.chars(), current))
-			{
-				result = index;
-			}
+			pos = floor_char_boundary(size() - 1);
 		}
+		for (size_type index = pos;;)
+		{
+			if (!sv.contains(char_at_unchecked(index)))
+			{
+				return index;
+			}
 
-		return result;
+			if (index == 0)
+			{
+				return npos;
+			}
+
+			index = floor_char_boundary(index - 1);
+		}
 	}
 
 	constexpr bool is_char_boundary(size_type index) const noexcept
@@ -756,29 +763,49 @@ public:
 		return View::from_bytes_unchecked(byte_view().substr(pos, end - pos));
 	}
 
-	constexpr utf8_char front() const noexcept
+	constexpr std::optional<utf8_char> front() const noexcept
+	{
+		if (empty()) [[unlikely]]
+		{
+			return std::nullopt;
+		}
+
+		return front_unchecked();
+	}
+
+	constexpr utf8_char front_unchecked() const noexcept
 	{
 		return *chars().begin();
 	}
 
-	constexpr utf8_char back() const noexcept
+	constexpr std::optional<utf8_char> back() const noexcept
+	{
+		if (empty()) [[unlikely]]
+		{
+			return std::nullopt;
+		}
+
+		return back_unchecked();
+	}
+
+	constexpr utf8_char back_unchecked() const noexcept
 	{
 		return *reversed_chars().begin();
 	}
 
 	constexpr bool starts_with(char ch) const noexcept
 	{
-		return !empty() && (front() == ch);
+		return !empty() && (front_unchecked() == ch);
 	}
 
 	constexpr bool starts_with(char8_t ch) const noexcept
 	{
-		return !empty() && (front() == ch);
+		return !empty() && (front_unchecked() == ch);
 	}
 
 	constexpr bool starts_with(utf8_char ch) const noexcept
 	{
-		return !empty() && (front() == ch);
+		return !empty() && (front_unchecked() == ch);
 	}
 
 	constexpr bool starts_with(View sv) const noexcept
@@ -788,17 +815,17 @@ public:
 
 	constexpr bool ends_with(char ch) const noexcept
 	{
-		return !empty() && (back() == ch);
+		return !empty() && (back_unchecked() == ch);
 	}
 
 	constexpr bool ends_with(char8_t ch) const noexcept
 	{
-		return !empty() && (back() == ch);
+		return !empty() && (back_unchecked() == ch);
 	}
 
 	constexpr bool ends_with(utf8_char ch) const noexcept
 	{
-		return !empty() && (back() == ch);
+		return !empty() && (back_unchecked() == ch);
 	}
 
 	constexpr bool ends_with(View sv) const noexcept

@@ -213,3 +213,43 @@ jobs:
         env:
           ASAN_OPTIONS: ${{ matrix.asan_options }}
           UBSAN_OPTIONS: ${{ matrix.ubsan_options }}
+
+  coverage:
+    name: Coverage (Clang, libc++, C++23)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Clang coverage toolchain
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 22
+          sudo apt-get install -y clang-22 llvm-22 llvm-22-tools libc++-22-dev libc++abi-22-dev
+
+      - name: Show tool versions
+        run: |
+          clang++-22 --version
+          llvm-cov-22 --version
+          llvm-profdata-22 --version
+
+      - name: Generate coverage
+        run: bash tools/generate_coverage.sh
+
+      - name: Publish coverage summary
+        run: |
+          {
+            echo "## Coverage"
+            echo
+            echo '```text'
+            cat coverage/report.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/

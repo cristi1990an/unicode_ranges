@@ -24,6 +24,12 @@ namespace views
 			return utf16_view{ base };
 		}
 
+		[[nodiscard]]
+		constexpr std::u16string_view base() const noexcept
+		{
+			return base_;
+		}
+
 		class iterator
 		{
 		public:

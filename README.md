@@ -30,7 +30,7 @@ It provides validated UTF-8 and UTF-16 characters, borrowed views, owning string
 
 > [!IMPORTANT]
 > Borrowed APIs return views or ranges into existing storage.
-> `chars()`, `reversed_chars()`, `graphemes()`, `char_indices()`, `grapheme_indices()`, `as_view()`, and `as_utf8_view()` do not own their data.
+> `chars()`, `reversed_chars()`, `graphemes()`, `reversed_graphemes()`, `char_indices()`, `grapheme_indices()`, `as_view()`, and `as_utf8_view()` do not own their data.
 > Do not let them outlive the underlying string storage, and do not keep them across mutations of an owning string.
 > For `utf8_char` and `utf16_char`, the borrowed views point into the character object itself.
 
@@ -88,6 +88,13 @@ The following versions are the minimum toolchains currently tested in CI:
 - Clang with `libc++`: Clang 22 / `libc++` 22 or newer
 
 These are minimum tested versions, not guaranteed absolute minimum versions. Older toolchains may work, but are not currently part of the test matrix.
+
+> [!TIP]
+> CI also includes a dedicated Linux/Clang coverage job that publishes function and branch coverage reports as an artifact.
+> For local Linux or WSL runs, use:
+> ```bash
+> bash tools/generate_coverage.sh
+> ```
 
 ## Unicode version
 
@@ -158,8 +165,8 @@ static_assert(text.char_count() == 6);
 static_assert(std::ranges::equal(text.chars(), std::array{ "c"_u8c, "a"_u8c, "f"_u8c, "é"_u8c, " "_u8c, "€"_u8c }));
 
 // STL-style APIs.
-static_assert(text.front() == 'c');
-static_assert(text.back() == "€"_u8c);
+static_assert(text.front().value() == 'c');
+static_assert(text.back().value() == "€"_u8c);
 
 // `find()` returns a byte offset.
 static_assert(text.find("€"_u8c) == 6);
@@ -224,7 +231,7 @@ int main()
     }
 
     std::println("Read {} Unicode scalar values", text->char_count());
-    std::println("First character: {}", text->front());
+    std::println("First character: {}", text->front().value());
     std::println("As UTF-16: {}", text->to_utf16());
 }
 ```
@@ -513,6 +520,9 @@ Precondition:
 
 - `scalar` is a valid Unicode scalar value
 
+> [!CAUTION]
+> This is an unchecked constructor. Passing a non-scalar value is undefined behavior.
+
 #### `from_utf8_bytes_unchecked`
 
 ```cpp
@@ -526,6 +536,9 @@ Constructs by copying an already valid 1-byte, 2-byte, 3-byte, or 4-byte UTF-8 s
 Precondition:
 
 - `bytes[0, size)` represents exactly one valid UTF-8 encoded Unicode scalar value
+
+> [!CAUTION]
+> This is an unchecked constructor. Passing bytes that do not encode exactly one valid UTF-8 scalar value is undefined behavior.
 
 ### Conversion and observation
 
@@ -1087,6 +1100,10 @@ On success, the `expected` contains a `utf8_string_view`.
 
 On failure, the `expected` contains a `utf8_error`.
 
+Complexity:
+
+- Linear in `bytes.size()`
+
 #### `from_bytes_unchecked`
 
 ```cpp
@@ -1097,6 +1114,13 @@ static constexpr utf8_string_view
 Constructs without validation.
 
 Use only if the input is already known to be valid UTF-8.
+
+Complexity:
+
+- Constant
+
+> [!CAUTION]
+> This is an unchecked constructor. Passing invalid UTF-8 is undefined behavior.
 
 #### `constexpr std::u8string_view as_view() const noexcept`
 
@@ -1164,6 +1188,24 @@ Each element is a `utf8_string_view` representing one default Unicode grapheme c
 > Like `chars()`, this is a borrowing range view over the underlying UTF-8 storage.
 
 `find_grapheme`, `rfind_grapheme`, and `contains_grapheme` search at grapheme-cluster boundaries, unlike `find` / `rfind`, which are character-boundary-based for validated Unicode needles. `find_first_of`, `find_first_not_of`, `find_last_of`, and `find_last_not_of` follow the same rule: raw `char8_t` overloads work on bytes, while `utf8_char` and `utf8_string_view` overloads operate on validated UTF-8 characters.
+
+Complexity:
+
+- Constant to construct the view
+- Linear to iterate the entire view
+- `find_grapheme(...)`, `rfind_grapheme(...)`, and `contains_grapheme(...)`: linear in the number of grapheme clusters examined
+
+#### `reversed_graphemes`
+
+```cpp
+constexpr auto reversed_graphemes() const noexcept;
+```
+
+Returns a reverse grapheme view over the contained text.
+
+> [!WARNING]
+> The returned range borrows from the underlying UTF-8 storage.
+> Do not keep it after the source storage is destroyed or after an owning source string is mutated.
 
 Complexity:
 
@@ -1302,6 +1344,33 @@ For the `char8_t` case, `pos` is treated as a raw byte offset.
 
 For the `utf8_char` and `utf8_string_view` overloads, `pos` is clamped to `size()` and rounded up to the next UTF-8 character boundary before searching.
 
+Preconditions:
+
+- None
+
+Complexity:
+
+- Linear in `size()` for `char8_t` and `utf8_char`
+- Linear in `size() * sv.char_count()` for `utf8_string_view` in the worst case
+
+#### `find_first_of`, `find_first_not_of`
+
+```cpp
+constexpr size_type find_first_of(char8_t ch, size_type pos = 0) const noexcept;
+constexpr size_type find_first_of(utf8_char ch, size_type pos = 0) const noexcept;
+constexpr size_type find_first_of(utf8_string_view sv, size_type pos = 0) const noexcept;
+constexpr size_type find_first_not_of(char8_t ch, size_type pos = 0) const noexcept;
+constexpr size_type find_first_not_of(utf8_char ch, size_type pos = 0) const noexcept;
+constexpr size_type find_first_not_of(utf8_string_view sv, size_type pos = 0) const noexcept;
+```
+
+Searches for the first byte or validated UTF-8 character that is inside or outside the supplied set.
+
+Complexity:
+
+- Linear in `size()` for `char8_t` and `utf8_char`
+- Linear in `size() * sv.char_count()` for `utf8_string_view` in the worst case
+
 #### `to_utf16`
 
 ```cpp
@@ -1319,6 +1388,24 @@ Preconditions:
 Complexity:
 
 - Linear in `size()`
+
+#### `find_last_of`, `find_last_not_of`
+
+```cpp
+constexpr size_type find_last_of(char8_t ch, size_type pos = npos) const noexcept;
+constexpr size_type find_last_of(utf8_char ch, size_type pos = npos) const noexcept;
+constexpr size_type find_last_of(utf8_string_view sv, size_type pos = npos) const noexcept;
+constexpr size_type find_last_not_of(char8_t ch, size_type pos = npos) const noexcept;
+constexpr size_type find_last_not_of(utf8_char ch, size_type pos = npos) const noexcept;
+constexpr size_type find_last_not_of(utf8_string_view sv, size_type pos = npos) const noexcept;
+```
+
+Searches backward for the last byte or validated UTF-8 character that is inside or outside the supplied set.
+
+Complexity:
+
+- Linear in `size()` for `char8_t` and `utf8_char`
+- Linear in `size() * sv.char_count()` for `utf8_string_view` in the worst case
 
 #### `rfind`
 
@@ -1406,6 +1493,10 @@ Complexity:
 ```cpp
 constexpr std::optional<utf8_char> char_at(size_type index) const noexcept;
 constexpr utf8_char char_at_unchecked(size_type index) const noexcept;
+constexpr std::optional<utf8_char> front() const noexcept;
+constexpr utf8_char front_unchecked() const noexcept;
+constexpr std::optional<utf8_char> back() const noexcept;
+constexpr utf8_char back_unchecked() const noexcept;
 ```
 
 Returns the character beginning at byte index `index`.
@@ -1442,6 +1533,10 @@ constexpr size_type ceil_char_boundary(size_type pos) const noexcept;
 
 Clamps `pos` to `size()` and rounds it up to the next UTF-8 character boundary.
 
+Complexity:
+
+- Constant
+
 #### `ceil_grapheme_boundary`
 
 ```cpp
@@ -1449,6 +1544,10 @@ constexpr size_type ceil_grapheme_boundary(size_type pos) const noexcept;
 ```
 
 Clamps `pos` to `size()` and rounds it up to the next UTF-8 grapheme boundary.
+
+Complexity:
+
+- Linear in the number of grapheme clusters examined
 
 #### `floor_char_boundary`
 
@@ -1458,6 +1557,10 @@ constexpr size_type floor_char_boundary(size_type pos) const noexcept;
 
 Clamps `pos` to `size()` and rounds it down to the previous UTF-8 character boundary.
 
+Complexity:
+
+- Constant
+
 #### `floor_grapheme_boundary`
 
 ```cpp
@@ -1465,6 +1568,10 @@ constexpr size_type floor_grapheme_boundary(size_type pos) const noexcept;
 ```
 
 Clamps `pos` to `size()` and rounds it down to the previous UTF-8 grapheme boundary.
+
+Complexity:
+
+- Linear in the number of grapheme clusters examined
 
 #### `char_at_unchecked`
 
@@ -1478,6 +1585,9 @@ Preconditions:
 
 - `index < size()`
 - `index` is a UTF-8 character boundary
+
+> [!CAUTION]
+> This is unchecked. Calling it with an out-of-range index or a non-boundary index is undefined behavior.
 
 Complexity:
 
@@ -1493,6 +1603,10 @@ Returns the grapheme cluster beginning at byte index `index`.
 
 Returns `std::nullopt` if `index` is out of range or does not name a UTF-8 grapheme boundary.
 
+Complexity:
+
+- Linear in the number of grapheme clusters examined
+
 #### `grapheme_substr`
 
 ```cpp
@@ -1507,6 +1621,10 @@ If `count == npos`, the returned view extends to the end. Otherwise the end is c
 `pos` and the computed end position must both be UTF-8 grapheme boundaries. If either is not a grapheme boundary, returns `std::nullopt`.
 
 This function operates on byte indices and byte counts.
+
+Complexity:
+
+- Linear in the number of grapheme clusters examined
 
 #### `substr`
 
@@ -1534,18 +1652,25 @@ Complexity:
 #### `front`
 
 ```cpp
-constexpr utf8_char front() const noexcept;
+constexpr std::optional<utf8_char> front() const noexcept;
 ```
 
-Returns the first character in the view.
+Returns the first character in the view, or `std::nullopt` if the view is empty.
 
-Preconditions:
+Complexity:
 
-- `!empty()`
+- Constant
 
-Remarks:
+#### `front_unchecked`
 
-- Calling `front()` on an empty view is undefined behavior
+```cpp
+constexpr utf8_char front_unchecked() const noexcept;
+```
+
+Returns the first character in the view without checking for emptiness.
+
+> [!CAUTION]
+> This is unchecked. Calling it on an empty view is undefined behavior.
 
 Complexity:
 
@@ -1554,18 +1679,25 @@ Complexity:
 #### `back`
 
 ```cpp
-constexpr utf8_char back() const noexcept;
+constexpr std::optional<utf8_char> back() const noexcept;
 ```
 
-Returns the last character in the view.
+Returns the last character in the view, or `std::nullopt` if the view is empty.
 
-Preconditions:
+Complexity:
 
-- `!empty()`
+- Constant
 
-Remarks:
+#### `back_unchecked`
 
-- Calling `back()` on an empty view is undefined behavior
+```cpp
+constexpr utf8_char back_unchecked() const noexcept;
+```
+
+Returns the last character in the view without checking for emptiness.
+
+> [!CAUTION]
+> This is unchecked. Calling it on an empty view is undefined behavior.
 
 Complexity:
 
@@ -1751,8 +1883,10 @@ public:
     constexpr std::optional<utf16_string_view> grapheme_at(size_type index) const noexcept;
     constexpr std::optional<utf16_string_view> substr(size_type pos, size_type count = npos) const noexcept;
     constexpr std::optional<utf16_string_view> grapheme_substr(size_type pos, size_type count = npos) const noexcept;
-    constexpr utf16_char front() const noexcept;
-    constexpr utf16_char back() const noexcept;
+    constexpr std::optional<utf16_char> front() const noexcept;
+    constexpr utf16_char front_unchecked() const noexcept;
+    constexpr std::optional<utf16_char> back() const noexcept;
+    constexpr utf16_char back_unchecked() const noexcept;
     constexpr bool starts_with(char16_t ch) const noexcept;
     constexpr bool starts_with(utf16_char ch) const noexcept;
     constexpr bool starts_with(utf16_string_view sv) const noexcept;
@@ -1776,6 +1910,16 @@ public:
 ### Construction
 
 Use `from_code_units(...)` when the source may be arbitrary UTF-16 and `from_code_units_unchecked(...)` only when validity is already guaranteed.
+
+The unchecked character constructors `from_scalar_unchecked(...)` and `from_utf16_code_units_unchecked(...)` are also available; like the UTF-8 counterparts, they trade validation for performance and are undefined behavior on invalid input.
+
+> [!CAUTION]
+> `from_code_units_unchecked(...)`, `from_scalar_unchecked(...)`, and `from_utf16_code_units_unchecked(...)` are unchecked entry points. Invalid UTF-16 or invalid scalar values are undefined behavior.
+
+Complexity:
+
+- `from_code_units(...)`: linear in `code_units.size()`
+- `from_code_units_unchecked(...)`: constant
 
 For compile-time construction from UTF-16 source text, prefer the `_utf16_sv` literal:
 
@@ -1805,7 +1949,22 @@ static_assert(text.char_count() == 3);
 
 `find` and `rfind` behave like the UTF-8 variants, but with UTF-16 code-unit indexing and surrogate-pair boundaries.
 
+`front()` and `back()` return `std::optional<utf16_char>`. Use `front_unchecked()` and `back_unchecked()` only when the view is known to be non-empty.
+
 `to_utf8()` materializes the same text as an owning UTF-8 string by transcoding through Unicode scalar values. By default this returns `utf8_string`, but you can supply a different allocator and get `basic_utf8_string<Allocator>`.
+
+Complexity:
+
+- `chars()`, `reversed_chars()`, `char_indices()`, and `grapheme_indices()`: constant to construct, linear to iterate
+- `graphemes()` and `reversed_graphemes()`: constant to construct, linear to iterate the full view
+- `contains(...)`, `find(...)`, and `rfind(...)`: linear in `size()`
+- `find_grapheme(...)`, `rfind_grapheme(...)`, and `contains_grapheme(...)`: linear in the number of grapheme clusters examined
+- `find_first_of(...)`, `find_first_not_of(...)`, `find_last_of(...)`, and `find_last_not_of(...)`: linear in `size()` for `char16_t` / `utf16_char`, and linear in `size() * sv.char_count()` for `utf16_string_view` in the worst case
+- `grapheme_count()`, `is_grapheme_boundary()`, `ceil_grapheme_boundary()`, `floor_grapheme_boundary()`, `grapheme_at()`, and `grapheme_substr()`: linear in the number of grapheme clusters examined
+- `char_count()`: linear in the number of characters
+- `is_char_boundary()`, `char_at()`, `char_at_unchecked()`, `split()`, `front()`, and `back()`: constant
+- `starts_with(...)` and `ends_with(...)`: constant for single-code-unit and single-character overloads, linear in `sv.size()` for `utf16_string_view`
+- `to_utf8()`: linear in `size()`
 
 Example:
 
@@ -1829,6 +1988,9 @@ The grapheme-oriented helpers use the same code-unit-position model as the rest 
 - `ceil_grapheme_boundary(pos)` and `floor_grapheme_boundary(pos)` round a code-unit offset to the nearest grapheme boundary
 - `grapheme_at(index)` returns the grapheme cluster that starts at `index`
 - `grapheme_substr(pos, count)` behaves like `substr`, but requires grapheme boundaries instead of only UTF-16 character boundaries
+
+> [!CAUTION]
+> `char_at_unchecked()`, `front_unchecked()`, and `back_unchecked()` are unchecked. Calling them with an invalid boundary or on an empty view is undefined behavior.
 
 Example:
 
@@ -1911,6 +2073,9 @@ static constexpr basic_utf16_string
                               const Allocator& alloc) noexcept;
 ```
 
+> [!CAUTION]
+> These factories are unchecked. Passing invalid UTF-16 code units is undefined behavior.
+
 The standard PMR alias is also provided:
 
 ```cpp
@@ -1920,6 +2085,14 @@ namespace unicode_ranges::pmr
         basic_utf16_string<std::pmr::polymorphic_allocator<char16_t>>;
 }
 ```
+
+Complexity:
+
+- default construction: constant
+- construction from `utf16_string_view` or `utf8_string_view`: linear in the source length
+- `from_bytes(std::string_view)` / `from_bytes(std::wstring_view)`: linear in the source length
+- unchecked construction from `std::u16string_view`: linear in `code_units.size()`
+- unchecked construction from `base_type`: linear in `code_units.size()` for copy, constant-time move for moved-in base storage
 
 ### Mutation APIs
 
@@ -1938,7 +2111,19 @@ The owning UTF-16 string supports the same mutation family as `utf8_string`:
 All positions and lengths are UTF-16 code-unit indices, and operations that take boundaries throw `std::out_of_range` when asked to split a surrogate pair.
 
 > [!WARNING]
-> Like `utf8_string`, borrowed results from `as_view()`, `chars()`, `graphemes()`, and related range helpers are tied to the string's internal storage and should not be kept across mutation.
+> Like `utf8_string`, borrowed results from `as_view()`, `chars()`, `graphemes()`, `reversed_graphemes()`, and related range helpers are tied to the string's internal storage and should not be kept across mutation.
+
+> [!IMPORTANT]
+> The same self-referential insertion guarantee applies here as on `utf8_string`, and it is covered by the test suite.
+> Appending, inserting, and replacing from validated UTF-16 views or character ranges derived from the same string is valid.
+
+Complexity:
+
+- `append`, `append_range`, `assign`, `assign_range`, and `operator+=`: linear in the appended or assigned text size
+- `push_back`: amortized constant
+- `insert`, `erase`, `replace`, and `replace_with_range`: linear in `size() + replacement_size`
+- `operator+`: linear in `lhs.size() + rhs.size()`
+- `to_utf8()`: linear in `size()`
 
 Example:
 
@@ -2122,27 +2307,38 @@ Construction is available from:
 
 Cross-encoding is also available through the direct `utf8_string(utf16_string_view, alloc)` constructor and `to_utf16()`.
 
+Complexity:
+
+- default construction: constant
+- construction from `utf8_string_view` or `utf16_string_view`: linear in the source length
+- `from_bytes(std::string_view)` / `from_bytes(std::wstring_view)`: linear in the source length
+- range, iterator, and initializer-list construction: linear in the resulting string size
+
 ### Modifiers
 
-#### `append_range`
+`utf8_string` supports the usual STL-shaped mutation families:
 
-Appends a range whose references are convertible to `utf8_char`.
+- `append_range`, `append(It, Sent)`, `append(std::initializer_list<utf8_char>)`
+- `assign_range`, `assign(It, Sent)`, `assign(std::initializer_list<utf8_char>)`
+- `append(std::size_t count, utf8_char)`, `assign(std::size_t count, utf8_char)`
+- `append(utf8_string_view)`, `assign(utf8_string_view)`, `assign(utf8_char)`
+- `push_back(utf8_char)`
+- `operator+=` with `utf8_string_view`, `utf16_string_view`, `utf8_char`, `utf16_char`, and `std::initializer_list<utf8_char>`
 
-#### `assign_range`
+The native overloads operate on validated UTF-8 data. The cross-encoding `operator+=` overloads transcode through Unicode scalar values before appending.
 
-Replaces the contents with a range whose references are convertible to `utf8_char`.
+> [!IMPORTANT]
+> Self-referential insertion and replacement are supported and covered by the test suite.
+> It is valid to append, insert, or replace using validated views, iterator pairs, or character ranges derived from the same owning string, such as `s.append(s.as_view())`, `s.append_range(s.chars())`, `s.insert(1, s.as_view())`, or `s.replace(0, 1, s.as_view())`.
 
-#### `append(std::size_t count, utf8_char ch)`
+Complexity:
 
-Appends `count` copies of `ch`.
-
-#### `append(utf8_string_view sv)`
-
-Appends a validated UTF-8 string view.
-
-#### `push_back(utf8_char ch)`
-
-Appends one UTF-8 character.
+- `append_range`, iterator-based `append`, and `append(std::initializer_list<utf8_char>)`: linear in the appended character count
+- `assign_range`, iterator-based `assign`, and `assign(std::initializer_list<utf8_char>)`: linear in the replacement size
+- `append(std::size_t count, utf8_char)` and `assign(std::size_t count, utf8_char)`: linear in `count`
+- `append(utf8_string_view)`, `assign(utf8_string_view)`, and `operator+=` on text/string arguments: linear in the appended or assigned text size
+- `assign(utf8_char)` and `operator+=` on single-character arguments: amortized constant
+- `push_back(utf8_char)`: amortized constant
 
 #### `insert`
 
@@ -2162,6 +2358,10 @@ Throws:
 - `std::out_of_range` if the insertion index is greater than `size()`
 - `std::out_of_range` if the insertion index is not a UTF-8 character boundary
 
+Complexity:
+
+- Linear in `size() + inserted_size`
+
 #### `pop_back()`
 
 Removes the last UTF-8 character by inspecting the reversed character view.
@@ -2173,6 +2373,13 @@ Precondition:
 Remarks:
 
 - Calling `pop_back()` on an empty string is undefined behavior
+
+> [!CAUTION]
+> `pop_back()` is unsafe on an empty string.
+
+Complexity:
+
+- Constant
 
 #### `erase(std::size_t index, std::size_t count = npos)`
 
@@ -2189,70 +2396,36 @@ Throws:
 - `std::out_of_range` if `index` is greater than `size()`
 - `std::out_of_range` if the requested erased range does not align to UTF-8 character boundaries
 
-#### `replace(std::size_t pos, std::size_t count, utf8_string_view other)`
+Complexity:
 
-Replaces the byte range beginning at `pos` and extending for at most `count` bytes, clamped to the end of the string, with `other`.
+- Linear in `size()`
 
-The replaced range must define a valid UTF-8 substring. In practice this means:
+#### `replace`, `replace_with_range`
 
-- `pos <= size()`
-- `pos` must be a UTF-8 character boundary
-- `pos + min(count, size() - pos)` must also be a UTF-8 character boundary
+Replacement is supported for:
 
-Throws:
+- validated UTF-8 text via `replace(pos, count, utf8_string_view)` and `replace(pos, utf8_string_view)`
+- single characters via `replace(pos, count, utf8_char)` and `replace(pos, utf8_char)`
+- character ranges via `replace_with_range(pos, count, R&&)` and `replace_with_range(pos, R&&)`
 
-- `std::out_of_range` if `pos` is greater than `size()`
-- `std::out_of_range` if the requested replaced range does not align to UTF-8 character boundaries
-
-#### `replace(std::size_t pos, std::size_t count, utf8_char other)`
-
-Equivalent to replacing the validated UTF-8 substring with the UTF-8 encoding of `other`.
-
-Throws:
-
-- `std::out_of_range` under the same conditions as `replace(pos, count, utf8_string_view)`
-
-#### `replace(std::size_t pos, utf8_string_view other)`
-
-Replaces the single UTF-8 character beginning at byte index `pos` with `other`.
-
-Throws:
-
-- `std::out_of_range` if `pos` is out of range
-- `std::out_of_range` if `pos` is not a UTF-8 character boundary
-
-#### `replace(std::size_t pos, utf8_char other)`
-
-Replaces the single UTF-8 character beginning at byte index `pos` with `other`.
-
-Throws:
-
-- `std::out_of_range` if `pos` is out of range
-- `std::out_of_range` if `pos` is not a UTF-8 character boundary
-
-#### `replace_with_range(std::size_t pos, std::size_t count, R&& rg)`
-
-Replaces the byte range beginning at `pos` and extending for at most `count` bytes, clamped to the end of the string, with the UTF-8 encoding of the `utf8_char` range `rg`.
-
-The replaced range must define a valid UTF-8 substring. In practice this means:
+The replaced portion must always describe a valid UTF-8 substring. In practice this means:
 
 - `pos <= size()`
 - `pos` must be a UTF-8 character boundary
-- `pos + min(count, size() - pos)` must also be a UTF-8 character boundary
+- `pos + min(count, size() - pos)` must also be a UTF-8 character boundary when a counted overload is used
 
-Throws:
-
-- `std::out_of_range` if `pos` is greater than `size()`
-- `std::out_of_range` if the requested replaced range does not align to UTF-8 character boundaries
-
-#### `replace_with_range(std::size_t pos, R&& rg)`
-
-Replaces the single UTF-8 character beginning at byte index `pos` with the UTF-8 encoding of the `utf8_char` range `rg`.
+The single-position overloads replace exactly one UTF-8 character beginning at `pos`.
 
 Throws:
 
 - `std::out_of_range` if `pos` is out of range
-- `std::out_of_range` if `pos` is not a UTF-8 character boundary
+- `std::out_of_range` if the replaced range does not align to UTF-8 character boundaries
+
+Complexity:
+
+- `replace(..., utf8_string_view)`: linear in `size() + other.size()`
+- `replace(..., utf8_char)`: linear in `size()`
+- `replace_with_range(...)`: linear in `size() + replacement_size`
 
 ### Concatenation
 
@@ -2262,6 +2435,10 @@ Throws:
 - `utf8_char`
 
 on either side when one operand is an owning `utf8_string`.
+
+Complexity:
+
+- Linear in `lhs.size() + rhs.size()`
 
 ### Observers and conversions
 
@@ -2275,6 +2452,11 @@ on either side when one operand is an owning `utf8_string`.
 > [!WARNING]
 > `as_view()` and the inherited read-only range helpers such as `chars()` and `graphemes()` borrow from the string's internal storage.
 > They become invalid if the string is destroyed, and they should not be kept across mutation.
+
+Complexity:
+
+- `base()`, `get_allocator()`, `as_view()`, conversion to `utf8_string_view`, `data()`, and `c_str()`: constant
+- `to_utf16()`: linear in `size()`
 
 Example:
 
@@ -2308,6 +2490,9 @@ Construction:
 static constexpr utf8_view from_bytes_unchecked(std::u8string_view base) noexcept;
 ```
 
+> [!CAUTION]
+> This constructor is unchecked. Passing invalid UTF-8 is undefined behavior.
+
 Semantics:
 
 - the input must already be valid UTF-8
@@ -2315,6 +2500,11 @@ Semantics:
 - this is not a common range
 - dereferencing yields `utf8_char` by value
 - increment uses the current UTF-8 lead byte to advance
+
+Complexity:
+
+- Constant to construct the view
+- Linear to iterate the full view
 
 ### `unicode_ranges::views::utf16_view`
 
@@ -2326,6 +2516,9 @@ Construction:
 static constexpr utf16_view from_code_units_unchecked(std::u16string_view base) noexcept;
 ```
 
+> [!CAUTION]
+> This constructor is unchecked. Passing invalid UTF-16 is undefined behavior.
+
 Semantics:
 
 - the input must already be valid UTF-16
@@ -2333,6 +2526,11 @@ Semantics:
 - this is not a common range
 - dereferencing yields `utf16_char` by value
 - increment advances by one code unit for BMP scalars and by two code units for surrogate pairs
+
+Complexity:
+
+- Constant to construct the view
+- Linear to iterate the full view
 
 Example:
 
@@ -2353,6 +2551,9 @@ Construction:
 static constexpr reversed_utf16_view from_code_units_unchecked(std::u16string_view base) noexcept;
 ```
 
+> [!CAUTION]
+> This constructor is unchecked. Passing invalid UTF-16 is undefined behavior.
+
 Semantics:
 
 - the input must already be valid UTF-16
@@ -2361,6 +2562,11 @@ Semantics:
 - dereferencing yields `utf16_char` by value
 - `begin()` positions at the last UTF-16 character
 - increment walks backward to the previous UTF-16 character boundary, including surrogate-pair starts
+
+Complexity:
+
+- Constant to construct the view
+- Linear to iterate the full view
 
 Example:
 
@@ -2381,6 +2587,9 @@ Construction:
 static constexpr reversed_utf8_view from_bytes_unchecked(std::u8string_view base) noexcept;
 ```
 
+> [!CAUTION]
+> This constructor is unchecked. Passing invalid UTF-8 is undefined behavior.
+
 Semantics:
 
 - the input must already be valid UTF-8
@@ -2390,11 +2599,19 @@ Semantics:
 - `begin()` positions at the last UTF-8 character
 - increment walks backward to the previous UTF-8 lead byte
 
+Complexity:
+
+- Constant to construct the view
+- Linear to iterate the full view
+
 ### `unicode_ranges::views::grapheme_cluster_view<CharT>`
 
 Unchecked forward view over default Unicode grapheme clusters.
 
 In normal use, you typically obtain this view through `text.graphemes()` on a UTF-8 or UTF-16 string/view type.
+
+> [!CAUTION]
+> The standalone constructor is unchecked. Passing invalid source text for the chosen encoding is undefined behavior.
 
 `CharT` is either:
 
@@ -2408,6 +2625,11 @@ Semantics:
 - this is not a common range
 - dereferencing yields one borrowed string-view cluster at a time
 - cluster boundaries follow the default extended grapheme-cluster rules from UAX #29
+
+Complexity:
+
+- Constant to construct the view
+- Linear to iterate the full view
 
 Example:
 
@@ -2438,22 +2660,30 @@ Semantics:
 - malformed input yields `utf8_char::replacement_character`
 - the iterator advances by the valid character width, or by one code unit when replacement was produced
 
+Complexity:
+
+- Constant to construct the view
+- Linear to iterate the full view
+
 ### `unicode_ranges::views::lossy_utf8`
 
 Adaptor closure for `lossy_utf8_view`.
+
+Malformed subsequences become `utf8_char::replacement_character`, while valid ASCII bytes still decode normally.
 
 Example:
 
 ```cpp
 const std::string input{ "A\xFF\xE2\x28\xA1", 5 };
-std::string decoded;
-
-for (utf8_char ch : input | views::lossy_utf8)
-{
-    ch.encode_utf8<char>(std::back_inserter(decoded));
-}
-
-assert(decoded == "A\xEF\xBF\xBD\xEF\xBF\xBD(\xEF\xBF\xBD");
+assert(std::ranges::equal(
+    input | views::lossy_utf8,
+    std::array{
+        "A"_u8c,
+        utf8_char::replacement_character,
+        utf8_char::replacement_character,
+        "("_u8c,
+        utf8_char::replacement_character
+    }));
 ```
 
 ### `unicode_ranges::views::lossy_utf16_view<CharT>`
@@ -2472,9 +2702,16 @@ Semantics:
 - malformed input yields `utf16_char::replacement_character`
 - the iterator advances by two code units for a valid surrogate pair, otherwise by one code unit
 
+Complexity:
+
+- Constant to construct the view
+- Linear to iterate the full view
+
 ### `unicode_ranges::views::lossy_utf16`
 
 Adaptor closure for `lossy_utf16_view`.
+
+Malformed surrogate structure becomes `utf16_char::replacement_character`, while valid code units continue to decode normally.
 
 Example:
 
@@ -2487,13 +2724,14 @@ const std::u16string input{
     static_cast<char16_t>(0xDE00)  // 😀
 };
 
-std::string decoded;
-for (utf16_char ch : input | views::lossy_utf16)
-{
-    ch.encode_utf8<char>(std::back_inserter(decoded));
-}
-
-assert(decoded == "A\xEF\xBF\xBD" "B\xF0\x9F\x98\x80");
+assert(std::ranges::equal(
+    input | views::lossy_utf16,
+    std::array{
+        u"A"_u16c,
+        utf16_char::replacement_character,
+        u"B"_u16c,
+        u"😀"_u16c
+    }));
 ```
 
 ## Reference: literals
@@ -2759,7 +2997,7 @@ Unchecked:
 - `utf8_char::from_scalar_unchecked`
 - `utf8_char::from_utf8_bytes_unchecked`
 
-Unchecked APIs are intended for cases where validity is already guaranteed by construction.
+Unchecked APIs are intended for performance-sensitive cases where UTF-8 or UTF-16 validity falls on the caller. Passing invalid data to an unchecked API is undefined behavior.
 
 ### 3. Unicode predicates are table-driven
 
@@ -2784,6 +3022,6 @@ The `is_ascii_*` family does not consult Unicode tables and always returns `fals
 
 ### 5. Grapheme segmentation follows default Unicode rules
 
-`utf8_char` and `utf16_char` still represent single Unicode scalar values. When you need user-perceived characters, use `graphemes()` or `views::grapheme_cluster_view<CharT>`, which segment text according to the default extended grapheme-cluster rules from UAX #29.
+`utf8_char` and `utf16_char` still represent single Unicode scalar values. When you need user-perceived characters, use `graphemes()` to generate a `views::grapheme_cluster_view<CharT>`, which segments text according to the default extended grapheme-cluster rules from UAX #29.
 
 Unlike `is_char_boundary()`, grapheme-boundary checks are not naturally constant-time. A grapheme boundary depends on surrounding scalar context, so it cannot be answered by a simple encoding-form test alone.

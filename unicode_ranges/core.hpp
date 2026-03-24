@@ -104,6 +104,9 @@ namespace views
 	template <typename CharT>
 	class grapheme_cluster_view;
 
+	template <typename CharT>
+	class reversed_grapheme_cluster_view;
+
 	class utf16_view;
 
 	class reversed_utf16_view;
@@ -805,19 +808,7 @@ namespace details
 		}
 
 		template <typename CharT>
-		inline constexpr std::size_t grapheme_count(std::basic_string_view<CharT> text) noexcept
-		{
-			std::size_t count = 0;
-			for (std::size_t index = 0; index < text.size(); index = next_grapheme_boundary(text, index))
-			{
-				++count;
-			}
-
-			return count;
-		}
-
-		template <typename CharT>
-		inline constexpr std::size_t floor_grapheme_boundary(std::basic_string_view<CharT> text, std::size_t index) noexcept
+		inline constexpr std::size_t previous_grapheme_boundary(std::basic_string_view<CharT> text, std::size_t index) noexcept
 		{
 			index = (std::min)(text.size(), index);
 			if (index == 0 || index == text.size()) [[unlikely]]
@@ -838,6 +829,24 @@ namespace details
 			}
 
 			return text.size();
+		}
+
+		template <typename CharT>
+		inline constexpr std::size_t grapheme_count(std::basic_string_view<CharT> text) noexcept
+		{
+			std::size_t count = 0;
+			for (std::size_t index = 0; index < text.size(); index = next_grapheme_boundary(text, index))
+			{
+				++count;
+			}
+
+			return count;
+		}
+
+		template <typename CharT>
+		inline constexpr std::size_t floor_grapheme_boundary(std::basic_string_view<CharT> text, std::size_t index) noexcept
+		{
+			return previous_grapheme_boundary(text, index);
 		}
 
 		template <typename CharT>
@@ -950,24 +959,22 @@ namespace details
 			const auto last_start = floor_grapheme_boundary(text, text.size() - needle.size());
 			pos = (std::min)(pos, last_start);
 
-			std::size_t result = std::basic_string_view<CharT>::npos;
-			for (std::size_t current = 0; current <= pos;)
+			for (std::size_t current = pos;;)
 			{
 				if (grapheme_match_at(text, needle, current))
 				{
-					result = current;
+					return current;
 				}
 
-				const auto next = next_grapheme_boundary(text, current);
-				if (next > pos || next <= current)
+				if (current == 0)
 				{
 					break;
 				}
 
-				current = next;
+				current = previous_grapheme_boundary(text, current - 1);
 			}
 
-			return result;
+			return std::basic_string_view<CharT>::npos;
 		}
 
 		namespace literals

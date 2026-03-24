@@ -112,6 +112,117 @@ namespace views
 
 		std::basic_string_view<CharT> base_{};
 	};
+
+	template <typename CharT>
+	class reversed_grapheme_cluster_view : public std::ranges::view_interface<reversed_grapheme_cluster_view<CharT>>
+	{
+	public:
+		static_assert(std::same_as<CharT, char8_t> || std::same_as<CharT, char16_t>);
+
+		using code_unit_type = CharT;
+		using cluster_type = std::conditional_t<std::same_as<CharT, char8_t>, utf8_string_view, utf16_string_view>;
+
+		static constexpr reversed_grapheme_cluster_view from_code_units_unchecked(std::basic_string_view<CharT> base) noexcept
+		{
+			return reversed_grapheme_cluster_view{ base };
+		}
+
+		class iterator
+		{
+		public:
+			using iterator_category = std::forward_iterator_tag;
+			using iterator_concept = std::forward_iterator_tag;
+			using value_type = cluster_type;
+			using difference_type = std::ptrdiff_t;
+			using reference = cluster_type;
+			using pointer = void;
+
+			iterator() = default;
+
+			constexpr iterator(std::basic_string_view<CharT> base, std::size_t current, std::size_t next) noexcept
+				: base_(base), current_(current), next_(next)
+			{}
+
+			constexpr reference operator*() const noexcept
+			{
+				const auto cluster = base_.substr(current_, next_ - current_);
+				if constexpr (std::same_as<CharT, char8_t>)
+				{
+					return details::utf8_string_view_from_bytes_unchecked(cluster);
+				}
+				else
+				{
+					return details::utf16_string_view_from_code_units_unchecked(cluster);
+				}
+			}
+
+			constexpr iterator& operator++() noexcept
+			{
+				if (current_ == 0)
+				{
+					current_ = base_.size();
+					next_ = base_.size();
+				}
+				else
+				{
+					next_ = current_;
+					current_ = details::previous_grapheme_boundary(base_, current_ - 1);
+				}
+				return *this;
+			}
+
+			constexpr iterator operator++(int) noexcept
+			{
+				iterator old = *this;
+				++(*this);
+				return old;
+			}
+
+			friend constexpr bool operator==(const iterator& it, std::default_sentinel_t) noexcept
+			{
+				return it.current_ == it.base_.size();
+			}
+
+			friend constexpr bool operator==(const iterator& lhs, const iterator& rhs) noexcept
+			{
+				return lhs.current_ == rhs.current_ && lhs.next_ == rhs.next_
+					&& lhs.base_.data() == rhs.base_.data() && lhs.base_.size() == rhs.base_.size();
+			}
+
+			friend constexpr bool operator==(std::default_sentinel_t, const iterator& it) noexcept
+			{
+				return it.current_ == it.base_.size();
+			}
+
+		private:
+			std::basic_string_view<CharT> base_{};
+			std::size_t current_ = 0;
+			std::size_t next_ = 0;
+		};
+
+		constexpr iterator begin() const noexcept
+		{
+			if (base_.empty())
+			{
+				return iterator{ base_, base_.size(), base_.size() };
+			}
+
+			const auto current = details::previous_grapheme_boundary(base_, base_.size() - 1);
+			return iterator{ base_, current, base_.size() };
+		}
+
+		constexpr std::default_sentinel_t end() const noexcept
+		{
+			return std::default_sentinel;
+		}
+
+	private:
+		constexpr explicit reversed_grapheme_cluster_view(std::basic_string_view<CharT> base) noexcept
+			: base_(base)
+		{}
+
+		std::basic_string_view<CharT> base_{};
+	};
 }
 
 namespace details
@@ -122,11 +233,23 @@ namespace details
 		return views::grapheme_cluster_view<char8_t>::from_code_units_unchecked(byte_view());
 	}
 
+	template <typename Derived, typename View>
+	constexpr auto utf8_string_crtp<Derived, View>::reversed_graphemes() const noexcept -> views::reversed_grapheme_cluster_view<char8_t>
+	{
+		return views::reversed_grapheme_cluster_view<char8_t>::from_code_units_unchecked(byte_view());
+	}
+
 
 	template <typename Derived, typename View>
 	constexpr auto utf16_string_crtp<Derived, View>::graphemes() const noexcept -> views::grapheme_cluster_view<char16_t>
 	{
 		return views::grapheme_cluster_view<char16_t>::from_code_units_unchecked(code_unit_view());
+	}
+
+	template <typename Derived, typename View>
+	constexpr auto utf16_string_crtp<Derived, View>::reversed_graphemes() const noexcept -> views::reversed_grapheme_cluster_view<char16_t>
+	{
+		return views::reversed_grapheme_cluster_view<char16_t>::from_code_units_unchecked(code_unit_view());
 	}
 }
 

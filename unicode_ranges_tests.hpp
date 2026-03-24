@@ -70,6 +70,58 @@ inline void run_unicode_ranges_tests()
 	static_assert(!unicode_character<char8_t>);
 	static_assert(!unicode_character<char16_t>);
 
+	// Standard ranges/view concept coverage for the library view surface.
+	static_assert(std::ranges::view<views::utf8_view>);
+	static_assert(std::ranges::range<views::utf8_view>);
+	static_assert(std::ranges::view<views::reversed_utf8_view>);
+	static_assert(std::ranges::range<views::reversed_utf8_view>);
+	static_assert(std::ranges::view<views::utf16_view>);
+	static_assert(std::ranges::range<views::utf16_view>);
+	static_assert(std::ranges::view<views::reversed_utf16_view>);
+	static_assert(std::ranges::range<views::reversed_utf16_view>);
+	static_assert(std::ranges::view<views::grapheme_cluster_view<char8_t>>);
+	static_assert(std::ranges::range<views::grapheme_cluster_view<char8_t>>);
+	static_assert(std::ranges::view<views::grapheme_cluster_view<char16_t>>);
+	static_assert(std::ranges::range<views::grapheme_cluster_view<char16_t>>);
+	static_assert(std::ranges::view<views::reversed_grapheme_cluster_view<char8_t>>);
+	static_assert(std::ranges::range<views::reversed_grapheme_cluster_view<char8_t>>);
+	static_assert(std::ranges::view<views::reversed_grapheme_cluster_view<char16_t>>);
+	static_assert(std::ranges::range<views::reversed_grapheme_cluster_view<char16_t>>);
+	static_assert(std::ranges::view<views::lossy_utf8_view<char>>);
+	static_assert(std::ranges::range<views::lossy_utf8_view<char>>);
+	static_assert(std::ranges::view<views::lossy_utf8_view<char8_t>>);
+	static_assert(std::ranges::range<views::lossy_utf8_view<char8_t>>);
+	static_assert(std::ranges::view<views::lossy_utf16_view<char16_t>>);
+	static_assert(std::ranges::range<views::lossy_utf16_view<char16_t>>);
+	static_assert(std::ranges::view<views::lossy_utf16_view<wchar_t>>);
+	static_assert(std::ranges::range<views::lossy_utf16_view<wchar_t>>);
+
+	static_assert(std::ranges::view<decltype(utf8_text.chars())>);
+	static_assert(std::ranges::range<decltype(utf8_text.chars())>);
+	static_assert(std::ranges::view<decltype(utf8_text.reversed_chars())>);
+	static_assert(std::ranges::range<decltype(utf8_text.reversed_chars())>);
+	static_assert(std::ranges::view<decltype(utf8_text.char_indices())>);
+	static_assert(std::ranges::range<decltype(utf8_text.char_indices())>);
+	static_assert(std::ranges::view<decltype(utf8_text.graphemes())>);
+	static_assert(std::ranges::range<decltype(utf8_text.graphemes())>);
+	static_assert(std::ranges::view<decltype(utf8_text.reversed_graphemes())>);
+	static_assert(std::ranges::range<decltype(utf8_text.reversed_graphemes())>);
+	static_assert(std::ranges::view<decltype(utf8_text.grapheme_indices())>);
+	static_assert(std::ranges::range<decltype(utf8_text.grapheme_indices())>);
+
+	static_assert(std::ranges::view<decltype(utf16_text.chars())>);
+	static_assert(std::ranges::range<decltype(utf16_text.chars())>);
+	static_assert(std::ranges::view<decltype(utf16_text.reversed_chars())>);
+	static_assert(std::ranges::range<decltype(utf16_text.reversed_chars())>);
+	static_assert(std::ranges::view<decltype(utf16_text.char_indices())>);
+	static_assert(std::ranges::range<decltype(utf16_text.char_indices())>);
+	static_assert(std::ranges::view<decltype(utf16_text.graphemes())>);
+	static_assert(std::ranges::range<decltype(utf16_text.graphemes())>);
+	static_assert(std::ranges::view<decltype(utf16_text.reversed_graphemes())>);
+	static_assert(std::ranges::range<decltype(utf16_text.reversed_graphemes())>);
+	static_assert(std::ranges::view<decltype(utf16_text.grapheme_indices())>);
+	static_assert(std::ranges::range<decltype(utf16_text.grapheme_indices())>);
+
 	// utf8_char compile-time API coverage.
 	static_assert("A"_u8c.ascii_lowercase() == "a"_u8c);
 	static_assert("z"_u8c.ascii_uppercase() == "Z"_u8c);
@@ -136,6 +188,14 @@ inline void run_unicode_ranges_tests()
 	static_assert(!utf8_text.char_at(2).has_value());
 	static_assert(!utf8_text.char_at(utf8_text.size()).has_value());
 	static_assert(utf8_text.char_at_unchecked(3) == "€"_u8c);
+	static_assert(utf8_text.front().has_value());
+	static_assert(utf8_text.front().value() == "A"_u8c);
+	static_assert(utf8_text.front_unchecked() == "A"_u8c);
+	static_assert(utf8_text.back().has_value());
+	static_assert(utf8_text.back().value() == "€"_u8c);
+	static_assert(utf8_text.back_unchecked() == "€"_u8c);
+	static_assert(!utf8_string_view{}.front().has_value());
+	static_assert(!utf8_string_view{}.back().has_value());
 	static_assert(utf8_text.find(static_cast<char8_t>('A')) == 0);
 	static_assert(utf8_text.find(static_cast<char8_t>(0xA9), 2) == 2);
 	static_assert(utf8_text.find(static_cast<char8_t>('A'), utf8_string_view::npos) == utf8_string_view::npos);
@@ -231,6 +291,14 @@ inline void run_unicode_ranges_tests()
 			u8"!"_grapheme_utf8
 		});
 	}());
+	static_assert([] {
+		constexpr auto text = u8"e\u0301🇷🇴!"_utf8_sv;
+		return std::ranges::equal(text.reversed_graphemes(), std::array{
+			u8"!"_grapheme_utf8,
+			u8"🇷🇴"_grapheme_utf8,
+			u8"e\u0301"_grapheme_utf8
+		});
+	}());
 	static_assert(u8"e\u0301"_grapheme_utf8 == u8"e\u0301"_utf8_sv);
 	static_assert(u8"Aé😀"_utf8_sv.to_utf16() == u"Aé😀"_utf16_sv);
 	static_assert([] {
@@ -299,6 +367,14 @@ inline void run_unicode_ranges_tests()
 	static_assert(!utf16_text.char_at(3).has_value());
 	static_assert(!utf16_text.char_at(utf16_text.size()).has_value());
 	static_assert(utf16_text.char_at_unchecked(1) == u"é"_u16c);
+	static_assert(utf16_text.front().has_value());
+	static_assert(utf16_text.front().value() == u"A"_u16c);
+	static_assert(utf16_text.front_unchecked() == u"A"_u16c);
+	static_assert(utf16_text.back().has_value());
+	static_assert(utf16_text.back().value() == u"😀"_u16c);
+	static_assert(utf16_text.back_unchecked() == u"😀"_u16c);
+	static_assert(!utf16_string_view{}.front().has_value());
+	static_assert(!utf16_string_view{}.back().has_value());
 	static_assert(utf16_text.find(static_cast<char16_t>(u'A')) == 0);
 	static_assert(utf16_text.find(static_cast<char16_t>(0xDE00u), 3) == 3);
 	static_assert(utf16_text.find(static_cast<char16_t>(u'A'), utf16_string_view::npos) == utf16_string_view::npos);
@@ -386,6 +462,14 @@ inline void run_unicode_ranges_tests()
 		return std::ranges::equal(text.graphemes(), std::array{
 			u"👩‍💻"_grapheme_utf16,
 			u"!"_grapheme_utf16
+		});
+	}());
+	static_assert([] {
+		constexpr auto text = u"e\u0301🇷🇴!"_utf16_sv;
+		return std::ranges::equal(text.reversed_graphemes(), std::array{
+			u"!"_grapheme_utf16,
+			u"🇷🇴"_grapheme_utf16,
+			u"e\u0301"_grapheme_utf16
 		});
 	}());
 	static_assert(u"e\u0301"_grapheme_utf16 == u"e\u0301"_utf16_sv);
@@ -697,6 +781,69 @@ inline void run_unicode_ranges_tests()
 		assert(appended == u8"Aé😀!?"_utf8_sv);
 	}
 	{
+		auto s = u8"Aé"_utf8_s;
+		s.append(s.as_view());
+		assert(s == u8"AéAé"_utf8_sv);
+	}
+	{
+		auto s = u8"Aé"_utf8_s;
+		s += s.as_view();
+		assert(s == u8"AéAé"_utf8_sv);
+	}
+	{
+		auto s = u8"Aé"_utf8_s;
+		s.append_range(s.chars());
+		assert(s == u8"AéAé"_utf8_sv);
+	}
+	{
+		auto s = u8"Aé"_utf8_s;
+		const auto chars = s.chars();
+		s.append(chars.begin(), chars.end());
+		assert(s == u8"AéAé"_utf8_sv);
+	}
+	{
+		auto s = u8"Aé"_utf8_s;
+		s.insert(1, s.as_view());
+		assert(s == u8"AAéé"_utf8_sv);
+	}
+	{
+		auto s = u8"Aé"_utf8_s;
+		s.insert_range(1, s.chars());
+		assert(s == u8"AAéé"_utf8_sv);
+	}
+	{
+		auto s = u8"Aé"_utf8_s;
+		const auto chars = s.chars();
+		s.insert(1, chars.begin(), chars.end());
+		assert(s == u8"AAéé"_utf8_sv);
+	}
+	{
+		auto s = u8"Aé"_utf8_s;
+		s.replace(0, 1, s.as_view());
+		assert(s == u8"Aéé"_utf8_sv);
+	}
+	{
+		auto s = u8"Aé"_utf8_s;
+		s.replace(0, s.as_view());
+		assert(s == u8"Aéé"_utf8_sv);
+	}
+	{
+		auto s = u8"Aé"_utf8_s;
+		s.replace_with_range(0, 1, s.chars());
+		assert(s == u8"Aéé"_utf8_sv);
+	}
+	{
+		auto s = u8"Aé"_utf8_s;
+		s.replace_with_range(0, s.chars());
+		assert(s == u8"Aéé"_utf8_sv);
+	}
+	{
+		auto s = u8"Aé"_utf8_s;
+		const auto suffix = s.as_view().substr(1).value();
+		s.append(suffix);
+		assert(s == u8"Aéé"_utf8_sv);
+	}
+	{
 		const auto reversed = utf8_text.reversed_chars() | std::ranges::to<utf8_string>();
 		assert(reversed == "€éA"_utf8_sv);
 	}
@@ -705,6 +852,13 @@ inline void run_unicode_ranges_tests()
 			u8"e\u0301"_grapheme_utf8,
 			u8"🇷🇴"_grapheme_utf8,
 			u8"!"_grapheme_utf8
+		}));
+	}
+	{
+		assert(std::ranges::equal(u8"e\u0301🇷🇴!"_utf8_sv.reversed_graphemes(), std::array{
+			u8"!"_grapheme_utf8,
+			u8"🇷🇴"_grapheme_utf8,
+			u8"e\u0301"_grapheme_utf8
 		}));
 	}
 
@@ -788,6 +942,69 @@ inline void run_unicode_ranges_tests()
 		assert(appended == u"Aé😀!?"_utf16_sv);
 	}
 	{
+		auto s = u"Aé"_utf16_s;
+		s.append(s.as_view());
+		assert(s == u"AéAé"_utf16_sv);
+	}
+	{
+		auto s = u"Aé"_utf16_s;
+		s += s.as_view();
+		assert(s == u"AéAé"_utf16_sv);
+	}
+	{
+		auto s = u"Aé"_utf16_s;
+		s.append_range(s.chars());
+		assert(s == u"AéAé"_utf16_sv);
+	}
+	{
+		auto s = u"Aé"_utf16_s;
+		const auto chars = s.chars();
+		s.append(chars.begin(), chars.end());
+		assert(s == u"AéAé"_utf16_sv);
+	}
+	{
+		auto s = u"Aé"_utf16_s;
+		s.insert(1, s.as_view());
+		assert(s == u"AAéé"_utf16_sv);
+	}
+	{
+		auto s = u"Aé"_utf16_s;
+		s.insert_range(1, s.chars());
+		assert(s == u"AAéé"_utf16_sv);
+	}
+	{
+		auto s = u"Aé"_utf16_s;
+		const auto chars = s.chars();
+		s.insert(1, chars.begin(), chars.end());
+		assert(s == u"AAéé"_utf16_sv);
+	}
+	{
+		auto s = u"Aé"_utf16_s;
+		s.replace(0, 1, s.as_view());
+		assert(s == u"Aéé"_utf16_sv);
+	}
+	{
+		auto s = u"Aé"_utf16_s;
+		s.replace(0, s.as_view());
+		assert(s == u"Aéé"_utf16_sv);
+	}
+	{
+		auto s = u"Aé"_utf16_s;
+		s.replace_with_range(0, 1, s.chars());
+		assert(s == u"Aéé"_utf16_sv);
+	}
+	{
+		auto s = u"Aé"_utf16_s;
+		s.replace_with_range(0, s.chars());
+		assert(s == u"Aéé"_utf16_sv);
+	}
+	{
+		auto s = u"Aé"_utf16_s;
+		const auto suffix = s.as_view().substr(1).value();
+		s.append(suffix);
+		assert(s == u"Aéé"_utf16_sv);
+	}
+	{
 		utf16_string s;
 		s.assign(u"Aé😀"_utf16_sv);
 		assert(s == u"Aé😀"_utf16_sv);
@@ -863,6 +1080,13 @@ inline void run_unicode_ranges_tests()
 			u"e\u0301"_grapheme_utf16,
 			u"🇷🇴"_grapheme_utf16,
 			u"!"_grapheme_utf16
+		}));
+	}
+	{
+		assert(std::ranges::equal(u"e\u0301🇷🇴!"_utf16_sv.reversed_graphemes(), std::array{
+			u"!"_grapheme_utf16,
+			u"🇷🇴"_grapheme_utf16,
+			u"e\u0301"_grapheme_utf16
 		}));
 	}
 

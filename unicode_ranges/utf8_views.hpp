@@ -27,6 +27,12 @@ namespace views
 			return utf8_view{ base };
 		}
 
+		[[nodiscard]]
+		constexpr std::u8string_view base() const noexcept
+		{
+			return base_;
+		}
+
 		class iterator
 		{
 		public:

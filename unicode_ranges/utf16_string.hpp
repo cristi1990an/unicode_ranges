@@ -81,6 +81,7 @@ private:
 		-> basic_utf16_string
 	{
 		base_type utf16_code_units{ alloc };
+		utf16_code_units.reserve(bytes.size());
 		for (std::size_t index = 0; index != bytes.size();)
 		{
 			std::array<char8_t, 4> utf8_bytes{};
@@ -106,16 +107,22 @@ private:
 		if constexpr (sizeof(wchar_t) == 2)
 		{
 			base_type result{ alloc };
-			result.reserve(bytes.size());
-			for (wchar_t ch : bytes)
-			{
-				result.push_back(static_cast<char16_t>(ch));
-			}
+			result.resize_and_overwrite(bytes.size(),
+				[&](char16_t* buffer, std::size_t) noexcept
+				{
+					for (std::size_t index = 0; index != bytes.size(); ++index)
+					{
+						buffer[index] = static_cast<char16_t>(bytes[index]);
+					}
+
+					return bytes.size();
+				});
 
 			return from_code_units_unchecked(std::move(result));
 		}
 
 		base_type utf16_code_units{ alloc };
+		utf16_code_units.reserve(bytes.size() * 2u);
 		for (wchar_t ch : bytes)
 		{
 			std::array<char16_t, 2> encoded{};
@@ -124,6 +131,73 @@ private:
 		}
 
 		return from_code_units_unchecked(std::move(utf16_code_units));
+	}
+
+	[[nodiscard]]
+	constexpr bool overlaps_base(equivalent_string_view code_units) const noexcept
+	{
+		if (code_units.empty() || base_.empty())
+		{
+			return false;
+		}
+
+		std::less<const char16_t*> less{};
+		const auto* base_begin = base_.data();
+		const auto* base_end = base_begin + base_.size();
+		const auto* source_begin = code_units.data();
+		const auto* source_end = source_begin + code_units.size();
+		return less(base_begin, source_end) && less(source_begin, base_end);
+	}
+
+	[[nodiscard]]
+	constexpr size_type overlap_offset(equivalent_string_view code_units) const noexcept
+	{
+		return static_cast<size_type>(code_units.data() - base_.data());
+	}
+
+	constexpr basic_utf16_string& append_code_units(equivalent_string_view code_units)
+	{
+		if (overlaps_base(code_units))
+		{
+			const auto offset = overlap_offset(code_units);
+			base_.append(base_, offset, code_units.size());
+		}
+		else
+		{
+			base_.append(code_units);
+		}
+
+		return *this;
+	}
+
+	constexpr basic_utf16_string& insert_code_units(size_type index, equivalent_string_view code_units)
+	{
+		if (overlaps_base(code_units))
+		{
+			const auto offset = overlap_offset(code_units);
+			base_.insert(index, base_, offset, code_units.size());
+		}
+		else
+		{
+			base_.insert(index, code_units);
+		}
+
+		return *this;
+	}
+
+	constexpr basic_utf16_string& replace_code_units(size_type pos, size_type count, equivalent_string_view code_units)
+	{
+		if (overlaps_base(code_units))
+		{
+			const auto offset = overlap_offset(code_units);
+			base_.replace(pos, count, base_, offset, code_units.size());
+		}
+		else
+		{
+			base_.replace(pos, count, code_units);
+		}
+
+		return *this;
 	}
 
 public:
@@ -179,21 +253,36 @@ public:
 		append(std::move(it), std::move(sent));
 	}
 
+	constexpr basic_utf16_string& append_range(views::utf16_view rg);
+
+	constexpr basic_utf16_string& append_range(views::utf8_view rg);
+
 	template <details::container_compatible_range<utf16_char> R>
 	constexpr basic_utf16_string& append_range(R&& rg)
 	{
+		base_type appended{ base_.get_allocator() };
 		for (utf16_char ch : std::forward<R>(rg))
 		{
-			base_.append(ch.as_view());
+			appended.append(ch.as_view());
 		}
+		base_.append(appended);
 		return *this;
 	}
+
+	constexpr basic_utf16_string& assign_range(views::utf16_view rg);
+
+	constexpr basic_utf16_string& assign_range(views::utf8_view rg);
 
 	template <details::container_compatible_range<utf16_char> R>
 	constexpr basic_utf16_string& assign_range(R&& rg)
 	{
-		base_.clear();
-		return append_range(std::forward<R>(rg));
+		base_type replacement{ base_.get_allocator() };
+		for (utf16_char ch : std::forward<R>(rg))
+		{
+			replacement.append(ch.as_view());
+		}
+		base_ = std::move(replacement);
+		return *this;
 	}
 
 	constexpr basic_utf16_string& append(size_type count, utf16_char ch)
@@ -226,8 +315,7 @@ public:
 
 	constexpr basic_utf16_string& append(utf16_string_view sv)
 	{
-		base_.append(sv.base());
-		return *this;
+		return append_code_units(sv.base());
 	}
 
 	constexpr basic_utf16_string& assign(utf16_string_view sv)
@@ -339,8 +427,7 @@ public:
 			throw std::out_of_range("insert index must be at a UTF-16 character boundary");
 		}
 
-		base_.insert(index, sv.base());
-		return *this;
+		return insert_code_units(index, sv.base());
 	}
 
 	constexpr basic_utf16_string& insert(size_type index, utf16_char ch)
@@ -365,6 +452,46 @@ public:
 		for (size_type i = 0; i != count; ++i)
 		{
 			inserted.append(sv);
+		}
+
+		base_.insert(index, inserted);
+		return *this;
+	}
+
+	constexpr basic_utf16_string& insert_range(size_type index, views::utf16_view rg)
+	{
+		if (index > size()) [[unlikely]]
+		{
+			throw std::out_of_range("insert index out of range");
+		}
+
+		if (!this->is_char_boundary(index)) [[unlikely]]
+		{
+			throw std::out_of_range("insert index must be at a UTF-16 character boundary");
+		}
+
+		return insert_code_units(index, rg.base());
+	}
+
+	constexpr basic_utf16_string& insert_range(size_type index, views::utf8_view rg)
+	{
+		if (index > size()) [[unlikely]]
+		{
+			throw std::out_of_range("insert index out of range");
+		}
+
+		if (!this->is_char_boundary(index)) [[unlikely]]
+		{
+			throw std::out_of_range("insert index must be at a UTF-16 character boundary");
+		}
+
+		base_type inserted{ base_.get_allocator() };
+		inserted.reserve(rg.base().size());
+		for (utf8_char ch : rg)
+		{
+			std::array<char16_t, 2> encoded{};
+			const auto encoded_count = ch.encode_utf16<char16_t>(encoded.begin());
+			inserted.append(encoded.data(), encoded.data() + encoded_count);
 		}
 
 		base_.insert(index, inserted);
@@ -469,8 +596,7 @@ public:
 			throw std::out_of_range("replace range must be a valid UTF-16 substring");
 		}
 
-		base_.replace(pos, replace_count, other.base());
-		return *this;
+		return replace_code_units(pos, replace_count, other.base());
 	}
 
 	constexpr basic_utf16_string& replace(size_type pos, size_type count, utf16_char other)
@@ -491,8 +617,7 @@ public:
 		}
 
 		const auto replace_count = this->char_at_unchecked(pos).code_unit_count();
-		base_.replace(pos, replace_count, other.base());
-		return *this;
+		return replace_code_units(pos, replace_count, other.base());
 	}
 
 	constexpr basic_utf16_string& replace(size_type pos, utf16_char other)
@@ -509,6 +634,54 @@ public:
 
 		const auto replace_count = this->char_at_unchecked(pos).code_unit_count();
 		base_.replace(pos, replace_count, other.as_view());
+		return *this;
+	}
+
+	constexpr basic_utf16_string& replace_with_range(size_type pos, size_type count, views::utf16_view rg)
+	{
+		if (pos > size()) [[unlikely]]
+		{
+			throw std::out_of_range("replace index out of range");
+		}
+
+		const auto remaining = size() - pos;
+		const auto replace_count = (count == npos || count > remaining) ? remaining : count;
+		const auto end = pos + replace_count;
+
+		if (!this->is_char_boundary(pos) || !this->is_char_boundary(end)) [[unlikely]]
+		{
+			throw std::out_of_range("replace range must be a valid UTF-16 substring");
+		}
+
+		return replace_code_units(pos, replace_count, rg.base());
+	}
+
+	constexpr basic_utf16_string& replace_with_range(size_type pos, size_type count, views::utf8_view rg)
+	{
+		if (pos > size()) [[unlikely]]
+		{
+			throw std::out_of_range("replace index out of range");
+		}
+
+		const auto remaining = size() - pos;
+		const auto replace_count = (count == npos || count > remaining) ? remaining : count;
+		const auto end = pos + replace_count;
+
+		if (!this->is_char_boundary(pos) || !this->is_char_boundary(end)) [[unlikely]]
+		{
+			throw std::out_of_range("replace range must be a valid UTF-16 substring");
+		}
+
+		base_type replacement{ base_.get_allocator() };
+		replacement.reserve(rg.base().size());
+		for (utf8_char ch : rg)
+		{
+			std::array<char16_t, 2> encoded{};
+			const auto encoded_count = ch.encode_utf16<char16_t>(encoded.begin());
+			replacement.append(encoded.data(), encoded.data() + encoded_count);
+		}
+
+		base_.replace(pos, replace_count, replacement);
 		return *this;
 	}
 
@@ -566,6 +739,38 @@ public:
 		base_.replace(pos, replace_count, replacement);
 #endif
 		return *this;
+	}
+
+	constexpr basic_utf16_string& replace_with_range(size_type pos, views::utf16_view rg)
+	{
+		if (pos >= size()) [[unlikely]]
+		{
+			throw std::out_of_range("replace index out of range");
+		}
+
+		if (!this->is_char_boundary(pos)) [[unlikely]]
+		{
+			throw std::out_of_range("replace index must be at a UTF-16 character boundary");
+		}
+
+		const auto replace_count = this->char_at_unchecked(pos).code_unit_count();
+		return replace_with_range(pos, replace_count, rg);
+	}
+
+	constexpr basic_utf16_string& replace_with_range(size_type pos, views::utf8_view rg)
+	{
+		if (pos >= size()) [[unlikely]]
+		{
+			throw std::out_of_range("replace index out of range");
+		}
+
+		if (!this->is_char_boundary(pos)) [[unlikely]]
+		{
+			throw std::out_of_range("replace index must be at a UTF-16 character boundary");
+		}
+
+		const auto replace_count = this->char_at_unchecked(pos).code_unit_count();
+		return replace_with_range(pos, replace_count, rg);
 	}
 
 	template <details::container_compatible_range<utf16_char> R>
