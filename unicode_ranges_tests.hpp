@@ -52,6 +52,18 @@ inline void run_unicode_ranges_tests()
 			return true;
 		}
 	};
+	const auto unwrap_utf8_view = [](std::u8string_view bytes)
+	{
+		const auto result = utf8_string_view::from_bytes(bytes);
+		assert(result.has_value());
+		return result.value();
+	};
+	const auto unwrap_utf16_view = [](std::u16string_view code_units)
+	{
+		const auto result = utf16_string_view::from_code_units(code_units);
+		assert(result.has_value());
+		return result.value();
+	};
 
 	static_assert(std::same_as<
 		pmr::utf8_string,
@@ -631,6 +643,629 @@ inline void run_unicode_ranges_tests()
 			&& static_cast<unsigned char>(buffer[1]) == 0x82u
 				&& static_cast<unsigned char>(buffer[2]) == 0xACu;
 	}());
+
+	// Runtime mirrors for compile-time API coverage.
+	assert((std::same_as<
+		pmr::utf8_string,
+		basic_utf8_string<std::pmr::polymorphic_allocator<char8_t>>>));
+	assert((std::same_as<
+		pmr::utf16_string,
+		basic_utf16_string<std::pmr::polymorphic_allocator<char16_t>>>));
+	assert((unicode_character<utf8_char>));
+	assert((unicode_character<const utf8_char&>));
+	assert((unicode_character<utf16_char>));
+	assert((unicode_character<utf16_char&&>));
+	assert((!unicode_character<char8_t>));
+	assert((!unicode_character<char16_t>));
+
+	assert((std::ranges::view<views::utf8_view>));
+	assert((std::ranges::range<views::utf8_view>));
+	assert((std::ranges::view<views::reversed_utf8_view>));
+	assert((std::ranges::range<views::reversed_utf8_view>));
+	assert((std::ranges::view<views::utf16_view>));
+	assert((std::ranges::range<views::utf16_view>));
+	assert((std::ranges::view<views::reversed_utf16_view>));
+	assert((std::ranges::range<views::reversed_utf16_view>));
+	assert((std::ranges::view<views::grapheme_cluster_view<char8_t>>));
+	assert((std::ranges::range<views::grapheme_cluster_view<char8_t>>));
+	assert((std::ranges::view<views::grapheme_cluster_view<char16_t>>));
+	assert((std::ranges::range<views::grapheme_cluster_view<char16_t>>));
+	assert((std::ranges::view<views::reversed_grapheme_cluster_view<char8_t>>));
+	assert((std::ranges::range<views::reversed_grapheme_cluster_view<char8_t>>));
+	assert((std::ranges::view<views::reversed_grapheme_cluster_view<char16_t>>));
+	assert((std::ranges::range<views::reversed_grapheme_cluster_view<char16_t>>));
+	assert((std::ranges::view<views::lossy_utf8_view<char>>));
+	assert((std::ranges::range<views::lossy_utf8_view<char>>));
+	assert((std::ranges::view<views::lossy_utf8_view<char8_t>>));
+	assert((std::ranges::range<views::lossy_utf8_view<char8_t>>));
+	assert((std::ranges::view<views::lossy_utf16_view<char16_t>>));
+	assert((std::ranges::range<views::lossy_utf16_view<char16_t>>));
+	assert((std::ranges::view<views::lossy_utf16_view<wchar_t>>));
+	assert((std::ranges::range<views::lossy_utf16_view<wchar_t>>));
+
+	{
+		const auto runtime_latin1_ch = utf8_char::from_scalar_unchecked(0x00E9u);
+		const std::u8string runtime_utf8_storage = u8"A\u00E9\u20AC";
+		const auto runtime_utf8_text = unwrap_utf8_view(runtime_utf8_storage);
+		const std::u16string runtime_utf16_storage = u"A\u00E9\U0001F600";
+		const auto runtime_utf16_text = unwrap_utf16_view(runtime_utf16_storage);
+
+		assert((std::ranges::view<decltype(runtime_utf8_text.chars())>));
+		assert((std::ranges::range<decltype(runtime_utf8_text.chars())>));
+		assert((std::ranges::view<decltype(runtime_utf8_text.reversed_chars())>));
+		assert((std::ranges::range<decltype(runtime_utf8_text.reversed_chars())>));
+		assert((std::ranges::view<decltype(runtime_utf8_text.char_indices())>));
+		assert((std::ranges::range<decltype(runtime_utf8_text.char_indices())>));
+		assert((std::ranges::view<decltype(runtime_utf8_text.graphemes())>));
+		assert((std::ranges::range<decltype(runtime_utf8_text.graphemes())>));
+		assert((std::ranges::view<decltype(runtime_utf8_text.reversed_graphemes())>));
+		assert((std::ranges::range<decltype(runtime_utf8_text.reversed_graphemes())>));
+		assert((std::ranges::view<decltype(runtime_utf8_text.grapheme_indices())>));
+		assert((std::ranges::range<decltype(runtime_utf8_text.grapheme_indices())>));
+
+		assert((std::ranges::view<decltype(runtime_utf16_text.chars())>));
+		assert((std::ranges::range<decltype(runtime_utf16_text.chars())>));
+		assert((std::ranges::view<decltype(runtime_utf16_text.reversed_chars())>));
+		assert((std::ranges::range<decltype(runtime_utf16_text.reversed_chars())>));
+		assert((std::ranges::view<decltype(runtime_utf16_text.char_indices())>));
+		assert((std::ranges::range<decltype(runtime_utf16_text.char_indices())>));
+		assert((std::ranges::view<decltype(runtime_utf16_text.graphemes())>));
+		assert((std::ranges::range<decltype(runtime_utf16_text.graphemes())>));
+		assert((std::ranges::view<decltype(runtime_utf16_text.reversed_graphemes())>));
+		assert((std::ranges::range<decltype(runtime_utf16_text.reversed_graphemes())>));
+		assert((std::ranges::view<decltype(runtime_utf16_text.grapheme_indices())>));
+		assert((std::ranges::range<decltype(runtime_utf16_text.grapheme_indices())>));
+
+		assert(u8"A"_u8c.ascii_lowercase() == u8"a"_u8c);
+		assert(u8"z"_u8c.ascii_uppercase() == u8"Z"_u8c);
+		assert(runtime_latin1_ch.ascii_lowercase() == runtime_latin1_ch);
+		assert(u8"A"_u8c.eq_ignore_ascii_case(u8"a"_u8c));
+		assert(!runtime_latin1_ch.eq_ignore_ascii_case(u8"e"_u8c));
+
+		assert(u8"A"_u8c.is_ascii_alphabetic());
+		assert(!runtime_latin1_ch.is_ascii_alphabetic());
+		assert(u8"7"_u8c.is_ascii_digit());
+		assert(u8"7"_u8c.is_ascii_alphanumeric());
+		assert(u8"Q"_u8c.is_ascii_alphanumeric());
+		assert(!u8"-"_u8c.is_ascii_alphanumeric());
+		assert(u8" "_u8c.is_ascii_whitespace());
+		assert(u8"\n"_u8c.is_ascii_whitespace());
+		assert(!u8"A"_u8c.is_ascii_whitespace());
+
+		assert(u8"\u03A9"_u8c.is_alphabetic());
+		assert(u8"\u03A9"_u8c.is_alphanumeric());
+		assert(u8"\u03A9"_u8c.is_uppercase());
+		assert(!u8"\u03A9"_u8c.is_lowercase());
+		assert(u8"\u03C9"_u8c.is_lowercase());
+		assert(!u8"\u03C9"_u8c.is_uppercase());
+		assert(u8"5"_u8c.is_digit());
+		assert(u8"5"_u8c.is_numeric());
+		assert(u8"\u2167"_u8c.is_numeric());
+		assert(!u8"\u2167"_u8c.is_digit());
+		assert(u8"\u2003"_u8c.is_whitespace());
+		assert(utf8_char::from_scalar_unchecked(0x0085u).is_control());
+		assert(u8"F"_u8c.is_ascii_hexdigit());
+		assert(u8"7"_u8c.is_ascii_octdigit());
+		assert(u8"!"_u8c.is_ascii_punctuation());
+		assert(u8"A"_u8c.is_ascii_graphic());
+		assert(!u8" "_u8c.is_ascii_graphic());
+		assert(u8"\n"_u8c.is_ascii_control());
+
+		assert(std::get<0>(unicode_version) == 17);
+		assert(std::get<1>(unicode_version) == 0);
+		assert(std::get<2>(unicode_version) == 0);
+
+		{
+			utf8_char lhs = u8"A"_u8c;
+			utf8_char rhs = u8"z"_u8c;
+			lhs.swap(rhs);
+			assert(lhs == u8"z"_u8c);
+			assert(rhs == u8"A"_u8c);
+		}
+
+		assert(runtime_utf8_text.size() == 6);
+		assert(runtime_utf8_text == u8"A\u00E9\u20AC"_utf8_sv);
+		assert(runtime_utf8_text.is_char_boundary(0));
+		assert(runtime_utf8_text.is_char_boundary(1));
+		assert(!runtime_utf8_text.is_char_boundary(2));
+		assert(runtime_utf8_text.ceil_char_boundary(0) == 0);
+		assert(runtime_utf8_text.ceil_char_boundary(2) == 3);
+		assert(runtime_utf8_text.ceil_char_boundary(utf8_string_view::npos) == runtime_utf8_text.size());
+		assert(runtime_utf8_text.floor_char_boundary(0) == 0);
+		assert(runtime_utf8_text.floor_char_boundary(2) == 1);
+		assert(runtime_utf8_text.floor_char_boundary(utf8_string_view::npos) == runtime_utf8_text.size());
+		assert(runtime_utf8_text.char_at(0).has_value());
+		assert(runtime_utf8_text.char_at(0).value() == u8"A"_u8c);
+		assert(runtime_utf8_text.char_at(1).has_value());
+		assert(runtime_utf8_text.char_at(1).value() == u8"\u00E9"_u8c);
+		assert(!runtime_utf8_text.char_at(2).has_value());
+		assert(!runtime_utf8_text.char_at(runtime_utf8_text.size()).has_value());
+		assert(runtime_utf8_text.char_at_unchecked(3) == u8"\u20AC"_u8c);
+		assert(runtime_utf8_text.front().has_value());
+		assert(runtime_utf8_text.front().value() == u8"A"_u8c);
+		assert(runtime_utf8_text.front_unchecked() == u8"A"_u8c);
+		assert(runtime_utf8_text.back().has_value());
+		assert(runtime_utf8_text.back().value() == u8"\u20AC"_u8c);
+		assert(runtime_utf8_text.back_unchecked() == u8"\u20AC"_u8c);
+		{
+			const utf8_string_view empty_text{};
+			assert(!empty_text.front().has_value());
+			assert(!empty_text.back().has_value());
+		}
+		assert(runtime_utf8_text.find(static_cast<char8_t>('A')) == 0);
+		assert(runtime_utf8_text.find(static_cast<char8_t>(0xA9), 2) == 2);
+		assert(runtime_utf8_text.find(static_cast<char8_t>('A'), utf8_string_view::npos) == utf8_string_view::npos);
+		assert(runtime_utf8_text.find(u8"\u00E9\u20AC"_utf8_sv) == 1);
+		assert(runtime_utf8_text.find(u8"\u00E9\u20AC"_utf8_sv, 2) == utf8_string_view::npos);
+		assert(runtime_utf8_text.find(u8"\u20AC"_utf8_sv, 2) == 3);
+		assert(runtime_utf8_text.find(u8"\u20AC"_utf8_sv, utf8_string_view::npos) == utf8_string_view::npos);
+		assert(runtime_utf8_text.find_first_of(static_cast<char8_t>('A')) == 0);
+		assert(runtime_utf8_text.find_first_of(u8"\u20ACA"_utf8_sv) == 0);
+		assert(runtime_utf8_text.find_first_of(u8"\u20ACA"_utf8_sv, 1) == 3);
+		assert(runtime_utf8_text.find_first_of(u8""_utf8_sv) == utf8_string_view::npos);
+		assert(runtime_utf8_text.find(u8"\u00E9"_u8c, 2) == utf8_string_view::npos);
+		assert(runtime_utf8_text.find(u8"\u20AC"_u8c, 2) == 3);
+		assert(runtime_utf8_text.find(u8"\u20AC"_u8c, utf8_string_view::npos) == utf8_string_view::npos);
+		assert(runtime_utf8_text.find(u8"\u00E9"_u8c) == 1);
+		assert(runtime_utf8_text.find(u8"\u20AC"_u8c) == 3);
+		assert(runtime_utf8_text.find(u8"Z"_u8c) == utf8_string_view::npos);
+		assert(runtime_utf8_text.find_first_not_of(static_cast<char8_t>('A')) == 1);
+		assert(runtime_utf8_text.find_first_not_of(u8"A"_u8c) == 1);
+		assert(runtime_utf8_text.find_first_not_of(u8"A\u00E9"_utf8_sv) == 3);
+		assert(runtime_utf8_text.find_first_not_of(u8""_utf8_sv, 2) == 3);
+		assert(runtime_utf8_text.rfind(static_cast<char8_t>('A')) == 0);
+		assert(runtime_utf8_text.rfind(static_cast<char8_t>(0xA9), 2) == 2);
+		assert(runtime_utf8_text.rfind(static_cast<char8_t>('A'), 0) == 0);
+		assert(runtime_utf8_text.find_last_of(static_cast<char8_t>('A')) == 0);
+		assert(runtime_utf8_text.find_last_of(u8"\u20ACA"_utf8_sv) == 3);
+		assert(runtime_utf8_text.find_last_of(u8"\u20ACA"_utf8_sv, 1) == 0);
+		assert(runtime_utf8_text.find_last_of(u8""_utf8_sv) == utf8_string_view::npos);
+		assert(runtime_utf8_text.rfind(u8"\u00E9\u20AC"_utf8_sv) == 1);
+		assert(runtime_utf8_text.rfind(u8"\u00E9\u20AC"_utf8_sv, 2) == 1);
+		assert(runtime_utf8_text.rfind(u8"\u20AC"_utf8_sv, 2) == utf8_string_view::npos);
+		assert(runtime_utf8_text.rfind(u8"\u20AC"_utf8_sv, utf8_string_view::npos) == 3);
+		assert(runtime_utf8_text.rfind(u8"\u00E9"_u8c, 2) == 1);
+		assert(runtime_utf8_text.rfind(u8"\u20AC"_u8c, 2) == utf8_string_view::npos);
+		assert(runtime_utf8_text.rfind(u8"\u20AC"_u8c) == 3);
+		assert(runtime_utf8_text.rfind(u8"Z"_u8c) == utf8_string_view::npos);
+		assert(runtime_utf8_text.find_last_not_of(static_cast<char8_t>('A')) == 5);
+		assert(runtime_utf8_text.find_last_not_of(u8"\u20AC"_u8c) == 1);
+		assert(runtime_utf8_text.find_last_not_of(u8"A\u00E9"_utf8_sv) == 3);
+		assert(runtime_utf8_text.find_last_not_of(u8""_utf8_sv) == 3);
+		{
+			const std::u8string grapheme_storage = u8"e\u0301\U0001F1F7\U0001F1F4!";
+			const auto grapheme_text = unwrap_utf8_view(grapheme_storage);
+
+			assert(grapheme_text.find_grapheme(u8"e\u0301"_grapheme_utf8) == 0);
+			assert(grapheme_text.find_grapheme(u8"\U0001F1F7\U0001F1F4"_grapheme_utf8, 1) == 3);
+			assert(grapheme_text.find_grapheme(u8"\u0301"_u8c) == utf8_string_view::npos);
+			assert(grapheme_text.contains_grapheme(u8"\U0001F1F7\U0001F1F4"_grapheme_utf8));
+			assert(!grapheme_text.contains_grapheme(u8"\u0301"_u8c));
+			assert(grapheme_text.rfind_grapheme(u8"!"_grapheme_utf8) == 11);
+			assert(grapheme_text.rfind_grapheme(u8"\U0001F1F7\U0001F1F4"_grapheme_utf8, 10) == 3);
+		}
+		assert(runtime_utf8_text.substr(1).has_value());
+		assert(runtime_utf8_text.substr(1).value() == u8"\u00E9\u20AC"_utf8_sv);
+		assert(runtime_utf8_text.substr(1, 2).value() == u8"\u00E9"_utf8_sv);
+		assert(!runtime_utf8_text.substr(2, 1).has_value());
+		assert(runtime_utf8_text.starts_with('A'));
+		assert(runtime_utf8_text.starts_with(static_cast<char8_t>('A')));
+		assert(runtime_utf8_text.starts_with(u8"A"_u8c));
+		assert(runtime_utf8_text.starts_with(u8"A"_utf8_sv));
+		assert(!runtime_utf8_text.starts_with(u8"\u00E9"_u8c));
+		assert(!runtime_utf8_text.ends_with('A'));
+		assert(!runtime_utf8_text.ends_with(static_cast<char8_t>('A')));
+		assert(runtime_utf8_text.ends_with(u8"\u20AC"_u8c));
+		assert(runtime_utf8_text.ends_with(u8"\u20AC"_utf8_sv));
+		assert(!runtime_utf8_text.ends_with(u8"\u00E9"_u8c));
+		assert(utf8_string_view::from_bytes(runtime_utf8_text.as_view()).has_value());
+		assert(runtime_utf8_text == u8"A\u00E9\u20AC"_utf8_sv);
+		assert(runtime_utf8_text < u8"Z"_utf8_sv);
+		{
+			const std::u8string text_storage = u8"e\u0301X";
+			const auto text = unwrap_utf8_view(text_storage);
+			assert(std::ranges::equal(text.graphemes(), std::array{
+				u8"e\u0301"_grapheme_utf8,
+				u8"X"_grapheme_utf8
+			}));
+		}
+		{
+			const std::u8string text_storage = u8"\r\nX";
+			const auto text = unwrap_utf8_view(text_storage);
+			assert(std::ranges::equal(text.graphemes(), std::array{
+				u8"\r\n"_grapheme_utf8,
+				u8"X"_grapheme_utf8
+			}));
+		}
+		{
+			const std::u8string text_storage = u8"\U0001F1F7\U0001F1F4!";
+			const auto text = unwrap_utf8_view(text_storage);
+			assert(std::ranges::equal(text.graphemes(), std::array{
+				u8"\U0001F1F7\U0001F1F4"_grapheme_utf8,
+				u8"!"_grapheme_utf8
+			}));
+		}
+		{
+			const std::u8string text_storage = u8"\U0001F469\u200D\U0001F4BB!";
+			const auto text = unwrap_utf8_view(text_storage);
+			assert(std::ranges::equal(text.graphemes(), std::array{
+				u8"\U0001F469\u200D\U0001F4BB"_grapheme_utf8,
+				u8"!"_grapheme_utf8
+			}));
+		}
+		{
+			const std::u8string text_storage = u8"e\u0301\U0001F1F7\U0001F1F4!";
+			const auto text = unwrap_utf8_view(text_storage);
+			assert(std::ranges::equal(text.reversed_graphemes(), std::array{
+				u8"!"_grapheme_utf8,
+				u8"\U0001F1F7\U0001F1F4"_grapheme_utf8,
+				u8"e\u0301"_grapheme_utf8
+			}));
+		}
+		assert(u8"e\u0301"_grapheme_utf8 == u8"e\u0301"_utf8_sv);
+		{
+			const std::u8string text_storage = u8"A\u00E9\U0001F600";
+			const auto text = unwrap_utf8_view(text_storage);
+			assert(text.to_utf16() == u"A\u00E9\U0001F600"_utf16_sv);
+		}
+		{
+			auto it = runtime_utf8_text.char_indices().begin();
+			assert(it != runtime_utf8_text.char_indices().end());
+			const auto [i0, c0] = *it++;
+			assert(i0 == 0);
+			assert(c0 == u8"A"_u8c);
+			const auto [i1, c1] = *it++;
+			assert(i1 == 1);
+			assert(c1 == u8"\u00E9"_u8c);
+			const auto [i2, c2] = *it++;
+			assert(i2 == 3);
+			assert(c2 == u8"\u20AC"_u8c);
+			assert(it == runtime_utf8_text.char_indices().end());
+		}
+		{
+			const std::u8string text_storage = u8"e\u0301\U0001F1F7\U0001F1F4!";
+			const auto text = unwrap_utf8_view(text_storage);
+			auto it = text.grapheme_indices().begin();
+			assert(it != text.grapheme_indices().end());
+			const auto [i0, g0] = *it++;
+			assert(i0 == 0);
+			assert(g0 == u8"e\u0301"_grapheme_utf8);
+			const auto [i1, g1] = *it++;
+			assert(i1 == 3);
+			assert(g1 == u8"\U0001F1F7\U0001F1F4"_grapheme_utf8);
+			const auto [i2, g2] = *it++;
+			assert(i2 == 11);
+			assert(g2 == u8"!"_grapheme_utf8);
+			assert(it == text.grapheme_indices().end());
+		}
+		{
+			const std::u8string text_storage = u8"e\u0301\U0001F1F7\U0001F1F4!";
+			const auto text = unwrap_utf8_view(text_storage);
+			assert(text.grapheme_count() == 3);
+			assert(text.is_grapheme_boundary(0));
+			assert(!text.is_grapheme_boundary(1));
+			assert(text.is_grapheme_boundary(3));
+			assert(!text.is_grapheme_boundary(7));
+			assert(text.is_grapheme_boundary(11));
+			assert(text.ceil_grapheme_boundary(1) == 3);
+			assert(text.floor_grapheme_boundary(1) == 0);
+			assert(text.ceil_grapheme_boundary(7) == 11);
+			assert(text.floor_grapheme_boundary(7) == 3);
+			assert(text.grapheme_at(0).has_value());
+			assert(text.grapheme_at(0).value() == u8"e\u0301"_grapheme_utf8);
+			assert(text.grapheme_at(3).has_value());
+			assert(text.grapheme_at(3).value() == u8"\U0001F1F7\U0001F1F4"_grapheme_utf8);
+			assert(!text.grapheme_at(1).has_value());
+			assert(text.grapheme_substr(3, 8).has_value());
+			assert(text.grapheme_substr(3, 8).value() == u8"\U0001F1F7\U0001F1F4"_utf8_sv);
+			assert(text.grapheme_substr(3).has_value());
+			assert(text.grapheme_substr(3).value() == u8"\U0001F1F7\U0001F1F4!"_utf8_sv);
+			assert(!text.grapheme_substr(1, 2).has_value());
+		}
+
+		assert(runtime_utf16_text.size() == 4);
+		assert(runtime_utf16_text == u"A\u00E9\U0001F600"_utf16_sv);
+		assert(runtime_utf16_text.is_char_boundary(0));
+		assert(runtime_utf16_text.is_char_boundary(1));
+		assert(runtime_utf16_text.is_char_boundary(2));
+		assert(!runtime_utf16_text.is_char_boundary(3));
+		assert(runtime_utf16_text.ceil_char_boundary(0) == 0);
+		assert(runtime_utf16_text.ceil_char_boundary(3) == 4);
+		assert(runtime_utf16_text.ceil_char_boundary(utf16_string_view::npos) == runtime_utf16_text.size());
+		assert(runtime_utf16_text.floor_char_boundary(0) == 0);
+		assert(runtime_utf16_text.floor_char_boundary(3) == 2);
+		assert(runtime_utf16_text.floor_char_boundary(utf16_string_view::npos) == runtime_utf16_text.size());
+		assert(runtime_utf16_text.char_at(0).has_value());
+		assert(runtime_utf16_text.char_at(0).value() == u"A"_u16c);
+		assert(runtime_utf16_text.char_at(2).has_value());
+		assert(runtime_utf16_text.char_at(2).value() == u"\U0001F600"_u16c);
+		assert(!runtime_utf16_text.char_at(3).has_value());
+		assert(!runtime_utf16_text.char_at(runtime_utf16_text.size()).has_value());
+		assert(runtime_utf16_text.char_at_unchecked(1) == u"\u00E9"_u16c);
+		assert(runtime_utf16_text.front().has_value());
+		assert(runtime_utf16_text.front().value() == u"A"_u16c);
+		assert(runtime_utf16_text.front_unchecked() == u"A"_u16c);
+		assert(runtime_utf16_text.back().has_value());
+		assert(runtime_utf16_text.back().value() == u"\U0001F600"_u16c);
+		assert(runtime_utf16_text.back_unchecked() == u"\U0001F600"_u16c);
+		{
+			const utf16_string_view empty_text{};
+			assert(!empty_text.front().has_value());
+			assert(!empty_text.back().has_value());
+		}
+		assert(runtime_utf16_text.find(static_cast<char16_t>(u'A')) == 0);
+		assert(runtime_utf16_text.find(static_cast<char16_t>(0xDE00u), 3) == 3);
+		assert(runtime_utf16_text.find(static_cast<char16_t>(u'A'), utf16_string_view::npos) == utf16_string_view::npos);
+		assert(runtime_utf16_text.find_first_of(static_cast<char16_t>(u'A')) == 0);
+		assert(runtime_utf16_text.find_first_of(u"\U0001F600A"_utf16_sv) == 0);
+		assert(runtime_utf16_text.find_first_of(u"\U0001F600A"_utf16_sv, 1) == 2);
+		assert(runtime_utf16_text.find_first_of(u""_utf16_sv) == utf16_string_view::npos);
+		assert(runtime_utf16_text.find(u"\u00E9\U0001F600"_utf16_sv) == 1);
+		assert(runtime_utf16_text.find(u"\u00E9\U0001F600"_utf16_sv, 2) == utf16_string_view::npos);
+		assert(runtime_utf16_text.find(u"\U0001F600"_utf16_sv, 3) == utf16_string_view::npos);
+		assert(runtime_utf16_text.find(u"\u00E9"_u16c, 2) == utf16_string_view::npos);
+		assert(runtime_utf16_text.find(u"\U0001F600"_u16c, 3) == utf16_string_view::npos);
+		assert(runtime_utf16_text.find(u"\u00E9"_u16c) == 1);
+		assert(runtime_utf16_text.find(u"\U0001F600"_u16c) == 2);
+		assert(runtime_utf16_text.find(u"Z"_u16c) == utf16_string_view::npos);
+		assert(runtime_utf16_text.find_first_not_of(static_cast<char16_t>(u'A')) == 1);
+		assert(runtime_utf16_text.find_first_not_of(u"A"_u16c) == 1);
+		assert(runtime_utf16_text.find_first_not_of(u"A\u00E9"_utf16_sv) == 2);
+		assert(runtime_utf16_text.find_first_not_of(u""_utf16_sv, 2) == 2);
+		assert(runtime_utf16_text.rfind(static_cast<char16_t>(u'A')) == 0);
+		assert(runtime_utf16_text.rfind(static_cast<char16_t>(0xDE00u), 3) == 3);
+		assert(runtime_utf16_text.find_last_of(static_cast<char16_t>(u'A')) == 0);
+		assert(runtime_utf16_text.find_last_of(u"\U0001F600A"_utf16_sv) == 2);
+		assert(runtime_utf16_text.find_last_of(u"\U0001F600A"_utf16_sv, 1) == 0);
+		assert(runtime_utf16_text.find_last_of(u""_utf16_sv) == utf16_string_view::npos);
+		assert(runtime_utf16_text.rfind(u"\u00E9\U0001F600"_utf16_sv) == 1);
+		assert(runtime_utf16_text.rfind(u"\u00E9\U0001F600"_utf16_sv, 2) == 1);
+		assert(runtime_utf16_text.rfind(u"\U0001F600"_utf16_sv, 1) == utf16_string_view::npos);
+		assert(runtime_utf16_text.rfind(u"\u00E9"_u16c, 2) == 1);
+		assert(runtime_utf16_text.rfind(u"\U0001F600"_u16c, 1) == utf16_string_view::npos);
+		assert(runtime_utf16_text.rfind(u"\U0001F600"_u16c) == 2);
+		assert(runtime_utf16_text.rfind(u"Z"_u16c) == utf16_string_view::npos);
+		assert(runtime_utf16_text.find_last_not_of(static_cast<char16_t>(u'A')) == 3);
+		assert(runtime_utf16_text.find_last_not_of(u"\U0001F600"_u16c) == 1);
+		assert(runtime_utf16_text.find_last_not_of(u"A\u00E9"_utf16_sv) == 2);
+		assert(runtime_utf16_text.find_last_not_of(u""_utf16_sv) == 2);
+		{
+			const std::u16string grapheme_storage = u"e\u0301\U0001F1F7\U0001F1F4!";
+			const auto grapheme_text = unwrap_utf16_view(grapheme_storage);
+
+			assert(grapheme_text.find_grapheme(u"e\u0301"_grapheme_utf16) == 0);
+			assert(grapheme_text.find_grapheme(u"\U0001F1F7\U0001F1F4"_grapheme_utf16, 1) == 2);
+			assert(grapheme_text.find_grapheme(u"\u0301"_u16c) == utf16_string_view::npos);
+			assert(grapheme_text.contains_grapheme(u"\U0001F1F7\U0001F1F4"_grapheme_utf16));
+			assert(!grapheme_text.contains_grapheme(u"\u0301"_u16c));
+			assert(grapheme_text.rfind_grapheme(u"!"_grapheme_utf16) == 6);
+			assert(grapheme_text.rfind_grapheme(u"\U0001F1F7\U0001F1F4"_grapheme_utf16, 5) == 2);
+		}
+		assert(runtime_utf16_text.substr(1).has_value());
+		assert(runtime_utf16_text.substr(1).value() == u"\u00E9\U0001F600"_utf16_sv);
+		assert(runtime_utf16_text.substr(2, 2).value() == u"\U0001F600"_utf16_sv);
+		assert(!runtime_utf16_text.substr(3, 1).has_value());
+		assert(runtime_utf16_text.starts_with(static_cast<char16_t>(u'A')));
+		assert(runtime_utf16_text.starts_with(u"A"_u16c));
+		assert(runtime_utf16_text.starts_with(u"A"_utf16_sv));
+		assert(!runtime_utf16_text.starts_with(u"\u00E9"_u16c));
+		assert(!runtime_utf16_text.ends_with(static_cast<char16_t>(u'A')));
+		assert(runtime_utf16_text.ends_with(u"\U0001F600"_u16c));
+		assert(runtime_utf16_text.ends_with(u"\U0001F600"_utf16_sv));
+		assert(!runtime_utf16_text.ends_with(u"\u00E9"_u16c));
+		assert(utf16_string_view::from_code_units(runtime_utf16_text.as_view()).has_value());
+		assert(runtime_utf16_text == u"A\u00E9\U0001F600"_utf16_sv);
+		assert(runtime_utf16_text < u"Z"_utf16_sv);
+		{
+			const std::u16string text_storage = u"e\u0301X";
+			const auto text = unwrap_utf16_view(text_storage);
+			assert(std::ranges::equal(text.graphemes(), std::array{
+				u"e\u0301"_grapheme_utf16,
+				u"X"_grapheme_utf16
+			}));
+		}
+		{
+			const std::u16string text_storage = u"\r\nX";
+			const auto text = unwrap_utf16_view(text_storage);
+			assert(std::ranges::equal(text.graphemes(), std::array{
+				u"\r\n"_grapheme_utf16,
+				u"X"_grapheme_utf16
+			}));
+		}
+		{
+			const std::u16string text_storage = u"\U0001F1F7\U0001F1F4!";
+			const auto text = unwrap_utf16_view(text_storage);
+			assert(std::ranges::equal(text.graphemes(), std::array{
+				u"\U0001F1F7\U0001F1F4"_grapheme_utf16,
+				u"!"_grapheme_utf16
+			}));
+		}
+		{
+			const std::u16string text_storage = u"\U0001F469\u200D\U0001F4BB!";
+			const auto text = unwrap_utf16_view(text_storage);
+			assert(std::ranges::equal(text.graphemes(), std::array{
+				u"\U0001F469\u200D\U0001F4BB"_grapheme_utf16,
+				u"!"_grapheme_utf16
+			}));
+		}
+		{
+			const std::u16string text_storage = u"e\u0301\U0001F1F7\U0001F1F4!";
+			const auto text = unwrap_utf16_view(text_storage);
+			assert(std::ranges::equal(text.reversed_graphemes(), std::array{
+				u"!"_grapheme_utf16,
+				u"\U0001F1F7\U0001F1F4"_grapheme_utf16,
+				u"e\u0301"_grapheme_utf16
+			}));
+		}
+		assert(u"e\u0301"_grapheme_utf16 == u"e\u0301"_utf16_sv);
+		{
+			const std::u16string text_storage = u"A\u00E9\U0001F600";
+			const auto text = unwrap_utf16_view(text_storage);
+			assert(text.to_utf8() == u8"A\u00E9\U0001F600"_utf8_sv);
+		}
+		{
+			auto it = runtime_utf16_text.char_indices().begin();
+			assert(it != runtime_utf16_text.char_indices().end());
+			const auto [i0, c0] = *it++;
+			assert(i0 == 0);
+			assert(c0 == u"A"_u16c);
+			const auto [i1, c1] = *it++;
+			assert(i1 == 1);
+			assert(c1 == u"\u00E9"_u16c);
+			const auto [i2, c2] = *it++;
+			assert(i2 == 2);
+			assert(c2 == u"\U0001F600"_u16c);
+			assert(it == runtime_utf16_text.char_indices().end());
+		}
+		{
+			const std::u16string text_storage = u"e\u0301\U0001F1F7\U0001F1F4!";
+			const auto text = unwrap_utf16_view(text_storage);
+			auto it = text.grapheme_indices().begin();
+			assert(it != text.grapheme_indices().end());
+			const auto [i0, g0] = *it++;
+			assert(i0 == 0);
+			assert(g0 == u"e\u0301"_grapheme_utf16);
+			const auto [i1, g1] = *it++;
+			assert(i1 == 2);
+			assert(g1 == u"\U0001F1F7\U0001F1F4"_grapheme_utf16);
+			const auto [i2, g2] = *it++;
+			assert(i2 == 6);
+			assert(g2 == u"!"_grapheme_utf16);
+			assert(it == text.grapheme_indices().end());
+		}
+		{
+			const std::u16string text_storage = u"e\u0301\U0001F1F7\U0001F1F4!";
+			const auto text = unwrap_utf16_view(text_storage);
+			assert(text.grapheme_count() == 3);
+			assert(text.is_grapheme_boundary(0));
+			assert(!text.is_grapheme_boundary(1));
+			assert(text.is_grapheme_boundary(2));
+			assert(!text.is_grapheme_boundary(5));
+			assert(text.is_grapheme_boundary(6));
+			assert(text.ceil_grapheme_boundary(1) == 2);
+			assert(text.floor_grapheme_boundary(1) == 0);
+			assert(text.ceil_grapheme_boundary(5) == 6);
+			assert(text.floor_grapheme_boundary(5) == 2);
+			assert(text.grapheme_at(0).has_value());
+			assert(text.grapheme_at(0).value() == u"e\u0301"_grapheme_utf16);
+			assert(text.grapheme_at(2).has_value());
+			assert(text.grapheme_at(2).value() == u"\U0001F1F7\U0001F1F4"_grapheme_utf16);
+			assert(!text.grapheme_at(1).has_value());
+			assert(text.grapheme_substr(2, 4).has_value());
+			assert(text.grapheme_substr(2, 4).value() == u"\U0001F1F7\U0001F1F4"_utf16_sv);
+			assert(text.grapheme_substr(2).has_value());
+			assert(text.grapheme_substr(2).value() == u"\U0001F1F7\U0001F1F4!"_utf16_sv);
+			assert(!text.grapheme_substr(1, 2).has_value());
+		}
+	}
+
+	{
+		utf8_char ch = utf8_char::from_scalar_unchecked(0x7Fu);
+		const utf8_char old = ch++;
+		assert(old.as_scalar() == 0x7Fu);
+		assert(ch.as_scalar() == 0x80u);
+	}
+	{
+		utf8_char ch = utf8_char::from_scalar_unchecked(0xD7FFu);
+		++ch;
+		assert(ch.as_scalar() == 0xE000u);
+	}
+	assert(!utf8_char::from_scalar(0xD800u).has_value());
+	{
+		utf8_char ch = utf8_char::from_scalar_unchecked(0x10FFFFu);
+		++ch;
+		assert(ch.as_scalar() == 0u);
+	}
+	assert(!utf8_char::from_scalar(0x110000u).has_value());
+	{
+		utf8_char ch = utf8_char::from_scalar_unchecked(0x80u);
+		const utf8_char old = ch--;
+		assert(old.as_scalar() == 0x80u);
+		assert(ch.as_scalar() == 0x7Fu);
+	}
+	{
+		utf8_char ch = utf8_char::from_scalar_unchecked(0xE000u);
+		--ch;
+		assert(ch.as_scalar() == 0xD7FFu);
+	}
+	assert(!utf8_char::from_scalar(0xD800u).has_value());
+	{
+		utf8_char ch = utf8_char::from_scalar_unchecked(0u);
+		--ch;
+		assert(ch.as_scalar() == 0x10FFFFu);
+	}
+	assert(!utf8_char::from_scalar(0x110000u).has_value());
+	assert(utf8_char::from_scalar(0x20ACu).has_value());
+	{
+		std::array<char16_t, 2> buffer{};
+		const auto n = u8"\u20AC"_u8c.encode_utf16<char16_t>(buffer.begin());
+		assert(n == 1);
+		assert(buffer[0] == static_cast<char16_t>(0x20ACu));
+	}
+	{
+		std::array<char16_t, 2> buffer{};
+		const auto n = u8"\U0001F600"_u8c.encode_utf16<char16_t>(buffer.begin());
+		assert(n == 2);
+		assert(buffer[0] == static_cast<char16_t>(0xD83Du));
+		assert(buffer[1] == static_cast<char16_t>(0xDE00u));
+	}
+
+	assert(utf16_char::from_scalar(0x20ACu).has_value());
+	assert(!utf16_char::from_scalar(0x110000u).has_value());
+	assert(utf16_char::from_utf16_code_units(u"\u20AC", 1).has_value());
+	assert(!utf16_char::from_utf16_code_units(u"\xD800", 1).has_value());
+	assert(utf16_char::from_scalar_unchecked(0x20ACu).as_scalar() == 0x20ACu);
+	assert(utf16_char::from_scalar_unchecked(0x1F600u).code_unit_count() == 2);
+	assert(u"\u20AC"_u16c.as_scalar() == 0x20ACu);
+	assert(u"\U0001F600"_u16c.code_unit_count() == 2);
+	{
+		utf16_char ch = utf16_char::from_scalar_unchecked(0x7Fu);
+		const auto old = ch++;
+		assert(old.as_scalar() == 0x7Fu);
+		assert(ch.as_scalar() == 0x80u);
+	}
+	{
+		utf16_char ch = utf16_char::from_scalar_unchecked(0xE000u);
+		--ch;
+		assert(ch.as_scalar() == 0xD7FFu);
+	}
+	assert(u"A"_u16c.is_ascii());
+	assert(u"A"_u16c.is_ascii_alphabetic());
+	assert(u"7"_u16c.is_ascii_digit());
+	assert(!u"\u03A9"_u16c.is_ascii());
+	assert(u"\u03A9"_u16c.is_alphabetic());
+	assert(u"\u03A9"_u16c.is_uppercase());
+	assert(u"\u03C9"_u16c.is_lowercase());
+	assert(u" "_u16c.is_ascii_whitespace());
+	assert(u"F"_u16c.is_ascii_hexdigit());
+	assert(u"!"_u16c.is_ascii_punctuation());
+	assert((details::non_narrowing_convertible<char16_t, char16_t>));
+	assert((details::non_narrowing_convertible<char16_t, std::uint32_t>));
+	assert((!details::non_narrowing_convertible<char16_t, char8_t>));
+	assert(u"A"_u16c.ascii_lowercase() == u"a"_u16c);
+	assert(u"z"_u16c.ascii_uppercase() == u"Z"_u16c);
+	assert(u"A"_u16c.eq_ignore_ascii_case(u"a"_u16c));
+	{
+		utf16_char lhs = u"A"_u16c;
+		utf16_char rhs = u"z"_u16c;
+		lhs.swap(rhs);
+		assert(lhs == u"z"_u16c);
+		assert(rhs == u"A"_u16c);
+	}
+	{
+		utf16_char utf16 = u8"\u20AC"_u8c;
+		utf8_char utf8 = utf16;
+		assert(utf16 == u"\u20AC"_u16c);
+		assert(utf8 == u8"\u20AC"_u8c);
+	}
+	{
+		std::array<char, 4> buffer{};
+		const auto n = u"\u20AC"_u16c.encode_utf8<char>(buffer.begin());
+		assert(n == 3);
+		assert(static_cast<unsigned char>(buffer[0]) == 0xE2u);
+		assert(static_cast<unsigned char>(buffer[1]) == 0x82u);
+		assert(static_cast<unsigned char>(buffer[2]) == 0xACu);
+	}
 
 	// Runtime formatting and transcoding checks.
 	assert(std::format("{}", "A"_u8c) == "A");
