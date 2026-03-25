@@ -1553,7 +1553,7 @@ inline void run_unicode_ranges_tests()
 			assert(*rit == u8"abra"_utf8_sv);
 		}
 		{
-			const auto text = u8"--abra--cadabra--"_utf8_sv;
+			[[maybe_unused]] const auto text = u8"--abra--cadabra--"_utf8_sv;
 			assert(std::ranges::equal(text.rsplit(u8"--"_utf8_sv), std::array{
 				u8""_utf8_sv,
 				u8"cadabra"_utf8_sv,
@@ -1637,8 +1637,8 @@ inline void run_unicode_ranges_tests()
 			assert(u8"\u00E9A\u00E9"_utf8_sv.trim_suffix(u8"\u00E9"_u8c) == u8"\u00E9A"_utf8_sv);
 		}
 		{
-			const auto repeated = u8"----abra----"_utf8_sv;
-			const auto accented = u8"\u00E9\u00E9A\u00E9"_utf8_sv;
+			[[maybe_unused]] const auto repeated = u8"----abra----"_utf8_sv;
+			[[maybe_unused]] const auto accented = u8"\u00E9\u00E9A\u00E9"_utf8_sv;
 			assert(repeated.trim_start_matches(u8"--"_utf8_sv) == u8"abra----"_utf8_sv);
 			assert(repeated.trim_end_matches(u8"--"_utf8_sv) == u8"----abra"_utf8_sv);
 			assert(repeated.trim_matches(u8"--"_utf8_sv) == u8"abra"_utf8_sv);
@@ -1649,8 +1649,8 @@ inline void run_unicode_ranges_tests()
 			assert(accented.trim_matches(u8"\u00E9"_u8c) == u8"A"_utf8_sv);
 		}
 		{
-			const auto unicode_trimmed = u8"\u00A0\tA\u00A0 "_utf8_sv;
-			const auto unicode_split = u8"\u00A0A\u2003B C"_utf8_sv;
+			[[maybe_unused]] const auto unicode_trimmed = u8"\u00A0\tA\u00A0 "_utf8_sv;
+			[[maybe_unused]] const auto unicode_split = u8"\u00A0A\u2003B C"_utf8_sv;
 			assert(unicode_trimmed.trim() == u8"A"_utf8_sv);
 			assert(unicode_trimmed.trim_start() == u8"A\u00A0 "_utf8_sv);
 			assert(unicode_trimmed.trim_end() == u8"\u00A0\tA"_utf8_sv);
@@ -1678,10 +1678,10 @@ inline void run_unicode_ranges_tests()
 			}));
 		}
 		{
-			const auto empty = u8""_utf8_sv;
+			[[maybe_unused]] const auto empty = u8""_utf8_sv;
 			const auto exact = u8"--"_utf8_sv;
-			const auto repeated = u8"a----b"_utf8_sv;
-			const auto missing = u8"abra"_utf8_sv;
+			[[maybe_unused]] const auto repeated = u8"a----b"_utf8_sv;
+			[[maybe_unused]] const auto missing = u8"abra"_utf8_sv;
 			const auto unicode = u8"A\u00E9B\u00E9"_utf8_sv;
 			assert(std::ranges::equal(empty.split(u8"--"_utf8_sv), std::array{
 				u8""_utf8_sv
@@ -1985,7 +1985,7 @@ inline void run_unicode_ranges_tests()
 			assert(*rit == u"abra"_utf16_sv);
 		}
 		{
-			const auto text = u"--abra--cadabra--"_utf16_sv;
+			[[maybe_unused]] const auto text = u"--abra--cadabra--"_utf16_sv;
 			assert(std::ranges::equal(text.rsplit(u"--"_utf16_sv), std::array{
 				u""_utf16_sv,
 				u"cadabra"_utf16_sv,
@@ -2069,8 +2069,8 @@ inline void run_unicode_ranges_tests()
 			assert(u"\u00E9A\u00E9"_utf16_sv.trim_suffix(u"\u00E9"_u16c) == u"\u00E9A"_utf16_sv);
 		}
 		{
-			const auto repeated = u"----abra----"_utf16_sv;
-			const auto accented = u"\u00E9\u00E9A\u00E9"_utf16_sv;
+			[[maybe_unused]] const auto repeated = u"----abra----"_utf16_sv;
+			[[maybe_unused]] const auto accented = u"\u00E9\u00E9A\u00E9"_utf16_sv;
 			assert(repeated.trim_start_matches(u"--"_utf16_sv) == u"abra----"_utf16_sv);
 			assert(repeated.trim_end_matches(u"--"_utf16_sv) == u"----abra"_utf16_sv);
 			assert(repeated.trim_matches(u"--"_utf16_sv) == u"abra"_utf16_sv);
@@ -2081,8 +2081,8 @@ inline void run_unicode_ranges_tests()
 			assert(accented.trim_matches(u"\u00E9"_u16c) == u"A"_utf16_sv);
 		}
 		{
-			const auto unicode_trimmed = u"\u00A0\tA\u00A0 "_utf16_sv;
-			const auto unicode_split = u"\u00A0A\u2003B C"_utf16_sv;
+			[[maybe_unused]] const auto unicode_trimmed = u"\u00A0\tA\u00A0 "_utf16_sv;
+			[[maybe_unused]] const auto unicode_split = u"\u00A0A\u2003B C"_utf16_sv;
 			assert(unicode_trimmed.trim() == u"A"_utf16_sv);
 			assert(unicode_trimmed.trim_start() == u"A\u00A0 "_utf16_sv);
 			assert(unicode_trimmed.trim_end() == u"\u00A0\tA"_utf16_sv);
@@ -2110,10 +2110,10 @@ inline void run_unicode_ranges_tests()
 			}));
 		}
 		{
-			const auto empty = u""_utf16_sv;
+			[[maybe_unused]] const auto empty = u""_utf16_sv;
 			const auto exact = u"--"_utf16_sv;
-			const auto repeated = u"a----b"_utf16_sv;
-			const auto missing = u"abra"_utf16_sv;
+			[[maybe_unused]] const auto repeated = u"a----b"_utf16_sv;
+			[[maybe_unused]] const auto missing = u"abra"_utf16_sv;
 			const auto unicode = u"A\u00E9B\u00E9"_utf16_sv;
 			assert(std::ranges::equal(empty.split(u"--"_utf16_sv), std::array{
 				u""_utf16_sv
