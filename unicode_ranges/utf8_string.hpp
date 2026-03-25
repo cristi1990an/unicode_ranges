@@ -9,11 +9,11 @@ namespace unicode_ranges
 template <typename Allocator>
 class basic_utf8_string : public details::utf8_string_crtp<basic_utf8_string<Allocator>, utf8_string_view>
 {
-	using base_type = std::basic_string<char8_t, std::char_traits<char8_t>, Allocator>;
 	using equivalent_utf8_string_view = utf8_string_view;
 	using equivalent_string_view = std::u8string_view;
 
  public:
+	using base_type = std::basic_string<char8_t, std::char_traits<char8_t>, Allocator>;
 	using allocator_type = Allocator;
 	using value_type = utf8_char;
 	using size_type = std::size_t;
@@ -23,40 +23,65 @@ class basic_utf8_string : public details::utf8_string_crtp<basic_utf8_string<All
 	static constexpr auto from_bytes(std::string_view bytes, const Allocator& alloc = Allocator()) noexcept
 		-> std::expected<basic_utf8_string, utf8_error>
 	{
-		if (auto validation = details::validate_utf8(bytes); !validation) [[unlikely]]
+		if (auto validated = details::copy_validated_utf8_bytes(bytes, alloc); validated) [[likely]]
 		{
-			return std::unexpected(validation.error());
+			return from_base_unchecked(std::move(*validated));
 		}
 
-		return from_bytes_unchecked(bytes, alloc);
+		else
+		{
+			return std::unexpected(validated.error());
+		}
 	}
 
 	static constexpr auto from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator()) noexcept
 		-> std::expected<basic_utf8_string, utf16_error>
 		requires (sizeof(wchar_t) == 2)
 	{
-		if (auto validation = details::validate_utf16(bytes); !validation) [[unlikely]]
+		if (auto transcoded = details::transcode_utf16_to_utf8_checked(bytes, alloc); transcoded) [[likely]]
 		{
-			return std::unexpected(validation.error());
+			return from_base_unchecked(std::move(*transcoded));
 		}
 
-		return from_bytes_unchecked(bytes, alloc);
+		else
+		{
+			return std::unexpected(transcoded.error());
+		}
 	}
 
 	static constexpr auto from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator()) noexcept
 		-> std::expected<basic_utf8_string, unicode_scalar_error>
 		requires (sizeof(wchar_t) == 4)
 	{
-		if (auto validation = details::validate_unicode_scalars(bytes); !validation) [[unlikely]]
+		if (auto transcoded = details::transcode_unicode_scalars_to_utf8_checked(bytes, alloc); transcoded) [[likely]]
+		{
+			return from_base_unchecked(std::move(*transcoded));
+		}
+
+		else
+		{
+			return std::unexpected(transcoded.error());
+		}
+	}
+
+	static constexpr auto from_bytes(base_type&& bytes) noexcept
+		-> std::expected<basic_utf8_string, utf8_error>
+	{
+		if (auto validation = details::validate_utf8(equivalent_string_view{ bytes }); !validation) [[unlikely]]
 		{
 			return std::unexpected(validation.error());
 		}
 
-		return from_bytes_unchecked(bytes, alloc);
+		return from_base_unchecked(std::move(bytes));
 	}
 
-private:
-	static constexpr auto from_bytes_unchecked(std::string_view bytes, const Allocator& alloc) noexcept
+	static constexpr auto from_bytes_unchecked(base_type&& bytes) noexcept
+		-> basic_utf8_string
+	{
+		return from_base_unchecked(std::move(bytes));
+	}
+
+	static constexpr auto from_bytes_unchecked(std::string_view bytes, const Allocator& alloc = Allocator()) noexcept
 		-> basic_utf8_string
 	{
 		base_type result{ alloc };
@@ -74,45 +99,52 @@ private:
 		return from_base_unchecked(std::move(result));
 	}
 
-	static constexpr auto from_bytes_unchecked(std::wstring_view bytes, const Allocator& alloc) noexcept
+	static constexpr auto from_bytes_unchecked(std::wstring_view bytes, const Allocator& alloc = Allocator()) noexcept
 		-> basic_utf8_string
 	{
 		if constexpr (sizeof(wchar_t) == 2)
 		{
 			base_type result{ alloc };
-			result.reserve(bytes.size() * 3u);
-			for (std::size_t index = 0; index != bytes.size();)
-			{
-				const auto first = static_cast<std::uint16_t>(bytes[index]);
-				const auto count = details::is_utf16_high_surrogate(first) ? 2u : 1u;
-				std::array<char16_t, 2> code_units{};
-				for (std::size_t i = 0; i != count; ++i)
+			result.resize_and_overwrite(bytes.size() * details::encoding_constants::three_code_unit_count,
+				[&](char8_t* buffer, std::size_t) noexcept
 				{
-					code_units[i] = static_cast<char16_t>(bytes[index + i]);
-				}
+					std::size_t write_index = 0;
+					std::size_t read_index = 0;
+					while (read_index < bytes.size())
+					{
+						const auto first = static_cast<std::uint16_t>(bytes[read_index]);
+						const auto count = details::is_utf16_high_surrogate(first)
+							? details::encoding_constants::utf16_surrogate_code_unit_count
+							: details::encoding_constants::single_code_unit_count;
+						const auto scalar = details::decode_valid_utf16_char(
+							std::basic_string_view<wchar_t>{ bytes.data() + read_index, count });
+						write_index += details::encode_unicode_scalar_utf8_unchecked(scalar, buffer + write_index);
+						read_index += count;
+					}
 
-				const auto scalar = details::decode_valid_utf16_char(std::u16string_view{ code_units.data(), count });
-				std::array<char8_t, 4> encoded{};
-				const auto encoded_count = details::encode_unicode_scalar_utf8_unchecked(scalar, encoded.data());
-				result.append(encoded.data(), encoded.data() + encoded_count);
-				index += count;
-			}
+					return write_index;
+				});
 
 			return from_base_unchecked(std::move(result));
 		}
 
 		base_type result{ alloc };
-		result.reserve(bytes.size() * 4u);
-		for (wchar_t ch : bytes)
-		{
-			std::array<char8_t, 4> encoded{};
-			const auto encoded_count = details::encode_unicode_scalar_utf8_unchecked(static_cast<std::uint32_t>(ch), encoded.data());
-			result.append(encoded.data(), encoded.data() + encoded_count);
-		}
+		result.resize_and_overwrite(bytes.size() * details::encoding_constants::max_utf8_code_units,
+			[&](char8_t* buffer, std::size_t) noexcept
+			{
+				std::size_t write_index = 0;
+				for (wchar_t ch : bytes)
+				{
+					write_index += details::encode_unicode_scalar_utf8_unchecked(static_cast<std::uint32_t>(ch), buffer + write_index);
+				}
+
+				return write_index;
+			});
 
 		return from_base_unchecked(std::move(result));
 	}
 
+private:
 	[[nodiscard]]
 	constexpr bool overlaps_base(equivalent_string_view bytes) const noexcept
 	{
@@ -533,11 +565,18 @@ public:
 		return insert_range(index, ilist);
 	}
 
-	constexpr void pop_back()
+	constexpr std::optional<value_type> pop_back()
 	{
-		const auto bytes_to_remove = (*(this->reversed_chars().begin())).code_unit_count();
+		if (base_.empty()) [[unlikely]]
+		{
+			return std::nullopt;
+		}
+
+		const auto removed = this->back_unchecked();
+		const auto bytes_to_remove = removed.code_unit_count();
 		const auto where_idx = base_.size() - bytes_to_remove;
 		base_.erase(where_idx, bytes_to_remove);
+		return removed;
 	}
 
 	constexpr basic_utf8_string& erase(size_type index, size_type count = npos)

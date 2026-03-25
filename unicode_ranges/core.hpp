@@ -139,6 +139,74 @@ namespace details
 		To{ value };
 	};
 
+	namespace encoding_constants
+	{
+		inline constexpr std::uint32_t ascii_scalar_max = 0x7Fu;
+		inline constexpr std::uint32_t two_byte_scalar_max = 0x7FFu;
+		inline constexpr std::uint32_t bmp_scalar_max = 0xFFFFu;
+		inline constexpr std::uint32_t supplementary_plane_base = 0x10000u;
+		inline constexpr std::uint32_t max_unicode_scalar = 0x10FFFFu;
+		inline constexpr std::uint32_t replacement_character_scalar = 0xFFFDu;
+		inline constexpr std::uint32_t high_surrogate_min = 0xD800u;
+		inline constexpr std::uint32_t high_surrogate_max = 0xDBFFu;
+		inline constexpr std::uint32_t low_surrogate_min = 0xDC00u;
+		inline constexpr std::uint32_t low_surrogate_max = 0xDFFFu;
+		inline constexpr std::uint32_t scalar_before_surrogate_range = 0xD7FFu;
+		inline constexpr std::uint32_t scalar_after_surrogate_range = 0xE000u;
+		inline constexpr std::uint32_t surrogate_payload_mask = 0x3FFu;
+		inline constexpr std::size_t single_code_unit_count = 1;
+		inline constexpr std::size_t two_code_unit_count = 2;
+		inline constexpr std::size_t three_code_unit_count = 3;
+		inline constexpr std::size_t four_code_unit_count = 4;
+		inline constexpr std::size_t utf16_surrogate_code_unit_count = two_code_unit_count;
+		inline constexpr std::size_t max_utf8_code_units = four_code_unit_count;
+		inline constexpr std::uint32_t utf8_continuation_payload_bits = 6u;
+		inline constexpr std::uint32_t utf8_two_byte_lead_shift = utf8_continuation_payload_bits;
+		inline constexpr std::uint32_t utf8_three_byte_lead_shift = utf8_continuation_payload_bits * 2u;
+		inline constexpr std::uint32_t utf8_four_byte_lead_shift = utf8_continuation_payload_bits * 3u;
+		inline constexpr std::uint32_t utf16_high_surrogate_shift = 10u;
+		inline constexpr std::uint8_t ascii_control_max = 0x1Fu;
+		inline constexpr std::uint8_t ascii_delete = 0x7Fu;
+		inline constexpr std::uint8_t ascii_graphic_first = 0x21u;
+		inline constexpr std::uint8_t ascii_graphic_last = 0x7Eu;
+		inline constexpr std::uint8_t utf8_continuation_mask = 0xC0u;
+		inline constexpr std::uint8_t utf8_continuation_tag = 0x80u;
+		inline constexpr std::uint8_t utf8_continuation_min = 0x80u;
+		inline constexpr std::uint8_t utf8_continuation_max = 0xBFu;
+		inline constexpr std::uint8_t utf8_two_byte_lead_min = 0xC2u;
+		inline constexpr std::uint8_t utf8_two_byte_lead_max = 0xDFu;
+		inline constexpr std::uint8_t utf8_three_byte_lead_min = 0xE0u;
+		inline constexpr std::uint8_t utf8_three_byte_lead_max = 0xEFu;
+		inline constexpr std::uint8_t utf8_four_byte_lead_min = 0xF0u;
+		inline constexpr std::uint8_t utf8_four_byte_lead_max = 0xF4u;
+		inline constexpr std::uint8_t utf8_three_byte_lead_after_e0_min = 0xE1u;
+		inline constexpr std::uint8_t utf8_three_byte_lead_before_surrogate_max = 0xECu;
+		inline constexpr std::uint8_t utf8_surrogate_boundary_lead = 0xEDu;
+		inline constexpr std::uint8_t utf8_three_byte_lead_after_surrogate_min = 0xEEu;
+		inline constexpr std::uint8_t utf8_four_byte_lead_after_f0_min = 0xF1u;
+		inline constexpr std::uint8_t utf8_four_byte_lead_before_f4_max = 0xF3u;
+		inline constexpr std::uint8_t utf8_two_byte_prefix_mask = 0xE0u;
+		inline constexpr std::uint8_t utf8_three_byte_prefix_mask = 0xF0u;
+		inline constexpr std::uint8_t utf8_four_byte_prefix_mask = 0xF8u;
+		inline constexpr std::uint8_t utf8_two_byte_prefix_value = 0xC0u;
+		inline constexpr std::uint8_t utf8_three_byte_prefix_value = 0xE0u;
+		inline constexpr std::uint8_t utf8_four_byte_prefix_value = 0xF0u;
+		inline constexpr std::uint8_t utf8_two_byte_payload_mask = 0x1Fu;
+		inline constexpr std::uint8_t utf8_three_byte_payload_mask = 0x0Fu;
+		inline constexpr std::uint8_t utf8_four_byte_payload_mask = 0x07u;
+		inline constexpr std::uint8_t utf8_continuation_payload_mask = 0x3Fu;
+		inline constexpr std::uint8_t utf8_e0_second_byte_min = 0xA0u;
+		inline constexpr std::uint8_t utf8_ed_second_byte_max = 0x9Fu;
+		inline constexpr std::uint8_t utf8_f0_second_byte_min = 0x90u;
+		inline constexpr std::uint8_t utf8_f4_second_byte_max = 0x8Fu;
+	}
+
+	template <typename Allocator>
+	using utf8_base_string = std::basic_string<char8_t, std::char_traits<char8_t>, Allocator>;
+
+	template <typename Allocator>
+	using utf16_base_string = std::basic_string<char16_t, std::char_traits<char16_t>, Allocator>;
+
 	template<typename CharT>
 	inline constexpr bool is_single_valid_utf8_char(std::basic_string_view<CharT> value) noexcept
 	{
@@ -154,62 +222,71 @@ namespace details
 
 		const auto is_cont = [&byte](std::size_t index) noexcept -> bool
 		{
-			return (byte(index) & 0xC0u) == 0x80u;
+			return (byte(index) & encoding_constants::utf8_continuation_mask) == encoding_constants::utf8_continuation_tag;
 		};
 
 		const std::size_t size = value.size();
 		const unsigned char b1 = byte(0);
 
-		if (size == 1) [[likely]]
+		if (size == encoding_constants::single_code_unit_count) [[likely]]
 		{
-			return b1 <= 0x7Fu;
+			return b1 <= encoding_constants::ascii_scalar_max;
 		}
 
-		if (size == 2)
+		if (size == encoding_constants::two_code_unit_count)
 		{
-			return b1 >= 0xC2u && b1 <= 0xDFu && is_cont(1);
+			return b1 >= encoding_constants::utf8_two_byte_lead_min
+				&& b1 <= encoding_constants::utf8_two_byte_lead_max
+				&& is_cont(1);
 		}
 
-		if (size == 3)
+		if (size == encoding_constants::three_code_unit_count)
 		{
 			const unsigned char b2 = byte(1);
 			return
 				(
-					b1 == 0xE0u &&
-					b2 >= 0xA0u && b2 <= 0xBFu &&
+					b1 == encoding_constants::utf8_three_byte_lead_min &&
+					b2 >= encoding_constants::utf8_e0_second_byte_min
+					&& b2 <= encoding_constants::utf8_continuation_max &&
 					is_cont(2)
 				) ||
 				(
-					b1 >= 0xE1u && b1 <= 0xECu &&
+					b1 >= encoding_constants::utf8_three_byte_lead_after_e0_min
+					&& b1 <= encoding_constants::utf8_three_byte_lead_before_surrogate_max
+					&& is_cont(1) && is_cont(2)
+				) ||
+				(
+					b1 == encoding_constants::utf8_surrogate_boundary_lead &&
+					b2 >= encoding_constants::utf8_continuation_min
+					&& b2 <= encoding_constants::utf8_ed_second_byte_max &&
 					is_cont(1) && is_cont(2)
 				) ||
 				(
-					b1 == 0xEDu &&
-					b2 >= 0x80u && b2 <= 0x9Fu &&
-					is_cont(2)
-				) ||
-				(
-					b1 >= 0xEEu && b1 <= 0xEFu &&
+					b1 >= encoding_constants::utf8_three_byte_lead_after_surrogate_min
+					&& b1 <= encoding_constants::utf8_three_byte_lead_max &&
 					is_cont(1) && is_cont(2)
 				);
 		}
 
-		if (size == 4)
+		if (size == encoding_constants::max_utf8_code_units)
 		{
 			const unsigned char b2 = byte(1);
 			return
 				(
-					b1 == 0xF0u &&
-					b2 >= 0x90u && b2 <= 0xBFu &&
+					b1 == encoding_constants::utf8_four_byte_lead_min &&
+					b2 >= encoding_constants::utf8_f0_second_byte_min
+					&& b2 <= encoding_constants::utf8_continuation_max &&
 					is_cont(2) && is_cont(3)
 				) ||
 				(
-					b1 >= 0xF1u && b1 <= 0xF3u &&
+					b1 >= encoding_constants::utf8_four_byte_lead_after_f0_min
+					&& b1 <= encoding_constants::utf8_four_byte_lead_before_f4_max &&
 					is_cont(1) && is_cont(2) && is_cont(3)
 				) ||
 				(
-					b1 == 0xF4u &&
-					b2 >= 0x80u && b2 <= 0x8Fu &&
+					b1 == encoding_constants::utf8_four_byte_lead_max &&
+					b2 >= encoding_constants::utf8_continuation_min
+					&& b2 <= encoding_constants::utf8_f4_second_byte_max &&
 					is_cont(2) && is_cont(3)
 				);
 		}
@@ -224,7 +301,8 @@ namespace details
 
 	inline constexpr bool is_valid_unicode_scalar(std::uint32_t scalar) noexcept
 	{
-		return scalar <= 0x10FFFFu && !(scalar >= 0xD800u && scalar <= 0xDFFFu);
+		return scalar <= encoding_constants::max_unicode_scalar
+			&& !(scalar >= encoding_constants::high_surrogate_min && scalar <= encoding_constants::low_surrogate_max);
 	}
 
 	template<typename CharT>
@@ -233,32 +311,32 @@ namespace details
 		&& std::is_convertible_v<char8_t, CharT>)
 	inline constexpr std::size_t encode_unicode_scalar_utf8_unchecked(std::uint32_t scalar, CharT* out) noexcept
 	{
-		if (scalar <= 0x7Fu) [[likely]]
+		if (scalar <= encoding_constants::ascii_scalar_max) [[likely]]
 		{
 			out[0] = static_cast<CharT>(scalar);
-			return 1;
+			return encoding_constants::single_code_unit_count;
 		}
 
-		if (scalar <= 0x7FFu)
+		if (scalar <= encoding_constants::two_byte_scalar_max)
 		{
-			out[0] = static_cast<CharT>(0xC0u | ((scalar >> 6) & 0x1Fu));
-			out[1] = static_cast<CharT>(0x80u | (scalar & 0x3Fu));
-			return 2;
+			out[0] = static_cast<CharT>(encoding_constants::utf8_two_byte_prefix_value | ((scalar >> encoding_constants::utf8_two_byte_lead_shift) & encoding_constants::utf8_two_byte_payload_mask));
+			out[1] = static_cast<CharT>(encoding_constants::utf8_continuation_tag | (scalar & encoding_constants::utf8_continuation_payload_mask));
+			return encoding_constants::two_code_unit_count;
 		}
 
-		if (scalar <= 0xFFFFu)
+		if (scalar <= encoding_constants::bmp_scalar_max)
 		{
-			out[0] = static_cast<CharT>(0xE0u | ((scalar >> 12) & 0x0Fu));
-			out[1] = static_cast<CharT>(0x80u | ((scalar >> 6) & 0x3Fu));
-			out[2] = static_cast<CharT>(0x80u | (scalar & 0x3Fu));
-			return 3;
+			out[0] = static_cast<CharT>(encoding_constants::utf8_three_byte_lead_min | ((scalar >> encoding_constants::utf8_three_byte_lead_shift) & encoding_constants::utf8_three_byte_payload_mask));
+			out[1] = static_cast<CharT>(encoding_constants::utf8_continuation_tag | ((scalar >> encoding_constants::utf8_continuation_payload_bits) & encoding_constants::utf8_continuation_payload_mask));
+			out[2] = static_cast<CharT>(encoding_constants::utf8_continuation_tag | (scalar & encoding_constants::utf8_continuation_payload_mask));
+			return encoding_constants::three_code_unit_count;
 		}
 
-		out[0] = static_cast<CharT>(0xF0u | ((scalar >> 18) & 0x07u));
-		out[1] = static_cast<CharT>(0x80u | ((scalar >> 12) & 0x3Fu));
-		out[2] = static_cast<CharT>(0x80u | ((scalar >> 6) & 0x3Fu));
-		out[3] = static_cast<CharT>(0x80u | (scalar & 0x3Fu));
-		return 4;
+		out[0] = static_cast<CharT>(encoding_constants::utf8_four_byte_lead_min | ((scalar >> encoding_constants::utf8_four_byte_lead_shift) & encoding_constants::utf8_four_byte_payload_mask));
+		out[1] = static_cast<CharT>(encoding_constants::utf8_continuation_tag | ((scalar >> encoding_constants::utf8_three_byte_lead_shift) & encoding_constants::utf8_continuation_payload_mask));
+		out[2] = static_cast<CharT>(encoding_constants::utf8_continuation_tag | ((scalar >> encoding_constants::utf8_continuation_payload_bits) & encoding_constants::utf8_continuation_payload_mask));
+		out[3] = static_cast<CharT>(encoding_constants::utf8_continuation_tag | (scalar & encoding_constants::utf8_continuation_payload_mask));
+		return encoding_constants::max_utf8_code_units;
 	}
 
 	template<typename CharT>
@@ -288,18 +366,18 @@ namespace details
 		};
 
 		const auto first = code_unit(0);
-		const bool first_is_high_surrogate = first >= 0xD800u && first <= 0xDBFFu;
-		const bool first_is_low_surrogate = first >= 0xDC00u && first <= 0xDFFFu;
+		const bool first_is_high_surrogate = first >= encoding_constants::high_surrogate_min && first <= encoding_constants::high_surrogate_max;
+		const bool first_is_low_surrogate = first >= encoding_constants::low_surrogate_min && first <= encoding_constants::low_surrogate_max;
 
-		if (value.size() == 1) [[likely]]
+		if (value.size() == encoding_constants::single_code_unit_count) [[likely]]
 		{
 			return !first_is_high_surrogate && !first_is_low_surrogate;
 		}
 
-		if (value.size() == 2)
+		if (value.size() == encoding_constants::utf16_surrogate_code_unit_count)
 		{
 			const auto second = code_unit(1);
-			const bool second_is_low_surrogate = second >= 0xDC00u && second <= 0xDFFFu;
+			const bool second_is_low_surrogate = second >= encoding_constants::low_surrogate_min && second <= encoding_constants::low_surrogate_max;
 			return first_is_high_surrogate && second_is_low_surrogate;
 		}
 
@@ -308,12 +386,12 @@ namespace details
 
 	inline constexpr bool is_utf16_high_surrogate(std::uint16_t value) noexcept
 	{
-		return value >= 0xD800u && value <= 0xDBFFu;
+		return value >= encoding_constants::high_surrogate_min && value <= encoding_constants::high_surrogate_max;
 	}
 
 	inline constexpr bool is_utf16_low_surrogate(std::uint16_t value) noexcept
 	{
-		return value >= 0xDC00u && value <= 0xDFFFu;
+		return value >= encoding_constants::low_surrogate_min && value <= encoding_constants::low_surrogate_max;
 	}
 
 	template<typename CharT>
@@ -322,16 +400,16 @@ namespace details
 		&& non_narrowing_convertible<char16_t, CharT>)
 	inline constexpr std::size_t encode_unicode_scalar_utf16_unchecked(std::uint32_t scalar, CharT* out) noexcept
 	{
-		if (scalar <= 0xFFFFu) [[likely]]
+		if (scalar <= encoding_constants::bmp_scalar_max) [[likely]]
 		{
 			out[0] = static_cast<CharT>(scalar);
-			return 1;
+			return encoding_constants::single_code_unit_count;
 		}
 
-		const auto shifted = scalar - 0x10000u;
-		out[0] = static_cast<CharT>(0xD800u + (shifted >> 10));
-		out[1] = static_cast<CharT>(0xDC00u + (shifted & 0x3FFu));
-		return 2;
+		const auto shifted = scalar - encoding_constants::supplementary_plane_base;
+		out[0] = static_cast<CharT>(encoding_constants::high_surrogate_min + (shifted >> encoding_constants::utf16_high_surrogate_shift));
+		out[1] = static_cast<CharT>(encoding_constants::low_surrogate_min + (shifted & encoding_constants::surrogate_payload_mask));
+		return encoding_constants::utf16_surrogate_code_unit_count;
 	}
 
 	template<typename CharT>
@@ -356,31 +434,126 @@ namespace details
 		else
 		{
 			out[0] = static_cast<wchar_t>(scalar);
-			return 1;
+			return encoding_constants::single_code_unit_count;
 		}
 	}
 
 	inline constexpr std::size_t utf8_byte_count_from_lead(std::uint8_t lead) noexcept
 	{
-		if (lead <= 0x7Fu) [[likely]]
+		if (lead <= encoding_constants::ascii_scalar_max) [[likely]]
 		{
-			return 1;
+			return encoding_constants::single_code_unit_count;
 		}
-		if ((lead & 0xE0u) == 0xC0u)
+		if ((lead & encoding_constants::utf8_two_byte_prefix_mask) == encoding_constants::utf8_two_byte_prefix_value)
 		{
-			return 2;
+			return encoding_constants::two_code_unit_count;
 		}
-		if ((lead & 0xF0u) == 0xE0u)
+		if ((lead & encoding_constants::utf8_three_byte_prefix_mask) == encoding_constants::utf8_three_byte_prefix_value)
 		{
-			return 3;
+			return encoding_constants::three_code_unit_count;
 		}
-		return 4;
+		return encoding_constants::max_utf8_code_units;
 	}
 
 	inline constexpr bool is_utf8_lead_byte(std::uint8_t byte) noexcept
 	{
-		return (byte & 0xC0u) != 0x80u;
+		return (byte & encoding_constants::utf8_continuation_mask) != encoding_constants::utf8_continuation_tag;
 	}
+
+	template<typename CharT>
+	inline constexpr auto validate_utf8_sequence_at(
+		std::basic_string_view<CharT> value,
+		std::size_t index) noexcept -> std::expected<std::size_t, utf8_error>
+	{
+		const std::uint8_t lead = static_cast<std::uint8_t>(value[index]);
+		std::size_t expected_size = 0;
+		if (lead <= encoding_constants::ascii_scalar_max) [[likely]]
+		{
+			expected_size = encoding_constants::single_code_unit_count;
+		}
+		else if (lead >= encoding_constants::utf8_two_byte_lead_min && lead <= encoding_constants::utf8_two_byte_lead_max)
+		{
+			expected_size = encoding_constants::two_code_unit_count;
+		}
+		else if (lead >= encoding_constants::utf8_three_byte_lead_min && lead <= encoding_constants::utf8_three_byte_lead_max)
+		{
+			expected_size = encoding_constants::three_code_unit_count;
+		}
+		else if (lead >= encoding_constants::utf8_four_byte_lead_min && lead <= encoding_constants::utf8_four_byte_lead_max)
+		{
+			expected_size = encoding_constants::max_utf8_code_units;
+		}
+		else
+		{
+			return std::unexpected(utf8_error{
+				.code = utf8_error_code::invalid_lead_byte,
+				.first_invalid_byte_index = index
+			});
+		}
+
+		if (expected_size > value.size() - index) [[unlikely]]
+		{
+			return std::unexpected(utf8_error{
+				.code = utf8_error_code::truncated_sequence,
+				.first_invalid_byte_index = index
+			});
+		}
+
+		if (!details::is_single_valid_utf8_char(value.substr(index, expected_size))) [[unlikely]]
+		{
+			return std::unexpected(utf8_error{
+				.code = utf8_error_code::invalid_sequence,
+				.first_invalid_byte_index = index
+			});
+		}
+
+		return expected_size;
+	}
+
+	template<typename CharT>
+	inline constexpr auto validate_utf16_sequence_at(
+		std::basic_string_view<CharT> value,
+		std::size_t index) noexcept -> std::expected<std::size_t, utf16_error>
+	{
+		const auto first = static_cast<std::uint16_t>(value[index]);
+		if (!is_utf16_high_surrogate(first) && !is_utf16_low_surrogate(first)) [[likely]]
+		{
+			return encoding_constants::single_code_unit_count;
+		}
+
+		if (is_utf16_low_surrogate(first))
+		{
+			return std::unexpected(utf16_error{
+				.code = utf16_error_code::invalid_sequence,
+				.first_invalid_code_unit_index = index
+			});
+		}
+
+		if (index + encoding_constants::single_code_unit_count >= value.size()) [[unlikely]]
+		{
+			return std::unexpected(utf16_error{
+				.code = utf16_error_code::truncated_surrogate_pair,
+				.first_invalid_code_unit_index = index
+			});
+		}
+
+		const auto second = static_cast<std::uint16_t>(value[index + encoding_constants::single_code_unit_count]);
+		if (!is_utf16_low_surrogate(second))
+		{
+			return std::unexpected(utf16_error{
+				.code = utf16_error_code::invalid_sequence,
+				.first_invalid_code_unit_index = index
+			});
+		}
+
+		return encoding_constants::utf16_surrogate_code_unit_count;
+	}
+
+	template<typename CharT>
+	inline constexpr std::uint32_t decode_valid_utf8_char(std::basic_string_view<CharT> ch) noexcept;
+
+	template<typename CharT>
+	inline constexpr std::uint32_t decode_valid_utf16_char(std::basic_string_view<CharT> ch) noexcept;
 
 	template<typename CharT>
 	inline constexpr std::expected<void, utf8_error> validate_utf8(std::basic_string_view<CharT> value) noexcept
@@ -388,49 +561,13 @@ namespace details
 		std::size_t index = 0;
 		while (index < value.size())
 		{
-			const std::uint8_t lead = static_cast<std::uint8_t>(value[index]);
-			std::size_t expected_size = 0;
-			if (lead <= 0x7Fu) [[likely]]
+			const auto expected_size = validate_utf8_sequence_at(value, index);
+			if (!expected_size) [[unlikely]]
 			{
-				expected_size = 1;
-			}
-			else if (lead >= 0xC2u && lead <= 0xDFu)
-			{
-				expected_size = 2;
-			}
-			else if (lead >= 0xE0u && lead <= 0xEFu)
-			{
-				expected_size = 3;
-			}
-			else if (lead >= 0xF0u && lead <= 0xF4u)
-			{
-				expected_size = 4;
-			}
-			else
-			{
-				return std::unexpected(utf8_error{
-					.code = utf8_error_code::invalid_lead_byte,
-					.first_invalid_byte_index = index
-				});
+				return std::unexpected(expected_size.error());
 			}
 
-			if (expected_size > value.size() - index) [[unlikely]]
-			{
-				return std::unexpected(utf8_error{
-					.code = utf8_error_code::truncated_sequence,
-					.first_invalid_byte_index = index
-				});
-			}
-
-			if (!details::is_single_valid_utf8_char(value.substr(index, expected_size))) [[unlikely]]
-			{
-				return std::unexpected(utf8_error{
-					.code = utf8_error_code::invalid_sequence,
-					.first_invalid_byte_index = index
-				});
-			}
-
-			index += expected_size;
+			index += *expected_size;
 		}
 
 		return {};
@@ -442,39 +579,13 @@ namespace details
 		std::size_t index = 0;
 		while (index < value.size())
 		{
-			const auto first = static_cast<std::uint16_t>(value[index]);
-			if (!is_utf16_high_surrogate(first) && !is_utf16_low_surrogate(first)) [[likely]]
+			const auto sequence_length = validate_utf16_sequence_at(value, index);
+			if (!sequence_length) [[unlikely]]
 			{
-				++index;
-				continue;
+				return std::unexpected(sequence_length.error());
 			}
 
-			if (is_utf16_low_surrogate(first))
-			{
-				return std::unexpected(utf16_error{
-					.code = utf16_error_code::invalid_sequence,
-					.first_invalid_code_unit_index = index
-				});
-			}
-
-			if (index + 1 >= value.size()) [[unlikely]]
-			{
-				return std::unexpected(utf16_error{
-					.code = utf16_error_code::truncated_surrogate_pair,
-					.first_invalid_code_unit_index = index
-				});
-			}
-
-			const auto second = static_cast<std::uint16_t>(value[index + 1]);
-			if (!is_utf16_low_surrogate(second))
-			{
-				return std::unexpected(utf16_error{
-					.code = utf16_error_code::invalid_sequence,
-					.first_invalid_code_unit_index = index
-				});
-			}
-
-			index += 2;
+			index += *sequence_length;
 		}
 
 		return {};
@@ -496,6 +607,240 @@ namespace details
 		return {};
 	}
 
+	template <typename Allocator>
+	inline constexpr auto copy_validated_utf8_bytes(
+		std::string_view bytes,
+		const Allocator& alloc) -> std::expected<utf8_base_string<Allocator>, utf8_error>
+	{
+		utf8_base_string<Allocator> result{ alloc };
+		std::optional<utf8_error> error;
+		result.resize_and_overwrite(bytes.size(),
+			[&](char8_t* buffer, std::size_t) noexcept
+			{
+				std::size_t write_index = 0;
+				std::size_t read_index = 0;
+				while (read_index < bytes.size())
+				{
+					const auto sequence_length = validate_utf8_sequence_at(bytes, read_index);
+					if (!sequence_length) [[unlikely]]
+					{
+						error = sequence_length.error();
+						return std::size_t{ 0 };
+					}
+
+					for (std::size_t i = 0; i != *sequence_length; ++i)
+					{
+						buffer[write_index + i] = static_cast<char8_t>(bytes[read_index + i]);
+					}
+
+					write_index += *sequence_length;
+					read_index += *sequence_length;
+				}
+
+				return write_index;
+			});
+
+		if (error) [[unlikely]]
+		{
+			return std::unexpected(*error);
+		}
+
+		return result;
+	}
+
+	template <typename Allocator>
+	inline constexpr auto transcode_utf8_to_utf16_checked(
+		std::string_view bytes,
+		const Allocator& alloc) -> std::expected<utf16_base_string<Allocator>, utf8_error>
+	{
+		utf16_base_string<Allocator> result{ alloc };
+		std::optional<utf8_error> error;
+		result.resize_and_overwrite(bytes.size(),
+			[&](char16_t* buffer, std::size_t) noexcept
+			{
+				std::size_t write_index = 0;
+				std::size_t read_index = 0;
+				while (read_index < bytes.size())
+				{
+					const auto sequence_length = validate_utf8_sequence_at(bytes, read_index);
+					if (!sequence_length) [[unlikely]]
+					{
+						error = sequence_length.error();
+						return std::size_t{ 0 };
+					}
+
+					const auto scalar = decode_valid_utf8_char(
+						std::basic_string_view<char>{ bytes.data() + read_index, *sequence_length });
+					write_index += encode_unicode_scalar_utf16_unchecked(scalar, buffer + write_index);
+					read_index += *sequence_length;
+				}
+
+				return write_index;
+			});
+
+		if (error) [[unlikely]]
+		{
+			return std::unexpected(*error);
+		}
+
+		return result;
+	}
+
+	template <typename Allocator>
+	inline constexpr auto transcode_utf16_to_utf8_checked(
+		std::wstring_view code_units,
+		const Allocator& alloc) -> std::expected<utf8_base_string<Allocator>, utf16_error>
+		requires (sizeof(wchar_t) == 2)
+	{
+		utf8_base_string<Allocator> result{ alloc };
+		std::optional<utf16_error> error;
+		result.resize_and_overwrite(code_units.size() * encoding_constants::three_code_unit_count,
+			[&](char8_t* buffer, std::size_t) noexcept
+			{
+				std::size_t write_index = 0;
+				std::size_t read_index = 0;
+				while (read_index < code_units.size())
+				{
+					const auto sequence_length = validate_utf16_sequence_at(code_units, read_index);
+					if (!sequence_length) [[unlikely]]
+					{
+						error = sequence_length.error();
+						return std::size_t{ 0 };
+					}
+
+					const auto scalar = decode_valid_utf16_char(
+						std::basic_string_view<wchar_t>{ code_units.data() + read_index, *sequence_length });
+					write_index += encode_unicode_scalar_utf8_unchecked(scalar, buffer + write_index);
+					read_index += *sequence_length;
+				}
+
+				return write_index;
+			});
+
+		if (error) [[unlikely]]
+		{
+			return std::unexpected(*error);
+		}
+
+		return result;
+	}
+
+	template <typename Allocator>
+	inline constexpr auto copy_validated_utf16_code_units(
+		std::wstring_view code_units,
+		const Allocator& alloc) -> std::expected<utf16_base_string<Allocator>, utf16_error>
+		requires (sizeof(wchar_t) == 2)
+	{
+		utf16_base_string<Allocator> result{ alloc };
+		std::optional<utf16_error> error;
+		result.resize_and_overwrite(code_units.size(),
+			[&](char16_t* buffer, std::size_t) noexcept
+			{
+				std::size_t write_index = 0;
+				while (write_index < code_units.size())
+				{
+					const auto sequence_length = validate_utf16_sequence_at(code_units, write_index);
+					if (!sequence_length) [[unlikely]]
+					{
+						error = sequence_length.error();
+						return std::size_t{ 0 };
+					}
+
+					for (std::size_t i = 0; i != *sequence_length; ++i)
+					{
+						buffer[write_index + i] = static_cast<char16_t>(code_units[write_index + i]);
+					}
+
+					write_index += *sequence_length;
+				}
+
+				return write_index;
+			});
+
+		if (error) [[unlikely]]
+		{
+			return std::unexpected(*error);
+		}
+
+		return result;
+	}
+
+	template <typename Allocator>
+	inline constexpr auto transcode_unicode_scalars_to_utf8_checked(
+		std::wstring_view scalars,
+		const Allocator& alloc) -> std::expected<utf8_base_string<Allocator>, unicode_scalar_error>
+		requires (sizeof(wchar_t) == 4)
+	{
+		utf8_base_string<Allocator> result{ alloc };
+		std::optional<unicode_scalar_error> error;
+		result.resize_and_overwrite(scalars.size() * encoding_constants::max_utf8_code_units,
+			[&](char8_t* buffer, std::size_t) noexcept
+			{
+				std::size_t write_index = 0;
+				for (std::size_t read_index = 0; read_index != scalars.size(); ++read_index)
+				{
+					const auto scalar = static_cast<std::uint32_t>(scalars[read_index]);
+					if (!is_valid_unicode_scalar(scalar)) [[unlikely]]
+					{
+						error = unicode_scalar_error{
+							.code = unicode_scalar_error_code::invalid_scalar,
+							.first_invalid_element_index = read_index
+						};
+						return std::size_t{ 0 };
+					}
+
+					write_index += encode_unicode_scalar_utf8_unchecked(scalar, buffer + write_index);
+				}
+
+				return write_index;
+			});
+
+		if (error) [[unlikely]]
+		{
+			return std::unexpected(*error);
+		}
+
+		return result;
+	}
+
+	template <typename Allocator>
+	inline constexpr auto transcode_unicode_scalars_to_utf16_checked(
+		std::wstring_view scalars,
+		const Allocator& alloc) -> std::expected<utf16_base_string<Allocator>, unicode_scalar_error>
+		requires (sizeof(wchar_t) == 4)
+	{
+		utf16_base_string<Allocator> result{ alloc };
+		std::optional<unicode_scalar_error> error;
+		result.resize_and_overwrite(scalars.size() * encoding_constants::utf16_surrogate_code_unit_count,
+			[&](char16_t* buffer, std::size_t) noexcept
+			{
+				std::size_t write_index = 0;
+				for (std::size_t read_index = 0; read_index != scalars.size(); ++read_index)
+				{
+					const auto scalar = static_cast<std::uint32_t>(scalars[read_index]);
+					if (!is_valid_unicode_scalar(scalar)) [[unlikely]]
+					{
+						error = unicode_scalar_error{
+							.code = unicode_scalar_error_code::invalid_scalar,
+							.first_invalid_element_index = read_index
+						};
+						return std::size_t{ 0 };
+					}
+
+					write_index += encode_unicode_scalar_utf16_unchecked(scalar, buffer + write_index);
+				}
+
+				return write_index;
+			});
+
+		if (error) [[unlikely]]
+		{
+			return std::unexpected(*error);
+		}
+
+		return result;
+	}
+
 	template<typename CharT>
 	inline constexpr std::uint32_t decode_valid_utf8_char(std::basic_string_view<CharT> ch) noexcept
 	{
@@ -504,67 +849,69 @@ namespace details
 			return static_cast<std::uint8_t>(ch[index]);
 		};
 
-		if (ch.size() == 1) [[likely]]
+		if (ch.size() == encoding_constants::single_code_unit_count) [[likely]]
 		{
 			return byte(0);
 		}
 
-		if (ch.size() == 2)
+		if (ch.size() == encoding_constants::two_code_unit_count)
 		{
-			return (static_cast<std::uint32_t>(byte(0) & 0x1Fu) << 6) |
-				(static_cast<std::uint32_t>(byte(1) & 0x3Fu));
+			return (static_cast<std::uint32_t>(byte(0) & encoding_constants::utf8_two_byte_payload_mask) << encoding_constants::utf8_two_byte_lead_shift) |
+				(static_cast<std::uint32_t>(byte(1) & encoding_constants::utf8_continuation_payload_mask));
 		}
 
-		if (ch.size() == 3)
+		if (ch.size() == encoding_constants::three_code_unit_count)
 		{
-			return (static_cast<std::uint32_t>(byte(0) & 0x0Fu) << 12) |
-				(static_cast<std::uint32_t>(byte(1) & 0x3Fu) << 6) |
-				(static_cast<std::uint32_t>(byte(2) & 0x3Fu));
+			return (static_cast<std::uint32_t>(byte(0) & encoding_constants::utf8_three_byte_payload_mask) << encoding_constants::utf8_three_byte_lead_shift) |
+				(static_cast<std::uint32_t>(byte(1) & encoding_constants::utf8_continuation_payload_mask) << encoding_constants::utf8_continuation_payload_bits) |
+				(static_cast<std::uint32_t>(byte(2) & encoding_constants::utf8_continuation_payload_mask));
 		}
 
-		return (static_cast<std::uint32_t>(byte(0) & 0x07u) << 18) |
-			(static_cast<std::uint32_t>(byte(1) & 0x3Fu) << 12) |
-			(static_cast<std::uint32_t>(byte(2) & 0x3Fu) << 6) |
-			(static_cast<std::uint32_t>(byte(3) & 0x3Fu));
+		return (static_cast<std::uint32_t>(byte(0) & encoding_constants::utf8_four_byte_payload_mask) << encoding_constants::utf8_four_byte_lead_shift) |
+			(static_cast<std::uint32_t>(byte(1) & encoding_constants::utf8_continuation_payload_mask) << encoding_constants::utf8_three_byte_lead_shift) |
+			(static_cast<std::uint32_t>(byte(2) & encoding_constants::utf8_continuation_payload_mask) << encoding_constants::utf8_continuation_payload_bits) |
+			(static_cast<std::uint32_t>(byte(3) & encoding_constants::utf8_continuation_payload_mask));
 	}
 
-		template<typename CharT>
-		inline constexpr std::uint32_t decode_valid_utf16_char(std::basic_string_view<CharT> ch) noexcept
-		{
-		if (ch.size() == 1) [[likely]]
+	template<typename CharT>
+	inline constexpr std::uint32_t decode_valid_utf16_char(std::basic_string_view<CharT> ch) noexcept
+	{
+		if (ch.size() == encoding_constants::single_code_unit_count) [[likely]]
 		{
 			return static_cast<std::uint16_t>(ch[0]);
 		}
 
-		const auto high = static_cast<std::uint16_t>(ch[0]) - 0xD800u;
-		const auto low = static_cast<std::uint16_t>(ch[1]) - 0xDC00u;
-			return 0x10000u + (static_cast<std::uint32_t>(high) << 10) + low;
-		}
+		const auto high = static_cast<std::uint16_t>(ch[0]) - encoding_constants::high_surrogate_min;
+		const auto low = static_cast<std::uint16_t>(ch[1]) - encoding_constants::low_surrogate_min;
+		return encoding_constants::supplementary_plane_base + (static_cast<std::uint32_t>(high) << encoding_constants::utf16_high_surrogate_shift) + low;
+	}
 
-		struct decoded_scalar
-		{
-			std::uint32_t scalar = 0;
-			std::size_t next_index = 0;
+	struct decoded_scalar
+	{
+		std::uint32_t scalar = 0;
+		std::size_t next_index = 0;
+	};
+
+	inline constexpr decoded_scalar decode_next_scalar(std::u8string_view text, std::size_t index) noexcept
+	{
+		const auto len = utf8_byte_count_from_lead(static_cast<std::uint8_t>(text[index]));
+		return decoded_scalar{
+			.scalar = decode_valid_utf8_char(text.substr(index, len)),
+			.next_index = index + len
 		};
+	}
 
-		inline constexpr decoded_scalar decode_next_scalar(std::u8string_view text, std::size_t index) noexcept
-		{
-			const auto len = utf8_byte_count_from_lead(static_cast<std::uint8_t>(text[index]));
-			return decoded_scalar{
-				.scalar = decode_valid_utf8_char(text.substr(index, len)),
-				.next_index = index + len
-			};
-		}
-
-		inline constexpr decoded_scalar decode_next_scalar(std::u16string_view text, std::size_t index) noexcept
-		{
-			const auto first = static_cast<std::uint16_t>(text[index]);
-			const auto len = is_utf16_high_surrogate(first) ? 2u : 1u;
-			return decoded_scalar{
-				.scalar = decode_valid_utf16_char(text.substr(index, len)),
-				.next_index = index + len
-			};
-		}
+	inline constexpr decoded_scalar decode_next_scalar(std::u16string_view text, std::size_t index) noexcept
+	{
+		const auto first = static_cast<std::uint16_t>(text[index]);
+		const auto len = is_utf16_high_surrogate(first)
+			? encoding_constants::utf16_surrogate_code_unit_count
+			: encoding_constants::single_code_unit_count;
+		return decoded_scalar{
+			.scalar = decode_valid_utf16_char(text.substr(index, len)),
+			.next_index = index + len
+		};
+	}
 
 		enum class grapheme_emoji_suffix_state
 		{
@@ -958,23 +1305,21 @@ namespace details
 
 			const auto last_start = floor_grapheme_boundary(text, text.size() - needle.size());
 			pos = (std::min)(pos, last_start);
-
-			for (std::size_t current = pos;;)
+			auto last_match = std::basic_string_view<CharT>::npos;
+			for (std::size_t current = 0; current <= pos; current = next_grapheme_boundary(text, current))
 			{
 				if (grapheme_match_at(text, needle, current))
 				{
-					return current;
+					last_match = current;
 				}
 
-				if (current == 0)
+				if (current == pos)
 				{
 					break;
 				}
-
-				current = previous_grapheme_boundary(text, current - 1);
 			}
 
-			return std::basic_string_view<CharT>::npos;
+			return last_match;
 		}
 
 		namespace literals

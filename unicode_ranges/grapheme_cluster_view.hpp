@@ -1,6 +1,8 @@
 #ifndef UTF8_RANGES_GRAPHEME_CLUSTER_VIEW_HPP
 #define UTF8_RANGES_GRAPHEME_CLUSTER_VIEW_HPP
 
+#include <vector>
+
 #include "utf8_string_view.hpp"
 #include "utf16_string_view.hpp"
 
@@ -143,9 +145,20 @@ namespace views
 				: base_(base), current_(current), next_(next)
 			{}
 
+			constexpr iterator(
+				std::basic_string_view<CharT> base,
+				const std::vector<std::size_t>* boundaries,
+				std::size_t boundary_index) noexcept
+				: base_(base), boundaries_(boundaries), boundary_index_(boundary_index)
+			{}
+
 			constexpr reference operator*() const noexcept
 			{
-				const auto cluster = base_.substr(current_, next_ - current_);
+				const auto current = boundaries_ ? (*boundaries_)[boundary_index_] : current_;
+				const auto next = boundaries_
+					? (boundary_index_ + 1u < boundaries_->size() ? (*boundaries_)[boundary_index_ + 1u] : base_.size())
+					: next_;
+				const auto cluster = base_.substr(current, next - current);
 				if constexpr (std::same_as<CharT, char8_t>)
 				{
 					return details::utf8_string_view_from_bytes_unchecked(cluster);
@@ -158,6 +171,20 @@ namespace views
 
 			constexpr iterator& operator++() noexcept
 			{
+				if (boundaries_)
+				{
+					if (boundary_index_ == 0)
+					{
+						boundary_index_ = boundaries_->size();
+					}
+					else
+					{
+						--boundary_index_;
+					}
+
+					return *this;
+				}
+
 				if (current_ == 0)
 				{
 					current_ = base_.size();
@@ -180,35 +207,63 @@ namespace views
 
 			friend constexpr bool operator==(const iterator& it, std::default_sentinel_t) noexcept
 			{
+				if (it.boundaries_)
+				{
+					return it.boundary_index_ == it.boundaries_->size();
+				}
+
 				return it.current_ == it.base_.size();
 			}
 
 			friend constexpr bool operator==(const iterator& lhs, const iterator& rhs) noexcept
 			{
+				if (lhs.boundaries_ || rhs.boundaries_)
+				{
+					return lhs.boundaries_ == rhs.boundaries_
+						&& lhs.boundary_index_ == rhs.boundary_index_
+						&& lhs.base_.data() == rhs.base_.data()
+						&& lhs.base_.size() == rhs.base_.size();
+				}
+
 				return lhs.current_ == rhs.current_ && lhs.next_ == rhs.next_
 					&& lhs.base_.data() == rhs.base_.data() && lhs.base_.size() == rhs.base_.size();
 			}
 
 			friend constexpr bool operator==(std::default_sentinel_t, const iterator& it) noexcept
 			{
+				if (it.boundaries_)
+				{
+					return it.boundary_index_ == it.boundaries_->size();
+				}
+
 				return it.current_ == it.base_.size();
 			}
 
 		private:
 			std::basic_string_view<CharT> base_{};
+			const std::vector<std::size_t>* boundaries_ = nullptr;
+			std::size_t boundary_index_ = 0;
 			std::size_t current_ = 0;
 			std::size_t next_ = 0;
 		};
 
-		constexpr iterator begin() const noexcept
+		constexpr iterator begin() const
 		{
 			if (base_.empty())
 			{
 				return iterator{ base_, base_.size(), base_.size() };
 			}
 
-			const auto current = details::previous_grapheme_boundary(base_, base_.size() - 1);
-			return iterator{ base_, current, base_.size() };
+			if consteval
+			{
+				const auto current = details::previous_grapheme_boundary(base_, base_.size() - 1);
+				return iterator{ base_, current, base_.size() };
+			}
+			else
+			{
+				ensure_runtime_boundaries();
+				return iterator{ base_, &boundaries_, boundaries_.size() - 1u };
+			}
 		}
 
 		constexpr std::default_sentinel_t end() const noexcept
@@ -221,7 +276,22 @@ namespace views
 			: base_(base)
 		{}
 
+		void ensure_runtime_boundaries() const
+		{
+			if (!boundaries_.empty())
+			{
+				return;
+			}
+
+			boundaries_.reserve(base_.size());
+			for (std::size_t current = 0; current < base_.size(); current = details::next_grapheme_boundary(base_, current))
+			{
+				boundaries_.push_back(current);
+			}
+		}
+
 		std::basic_string_view<CharT> base_{};
+		mutable std::vector<std::size_t> boundaries_{};
 	};
 }
 

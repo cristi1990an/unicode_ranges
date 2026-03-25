@@ -67,101 +67,120 @@ public:
 
 	constexpr utf8_string_view as_utf8_view() const noexcept;
 
+	template <typename Allocator = std::allocator<char8_t>>
+	constexpr basic_utf8_string<Allocator> to_utf8_owned(const Allocator& alloc = Allocator()) const;
+
 	constexpr utf8_char& operator++() noexcept
 	{
 		const std::uint8_t b0 = static_cast<std::uint8_t>(bytes_[0]);
-		if (b0 <= 0x7Eu) [[likely]]
+		if (b0 < details::encoding_constants::ascii_scalar_max) [[likely]]
 		{
 			bytes_[0] = static_cast<char8_t>(b0 + 1u);
 			return *this;
 		}
 
-		if (b0 == 0x7Fu)
+		if (b0 == details::encoding_constants::ascii_scalar_max)
 		{
-			set_two(0xC2u, 0x80u);
+			set_two(details::encoding_constants::utf8_two_byte_lead_min, details::encoding_constants::utf8_continuation_min);
 			return *this;
 		}
 
-		if (b0 <= 0xDFu)
+		if (b0 <= details::encoding_constants::utf8_two_byte_lead_max)
 		{
 			const std::uint8_t b1 = static_cast<std::uint8_t>(bytes_[1]);
-			if (b1 < 0xBFu)
+			if (b1 < details::encoding_constants::utf8_continuation_max)
 			{
 				bytes_[1] = static_cast<char8_t>(b1 + 1u);
 			}
-			else if (b0 < 0xDFu)
+			else if (b0 < details::encoding_constants::utf8_two_byte_lead_max)
 			{
 				bytes_[0] = static_cast<char8_t>(b0 + 1u);
-				bytes_[1] = static_cast<char8_t>(0x80u);
+				bytes_[1] = static_cast<char8_t>(details::encoding_constants::utf8_continuation_min);
 			}
 			else
 			{
-				set_three(0xE0u, 0xA0u, 0x80u);
+				set_three(
+					details::encoding_constants::utf8_three_byte_lead_min,
+					details::encoding_constants::utf8_e0_second_byte_min,
+					details::encoding_constants::utf8_continuation_min);
 			}
 			return *this;
 		}
 
-		if (b0 <= 0xEFu)
+		if (b0 <= details::encoding_constants::utf8_three_byte_lead_max)
 		{
 			const std::uint8_t b1 = static_cast<std::uint8_t>(bytes_[1]);
 			const std::uint8_t b2 = static_cast<std::uint8_t>(bytes_[2]);
-			if (b2 < 0xBFu)
+			if (b2 < details::encoding_constants::utf8_continuation_max)
 			{
 				bytes_[2] = static_cast<char8_t>(b2 + 1u);
 				return *this;
 			}
 
-			bytes_[2] = static_cast<char8_t>(0x80u);
-			if (b0 == 0xE0u)
+			bytes_[2] = static_cast<char8_t>(details::encoding_constants::utf8_continuation_min);
+			if (b0 == details::encoding_constants::utf8_three_byte_lead_min)
 			{
-				if (b1 < 0xBFu)
+				if (b1 < details::encoding_constants::utf8_continuation_max)
 				{
 					bytes_[1] = static_cast<char8_t>(b1 + 1u);
 				}
 				else
 				{
-					set_three(0xE1u, 0x80u, 0x80u);
+					set_three(
+						details::encoding_constants::utf8_three_byte_lead_after_e0_min,
+						details::encoding_constants::utf8_continuation_min,
+						details::encoding_constants::utf8_continuation_min);
 				}
 			}
-			else if (b0 < 0xEDu)
+			else if (b0 < details::encoding_constants::utf8_surrogate_boundary_lead)
 			{
-				if (b1 < 0xBFu)
+				if (b1 < details::encoding_constants::utf8_continuation_max)
 				{
 					bytes_[1] = static_cast<char8_t>(b1 + 1u);
 				}
-				else if (b0 < 0xECu)
+				else if (b0 < details::encoding_constants::utf8_three_byte_lead_before_surrogate_max)
 				{
 					bytes_[0] = static_cast<char8_t>(b0 + 1u);
-					bytes_[1] = static_cast<char8_t>(0x80u);
+					bytes_[1] = static_cast<char8_t>(details::encoding_constants::utf8_continuation_min);
 				}
 				else
 				{
-					set_three(0xEDu, 0x80u, 0x80u);
+					set_three(
+						details::encoding_constants::utf8_surrogate_boundary_lead,
+						details::encoding_constants::utf8_continuation_min,
+						details::encoding_constants::utf8_continuation_min);
 				}
 			}
-			else if (b0 == 0xEDu)
+			else if (b0 == details::encoding_constants::utf8_surrogate_boundary_lead)
 			{
-				if (b1 < 0x9Fu)
+				if (b1 < details::encoding_constants::utf8_ed_second_byte_max)
 				{
 					bytes_[1] = static_cast<char8_t>(b1 + 1u);
 				}
 				else
 				{
-					set_three(0xEEu, 0x80u, 0x80u);
+					set_three(
+						details::encoding_constants::utf8_three_byte_lead_after_surrogate_min,
+						details::encoding_constants::utf8_continuation_min,
+						details::encoding_constants::utf8_continuation_min);
 				}
 			}
-			else if (b1 < 0xBFu)
+			else if (b1 < details::encoding_constants::utf8_continuation_max)
 			{
 				bytes_[1] = static_cast<char8_t>(b1 + 1u);
 			}
-			else if (b0 < 0xEFu)
+			else if (b0 < details::encoding_constants::utf8_three_byte_lead_max)
 			{
 				bytes_[0] = static_cast<char8_t>(b0 + 1u);
-				bytes_[1] = static_cast<char8_t>(0x80u);
+				bytes_[1] = static_cast<char8_t>(details::encoding_constants::utf8_continuation_min);
 			}
 			else
 			{
-				set_four(0xF0u, 0x90u, 0x80u, 0x80u);
+				set_four(
+					details::encoding_constants::utf8_four_byte_lead_min,
+					details::encoding_constants::utf8_f0_second_byte_min,
+					details::encoding_constants::utf8_continuation_min,
+					details::encoding_constants::utf8_continuation_min);
 			}
 			return *this;
 		}
@@ -169,48 +188,56 @@ public:
 		const std::uint8_t b1 = static_cast<std::uint8_t>(bytes_[1]);
 		const std::uint8_t b2 = static_cast<std::uint8_t>(bytes_[2]);
 		const std::uint8_t b3 = static_cast<std::uint8_t>(bytes_[3]);
-		if (b3 < 0xBFu)
+		if (b3 < details::encoding_constants::utf8_continuation_max)
 		{
 			bytes_[3] = static_cast<char8_t>(b3 + 1u);
 			return *this;
 		}
 
-		bytes_[3] = static_cast<char8_t>(0x80u);
-		if (b2 < 0xBFu)
+		bytes_[3] = static_cast<char8_t>(details::encoding_constants::utf8_continuation_min);
+		if (b2 < details::encoding_constants::utf8_continuation_max)
 		{
 			bytes_[2] = static_cast<char8_t>(b2 + 1u);
 			return *this;
 		}
 
-		bytes_[2] = static_cast<char8_t>(0x80u);
-		if (b0 == 0xF0u)
+		bytes_[2] = static_cast<char8_t>(details::encoding_constants::utf8_continuation_min);
+		if (b0 == details::encoding_constants::utf8_four_byte_lead_min)
 		{
-			if (b1 < 0xBFu)
+			if (b1 < details::encoding_constants::utf8_continuation_max)
 			{
 				bytes_[1] = static_cast<char8_t>(b1 + 1u);
 			}
 			else
 			{
-				set_four(0xF1u, 0x80u, 0x80u, 0x80u);
+				set_four(
+					details::encoding_constants::utf8_four_byte_lead_after_f0_min,
+					details::encoding_constants::utf8_continuation_min,
+					details::encoding_constants::utf8_continuation_min,
+					details::encoding_constants::utf8_continuation_min);
 			}
 		}
-		else if (b0 < 0xF4u)
+		else if (b0 < details::encoding_constants::utf8_four_byte_lead_max)
 		{
-			if (b1 < 0xBFu)
+			if (b1 < details::encoding_constants::utf8_continuation_max)
 			{
 				bytes_[1] = static_cast<char8_t>(b1 + 1u);
 			}
-			else if (b0 < 0xF3u)
+			else if (b0 < details::encoding_constants::utf8_four_byte_lead_before_f4_max)
 			{
 				bytes_[0] = static_cast<char8_t>(b0 + 1u);
-				bytes_[1] = static_cast<char8_t>(0x80u);
+				bytes_[1] = static_cast<char8_t>(details::encoding_constants::utf8_continuation_min);
 			}
 			else
 			{
-				set_four(0xF4u, 0x80u, 0x80u, 0x80u);
+				set_four(
+					details::encoding_constants::utf8_four_byte_lead_max,
+					details::encoding_constants::utf8_continuation_min,
+					details::encoding_constants::utf8_continuation_min,
+					details::encoding_constants::utf8_continuation_min);
 			}
 		}
-		else if (b1 < 0x8Fu)
+		else if (b1 < details::encoding_constants::utf8_f4_second_byte_max)
 		{
 			bytes_[1] = static_cast<char8_t>(b1 + 1u);
 		}
@@ -233,92 +260,104 @@ public:
 		const std::uint8_t b0 = static_cast<std::uint8_t>(bytes_[0]);
 		if (b0 == 0) [[unlikely]]
 		{
-			set_four(0xF4u, 0x8Fu, 0xBFu, 0xBFu);
+			set_four(
+				details::encoding_constants::utf8_four_byte_lead_max,
+				details::encoding_constants::utf8_f4_second_byte_max,
+				details::encoding_constants::utf8_continuation_max,
+				details::encoding_constants::utf8_continuation_max);
 			return *this;
 		}
 
-		if (b0 <= 0x7Fu)
+		if (b0 <= details::encoding_constants::ascii_scalar_max)
 		{
 			bytes_[0] = static_cast<char8_t>(b0 - 1u);
 			return *this;
 		}
 
-		if (b0 <= 0xDFu)
+		if (b0 <= details::encoding_constants::utf8_two_byte_lead_max)
 		{
 			const std::uint8_t b1 = static_cast<std::uint8_t>(bytes_[1]);
-			if (b1 > 0x80u)
+			if (b1 > details::encoding_constants::utf8_continuation_min)
 			{
 				bytes_[1] = static_cast<char8_t>(b1 - 1u);
 			}
-			else if (b0 > 0xC2u)
+			else if (b0 > details::encoding_constants::utf8_two_byte_lead_min)
 			{
 				bytes_[0] = static_cast<char8_t>(b0 - 1u);
-				bytes_[1] = static_cast<char8_t>(0xBFu);
+				bytes_[1] = static_cast<char8_t>(details::encoding_constants::utf8_continuation_max);
 			}
 			else
 			{
-				set_ascii(0x7Fu);
+				set_ascii(details::encoding_constants::ascii_scalar_max);
 			}
 			return *this;
 		}
 
-		if (b0 <= 0xEFu)
+		if (b0 <= details::encoding_constants::utf8_three_byte_lead_max)
 		{
 			const std::uint8_t b1 = static_cast<std::uint8_t>(bytes_[1]);
 			const std::uint8_t b2 = static_cast<std::uint8_t>(bytes_[2]);
-			if (b2 > 0x80u)
+			if (b2 > details::encoding_constants::utf8_continuation_min)
 			{
 				bytes_[2] = static_cast<char8_t>(b2 - 1u);
 				return *this;
 			}
 
-			bytes_[2] = static_cast<char8_t>(0xBFu);
-			if (b0 == 0xE0u)
+			bytes_[2] = static_cast<char8_t>(details::encoding_constants::utf8_continuation_max);
+			if (b0 == details::encoding_constants::utf8_three_byte_lead_min)
 			{
-				if (b1 > 0xA0u)
+				if (b1 > details::encoding_constants::utf8_e0_second_byte_min)
 				{
 					bytes_[1] = static_cast<char8_t>(b1 - 1u);
 				}
 				else
 				{
-					set_two(0xDFu, 0xBFu);
+					set_two(
+						details::encoding_constants::utf8_two_byte_lead_max,
+						details::encoding_constants::utf8_continuation_max);
 				}
 			}
-			else if (b0 < 0xEDu)
+			else if (b0 < details::encoding_constants::utf8_surrogate_boundary_lead)
 			{
-				if (b1 > 0x80u)
+				if (b1 > details::encoding_constants::utf8_continuation_min)
 				{
 					bytes_[1] = static_cast<char8_t>(b1 - 1u);
 				}
 				else
 				{
 					bytes_[0] = static_cast<char8_t>(b0 - 1u);
-					bytes_[1] = static_cast<char8_t>(0xBFu);
+					bytes_[1] = static_cast<char8_t>(details::encoding_constants::utf8_continuation_max);
 				}
 			}
-			else if (b0 == 0xEDu)
+			else if (b0 == details::encoding_constants::utf8_surrogate_boundary_lead)
 			{
-				if (b1 > 0x80u)
+				if (b1 > details::encoding_constants::utf8_continuation_min)
 				{
 					bytes_[1] = static_cast<char8_t>(b1 - 1u);
 				}
 				else
 				{
-					set_three(0xECu, 0xBFu, 0xBFu);
+					set_three(
+						details::encoding_constants::utf8_three_byte_lead_before_surrogate_max,
+						details::encoding_constants::utf8_continuation_max,
+						details::encoding_constants::utf8_continuation_max);
 				}
 			}
-			else if (b1 > 0x80u)
+			else if (b1 > details::encoding_constants::utf8_continuation_min)
 			{
 				bytes_[1] = static_cast<char8_t>(b1 - 1u);
 			}
-			else if (b0 > 0xEEu)
+			else if (b0 > details::encoding_constants::utf8_three_byte_lead_after_surrogate_min)
 			{
 				bytes_[0] = static_cast<char8_t>(b0 - 1u);
-				bytes_[1] = static_cast<char8_t>(0xBFu);
+				bytes_[1] = static_cast<char8_t>(details::encoding_constants::utf8_continuation_max);
 			}
 			else
 			{
-				set_three(0xEDu, 0x9Fu, 0xBFu);
+				set_three(
+					details::encoding_constants::utf8_surrogate_boundary_lead,
+					details::encoding_constants::utf8_ed_second_byte_max,
+					details::encoding_constants::utf8_continuation_max);
 			}
 			return *this;
 		}
@@ -326,50 +365,57 @@ public:
 		const std::uint8_t b1 = static_cast<std::uint8_t>(bytes_[1]);
 		const std::uint8_t b2 = static_cast<std::uint8_t>(bytes_[2]);
 		const std::uint8_t b3 = static_cast<std::uint8_t>(bytes_[3]);
-		if (b3 > 0x80u)
+		if (b3 > details::encoding_constants::utf8_continuation_min)
 		{
 			bytes_[3] = static_cast<char8_t>(b3 - 1u);
 			return *this;
 		}
 
-		bytes_[3] = static_cast<char8_t>(0xBFu);
-		if (b2 > 0x80u)
+		bytes_[3] = static_cast<char8_t>(details::encoding_constants::utf8_continuation_max);
+		if (b2 > details::encoding_constants::utf8_continuation_min)
 		{
 			bytes_[2] = static_cast<char8_t>(b2 - 1u);
 			return *this;
 		}
 
-		bytes_[2] = static_cast<char8_t>(0xBFu);
-		if (b0 == 0xF0u)
+		bytes_[2] = static_cast<char8_t>(details::encoding_constants::utf8_continuation_max);
+		if (b0 == details::encoding_constants::utf8_four_byte_lead_min)
 		{
-			if (b1 > 0x90u)
+			if (b1 > details::encoding_constants::utf8_f0_second_byte_min)
 			{
 				bytes_[1] = static_cast<char8_t>(b1 - 1u);
 			}
 			else
 			{
-				set_three(0xEFu, 0xBFu, 0xBFu);
+				set_three(
+					details::encoding_constants::utf8_three_byte_lead_max,
+					details::encoding_constants::utf8_continuation_max,
+					details::encoding_constants::utf8_continuation_max);
 			}
 		}
-		else if (b0 < 0xF4u)
+		else if (b0 < details::encoding_constants::utf8_four_byte_lead_max)
 		{
-			if (b1 > 0x80u)
+			if (b1 > details::encoding_constants::utf8_continuation_min)
 			{
 				bytes_[1] = static_cast<char8_t>(b1 - 1u);
 			}
 			else
 			{
 				bytes_[0] = static_cast<char8_t>(b0 - 1u);
-				bytes_[1] = static_cast<char8_t>(0xBFu);
+				bytes_[1] = static_cast<char8_t>(details::encoding_constants::utf8_continuation_max);
 			}
 		}
-		else if (b1 > 0x80u)
+		else if (b1 > details::encoding_constants::utf8_continuation_min)
 		{
 			bytes_[1] = static_cast<char8_t>(b1 - 1u);
 		}
 		else
 		{
-			set_four(0xF3u, 0xBFu, 0xBFu, 0xBFu);
+			set_four(
+				details::encoding_constants::utf8_four_byte_lead_before_f4_max,
+				details::encoding_constants::utf8_continuation_max,
+				details::encoding_constants::utf8_continuation_max,
+				details::encoding_constants::utf8_continuation_max);
 		}
 		return *this;
 	}
@@ -384,7 +430,7 @@ public:
 	[[nodiscard]]
 	constexpr bool is_ascii() const noexcept
 	{
-		return bytes_[0] <= 0x7Fu;
+		return static_cast<std::uint8_t>(bytes_[0]) <= details::encoding_constants::ascii_scalar_max;
 	}
 
 	[[nodiscard]]
@@ -426,7 +472,7 @@ public:
 		}
 
 		const auto value = static_cast<std::uint8_t>(bytes_[0]);
-		return value <= 0x1Fu || value == 0x7Fu;
+		return value <= details::encoding_constants::ascii_control_max || value == details::encoding_constants::ascii_delete;
 	}
 
 	[[nodiscard]]
@@ -444,7 +490,8 @@ public:
 		}
 
 		const auto value = static_cast<std::uint8_t>(bytes_[0]);
-		return value >= 0x21u && value <= 0x7Eu;
+		return value >= details::encoding_constants::ascii_graphic_first
+			&& value <= details::encoding_constants::ascii_graphic_last;
 	}
 
 	[[nodiscard]]
@@ -611,16 +658,16 @@ public:
 	constexpr std::size_t encode_utf16(OutIt out) const noexcept
 	{
 		const auto scalar = as_scalar();
-		if (scalar <= 0xFFFFu)
+		if (scalar <= details::encoding_constants::bmp_scalar_max)
 		{
 			*out++ = static_cast<CharT>(scalar);
-			return 1;
+			return details::encoding_constants::single_code_unit_count;
 		}
 
-		const auto shifted = scalar - 0x10000u;
-		*out++ = static_cast<CharT>(0xD800u + (shifted >> 10));
-		*out++ = static_cast<CharT>(0xDC00u + (shifted & 0x3FFu));
-		return 2;
+		const auto shifted = scalar - details::encoding_constants::supplementary_plane_base;
+		*out++ = static_cast<CharT>(details::encoding_constants::high_surrogate_min + (shifted >> details::encoding_constants::utf16_high_surrogate_shift));
+		*out++ = static_cast<CharT>(details::encoding_constants::low_surrogate_min + (shifted & details::encoding_constants::surrogate_payload_mask));
+		return details::encoding_constants::utf16_surrogate_code_unit_count;
 	}
 
 	friend constexpr bool operator==(const utf8_char&, const utf8_char&) = default;
@@ -684,7 +731,7 @@ private:
 		}
 		else
 		{
-			return 1;
+			return details::encoding_constants::single_code_unit_count;
 		}
 	}
 
@@ -738,11 +785,11 @@ private:
 		details::encode_unicode_scalar_utf8_unchecked(scalar, bytes_.data());
 	}
 
-	std::array<char8_t, 4> bytes_{};
+	std::array<char8_t, details::encoding_constants::max_utf8_code_units> bytes_{};
 };
 
 static_assert(std::is_trivially_copyable_v<utf8_char>);
-inline constexpr utf8_char utf8_char::replacement_character = utf8_char::from_scalar_unchecked(0xFFFDu);
+inline constexpr utf8_char utf8_char::replacement_character = utf8_char::from_scalar_unchecked(details::encoding_constants::replacement_character_scalar);
 inline constexpr utf8_char utf8_char::null_terminator = utf8_char{};
 
 namespace literals

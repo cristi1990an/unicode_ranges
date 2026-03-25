@@ -1056,6 +1056,13 @@ public:
     constexpr size_type find_last_not_of(utf8_string_view sv, size_type pos = npos) const noexcept;
     constexpr bool is_char_boundary(size_type index) const noexcept;
     constexpr bool is_grapheme_boundary(size_type index) const noexcept;
+    constexpr size_type char_count() const noexcept;
+    constexpr auto split(utf8_char ch) const noexcept;
+    constexpr auto split(utf8_string_view sv) const noexcept;
+    constexpr std::optional<std::pair<utf8_string_view, utf8_string_view>>
+        split_once_at(size_type delim) const noexcept;
+    constexpr std::pair<utf8_string_view, utf8_string_view>
+        split_once_at_unchecked(size_type delim) const noexcept;
     constexpr size_type ceil_char_boundary(size_type pos) const noexcept;
     constexpr size_type floor_char_boundary(size_type pos) const noexcept;
     constexpr size_type ceil_grapheme_boundary(size_type pos) const noexcept;
@@ -1468,21 +1475,39 @@ Complexity:
 #### `split`
 
 ```cpp
+constexpr auto split(utf8_char ch) const noexcept;
+constexpr auto split(utf8_string_view sv) const noexcept;
+```
+
+Returns a lazy view of the segments separated by `ch` or `sv`.
+
+The delimiter is not included in the yielded segments.
+
+Complexity:
+
+- Constant to construct the view
+
+#### `split_once_at`
+
+```cpp
+constexpr std::optional<std::pair<utf8_string_view, utf8_string_view>>
+    split_once_at(size_type delim) const noexcept;
 constexpr std::pair<utf8_string_view, utf8_string_view>
-    split(size_type delim) const;
+    split_once_at_unchecked(size_type delim) const noexcept;
 ```
 
 Splits the view at byte index `delim` and returns the prefix and suffix as two `utf8_string_view` objects.
 
-`delim` must be a UTF-8 character boundary.
+`split_once_at(...)` returns `std::nullopt` if `delim` is out of range or does not name a UTF-8 character boundary.
 
 Preconditions:
 
-- `delim` is a UTF-8 character boundary
+- `split_once_at(...)`: none
+- `split_once_at_unchecked(...)`: `delim` is a UTF-8 character boundary
 
-Throws:
+Remarks:
 
-- `std::out_of_range` if `delim` is not a UTF-8 character boundary
+- `split_once_at_unchecked(...)` is unchecked. Calling it with an out-of-range or non-boundary index is undefined behavior.
 
 Complexity:
 
@@ -1877,7 +1902,12 @@ public:
     constexpr bool is_char_boundary(size_type index) const noexcept;
     constexpr bool is_grapheme_boundary(size_type index) const noexcept;
     constexpr size_type char_count() const noexcept;
-    constexpr std::pair<utf16_string_view, utf16_string_view> split(size_type delim) const;
+    constexpr auto split(utf16_char ch) const noexcept;
+    constexpr auto split(utf16_string_view sv) const noexcept;
+    constexpr std::optional<std::pair<utf16_string_view, utf16_string_view>>
+        split_once_at(size_type delim) const noexcept;
+    constexpr std::pair<utf16_string_view, utf16_string_view>
+        split_once_at_unchecked(size_type delim) const noexcept;
     constexpr std::optional<utf16_char> char_at(size_type index) const noexcept;
     constexpr utf16_char char_at_unchecked(size_type index) const noexcept;
     constexpr std::optional<utf16_string_view> grapheme_at(size_type index) const noexcept;
@@ -1962,7 +1992,7 @@ Complexity:
 - `find_first_of(...)`, `find_first_not_of(...)`, `find_last_of(...)`, and `find_last_not_of(...)`: linear in `size()` for `char16_t` / `utf16_char`, and linear in `size() * sv.char_count()` for `utf16_string_view` in the worst case
 - `grapheme_count()`, `is_grapheme_boundary()`, `ceil_grapheme_boundary()`, `floor_grapheme_boundary()`, `grapheme_at()`, and `grapheme_substr()`: linear in the number of grapheme clusters examined
 - `char_count()`: linear in the number of characters
-- `is_char_boundary()`, `char_at()`, `char_at_unchecked()`, `split()`, `front()`, and `back()`: constant
+- `is_char_boundary()`, `char_at()`, `char_at_unchecked()`, `split()`, `split_once_at()`, `split_once_at_unchecked()`, `front()`, and `back()`: constant
 - `starts_with(...)` and `ends_with(...)`: constant for single-code-unit and single-character overloads, linear in `sv.size()` for `utf16_string_view`
 - `to_utf8()`: linear in `size()`
 
@@ -2108,7 +2138,7 @@ The owning UTF-16 string supports the same mutation family as `utf8_string`:
 - `operator+=`
 - `operator+`
 
-All positions and lengths are UTF-16 code-unit indices, and operations that take boundaries throw `std::out_of_range` when asked to split a surrogate pair.
+All positions and lengths are UTF-16 code-unit indices. Mutating operations throw `std::out_of_range` when asked to split a surrogate pair, while query-style operations such as `split_once_at()`, `char_at()`, `substr()`, and `grapheme_substr()` report failure with `std::optional`.
 
 > [!WARNING]
 > Like `utf8_string`, borrowed results from `as_view()`, `chars()`, `graphemes()`, `reversed_graphemes()`, and related range helpers are tied to the string's internal storage and should not be kept across mutation.
@@ -2225,7 +2255,7 @@ public:
     constexpr std::size_t capacity() const;
     constexpr Allocator get_allocator() const noexcept;
     constexpr std::size_t size() const;
-    constexpr void pop_back();
+    constexpr std::optional<utf8_char> pop_back();
     constexpr basic_utf8_string& insert(std::size_t index, utf8_string_view sv);
     constexpr basic_utf8_string& insert(std::size_t index, utf8_char ch);
     constexpr basic_utf8_string& insert(std::size_t index, std::size_t count,
@@ -2366,16 +2396,9 @@ Complexity:
 
 Removes the last UTF-8 character by inspecting the reversed character view.
 
-Precondition:
+Returns the removed character.
 
-- `!empty()`
-
-Remarks:
-
-- Calling `pop_back()` on an empty string is undefined behavior
-
-> [!CAUTION]
-> `pop_back()` is unsafe on an empty string.
+Returns `std::nullopt` when the string is empty.
 
 Complexity:
 

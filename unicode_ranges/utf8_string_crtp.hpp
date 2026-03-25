@@ -174,6 +174,212 @@ private:
 	std::u8string_view base_{};
 };
 
+template <typename View>
+class utf8_split_view : public std::ranges::view_interface<utf8_split_view<View>>
+{
+public:
+	static constexpr utf8_split_view from_bytes_unchecked(
+		std::u8string_view base,
+		std::u8string_view delimiter) noexcept
+	{
+		return utf8_split_view{ base, delimiter };
+	}
+
+	class iterator
+	{
+	public:
+		using iterator_category = std::bidirectional_iterator_tag;
+		using iterator_concept = std::bidirectional_iterator_tag;
+		using value_type = View;
+		using difference_type = std::ptrdiff_t;
+		using reference = value_type;
+		using pointer = void;
+
+		iterator() = default;
+
+		constexpr iterator(
+			std::u8string_view base,
+			std::u8string_view delimiter,
+			std::size_t current,
+			std::size_t next_delimiter) noexcept
+			: base_(base),
+			  delimiter_(delimiter),
+			  current_(current),
+			  next_delimiter_(next_delimiter)
+		{}
+
+		constexpr reference operator*() const noexcept
+		{
+			const auto segment_end = next_delimiter_ == std::u8string_view::npos
+				? base_.size()
+				: next_delimiter_;
+			return View::from_bytes_unchecked(base_.substr(current_, segment_end - current_));
+		}
+
+		constexpr iterator& operator++() noexcept
+		{
+			if (next_delimiter_ == std::u8string_view::npos)
+			{
+				current_ = std::u8string_view::npos;
+				return *this;
+			}
+
+			current_ = next_delimiter_ + delimiter_.size();
+			next_delimiter_ = utf8_split_view::find_delimiter_from(base_, delimiter_, current_);
+			return *this;
+		}
+
+		constexpr iterator operator++(int) noexcept
+		{
+			iterator old = *this;
+			++(*this);
+			return old;
+		}
+
+		constexpr iterator& operator--() noexcept
+		{
+			const auto old_current = current_;
+			current_ = utf8_split_view::find_previous_segment_start(base_, delimiter_, current_);
+			next_delimiter_ = old_current == std::u8string_view::npos
+				? utf8_split_view::find_delimiter_from(base_, delimiter_, current_)
+				: old_current - delimiter_.size();
+			return *this;
+		}
+
+		constexpr iterator operator--(int) noexcept
+		{
+			iterator old = *this;
+			--(*this);
+			return old;
+		}
+
+		friend constexpr bool operator==(const iterator& it, std::default_sentinel_t) noexcept
+		{
+			return it.current_ == std::u8string_view::npos;
+		}
+
+		friend constexpr bool operator==(std::default_sentinel_t, const iterator& it) noexcept
+		{
+			return it.current_ == std::u8string_view::npos;
+		}
+
+		friend constexpr bool operator==(const iterator& lhs, const iterator& rhs) noexcept
+		{
+			return lhs.base_.data() == rhs.base_.data()
+				&& lhs.base_.size() == rhs.base_.size()
+				&& lhs.delimiter_.data() == rhs.delimiter_.data()
+				&& lhs.delimiter_.size() == rhs.delimiter_.size()
+				&& lhs.current_ == rhs.current_
+				&& lhs.next_delimiter_ == rhs.next_delimiter_;
+		}
+
+	private:
+		std::u8string_view base_{};
+		std::u8string_view delimiter_{};
+		std::size_t current_ = 0;
+		std::size_t next_delimiter_ = std::u8string_view::npos;
+	};
+
+	constexpr iterator begin() const noexcept
+	{
+		return iterator{
+			base_,
+			delimiter_,
+			0,
+			find_delimiter_from(base_, delimiter_, 0)
+		};
+	}
+
+	constexpr iterator end() const noexcept
+	{
+		return iterator{
+			base_,
+			delimiter_,
+			std::u8string_view::npos,
+			std::u8string_view::npos
+		};
+	}
+
+private:
+	constexpr explicit utf8_split_view(
+		std::u8string_view base,
+		std::u8string_view delimiter) noexcept
+		: base_(base), delimiter_(delimiter)
+	{}
+
+	static constexpr std::size_t find_delimiter_from(
+		std::u8string_view base,
+		std::u8string_view delimiter,
+		std::size_t pos) noexcept
+	{
+		if (delimiter.empty())
+		{
+			return std::u8string_view::npos;
+		}
+
+		if consteval
+		{
+			if (pos > base.size() || delimiter.size() > base.size() - pos)
+			{
+				return std::u8string_view::npos;
+			}
+
+			for (std::size_t index = pos; index + delimiter.size() <= base.size(); ++index)
+			{
+				bool matches = true;
+				for (std::size_t delimiter_index = 0; delimiter_index != delimiter.size(); ++delimiter_index)
+				{
+					if (base[index + delimiter_index] != delimiter[delimiter_index])
+					{
+						matches = false;
+						break;
+					}
+				}
+
+				if (matches)
+				{
+					return index;
+				}
+			}
+
+			return std::u8string_view::npos;
+		}
+		else
+		{
+			return base.find(delimiter, pos);
+		}
+	}
+
+	static constexpr std::size_t find_previous_segment_start(
+		std::u8string_view base,
+		std::u8string_view delimiter,
+		std::size_t current) noexcept
+	{
+		std::size_t previous_start = 0;
+		std::size_t next = find_delimiter_from(base, delimiter, 0);
+		while (next != std::u8string_view::npos
+			&& next + delimiter.size() < current)
+		{
+			previous_start = next + delimiter.size();
+			next = find_delimiter_from(base, delimiter, previous_start);
+		}
+
+		if (current == std::u8string_view::npos)
+		{
+			while (next != std::u8string_view::npos)
+			{
+				previous_start = next + delimiter.size();
+				next = find_delimiter_from(base, delimiter, previous_start);
+			}
+		}
+
+		return previous_start;
+	}
+
+	std::u8string_view base_{};
+	std::u8string_view delimiter_{};
+};
+
 template <typename Derived, typename View>
 class utf8_string_crtp
 {
@@ -194,6 +400,8 @@ public:
 
 	constexpr auto graphemes() const noexcept -> views::grapheme_cluster_view<char8_t>;
 	constexpr auto reversed_graphemes() const noexcept -> views::reversed_grapheme_cluster_view<char8_t>;
+	template <typename Allocator = std::allocator<char8_t>>
+	constexpr basic_utf8_string<Allocator> to_utf8_owned(const Allocator& alloc = Allocator()) const;
 	template <typename Allocator = std::allocator<char16_t>>
 	constexpr basic_utf16_string<Allocator> to_utf16(const Allocator& alloc = Allocator()) const;
 
@@ -209,7 +417,11 @@ public:
 
 	constexpr bool is_ascii() const noexcept
 	{
-		return std::ranges::all_of(chars(), [](utf8_char ch) noexcept { return ch.is_ascii(); });
+		return std::ranges::all_of(byte_view(),
+			[](char8_t byte) noexcept
+			{
+				return static_cast<std::uint8_t>(byte) <= details::encoding_constants::ascii_scalar_max;
+			});
 	}
 
 	constexpr auto char_indices() const noexcept
@@ -683,15 +895,33 @@ public:
 		return details::grapheme_count(byte_view());
 	}
 
-	constexpr std::pair<View, View> split(size_type delim) const
+	constexpr auto split(utf8_char ch) const noexcept
+	{
+		return split(View::from_bytes_unchecked(ch.as_view()));
+	}
+
+	constexpr auto split(View sv) const noexcept
+	{
+		return utf8_split_view<View>::from_bytes_unchecked(byte_view(), sv.base());
+	}
+
+	constexpr std::optional<std::pair<View, View>> split_once_at(size_type delim) const noexcept
 	{
 		if (!is_char_boundary(delim)) [[unlikely]]
 		{
-			throw std::out_of_range("split index must be at a UTF-8 character boundary");
+			return std::nullopt;
 		}
 
-		const auto lhs = byte_view().substr(0, delim);
-		const auto rhs = byte_view().substr(delim);
+		return split_once_at_unchecked(delim);
+	}
+
+	constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) const noexcept
+	{
+		const auto bytes = byte_view();
+		const auto* data = bytes.data();
+		const auto* split = data == nullptr ? nullptr : (data + delim);
+		const auto lhs = std::u8string_view{ data, delim };
+		const auto rhs = std::u8string_view{ split, bytes.size() - delim };
 		return {
 			View::from_bytes_unchecked(lhs),
 			View::from_bytes_unchecked(rhs)

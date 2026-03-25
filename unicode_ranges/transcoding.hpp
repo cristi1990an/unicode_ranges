@@ -13,13 +13,25 @@ namespace unicode_ranges
 	constexpr basic_utf8_string<Allocator>& basic_utf8_string<Allocator>::append_range(views::utf16_view rg)
 	{
 		const auto code_units = rg.base();
-		base_.reserve(base_.size() + code_units.size() * 3u);
-		for (utf16_char ch : rg)
-		{
-			std::array<char8_t, 4> encoded{};
-			const auto encoded_count = ch.encode_utf8<char8_t>(encoded.begin());
-			base_.append(encoded.data(), encoded.data() + encoded_count);
-		}
+		const auto original_size = base_.size();
+		base_.resize_and_overwrite(original_size + code_units.size() * details::encoding_constants::three_code_unit_count,
+			[&](char8_t* buffer, std::size_t) noexcept
+			{
+				std::size_t write_index = original_size;
+				std::size_t read_index = 0;
+				while (read_index < code_units.size())
+				{
+					const auto first = static_cast<std::uint16_t>(code_units[read_index]);
+					const auto count = details::is_utf16_high_surrogate(first)
+						? details::encoding_constants::utf16_surrogate_code_unit_count
+						: details::encoding_constants::single_code_unit_count;
+					const auto scalar = details::decode_valid_utf16_char(code_units.substr(read_index, count));
+					write_index += details::encode_unicode_scalar_utf8_unchecked(scalar, buffer + write_index);
+					read_index += count;
+				}
+
+				return write_index;
+			});
 
 		return *this;
 	}
@@ -45,13 +57,25 @@ namespace unicode_ranges
 	constexpr basic_utf8_string<Allocator>& basic_utf8_string<Allocator>::assign_range(views::utf16_view rg)
 	{
 		base_type replacement{ base_.get_allocator() };
-		replacement.reserve(rg.base().size() * 3u);
-		for (utf16_char ch : rg)
-		{
-			std::array<char8_t, 4> encoded{};
-			const auto encoded_count = ch.encode_utf8<char8_t>(encoded.begin());
-			replacement.append(encoded.data(), encoded.data() + encoded_count);
-		}
+		const auto code_units = rg.base();
+		replacement.resize_and_overwrite(code_units.size() * details::encoding_constants::three_code_unit_count,
+			[&](char8_t* buffer, std::size_t) noexcept
+			{
+				std::size_t write_index = 0;
+				std::size_t read_index = 0;
+				while (read_index < code_units.size())
+				{
+					const auto first = static_cast<std::uint16_t>(code_units[read_index]);
+					const auto count = details::is_utf16_high_surrogate(first)
+						? details::encoding_constants::utf16_surrogate_code_unit_count
+						: details::encoding_constants::single_code_unit_count;
+					const auto scalar = details::decode_valid_utf16_char(code_units.substr(read_index, count));
+					write_index += details::encode_unicode_scalar_utf8_unchecked(scalar, buffer + write_index);
+					read_index += count;
+				}
+
+				return write_index;
+			});
 		base_ = std::move(replacement);
 		return *this;
 	}
@@ -79,13 +103,22 @@ namespace unicode_ranges
 	constexpr basic_utf16_string<Allocator>& basic_utf16_string<Allocator>::append_range(views::utf8_view rg)
 	{
 		const auto bytes = rg.base();
-		base_.reserve(base_.size() + bytes.size());
-		for (utf8_char ch : rg)
-		{
-			std::array<char16_t, 2> encoded{};
-			const auto encoded_count = ch.encode_utf16<char16_t>(encoded.begin());
-			base_.append(encoded.data(), encoded.data() + encoded_count);
-		}
+		const auto original_size = base_.size();
+		base_.resize_and_overwrite(original_size + bytes.size(),
+			[&](char16_t* buffer, std::size_t) noexcept
+			{
+				std::size_t write_index = original_size;
+				std::size_t read_index = 0;
+				while (read_index < bytes.size())
+				{
+					const auto count = details::utf8_byte_count_from_lead(static_cast<std::uint8_t>(bytes[read_index]));
+					const auto scalar = details::decode_valid_utf8_char(bytes.substr(read_index, count));
+					write_index += details::encode_unicode_scalar_utf16_unchecked(scalar, buffer + write_index);
+					read_index += count;
+				}
+
+				return write_index;
+			});
 
 		return *this;
 	}
@@ -111,13 +144,22 @@ namespace unicode_ranges
 	constexpr basic_utf16_string<Allocator>& basic_utf16_string<Allocator>::assign_range(views::utf8_view rg)
 	{
 		base_type replacement{ base_.get_allocator() };
-		replacement.reserve(rg.base().size());
-		for (utf8_char ch : rg)
-		{
-			std::array<char16_t, 2> encoded{};
-			const auto encoded_count = ch.encode_utf16<char16_t>(encoded.begin());
-			replacement.append(encoded.data(), encoded.data() + encoded_count);
-		}
+		const auto bytes = rg.base();
+		replacement.resize_and_overwrite(bytes.size(),
+			[&](char16_t* buffer, std::size_t) noexcept
+			{
+				std::size_t write_index = 0;
+				std::size_t read_index = 0;
+				while (read_index < bytes.size())
+				{
+					const auto count = details::utf8_byte_count_from_lead(static_cast<std::uint8_t>(bytes[read_index]));
+					const auto scalar = details::decode_valid_utf8_char(bytes.substr(read_index, count));
+					write_index += details::encode_unicode_scalar_utf16_unchecked(scalar, buffer + write_index);
+					read_index += count;
+				}
+
+				return write_index;
+			});
 		base_ = std::move(replacement);
 		return *this;
 	}
@@ -139,11 +181,25 @@ namespace unicode_ranges
 	{
 	template <typename Derived, typename View>
 	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator> utf8_string_crtp<Derived, View>::to_utf8_owned(const Allocator& alloc) const
+	{
+		return basic_utf8_string<Allocator>{ View::from_bytes_unchecked(byte_view()), alloc };
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
 	constexpr basic_utf16_string<Allocator> utf8_string_crtp<Derived, View>::to_utf16(const Allocator& alloc) const
 	{
 		basic_utf16_string<Allocator> result{ alloc };
 		result.append_range(chars());
 		return result;
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::to_utf16_owned(const Allocator& alloc) const
+	{
+		return basic_utf16_string<Allocator>{ View::from_code_units_unchecked(code_unit_view()), alloc };
 	}
 
 	template <typename Derived, typename View>
@@ -154,6 +210,21 @@ namespace unicode_ranges
 		result.append_range(chars());
 		return result;
 	}
+	}
+
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator> utf8_char::to_utf8_owned(const Allocator& alloc) const
+	{
+		return basic_utf8_string<Allocator>{ as_utf8_view(), alloc };
+	}
+
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator> utf16_char::to_utf16_owned(const Allocator& alloc) const
+	{
+		return basic_utf16_string<Allocator>{
+			utf16_string_view::from_code_units_unchecked(as_view()),
+			alloc
+		};
 	}
 
 }

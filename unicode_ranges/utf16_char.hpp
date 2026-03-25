@@ -74,19 +74,23 @@ public:
 
 	constexpr operator utf8_char() const noexcept;
 
+	template <typename Allocator = std::allocator<char16_t>>
+	constexpr basic_utf16_string<Allocator> to_utf16_owned(const Allocator& alloc = Allocator()) const;
+
 	constexpr utf16_char& operator++() noexcept
 	{
 		auto scalar = as_scalar();
-		if (scalar == 0x10FFFFu)
+		if (scalar == details::encoding_constants::max_unicode_scalar)
 		{
 			scalar = 0u;
 		}
 		else
 		{
 			++scalar;
-			if (scalar >= 0xD800u && scalar <= 0xDFFFu)
+			if (scalar >= details::encoding_constants::high_surrogate_min
+				&& scalar <= details::encoding_constants::low_surrogate_max)
 			{
-				scalar = 0xE000u;
+				scalar = details::encoding_constants::scalar_after_surrogate_range;
 			}
 		}
 
@@ -106,14 +110,15 @@ public:
 		auto scalar = as_scalar();
 		if (scalar == 0u)
 		{
-			scalar = 0x10FFFFu;
+			scalar = details::encoding_constants::max_unicode_scalar;
 		}
 		else
 		{
 			--scalar;
-			if (scalar >= 0xD800u && scalar <= 0xDFFFu)
+			if (scalar >= details::encoding_constants::high_surrogate_min
+				&& scalar <= details::encoding_constants::low_surrogate_max)
 			{
-				scalar = 0xD7FFu;
+				scalar = details::encoding_constants::scalar_before_surrogate_range;
 			}
 		}
 
@@ -131,7 +136,7 @@ public:
 	[[nodiscard]]
 	constexpr bool is_ascii() const noexcept
 	{
-		return as_scalar() <= 0x7Fu;
+		return as_scalar() <= details::encoding_constants::ascii_scalar_max;
 	}
 
 	[[nodiscard]]
@@ -173,7 +178,7 @@ public:
 		}
 
 		const auto value = static_cast<std::uint8_t>(code_units_[0]);
-		return value <= 0x1Fu || value == 0x7Fu;
+		return value <= details::encoding_constants::ascii_control_max || value == details::encoding_constants::ascii_delete;
 	}
 
 	[[nodiscard]]
@@ -191,7 +196,8 @@ public:
 		}
 
 		const auto value = static_cast<std::uint8_t>(code_units_[0]);
-		return value >= 0x21u && value <= 0x7Eu;
+		return value >= details::encoding_constants::ascii_graphic_first
+			&& value <= details::encoding_constants::ascii_graphic_last;
 	}
 
 	[[nodiscard]]
@@ -336,7 +342,10 @@ public:
 	constexpr std::size_t code_unit_count() const noexcept
 	{
 		const auto first = static_cast<std::uint16_t>(code_units_[0]);
-		return (first >= 0xD800u && first <= 0xDBFFu) ? 2 : 1;
+		return (first >= details::encoding_constants::high_surrogate_min
+			&& first <= details::encoding_constants::high_surrogate_max)
+			? details::encoding_constants::utf16_surrogate_code_unit_count
+			: details::encoding_constants::single_code_unit_count;
 	}
 
 	template<typename CharT, typename OutIt>
@@ -358,7 +367,7 @@ public:
 		&& std::output_iterator<OutIt, CharT>)
 	constexpr std::size_t encode_utf8(OutIt out) const noexcept
 	{
-		std::array<CharT, 4> buffer{};
+		std::array<CharT, details::encoding_constants::max_utf8_code_units> buffer{};
 		const auto len = details::encode_unicode_scalar_utf8_unchecked(as_scalar(), buffer.data());
 		std::ranges::copy_n(buffer.data(), len, out);
 		return len;
@@ -369,12 +378,12 @@ public:
 
 	friend constexpr bool operator==(const utf16_char& lhs, char16_t rhs) noexcept
 	{
-		return lhs.code_unit_count() == 1 && lhs.code_units_[0] == rhs;
+		return lhs.code_unit_count() == details::encoding_constants::single_code_unit_count && lhs.code_units_[0] == rhs;
 	}
 
 	friend std::ostream& operator<<(std::ostream& os, const utf16_char& ch)
 	{
-		std::array<char, 4> buffer{};
+		std::array<char, details::encoding_constants::max_utf8_code_units> buffer{};
 		const auto len = ch.encode_utf8<char>(buffer.begin());
 		os.write(buffer.data(), static_cast<std::streamsize>(len));
 		return os;
@@ -414,11 +423,11 @@ private:
 		details::encode_unicode_scalar_utf16_unchecked(scalar, code_units_.data());
 	}
 
-	std::array<char16_t, 2> code_units_{};
+	std::array<char16_t, details::encoding_constants::utf16_surrogate_code_unit_count> code_units_{};
 };
 
 static_assert(std::is_trivially_copyable_v<utf16_char>);
-inline constexpr utf16_char utf16_char::replacement_character = utf16_char::from_scalar_unchecked(0xFFFDu);
+inline constexpr utf16_char utf16_char::replacement_character = utf16_char::from_scalar_unchecked(details::encoding_constants::replacement_character_scalar);
 inline constexpr utf16_char utf16_char::null_terminator = utf16_char{};
 
 inline constexpr utf8_char::operator utf16_char() const noexcept
