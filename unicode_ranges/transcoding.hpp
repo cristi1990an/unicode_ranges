@@ -196,6 +196,132 @@ namespace unicode_ranges
 	}
 
 	template <typename Derived, typename View>
+	constexpr basic_utf8_string<> utf8_string_crtp<Derived, View>::replace_all(utf8_char from, utf8_char to) const
+	{
+		return replace_all(
+			View::from_bytes_unchecked(from.as_view()),
+			View::from_bytes_unchecked(to.as_view()));
+	}
+
+	template <typename Derived, typename View>
+	constexpr basic_utf8_string<> utf8_string_crtp<Derived, View>::replace_all(utf8_char from, View to) const
+	{
+		return replace_all(View::from_bytes_unchecked(from.as_view()), to);
+	}
+
+	template <typename Derived, typename View>
+	constexpr basic_utf8_string<> utf8_string_crtp<Derived, View>::replace_all(View from, utf8_char to) const
+	{
+		return replace_all(from, View::from_bytes_unchecked(to.as_view()));
+	}
+
+	template <typename Derived, typename View>
+	constexpr basic_utf8_string<> utf8_string_crtp<Derived, View>::replace_all(View from, View to) const
+	{
+		return replace_all(from, to, std::allocator<char8_t>{});
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator> utf8_string_crtp<Derived, View>::replace_all(utf8_char from, utf8_char to, const Allocator& alloc) const
+	{
+		return replace_all(
+			View::from_bytes_unchecked(from.as_view()),
+			View::from_bytes_unchecked(to.as_view()),
+			alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator> utf8_string_crtp<Derived, View>::replace_all(utf8_char from, View to, const Allocator& alloc) const
+	{
+		return replace_all(View::from_bytes_unchecked(from.as_view()), to, alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator> utf8_string_crtp<Derived, View>::replace_all(View from, utf8_char to, const Allocator& alloc) const
+	{
+		return replace_all(from, View::from_bytes_unchecked(to.as_view()), alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator> utf8_string_crtp<Derived, View>::replace_all(View from, View to, const Allocator& alloc) const
+	{
+		return basic_utf8_string<Allocator>::from_bytes_unchecked(details::replace_utf8_bytes_copy(
+			byte_view(),
+			from.base(),
+			to.base(),
+			npos,
+			alloc));
+	}
+
+	template <typename Derived, typename View>
+	constexpr basic_utf8_string<> utf8_string_crtp<Derived, View>::replace_n(size_type count, utf8_char from, utf8_char to) const
+	{
+		return replace_n(
+			count,
+			View::from_bytes_unchecked(from.as_view()),
+			View::from_bytes_unchecked(to.as_view()));
+	}
+
+	template <typename Derived, typename View>
+	constexpr basic_utf8_string<> utf8_string_crtp<Derived, View>::replace_n(size_type count, utf8_char from, View to) const
+	{
+		return replace_n(count, View::from_bytes_unchecked(from.as_view()), to);
+	}
+
+	template <typename Derived, typename View>
+	constexpr basic_utf8_string<> utf8_string_crtp<Derived, View>::replace_n(size_type count, View from, utf8_char to) const
+	{
+		return replace_n(count, from, View::from_bytes_unchecked(to.as_view()));
+	}
+
+	template <typename Derived, typename View>
+	constexpr basic_utf8_string<> utf8_string_crtp<Derived, View>::replace_n(size_type count, View from, View to) const
+	{
+		return replace_n(count, from, to, std::allocator<char8_t>{});
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator> utf8_string_crtp<Derived, View>::replace_n(size_type count, utf8_char from, utf8_char to, const Allocator& alloc) const
+	{
+		return replace_n(
+			count,
+			View::from_bytes_unchecked(from.as_view()),
+			View::from_bytes_unchecked(to.as_view()),
+			alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator> utf8_string_crtp<Derived, View>::replace_n(size_type count, utf8_char from, View to, const Allocator& alloc) const
+	{
+		return replace_n(count, View::from_bytes_unchecked(from.as_view()), to, alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator> utf8_string_crtp<Derived, View>::replace_n(size_type count, View from, utf8_char to, const Allocator& alloc) const
+	{
+		return replace_n(count, from, View::from_bytes_unchecked(to.as_view()), alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator> utf8_string_crtp<Derived, View>::replace_n(size_type count, View from, View to, const Allocator& alloc) const
+	{
+		return basic_utf8_string<Allocator>::from_bytes_unchecked(details::replace_utf8_bytes_copy(
+			byte_view(),
+			from.base(),
+			to.base(),
+			count,
+			alloc));
+	}
+
+	template <typename Derived, typename View>
 	template <typename Allocator>
 	constexpr basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::to_utf16_owned(const Allocator& alloc) const
 	{
@@ -209,6 +335,132 @@ namespace unicode_ranges
 		basic_utf8_string<Allocator> result{ alloc };
 		result.append_range(chars());
 		return result;
+	}
+
+	template <typename Derived, typename View>
+	constexpr basic_utf16_string<> utf16_string_crtp<Derived, View>::replace_all(utf16_char from, utf16_char to) const
+	{
+		return replace_all(
+			View::from_code_units_unchecked(from.as_view()),
+			View::from_code_units_unchecked(to.as_view()));
+	}
+
+	template <typename Derived, typename View>
+	constexpr basic_utf16_string<> utf16_string_crtp<Derived, View>::replace_all(utf16_char from, View to) const
+	{
+		return replace_all(View::from_code_units_unchecked(from.as_view()), to);
+	}
+
+	template <typename Derived, typename View>
+	constexpr basic_utf16_string<> utf16_string_crtp<Derived, View>::replace_all(View from, utf16_char to) const
+	{
+		return replace_all(from, View::from_code_units_unchecked(to.as_view()));
+	}
+
+	template <typename Derived, typename View>
+	constexpr basic_utf16_string<> utf16_string_crtp<Derived, View>::replace_all(View from, View to) const
+	{
+		return replace_all(from, to, std::allocator<char16_t>{});
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::replace_all(utf16_char from, utf16_char to, const Allocator& alloc) const
+	{
+		return replace_all(
+			View::from_code_units_unchecked(from.as_view()),
+			View::from_code_units_unchecked(to.as_view()),
+			alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::replace_all(utf16_char from, View to, const Allocator& alloc) const
+	{
+		return replace_all(View::from_code_units_unchecked(from.as_view()), to, alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::replace_all(View from, utf16_char to, const Allocator& alloc) const
+	{
+		return replace_all(from, View::from_code_units_unchecked(to.as_view()), alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::replace_all(View from, View to, const Allocator& alloc) const
+	{
+		return basic_utf16_string<Allocator>::from_code_units_unchecked(details::replace_utf16_code_units_copy(
+			code_unit_view(),
+			from.base(),
+			to.base(),
+			npos,
+			alloc));
+	}
+
+	template <typename Derived, typename View>
+	constexpr basic_utf16_string<> utf16_string_crtp<Derived, View>::replace_n(size_type count, utf16_char from, utf16_char to) const
+	{
+		return replace_n(
+			count,
+			View::from_code_units_unchecked(from.as_view()),
+			View::from_code_units_unchecked(to.as_view()));
+	}
+
+	template <typename Derived, typename View>
+	constexpr basic_utf16_string<> utf16_string_crtp<Derived, View>::replace_n(size_type count, utf16_char from, View to) const
+	{
+		return replace_n(count, View::from_code_units_unchecked(from.as_view()), to);
+	}
+
+	template <typename Derived, typename View>
+	constexpr basic_utf16_string<> utf16_string_crtp<Derived, View>::replace_n(size_type count, View from, utf16_char to) const
+	{
+		return replace_n(count, from, View::from_code_units_unchecked(to.as_view()));
+	}
+
+	template <typename Derived, typename View>
+	constexpr basic_utf16_string<> utf16_string_crtp<Derived, View>::replace_n(size_type count, View from, View to) const
+	{
+		return replace_n(count, from, to, std::allocator<char16_t>{});
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::replace_n(size_type count, utf16_char from, utf16_char to, const Allocator& alloc) const
+	{
+		return replace_n(
+			count,
+			View::from_code_units_unchecked(from.as_view()),
+			View::from_code_units_unchecked(to.as_view()),
+			alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::replace_n(size_type count, utf16_char from, View to, const Allocator& alloc) const
+	{
+		return replace_n(count, View::from_code_units_unchecked(from.as_view()), to, alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::replace_n(size_type count, View from, utf16_char to, const Allocator& alloc) const
+	{
+		return replace_n(count, from, View::from_code_units_unchecked(to.as_view()), alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::replace_n(size_type count, View from, View to, const Allocator& alloc) const
+	{
+		return basic_utf16_string<Allocator>::from_code_units_unchecked(details::replace_utf16_code_units_copy(
+			code_unit_view(),
+			from.base(),
+			to.base(),
+			count,
+			alloc));
 	}
 	}
 

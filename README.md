@@ -1036,9 +1036,15 @@ public:
     constexpr bool is_ascii() const noexcept;
     constexpr size_type char_count() const noexcept;
     constexpr size_type grapheme_count() const noexcept;
+    constexpr bool contains(utf8_char ch) const noexcept;
+    constexpr bool contains(utf8_string_view sv) const noexcept;
+    template<class Pred>
+    constexpr bool contains(Pred pred) const noexcept;
     constexpr size_type find(char8_t ch, size_type pos = 0) const noexcept;
     constexpr size_type find(utf8_char ch, size_type pos = 0) const noexcept;
     constexpr size_type find(utf8_string_view sv, size_type pos = 0) const noexcept;
+    template<class Pred>
+    constexpr size_type find(Pred pred, size_type pos = 0) const noexcept;
     constexpr size_type find_first_of(char8_t ch, size_type pos = 0) const noexcept;
     constexpr size_type find_first_of(utf8_char ch, size_type pos = 0) const noexcept;
     constexpr size_type find_first_of(utf8_string_view sv, size_type pos = 0) const noexcept;
@@ -1048,6 +1054,8 @@ public:
     constexpr size_type rfind(char8_t ch, size_type pos = npos) const noexcept;
     constexpr size_type rfind(utf8_char ch, size_type pos = npos) const noexcept;
     constexpr size_type rfind(utf8_string_view sv, size_type pos = npos) const noexcept;
+    template<class Pred>
+    constexpr size_type rfind(Pred pred, size_type pos = npos) const noexcept;
     constexpr size_type find_last_of(char8_t ch, size_type pos = npos) const noexcept;
     constexpr size_type find_last_of(utf8_char ch, size_type pos = npos) const noexcept;
     constexpr size_type find_last_of(utf8_string_view sv, size_type pos = npos) const noexcept;
@@ -1059,24 +1067,62 @@ public:
     constexpr size_type char_count() const noexcept;
     constexpr auto split(utf8_char ch) const noexcept;
     constexpr auto split(utf8_string_view sv) const noexcept;
+    template<class Pred>
+    constexpr auto split(Pred pred) const noexcept;
     constexpr auto rsplit(utf8_char ch) const noexcept;
     constexpr auto rsplit(utf8_string_view sv) const noexcept;
+    template<class Pred>
+    constexpr auto rsplit(Pred pred) const noexcept;
     constexpr auto split_terminator(utf8_char ch) const noexcept;
     constexpr auto split_terminator(utf8_string_view sv) const noexcept;
+    template<class Pred>
+    constexpr auto split_terminator(Pred pred) const noexcept;
     constexpr auto rsplit_terminator(utf8_char ch) const noexcept;
     constexpr auto rsplit_terminator(utf8_string_view sv) const noexcept;
+    template<class Pred>
+    constexpr auto rsplit_terminator(Pred pred) const noexcept;
     constexpr auto splitn(size_type count, utf8_char ch) const noexcept;
     constexpr auto splitn(size_type count, utf8_string_view sv) const noexcept;
+    template<class Pred>
+    constexpr auto splitn(size_type count, Pred pred) const noexcept;
     constexpr auto rsplitn(size_type count, utf8_char ch) const noexcept;
     constexpr auto rsplitn(size_type count, utf8_string_view sv) const noexcept;
+    template<class Pred>
+    constexpr auto rsplitn(size_type count, Pred pred) const noexcept;
+    constexpr auto split_inclusive(utf8_char ch) const noexcept;
+    constexpr auto split_inclusive(utf8_string_view sv) const noexcept;
+    template<class Pred>
+    constexpr auto split_inclusive(Pred pred) const noexcept;
+    constexpr auto split_trimmed(utf8_char ch) const noexcept;
+    constexpr auto split_trimmed(utf8_string_view sv) const noexcept;
+    template<class Pred>
+    constexpr auto split_trimmed(Pred pred) const noexcept;
+    constexpr auto matches(utf8_char ch) const noexcept;
+    constexpr auto matches(utf8_string_view sv) const noexcept;
+    template<class Pred>
+    constexpr auto matches(Pred pred) const noexcept;
+    constexpr auto rmatches(utf8_char ch) const noexcept;
+    constexpr auto rmatches(utf8_string_view sv) const noexcept;
+    template<class Pred>
+    constexpr auto rmatches(Pred pred) const noexcept;
+    constexpr auto rmatch_indices(utf8_char ch) const noexcept;
+    constexpr auto rmatch_indices(utf8_string_view sv) const noexcept;
+    template<class Pred>
+    constexpr auto rmatch_indices(Pred pred) const noexcept;
     constexpr std::optional<std::pair<utf8_string_view, utf8_string_view>>
         split_once(utf8_char ch) const noexcept;
     constexpr std::optional<std::pair<utf8_string_view, utf8_string_view>>
         split_once(utf8_string_view sv) const noexcept;
+    template<class Pred>
+    constexpr std::optional<std::pair<utf8_string_view, utf8_string_view>>
+        split_once(Pred pred) const noexcept;
     constexpr std::optional<std::pair<utf8_string_view, utf8_string_view>>
         rsplit_once(utf8_char ch) const noexcept;
     constexpr std::optional<std::pair<utf8_string_view, utf8_string_view>>
         rsplit_once(utf8_string_view sv) const noexcept;
+    template<class Pred>
+    constexpr std::optional<std::pair<utf8_string_view, utf8_string_view>>
+        rsplit_once(Pred pred) const noexcept;
     constexpr auto split_whitespace() const noexcept;
     constexpr auto split_ascii_whitespace() const noexcept;
     constexpr std::optional<utf8_string_view> strip_prefix(utf8_char ch) const noexcept;
@@ -1093,10 +1139,16 @@ public:
     constexpr utf8_string_view trim_suffix(utf8_string_view sv) const noexcept;
     constexpr utf8_string_view trim_start_matches(utf8_char ch) const noexcept;
     constexpr utf8_string_view trim_start_matches(utf8_string_view sv) const noexcept;
+    template<class Pred>
+    constexpr utf8_string_view trim_start_matches(Pred pred) const noexcept;
     constexpr utf8_string_view trim_end_matches(utf8_char ch) const noexcept;
     constexpr utf8_string_view trim_end_matches(utf8_string_view sv) const noexcept;
+    template<class Pred>
+    constexpr utf8_string_view trim_end_matches(Pred pred) const noexcept;
     constexpr utf8_string_view trim_matches(utf8_char ch) const noexcept;
     constexpr utf8_string_view trim_matches(utf8_string_view sv) const noexcept;
+    template<class Pred>
+    constexpr utf8_string_view trim_matches(Pred pred) const noexcept;
     constexpr utf8_string_view trim_start() const noexcept;
     constexpr utf8_string_view trim_end() const noexcept;
     constexpr utf8_string_view trim() const noexcept;
@@ -1107,6 +1159,14 @@ public:
         split_once_at(size_type delim) const noexcept;
     constexpr std::pair<utf8_string_view, utf8_string_view>
         split_once_at_unchecked(size_type delim) const noexcept;
+    constexpr utf8_string replace_all(utf8_char from, utf8_char to) const;
+    constexpr utf8_string replace_all(utf8_char from, utf8_string_view to) const;
+    constexpr utf8_string replace_all(utf8_string_view from, utf8_char to) const;
+    constexpr utf8_string replace_all(utf8_string_view from, utf8_string_view to) const;
+    constexpr utf8_string replace_n(size_type count, utf8_char from, utf8_char to) const;
+    constexpr utf8_string replace_n(size_type count, utf8_char from, utf8_string_view to) const;
+    constexpr utf8_string replace_n(size_type count, utf8_string_view from, utf8_char to) const;
+    constexpr utf8_string replace_n(size_type count, utf8_string_view from, utf8_string_view to) const;
     constexpr size_type ceil_char_boundary(size_type pos) const noexcept;
     constexpr size_type floor_char_boundary(size_type pos) const noexcept;
     constexpr size_type ceil_grapheme_boundary(size_type pos) const noexcept;
@@ -1249,7 +1309,7 @@ Complexity:
 #### `reversed_graphemes`
 
 ```cpp
-constexpr auto reversed_graphemes() const noexcept;
+constexpr auto reversed_graphemes() const;
 ```
 
 Returns a reverse grapheme view over the contained text.
@@ -1260,7 +1320,8 @@ Returns a reverse grapheme view over the contained text.
 
 Complexity:
 
-- Constant to construct the view
+- Linear to construct the view
+- Constant-time `begin()`
 - Linear to iterate the entire view
 
 #### `size`
@@ -1367,13 +1428,29 @@ Complexity:
 
 ```cpp
 constexpr bool contains(utf8_char ch) const noexcept;
+constexpr bool contains(utf8_string_view sv) const noexcept;
+template<class Pred>
+constexpr bool contains(Pred pred) const noexcept;
 ```
 
-Returns `true` if the UTF-8 byte sequence of `ch` occurs in the underlying byte sequence.
+Returns `true` if the text contains:
 
-Preconditions:
+- the exact validated UTF-8 character `ch`
+- the exact validated UTF-8 substring `sv`
+- any decoded `utf8_char` for which `pred` returns `true`
 
-- None
+The predicate overload is character-based. It is invoked once per Unicode scalar value and cannot match multi-character substrings.
+
+```cpp
+using namespace unicode_ranges::literals;
+
+const auto text = u8"banané"_utf8_sv;
+
+assert(text.contains(u8"é"_u8c));
+assert(text.contains(u8"ana"_utf8_sv));
+assert(text.contains([](unicode_ranges::utf8_char ch) { return ch == u8"b"_u8c; }));
+assert(!text.contains(u8"xyz"_utf8_sv));
+```
 
 Complexity:
 
@@ -1385,24 +1462,37 @@ Complexity:
 constexpr size_type find(char8_t ch, size_type pos = 0) const noexcept;
 constexpr size_type find(utf8_char ch, size_type pos = 0) const noexcept;
 constexpr size_type find(utf8_string_view sv, size_type pos = 0) const noexcept;
+template<class Pred>
+constexpr size_type find(Pred pred, size_type pos = 0) const noexcept;
 ```
 
 Returns the byte offset of the first match, or `npos` if no match exists.
 
 The returned index is a byte offset into the underlying UTF-8 sequence.
 
-For the `char8_t` case, `pos` is treated as a raw byte offset.
+Behavior:
 
-For the `utf8_char` and `utf8_string_view` overloads, `pos` is clamped to `size()` and rounded up to the next UTF-8 character boundary before searching.
+- `find(char8_t, pos)` treats `pos` as a raw byte offset and searches raw bytes.
+- `find(utf8_char, pos)` and `find(utf8_string_view, pos)` clamp `pos` to `size()` and round it up to the next UTF-8 character boundary before searching.
+- `find(Pred, pos)` also rounds `pos` up to the next UTF-8 character boundary and returns the byte offset of the first character for which `pred` returns `true`.
 
-Preconditions:
+```cpp
+using namespace unicode_ranges::literals;
 
-- None
+const auto text = u8"AéBé"_utf8_sv;
+
+assert(text.find(u8'B') == 3);
+assert(text.find(u8"é"_u8c) == 1);
+assert(text.find(u8"éB"_utf8_sv) == 1);
+assert(text.find([](unicode_ranges::utf8_char ch) { return ch == u8"B"_u8c; }) == 3);
+assert(text.find(u8"z"_u8c) == unicode_ranges::utf8_string_view::npos);
+```
 
 Complexity:
 
 - Linear in `size()` for `char8_t` and `utf8_char`
 - Linear in `size() * sv.char_count()` for `utf8_string_view` in the worst case
+- Linear in the number of characters examined for `Pred`
 
 #### `find_first_of`, `find_first_not_of`
 
@@ -1464,21 +1554,34 @@ Complexity:
 constexpr size_type rfind(char8_t ch, size_type pos = npos) const noexcept;
 constexpr size_type rfind(utf8_char ch, size_type pos = npos) const noexcept;
 constexpr size_type rfind(utf8_string_view sv, size_type pos = npos) const noexcept;
+template<class Pred>
+constexpr size_type rfind(Pred pred, size_type pos = npos) const noexcept;
 ```
 
 Returns the byte offset of the last match, or `npos` if no match exists.
 
-For the `char8_t` case, `pos` is treated as a raw byte offset.
+Behavior:
 
-For the `utf8_char` and `utf8_string_view` overloads, `pos` is clamped to `size()` and rounded down to a UTF-8 character boundary before searching.
+- `rfind(char8_t, pos)` treats `pos` as a raw byte offset.
+- `rfind(utf8_char, pos)` and `rfind(utf8_string_view, pos)` clamp `pos` to `size()` and round it down to a UTF-8 character boundary before searching.
+- `rfind(Pred, pos)` returns the start byte offset of the last character at or before `pos` for which `pred` returns `true`.
 
-Preconditions:
+```cpp
+using namespace unicode_ranges::literals;
 
-- None
+const auto text = u8"AéBé"_utf8_sv;
+
+assert(text.rfind(u8"é"_u8c) == 4);
+assert(text.rfind(u8"é"_u8c, 3) == 1);
+assert(text.rfind(u8"éB"_utf8_sv) == 1);
+assert(text.rfind([](unicode_ranges::utf8_char ch) { return ch == u8"é"_u8c; }) == 4);
+```
 
 Complexity:
 
-- Linear in `size()`
+- Linear in `size()` for `char8_t` and `utf8_char`
+- Linear in `size() * sv.char_count()` for `utf8_string_view` in the worst case
+- Linear in the number of characters examined for `Pred`
 
 #### `is_char_boundary`
 
@@ -1521,21 +1624,42 @@ Complexity:
 ```cpp
 constexpr auto split(utf8_char ch) const noexcept;
 constexpr auto split(utf8_string_view sv) const noexcept;
+template<class Pred>
+constexpr auto split(Pred pred) const noexcept;
 ```
 
-Returns a lazy view of the segments separated by `ch` or `sv`.
+Returns a lazy view of the segments separated by `ch`, `sv`, or matching characters selected by `pred`.
 
-The delimiter is not included in the yielded segments.
+Behavior:
+
+- exact-delimiter overloads split on non-overlapping matches of `ch` or `sv`
+- the predicate overload treats every matching `utf8_char` as a delimiter
+- delimiters are not included in the yielded segments
+- if the exact delimiter is not found, the whole string is yielded once
 
 Complexity:
 
 - Constant to construct the view
+
+```cpp
+using namespace unicode_ranges::literals;
+
+assert(std::ranges::equal(
+    u8"red,green,blue"_utf8_sv.split(u8","_u8c),
+    std::array{ u8"red"_utf8_sv, u8"green"_utf8_sv, u8"blue"_utf8_sv }));
+
+assert(std::ranges::equal(
+    u8"a b\tc"_utf8_sv.split([](unicode_ranges::utf8_char ch) { return ch.is_ascii_whitespace(); }),
+    std::array{ u8"a"_utf8_sv, u8"b"_utf8_sv, u8"c"_utf8_sv }));
+```
 
 #### `rsplit`
 
 ```cpp
 constexpr auto rsplit(utf8_char ch) const noexcept;
 constexpr auto rsplit(utf8_string_view sv) const noexcept;
+template<class Pred>
+constexpr auto rsplit(Pred pred) const noexcept;
 ```
 
 Returns the same lazy split segments as `split(...)`, but in reverse order.
@@ -1546,13 +1670,25 @@ Complexity:
 
 - Constant to construct the view
 
+```cpp
+using namespace unicode_ranges::literals;
+
+assert(std::ranges::equal(
+    u8"red,green,blue"_utf8_sv.rsplit(u8","_u8c),
+    std::array{ u8"blue"_utf8_sv, u8"green"_utf8_sv, u8"red"_utf8_sv }));
+```
+
 #### `split_terminator`, `rsplit_terminator`
 
 ```cpp
 constexpr auto split_terminator(utf8_char ch) const noexcept;
 constexpr auto split_terminator(utf8_string_view sv) const noexcept;
+template<class Pred>
+constexpr auto split_terminator(Pred pred) const noexcept;
 constexpr auto rsplit_terminator(utf8_char ch) const noexcept;
 constexpr auto rsplit_terminator(utf8_string_view sv) const noexcept;
+template<class Pred>
+constexpr auto rsplit_terminator(Pred pred) const noexcept;
 ```
 
 Returns lazy split views like `split(...)` and `rsplit(...)`, but suppresses the final empty segment that would otherwise be produced by a trailing delimiter.
@@ -1563,13 +1699,29 @@ Complexity:
 
 - Constant to construct the view
 
+```cpp
+using namespace unicode_ranges::literals;
+
+assert(std::ranges::equal(
+    u8"red,green,blue,"_utf8_sv.split_terminator(u8","_u8c),
+    std::array{ u8"red"_utf8_sv, u8"green"_utf8_sv, u8"blue"_utf8_sv }));
+
+assert(std::ranges::equal(
+    u8"red,green,blue,"_utf8_sv.rsplit_terminator(u8","_u8c),
+    std::array{ u8"blue"_utf8_sv, u8"green"_utf8_sv, u8"red"_utf8_sv }));
+```
+
 #### `splitn`, `rsplitn`
 
 ```cpp
 constexpr auto splitn(size_type count, utf8_char ch) const noexcept;
 constexpr auto splitn(size_type count, utf8_string_view sv) const noexcept;
+template<class Pred>
+constexpr auto splitn(size_type count, Pred pred) const noexcept;
 constexpr auto rsplitn(size_type count, utf8_char ch) const noexcept;
 constexpr auto rsplitn(size_type count, utf8_string_view sv) const noexcept;
+template<class Pred>
+constexpr auto rsplitn(size_type count, Pred pred) const noexcept;
 ```
 
 Returns a lazy split view that yields at most `count` segments.
@@ -1582,6 +1734,128 @@ Complexity:
 
 - Constant to construct the view
 
+```cpp
+using namespace unicode_ranges::literals;
+
+assert(std::ranges::equal(
+    u8"red,green,blue"_utf8_sv.splitn(2, u8","_u8c),
+    std::array{ u8"red"_utf8_sv, u8"green,blue"_utf8_sv }));
+
+assert(std::ranges::equal(
+    u8"red,green,blue"_utf8_sv.rsplitn(2, u8","_u8c),
+    std::array{ u8"blue"_utf8_sv, u8"red,green"_utf8_sv }));
+```
+
+#### `split_inclusive`
+
+```cpp
+constexpr auto split_inclusive(utf8_char ch) const noexcept;
+constexpr auto split_inclusive(utf8_string_view sv) const noexcept;
+template<class Pred>
+constexpr auto split_inclusive(Pred pred) const noexcept;
+```
+
+Returns a lazy split view whose yielded segments keep the matched delimiter at the end of each returned piece.
+
+If the delimiter is not found, the whole string is yielded once.
+
+If the delimiter is empty, the whole string is yielded once.
+
+Complexity:
+
+- Constant to construct the view
+
+```cpp
+using namespace unicode_ranges::literals;
+
+assert(std::ranges::equal(
+    u8"line1\nline2\nline3"_utf8_sv.split_inclusive(u8"\n"_u8c),
+    std::array{ u8"line1\n"_utf8_sv, u8"line2\n"_utf8_sv, u8"line3"_utf8_sv }));
+```
+
+#### `split_trimmed`
+
+```cpp
+constexpr auto split_trimmed(utf8_char ch) const noexcept;
+constexpr auto split_trimmed(utf8_string_view sv) const noexcept;
+template<class Pred>
+constexpr auto split_trimmed(Pred pred) const noexcept;
+```
+
+Returns a lazy view of the non-empty segments separated by `ch`, `sv`, or a per-character predicate.
+
+Leading, trailing, and consecutive delimiters are skipped rather than producing empty substrings.
+
+If the delimiter is empty, the whole string is yielded once when the input is non-empty, and no segments are yielded for an empty input.
+
+Complexity:
+
+- Constant to construct the view
+
+```cpp
+using namespace unicode_ranges::literals;
+
+assert(std::ranges::equal(
+    u8"--alpha----beta--"_utf8_sv.split_trimmed(u8"--"_utf8_sv),
+    std::array{ u8"alpha"_utf8_sv, u8"beta"_utf8_sv }));
+
+assert(std::ranges::equal(
+    u8" \talpha \t beta\t"_utf8_sv.split_trimmed([](unicode_ranges::utf8_char ch) { return ch.is_ascii_whitespace(); }),
+    std::array{ u8"alpha"_utf8_sv, u8"beta"_utf8_sv }));
+```
+
+#### `matches`, `rmatches`, `rmatch_indices`
+
+```cpp
+constexpr auto matches(utf8_char ch) const noexcept;
+constexpr auto matches(utf8_string_view sv) const noexcept;
+template<class Pred>
+constexpr auto matches(Pred pred) const noexcept;
+constexpr auto rmatches(utf8_char ch) const noexcept;
+constexpr auto rmatches(utf8_string_view sv) const noexcept;
+template<class Pred>
+constexpr auto rmatches(Pred pred) const noexcept;
+constexpr auto rmatch_indices(utf8_char ch) const noexcept;
+constexpr auto rmatch_indices(utf8_string_view sv) const noexcept;
+template<class Pred>
+constexpr auto rmatch_indices(Pred pred) const noexcept;
+```
+
+`matches(...)` returns a lazy view of the non-overlapping matches.
+
+`rmatches(...)` returns the same matches in reverse order.
+
+`rmatch_indices(...)` returns a lazy view of non-overlapping matches in reverse order, yielding `(byte_index, match)` pairs.
+
+Behavior:
+
+- exact-delimiter overloads return non-overlapping substring matches
+- predicate overloads match individual characters and yield each matching character as a one-character `utf8_string_view`
+- empty exact delimiters yield no matches
+
+Complexity:
+
+- Constant to construct the view
+
+```cpp
+using namespace unicode_ranges::literals;
+
+assert(std::ranges::equal(
+    u8"aba"_utf8_sv.matches(u8"a"_u8c),
+    std::array{ u8"a"_utf8_sv, u8"a"_utf8_sv }));
+
+assert(std::ranges::equal(
+    u8"aba"_utf8_sv.rmatches(u8"a"_u8c),
+    std::array{ u8"a"_utf8_sv, u8"a"_utf8_sv }));
+
+assert(std::ranges::equal(
+    u8"aba"_utf8_sv.rmatch_indices(u8"a"_u8c),
+    std::array{
+        std::pair{ std::size_t{ 2 }, u8"a"_utf8_sv },
+        std::pair{ std::size_t{ 0 }, u8"a"_utf8_sv }
+    }));
+```
+
 #### `split_once`, `rsplit_once`
 
 ```cpp
@@ -1589,25 +1863,51 @@ constexpr std::optional<std::pair<utf8_string_view, utf8_string_view>>
     split_once(utf8_char ch) const noexcept;
 constexpr std::optional<std::pair<utf8_string_view, utf8_string_view>>
     split_once(utf8_string_view sv) const noexcept;
+template<class Pred>
+constexpr std::optional<std::pair<utf8_string_view, utf8_string_view>>
+    split_once(Pred pred) const noexcept;
 constexpr std::optional<std::pair<utf8_string_view, utf8_string_view>>
     rsplit_once(utf8_char ch) const noexcept;
 constexpr std::optional<std::pair<utf8_string_view, utf8_string_view>>
     rsplit_once(utf8_string_view sv) const noexcept;
+template<class Pred>
+constexpr std::optional<std::pair<utf8_string_view, utf8_string_view>>
+    rsplit_once(Pred pred) const noexcept;
 ```
 
 Returns the prefix and suffix around the first or last delimiter occurrence.
 
 The delimiter is not included in the returned views.
 
+The predicate overloads split around the first or last matching character.
+
 Returns `std::nullopt` if the delimiter is not found.
+
+```cpp
+using namespace unicode_ranges::literals;
+
+const auto first = u8"left::middle::right"_utf8_sv.split_once(u8"::"_utf8_sv);
+assert(first.has_value());
+assert(first->first == u8"left"_utf8_sv);
+assert(first->second == u8"middle::right"_utf8_sv);
+
+const auto last = u8"left::middle::right"_utf8_sv.rsplit_once(u8"::"_utf8_sv);
+assert(last.has_value());
+assert(last->first == u8"left::middle"_utf8_sv);
+assert(last->second == u8"right"_utf8_sv);
+```
 
 #### Split delimiter rules
 
-For the split family above:
+For the exact-delimiter split family above:
 
 - empty delimiters are treated as `"not found"`
-- `split(...)`, `rsplit(...)`, `split_terminator(...)`, `rsplit_terminator(...)`, `splitn(...)`, and `rsplitn(...)` therefore yield the whole string once when `count != 0`
+- `split(...)`, `rsplit(...)`, `split_terminator(...)`, `rsplit_terminator(...)`, `splitn(...)`, `rsplitn(...)`, and `split_inclusive(...)` therefore yield the whole string once when `count != 0` or when no count is involved
+- `split_trimmed(...)` yields the whole string once for non-empty input and yields no segments for empty input
 - `split_once(...)` and `rsplit_once(...)` return `std::nullopt` for empty delimiters
+- `matches(...)`, `rmatches(...)`, and `rmatch_indices(...)` yield no matches for empty delimiters
+
+Predicate overloads do not have an "empty delimiter" case. They operate on one decoded `utf8_char` at a time.
 
 Complexity:
 
@@ -1628,6 +1928,18 @@ Complexity:
 
 - Constant to construct the view
 
+```cpp
+using namespace unicode_ranges::literals;
+
+assert(std::ranges::equal(
+    u8" \t hello \n world "_utf8_sv.split_whitespace(),
+    std::array{ u8"hello"_utf8_sv, u8"world"_utf8_sv }));
+
+assert(std::ranges::equal(
+    u8" \t hello \n world "_utf8_sv.split_ascii_whitespace(),
+    std::array{ u8"hello"_utf8_sv, u8"world"_utf8_sv }));
+```
+
 #### `strip_prefix`, `strip_suffix`, `strip_circumfix`
 
 ```cpp
@@ -1643,12 +1955,23 @@ constexpr std::optional<utf8_string_view>
 
 Returns the remaining view after removing a matching prefix, suffix, or prefix-and-suffix pair.
 
+`strip_circumfix(...)` succeeds only when both the prefix and the suffix match.
+
 Returns `std::nullopt` if the requested affix is not present.
 
 Complexity:
 
 - Constant for `utf8_char`
 - Linear in the affix length for `utf8_string_view`
+
+```cpp
+using namespace unicode_ranges::literals;
+
+assert(u8"foobar"_utf8_sv.strip_prefix(u8"foo"_utf8_sv).value() == u8"bar"_utf8_sv);
+assert(u8"foobar"_utf8_sv.strip_suffix(u8"bar"_utf8_sv).value() == u8"foo"_utf8_sv);
+assert(u8"[name]"_utf8_sv.strip_circumfix(u8"["_u8c, u8"]"_u8c).value() == u8"name"_utf8_sv);
+assert(!u8"[name"_utf8_sv.strip_circumfix(u8"["_u8c, u8"]"_u8c).has_value());
+```
 
 #### `trim_prefix`, `trim_suffix`
 
@@ -1666,24 +1989,50 @@ Complexity:
 - Constant for `utf8_char`
 - Linear in the affix length for `utf8_string_view`
 
+```cpp
+using namespace unicode_ranges::literals;
+
+assert(u8"foobar"_utf8_sv.trim_prefix(u8"foo"_utf8_sv) == u8"bar"_utf8_sv);
+assert(u8"foobar"_utf8_sv.trim_suffix(u8"baz"_utf8_sv) == u8"foobar"_utf8_sv);
+```
+
 #### `trim_start_matches`, `trim_end_matches`, `trim_matches`
 
 ```cpp
 constexpr utf8_string_view trim_start_matches(utf8_char ch) const noexcept;
 constexpr utf8_string_view trim_start_matches(utf8_string_view sv) const noexcept;
+template<class Pred>
+constexpr utf8_string_view trim_start_matches(Pred pred) const noexcept;
 constexpr utf8_string_view trim_end_matches(utf8_char ch) const noexcept;
 constexpr utf8_string_view trim_end_matches(utf8_string_view sv) const noexcept;
+template<class Pred>
+constexpr utf8_string_view trim_end_matches(Pred pred) const noexcept;
 constexpr utf8_string_view trim_matches(utf8_char ch) const noexcept;
 constexpr utf8_string_view trim_matches(utf8_string_view sv) const noexcept;
+template<class Pred>
+constexpr utf8_string_view trim_matches(Pred pred) const noexcept;
 ```
 
-Removes repeated matching characters or repeated matching string views from the start, end, or both ends.
+Removes repeated matching characters, repeated matching string views, or repeated edge characters selected by a predicate from the start, end, or both ends.
 
-Empty string-view patterns are a no-op.
+Behavior:
+
+- `utf8_char` overloads remove matching characters one by one
+- `utf8_string_view` overloads remove repeated whole-pattern matches
+- predicate overloads remove matching characters one by one
+- empty string-view patterns are a no-op
 
 Complexity:
 
 - Linear in `size()`
+
+```cpp
+using namespace unicode_ranges::literals;
+
+assert(u8"---name---"_utf8_sv.trim_matches(u8"-"_u8c) == u8"name"_utf8_sv);
+assert(u8"foofoo_namefoo"_utf8_sv.trim_start_matches(u8"foo"_utf8_sv) == u8"_namefoo"_utf8_sv);
+assert(u8"00120"_utf8_sv.trim_start_matches([](unicode_ranges::utf8_char ch) { return ch == u8"0"_u8c; }) == u8"120"_utf8_sv);
+```
 
 #### `trim_start`, `trim_end`, `trim`, `trim_ascii_start`, `trim_ascii_end`, `trim_ascii`
 
@@ -1701,6 +2050,15 @@ Trims Unicode whitespace or ASCII whitespace from the start, end, or both ends.
 Complexity:
 
 - Linear in `size()`
+
+```cpp
+using namespace unicode_ranges::literals;
+
+assert(u8" \t hello \n"_utf8_sv.trim_start() == u8"hello \n"_utf8_sv);
+assert(u8" \t hello \n"_utf8_sv.trim_end() == u8" \t hello"_utf8_sv);
+assert(u8" \t hello \n"_utf8_sv.trim() == u8"hello"_utf8_sv);
+assert(u8" \t hello \n"_utf8_sv.trim_ascii() == u8"hello"_utf8_sv);
+```
 
 #### `split_once_at`
 
@@ -1727,6 +2085,23 @@ Remarks:
 Complexity:
 
 - Constant
+
+```cpp
+using namespace unicode_ranges::literals;
+
+const auto text = u8"AéB"_utf8_sv;
+
+const auto checked = text.split_once_at(3);
+assert(checked.has_value());
+assert(checked->first == u8"Aé"_utf8_sv);
+assert(checked->second == u8"B"_utf8_sv);
+
+assert(!text.split_once_at(2).has_value()); // middle of 'é'
+
+const auto unchecked = text.split_once_at_unchecked(1);
+assert(unchecked.first == u8"A"_utf8_sv);
+assert(unchecked.second == u8"éB"_utf8_sv);
+```
 
 #### `char_at`
 
@@ -2129,6 +2504,16 @@ public:
     constexpr auto splitn(size_type count, utf16_string_view sv) const noexcept;
     constexpr auto rsplitn(size_type count, utf16_char ch) const noexcept;
     constexpr auto rsplitn(size_type count, utf16_string_view sv) const noexcept;
+    constexpr auto split_inclusive(utf16_char ch) const noexcept;
+    constexpr auto split_inclusive(utf16_string_view sv) const noexcept;
+    constexpr auto split_trimmed(utf16_char ch) const noexcept;
+    constexpr auto split_trimmed(utf16_string_view sv) const noexcept;
+    template<class Pred>
+    constexpr auto split_trimmed(Pred pred) const noexcept;
+    constexpr auto matches(utf16_char ch) const noexcept;
+    constexpr auto matches(utf16_string_view sv) const noexcept;
+    constexpr auto rmatch_indices(utf16_char ch) const noexcept;
+    constexpr auto rmatch_indices(utf16_string_view sv) const noexcept;
     constexpr std::optional<std::pair<utf16_string_view, utf16_string_view>>
         split_once(utf16_char ch) const noexcept;
     constexpr std::optional<std::pair<utf16_string_view, utf16_string_view>>
@@ -2167,6 +2552,14 @@ public:
         split_once_at(size_type delim) const noexcept;
     constexpr std::pair<utf16_string_view, utf16_string_view>
         split_once_at_unchecked(size_type delim) const noexcept;
+    constexpr utf16_string replace_all(utf16_char from, utf16_char to) const;
+    constexpr utf16_string replace_all(utf16_char from, utf16_string_view to) const;
+    constexpr utf16_string replace_all(utf16_string_view from, utf16_char to) const;
+    constexpr utf16_string replace_all(utf16_string_view from, utf16_string_view to) const;
+    constexpr utf16_string replace_n(size_type count, utf16_char from, utf16_char to) const;
+    constexpr utf16_string replace_n(size_type count, utf16_char from, utf16_string_view to) const;
+    constexpr utf16_string replace_n(size_type count, utf16_string_view from, utf16_char to) const;
+    constexpr utf16_string replace_n(size_type count, utf16_string_view from, utf16_string_view to) const;
     constexpr std::optional<utf16_char> char_at(size_type index) const noexcept;
     constexpr utf16_char char_at_unchecked(size_type index) const noexcept;
     constexpr std::optional<utf16_string_view> grapheme_at(size_type index) const noexcept;
@@ -2292,6 +2685,8 @@ constexpr auto splitn(size_type count, utf16_char ch) const noexcept;
 constexpr auto splitn(size_type count, utf16_string_view sv) const noexcept;
 constexpr auto rsplitn(size_type count, utf16_char ch) const noexcept;
 constexpr auto rsplitn(size_type count, utf16_string_view sv) const noexcept;
+constexpr auto split_inclusive(utf16_char ch) const noexcept;
+constexpr auto split_inclusive(utf16_string_view sv) const noexcept;
 ```
 
 Returns a lazy split view that yields at most `count` segments.
@@ -2299,6 +2694,61 @@ Returns a lazy split view that yields at most `count` segments.
 `splitn(...)` counts from the front. `rsplitn(...)` counts from the back.
 
 If `count == 0`, the view is empty.
+
+Complexity:
+
+- Constant to construct the view
+
+#### `split_inclusive`
+
+```cpp
+constexpr auto split_inclusive(utf16_char ch) const noexcept;
+constexpr auto split_inclusive(utf16_string_view sv) const noexcept;
+```
+
+Returns a lazy split view whose yielded segments keep the matched delimiter at the end of each returned piece.
+
+If the delimiter is not found, the whole string is yielded once.
+
+If the delimiter is empty, the whole string is yielded once.
+
+Complexity:
+
+- Constant to construct the view
+
+#### `split_trimmed`
+
+```cpp
+constexpr auto split_trimmed(utf16_char ch) const noexcept;
+constexpr auto split_trimmed(utf16_string_view sv) const noexcept;
+template<class Pred>
+constexpr auto split_trimmed(Pred pred) const noexcept;
+```
+
+Returns a lazy view of the non-empty segments separated by `ch`, `sv`, or a per-character predicate.
+
+Leading, trailing, and consecutive delimiters are skipped rather than producing empty substrings.
+
+If the delimiter is empty, the whole string is yielded once when the input is non-empty, and no segments are yielded for an empty input.
+
+Complexity:
+
+- Constant to construct the view
+
+#### `matches`, `rmatch_indices`
+
+```cpp
+constexpr auto matches(utf16_char ch) const noexcept;
+constexpr auto matches(utf16_string_view sv) const noexcept;
+constexpr auto rmatch_indices(utf16_char ch) const noexcept;
+constexpr auto rmatch_indices(utf16_string_view sv) const noexcept;
+```
+
+`matches(...)` returns a lazy view of the non-overlapping matches.
+
+`rmatch_indices(...)` returns a lazy view of non-overlapping matches in reverse order, yielding `(code_unit_index, match)` pairs.
+
+Empty delimiters yield no matches.
 
 Complexity:
 
@@ -2328,8 +2778,10 @@ Returns `std::nullopt` if the delimiter is not found.
 For the split family above:
 
 - empty delimiters are treated as `"not found"`
-- `split(...)`, `rsplit(...)`, `split_terminator(...)`, `rsplit_terminator(...)`, `splitn(...)`, and `rsplitn(...)` therefore yield the whole string once when `count != 0`
+- `split(...)`, `rsplit(...)`, `split_terminator(...)`, `rsplit_terminator(...)`, `splitn(...)`, `rsplitn(...)`, and `split_inclusive(...)` therefore yield the whole string once when `count != 0` or when no count is involved
+- `split_trimmed(...)` yields the whole string once for non-empty input and yields no segments for empty input
 - `split_once(...)` and `rsplit_once(...)` return `std::nullopt` for empty delimiters
+- `matches(...)` and `rmatch_indices(...)` yield no matches for empty delimiters
 
 Complexity:
 
@@ -2581,8 +3033,9 @@ The owning UTF-16 string supports the same mutation family as `utf8_string`:
 - `assign`, `assign_range`
 - `insert`, `insert_range`
 - `erase`
-- `replace`
-- `replace_with_range`
+- `replace_inplace`
+- `replace_with_range_inplace`
+- `replace_all`, `replace_n`
 - `push_back`
 - `operator+=`
 - `operator+`
@@ -2600,7 +3053,7 @@ Complexity:
 
 - `append`, `append_range`, `assign`, `assign_range`, and `operator+=`: linear in the appended or assigned text size
 - `push_back`: amortized constant
-- `insert`, `erase`, `replace`, and `replace_with_range`: linear in `size() + replacement_size`
+- `insert`, `erase`, `replace_inplace`, `replace_with_range_inplace`, `replace_all`, and `replace_n`: linear in `size() + replacement_size`
 - `operator+`: linear in `lhs.size() + rhs.size()`
 - `to_utf8()`: linear in `size()`
 
@@ -2671,24 +3124,24 @@ Throws:
 
 Complexity: linear in `size()`.
 
-#### Replace
+#### Replace In Place
 
 ```cpp
-constexpr basic_utf16_string& replace(std::size_t pos, std::size_t count, utf16_string_view other);
-constexpr basic_utf16_string& replace(std::size_t pos, std::size_t count, utf16_char other);
-constexpr basic_utf16_string& replace(std::size_t pos, utf16_string_view other);
-constexpr basic_utf16_string& replace(std::size_t pos, utf16_char other);
-constexpr basic_utf16_string& replace_with_range(std::size_t pos, std::size_t count, R&& rg);
-constexpr basic_utf16_string& replace_with_range(std::size_t pos, R&& rg);
+constexpr basic_utf16_string& replace_inplace(std::size_t pos, std::size_t count, utf16_string_view other);
+constexpr basic_utf16_string& replace_inplace(std::size_t pos, std::size_t count, utf16_char other);
+constexpr basic_utf16_string& replace_inplace(std::size_t pos, utf16_string_view other);
+constexpr basic_utf16_string& replace_inplace(std::size_t pos, utf16_char other);
+constexpr basic_utf16_string& replace_with_range_inplace(std::size_t pos, std::size_t count, R&& rg);
+constexpr basic_utf16_string& replace_with_range_inplace(std::size_t pos, R&& rg);
 ```
 
 Replaces a UTF-16 substring with validated UTF-16 text, a single UTF-16 character, or a range of UTF-16 characters.
 
 Supported replacements:
 
-- validated UTF-16 text via `replace(..., utf16_string_view)`
-- one character via `replace(..., utf16_char)`
-- character ranges via `replace_with_range(...)`
+- validated UTF-16 text via `replace_inplace(..., utf16_string_view)`
+- one character via `replace_inplace(..., utf16_char)`
+- character ranges via `replace_with_range_inplace(...)`
 
 Requirements:
 
@@ -2705,18 +3158,49 @@ Throws:
 
 Complexity:
 
-- `replace(..., utf16_string_view)`: linear in `size() + other.size()`
-- `replace(..., utf16_char)`: linear in `size()`
-- `replace_with_range(...)`: linear in `size() + replacement_size`
+- `replace_inplace(..., utf16_string_view)`: linear in `size() + other.size()`
+- `replace_inplace(..., utf16_char)`: linear in `size()`
+- `replace_with_range_inplace(...)`: linear in `size() + replacement_size`
+
+#### Replace All, Replace N
+
+```cpp
+constexpr basic_utf16_string replace_all(utf16_char from, utf16_char to) const&;
+constexpr basic_utf16_string replace_all(utf16_char from, utf16_string_view to) const&;
+constexpr basic_utf16_string replace_all(utf16_string_view from, utf16_char to) const&;
+constexpr basic_utf16_string replace_all(utf16_string_view from, utf16_string_view to) const&;
+constexpr basic_utf16_string replace_all(utf16_char from, utf16_char to) &&;
+constexpr basic_utf16_string replace_all(utf16_char from, utf16_string_view to) &&;
+constexpr basic_utf16_string replace_all(utf16_string_view from, utf16_char to) &&;
+constexpr basic_utf16_string replace_all(utf16_string_view from, utf16_string_view to) &&;
+constexpr basic_utf16_string replace_n(std::size_t count, utf16_char from, utf16_char to) const&;
+constexpr basic_utf16_string replace_n(std::size_t count, utf16_char from, utf16_string_view to) const&;
+constexpr basic_utf16_string replace_n(std::size_t count, utf16_string_view from, utf16_char to) const&;
+constexpr basic_utf16_string replace_n(std::size_t count, utf16_string_view from, utf16_string_view to) const&;
+constexpr basic_utf16_string replace_n(std::size_t count, utf16_char from, utf16_char to) &&;
+constexpr basic_utf16_string replace_n(std::size_t count, utf16_char from, utf16_string_view to) &&;
+constexpr basic_utf16_string replace_n(std::size_t count, utf16_string_view from, utf16_char to) &&;
+constexpr basic_utf16_string replace_n(std::size_t count, utf16_string_view from, utf16_string_view to) &&;
+```
+
+Returns a new owning string after replacing non-overlapping matches of `from`.
+
+- `replace_all(...)` replaces every non-overlapping match
+- `replace_n(...)` replaces at most `count` non-overlapping matches
+- empty `from` is a no-op
+- `const&` overloads leave the source string unchanged
+- `&&` overloads mutate and return the current owning string so its buffer can be reused when capacity permits
+
+Complexity: linear in `size() + replacement_size * replaced_count`.
 
 Example:
 
 ```cpp
 auto s = u"Aé😀"_utf16_s;
-s.replace(1, 1, u"Ω"_utf16_sv);
+s.replace_inplace(1, 1, u"Ω"_utf16_sv);
 assert(s == u"AΩ😀"_utf16_sv);
 
-s.replace_with_range(1, std::array{ u"β"_u16c, u"!"_u16c });
+s.replace_with_range_inplace(1, std::array{ u"β"_u16c, u"!"_u16c });
 assert(s == u"Aβ!😀"_utf16_sv);
 ```
 
@@ -2820,19 +3304,35 @@ public:
                                         std::initializer_list<utf8_char> ilist);
     constexpr basic_utf8_string& erase(std::size_t index,
                                        std::size_t count = npos);
-    constexpr basic_utf8_string& replace(std::size_t pos, std::size_t count,
+    constexpr basic_utf8_string& replace_inplace(std::size_t pos, std::size_t count,
                                          utf8_string_view other);
-    constexpr basic_utf8_string& replace(std::size_t pos, std::size_t count,
+    constexpr basic_utf8_string& replace_inplace(std::size_t pos, std::size_t count,
                                          utf8_char other);
-    constexpr basic_utf8_string& replace(std::size_t pos,
+    constexpr basic_utf8_string& replace_inplace(std::size_t pos,
                                          utf8_string_view other);
-    constexpr basic_utf8_string& replace(std::size_t pos,
+    constexpr basic_utf8_string& replace_inplace(std::size_t pos,
                                          utf8_char other);
-    constexpr basic_utf8_string& replace_with_range(std::size_t pos,
+    constexpr basic_utf8_string& replace_with_range_inplace(std::size_t pos,
                                                     std::size_t count,
                                                     R&& rg);
-    constexpr basic_utf8_string& replace_with_range(std::size_t pos,
+    constexpr basic_utf8_string& replace_with_range_inplace(std::size_t pos,
                                                     R&& rg);
+    constexpr basic_utf8_string replace_all(utf8_char from, utf8_char to) const&;
+    constexpr basic_utf8_string replace_all(utf8_char from, utf8_string_view to) const&;
+    constexpr basic_utf8_string replace_all(utf8_string_view from, utf8_char to) const&;
+    constexpr basic_utf8_string replace_all(utf8_string_view from, utf8_string_view to) const&;
+    constexpr basic_utf8_string replace_all(utf8_char from, utf8_char to) &&;
+    constexpr basic_utf8_string replace_all(utf8_char from, utf8_string_view to) &&;
+    constexpr basic_utf8_string replace_all(utf8_string_view from, utf8_char to) &&;
+    constexpr basic_utf8_string replace_all(utf8_string_view from, utf8_string_view to) &&;
+    constexpr basic_utf8_string replace_n(std::size_t count, utf8_char from, utf8_char to) const&;
+    constexpr basic_utf8_string replace_n(std::size_t count, utf8_char from, utf8_string_view to) const&;
+    constexpr basic_utf8_string replace_n(std::size_t count, utf8_string_view from, utf8_char to) const&;
+    constexpr basic_utf8_string replace_n(std::size_t count, utf8_string_view from, utf8_string_view to) const&;
+    constexpr basic_utf8_string replace_n(std::size_t count, utf8_char from, utf8_char to) &&;
+    constexpr basic_utf8_string replace_n(std::size_t count, utf8_char from, utf8_string_view to) &&;
+    constexpr basic_utf8_string replace_n(std::size_t count, utf8_string_view from, utf8_char to) &&;
+    constexpr basic_utf8_string replace_n(std::size_t count, utf8_string_view from, utf8_string_view to) &&;
     constexpr void reserve(std::size_t new_cap);
     constexpr auto base() const& noexcept;
     constexpr auto base() && noexcept;
@@ -2906,6 +3406,8 @@ Complexity:
 - `assign_range`, `assign(It, Sent)`, `assign(std::initializer_list<utf8_char>)`
 - `append(std::size_t count, utf8_char)`, `assign(std::size_t count, utf8_char)`
 - `append(utf8_string_view)`, `assign(utf8_string_view)`, `assign(utf8_char)`
+- `replace_inplace(...)`, `replace_with_range_inplace(...)`
+- `replace_all(...)`, `replace_n(...)`
 - `push_back(utf8_char)`
 - `operator+=` with `utf8_string_view`, `utf16_string_view`, `utf8_char`, `utf16_char`, and `std::initializer_list<utf8_char>`
 
@@ -2913,7 +3415,7 @@ The native overloads operate on validated UTF-8 data. The cross-encoding `operat
 
 > [!IMPORTANT]
 > Self-referential insertion and replacement are supported and covered by the test suite.
-> It is valid to append, insert, or replace using validated views, iterator pairs, or character ranges derived from the same owning string, such as `s.append(s.as_view())`, `s.append_range(s.chars())`, `s.insert(1, s.as_view())`, or `s.replace(0, 1, s.as_view())`.
+> It is valid to append, insert, or replace in place using validated views, iterator pairs, or character ranges derived from the same owning string, such as `s.append(s.as_view())`, `s.append_range(s.chars())`, `s.insert(1, s.as_view())`, or `s.replace_inplace(0, 1, s.as_view())`.
 
 Complexity:
 
@@ -2921,6 +3423,7 @@ Complexity:
 - `assign_range`, iterator-based `assign`, and `assign(std::initializer_list<utf8_char>)`: linear in the replacement size
 - `append(std::size_t count, utf8_char)` and `assign(std::size_t count, utf8_char)`: linear in `count`
 - `append(utf8_string_view)`, `assign(utf8_string_view)`, and `operator+=` on text/string arguments: linear in the appended or assigned text size
+- `replace_inplace(...)`, `replace_with_range_inplace(...)`, `replace_all(...)`, and `replace_n(...)`: linear in `size() + replacement_size`
 - `assign(utf8_char)` and `operator+=` on single-character arguments: amortized constant
 - `push_back(utf8_char)`: amortized constant
 
@@ -2991,24 +3494,24 @@ Throws:
 
 Complexity: linear in `size()`.
 
-#### Replace
+#### Replace In Place
 
 ```cpp
-constexpr basic_utf8_string& replace(std::size_t pos, std::size_t count, utf8_string_view other);
-constexpr basic_utf8_string& replace(std::size_t pos, std::size_t count, utf8_char other);
-constexpr basic_utf8_string& replace(std::size_t pos, utf8_string_view other);
-constexpr basic_utf8_string& replace(std::size_t pos, utf8_char other);
-constexpr basic_utf8_string& replace_with_range(std::size_t pos, std::size_t count, R&& rg);
-constexpr basic_utf8_string& replace_with_range(std::size_t pos, R&& rg);
+constexpr basic_utf8_string& replace_inplace(std::size_t pos, std::size_t count, utf8_string_view other);
+constexpr basic_utf8_string& replace_inplace(std::size_t pos, std::size_t count, utf8_char other);
+constexpr basic_utf8_string& replace_inplace(std::size_t pos, utf8_string_view other);
+constexpr basic_utf8_string& replace_inplace(std::size_t pos, utf8_char other);
+constexpr basic_utf8_string& replace_with_range_inplace(std::size_t pos, std::size_t count, R&& rg);
+constexpr basic_utf8_string& replace_with_range_inplace(std::size_t pos, R&& rg);
 ```
 
 Replaces a UTF-8 substring with validated UTF-8 text, a single UTF-8 character, or a range of UTF-8 characters.
 
 Supported replacements:
 
-- validated UTF-8 text via `replace(..., utf8_string_view)`
-- one character via `replace(..., utf8_char)`
-- character ranges via `replace_with_range(...)`
+- validated UTF-8 text via `replace_inplace(..., utf8_string_view)`
+- one character via `replace_inplace(..., utf8_char)`
+- character ranges via `replace_with_range_inplace(...)`
 
 Requirements:
 
@@ -3025,9 +3528,93 @@ Throws:
 
 Complexity:
 
-- `replace(..., utf8_string_view)`: linear in `size() + other.size()`
-- `replace(..., utf8_char)`: linear in `size()`
-- `replace_with_range(...)`: linear in `size() + replacement_size`
+- `replace_inplace(..., utf8_string_view)`: linear in `size() + other.size()`
+- `replace_inplace(..., utf8_char)`: linear in `size()`
+- `replace_with_range_inplace(...)`: linear in `size() + replacement_size`
+
+#### Replace All, Replace N
+
+```cpp
+constexpr basic_utf8_string replace_all(utf8_char from, utf8_char to) const&;
+constexpr basic_utf8_string replace_all(utf8_char from, utf8_string_view to) const&;
+constexpr basic_utf8_string replace_all(utf8_string_view from, utf8_char to) const&;
+constexpr basic_utf8_string replace_all(utf8_string_view from, utf8_string_view to) const&;
+template<class Pred>
+constexpr basic_utf8_string replace_all(Pred pred, utf8_char to) const&;
+template<class Pred>
+constexpr basic_utf8_string replace_all(Pred pred, utf8_string_view to) const&;
+template<class Allocator>
+constexpr basic_utf8_string<Allocator> replace_all(..., const Allocator& alloc) const&;
+constexpr basic_utf8_string replace_all(utf8_char from, utf8_char to) &&;
+constexpr basic_utf8_string replace_all(utf8_char from, utf8_string_view to) &&;
+constexpr basic_utf8_string replace_all(utf8_string_view from, utf8_char to) &&;
+constexpr basic_utf8_string replace_all(utf8_string_view from, utf8_string_view to) &&;
+template<class Pred>
+constexpr basic_utf8_string replace_all(Pred pred, utf8_char to) &&;
+template<class Pred>
+constexpr basic_utf8_string replace_all(Pred pred, utf8_string_view to) &&;
+template<class Allocator>
+constexpr basic_utf8_string<Allocator> replace_all(..., const Allocator& alloc) &&;
+constexpr basic_utf8_string replace_n(std::size_t count, utf8_char from, utf8_char to) const&;
+constexpr basic_utf8_string replace_n(std::size_t count, utf8_char from, utf8_string_view to) const&;
+constexpr basic_utf8_string replace_n(std::size_t count, utf8_string_view from, utf8_char to) const&;
+constexpr basic_utf8_string replace_n(std::size_t count, utf8_string_view from, utf8_string_view to) const&;
+template<class Pred>
+constexpr basic_utf8_string replace_n(std::size_t count, Pred pred, utf8_char to) const&;
+template<class Pred>
+constexpr basic_utf8_string replace_n(std::size_t count, Pred pred, utf8_string_view to) const&;
+template<class Allocator>
+constexpr basic_utf8_string<Allocator> replace_n(..., const Allocator& alloc) const&;
+constexpr basic_utf8_string replace_n(std::size_t count, utf8_char from, utf8_char to) &&;
+constexpr basic_utf8_string replace_n(std::size_t count, utf8_char from, utf8_string_view to) &&;
+constexpr basic_utf8_string replace_n(std::size_t count, utf8_string_view from, utf8_char to) &&;
+constexpr basic_utf8_string replace_n(std::size_t count, utf8_string_view from, utf8_string_view to) &&;
+template<class Pred>
+constexpr basic_utf8_string replace_n(std::size_t count, Pred pred, utf8_char to) &&;
+template<class Pred>
+constexpr basic_utf8_string replace_n(std::size_t count, Pred pred, utf8_string_view to) &&;
+template<class Allocator>
+constexpr basic_utf8_string<Allocator> replace_n(..., const Allocator& alloc) &&;
+```
+
+Returns a new owning string after replacing non-overlapping matches.
+
+Behavior:
+
+- `replace_all(...)` replaces every non-overlapping match
+- `replace_n(...)` replaces at most `count` non-overlapping matches from left to right
+- `utf8_char` and `utf8_string_view` overloads replace exact validated UTF-8 matches
+- predicate overloads replace each matching character independently
+- empty `utf8_string_view` search patterns are a no-op
+- `const&` overloads leave the source string unchanged
+- `&&` overloads return the current owning string after replacing in place, so its buffer can be reused when capacity permits
+- allocator-taking overloads construct the result with the supplied allocator
+
+Complexity: linear in `size() + replacement_size * replaced_count`.
+
+```cpp
+using namespace unicode_ranges::literals;
+
+const auto view = u8"bananas"_utf8_sv;
+assert(view.replace_all(u8"na"_utf8_sv, u8"NO"_utf8_sv) == unicode_ranges::utf8_string{ u8"baNONOs"_utf8_sv });
+assert(view.replace_n(1, u8"na"_utf8_sv, u8"NO"_utf8_sv) == unicode_ranges::utf8_string{ u8"baNOnas"_utf8_sv });
+
+assert(
+    u8"123-456"_utf8_sv.replace_all(
+        [](unicode_ranges::utf8_char ch) { return ch >= u8"0"_u8c && ch <= u8"9"_u8c; },
+        u8"x"_u8c)
+    == unicode_ranges::utf8_string{ u8"xxx-xxx"_utf8_sv });
+
+unicode_ranges::utf8_string owned{ u8"banana"_utf8_sv };
+assert(std::move(owned).replace_all(u8"na"_utf8_sv, u8"NO"_utf8_sv) == unicode_ranges::utf8_string{ u8"baNONO"_utf8_sv });
+
+std::pmr::monotonic_buffer_resource memory;
+auto pmr_result = view.replace_all(
+    u8"a"_u8c,
+    u8"o"_u8c,
+    std::pmr::polymorphic_allocator<char8_t>{ &memory });
+assert(pmr_result.get_allocator().resource() == &memory);
+```
 
 ### Concatenation
 
@@ -3069,8 +3656,8 @@ using namespace unicode_ranges::literals;
 utf8_string s = "Aé€"_utf8_s;
 s.push_back("!"_u8c);
 s.erase(1, 2); // removes "é"
-s.replace(1, "Ω"_u8c); // replaces '€' with 'Ω'
-s.replace_with_range(1, std::array{ "β"_u8c, "!"_u8c });
+s.replace_inplace(1, "Ω"_u8c); // replaces '€' with 'Ω'
+s.replace_with_range_inplace(1, std::array{ "β"_u8c, "!"_u8c });
 
 assert(s.char_count() == 4);
 assert(s == "Aβ!!"_utf8_sv);

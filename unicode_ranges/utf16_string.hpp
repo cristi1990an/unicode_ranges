@@ -9,6 +9,7 @@ namespace unicode_ranges
 template <typename Allocator>
 class basic_utf16_string : public details::utf16_string_crtp<basic_utf16_string<Allocator>, utf16_string_view>
 {
+	using crtp = details::utf16_string_crtp<basic_utf16_string<Allocator>, utf16_string_view>;
 	using equivalent_utf16_string_view = utf16_string_view;
 	using equivalent_string_view = std::u16string_view;
 
@@ -77,9 +78,7 @@ public:
 
 	static constexpr basic_utf16_string from_code_units_unchecked(base_type code_units) noexcept
 	{
-		basic_utf16_string result;
-		result.base_ = std::move(code_units);
-		return result;
+		return basic_utf16_string{ std::move(code_units) };
 	}
 
 	static constexpr basic_utf16_string from_code_units_unchecked(base_type code_units, const Allocator& alloc) noexcept
@@ -224,6 +223,64 @@ private:
 		else
 		{
 			base_.replace(pos, count, code_units);
+		}
+
+		return *this;
+	}
+
+	template <typename ResultAllocator>
+	[[nodiscard]]
+	constexpr basic_utf16_string<ResultAllocator> replace_code_units_copy(
+		equivalent_string_view needle,
+		equivalent_string_view replacement,
+		size_type count,
+		const ResultAllocator& alloc) const
+	{
+		return basic_utf16_string<ResultAllocator>::from_code_units_unchecked(details::replace_utf16_code_units_copy(
+			equivalent_string_view{ base_ },
+			needle,
+			replacement,
+			count,
+			alloc));
+	}
+
+	constexpr basic_utf16_string& replace_code_units_in_place(
+		equivalent_string_view needle,
+		equivalent_string_view replacement,
+		size_type count)
+	{
+		if (needle.empty() || count == 0)
+		{
+			return *this;
+		}
+
+		base_type stable_needle{ base_.get_allocator() };
+		if (overlaps_base(needle))
+		{
+			stable_needle.assign(needle);
+			needle = stable_needle;
+		}
+
+		base_type stable_replacement{ base_.get_allocator() };
+		if (overlaps_base(replacement))
+		{
+			stable_replacement.assign(replacement);
+			replacement = stable_replacement;
+		}
+
+		size_type search_pos = 0;
+		size_type replacements = 0;
+		while (replacements != count)
+		{
+			const auto match = details::find_utf16_split_delimiter(equivalent_string_view{ base_ }, needle, search_pos);
+			if (match == equivalent_string_view::npos)
+			{
+				break;
+			}
+
+			replace_code_units(match, needle.size(), replacement);
+			search_pos = match + replacement.size();
+			++replacements;
 		}
 
 		return *this;
@@ -616,7 +673,265 @@ public:
 		return *this;
 	}
 
-	constexpr basic_utf16_string& replace(size_type pos, size_type count, utf16_string_view other)
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_all(utf16_char from, utf16_char to) const&
+	{
+		return replace_all(
+			equivalent_utf16_string_view::from_code_units_unchecked(from.as_view()),
+			equivalent_utf16_string_view::from_code_units_unchecked(to.as_view()));
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_all(utf16_char from, utf16_string_view to) const&
+	{
+		return replace_all(equivalent_utf16_string_view::from_code_units_unchecked(from.as_view()), to);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_all(utf16_string_view from, utf16_char to) const&
+	{
+		return replace_all(from, equivalent_utf16_string_view::from_code_units_unchecked(to.as_view()));
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_all(utf16_string_view from, utf16_string_view to) const&
+	{
+		return replace_code_units_copy(from.base(), to.base(), npos, base_.get_allocator());
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_all(utf16_char from, utf16_char to) &&
+	{
+		return std::move(*this).replace_all(
+			equivalent_utf16_string_view::from_code_units_unchecked(from.as_view()),
+			equivalent_utf16_string_view::from_code_units_unchecked(to.as_view()));
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_all(utf16_char from, utf16_string_view to) &&
+	{
+		return std::move(*this).replace_all(
+			equivalent_utf16_string_view::from_code_units_unchecked(from.as_view()),
+			to);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_all(utf16_string_view from, utf16_char to) &&
+	{
+		return std::move(*this).replace_all(
+			from,
+			equivalent_utf16_string_view::from_code_units_unchecked(to.as_view()));
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_all(utf16_string_view from, utf16_string_view to) &&
+	{
+		replace_code_units_in_place(from.base(), to.base(), npos);
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_n(size_type count, utf16_char from, utf16_char to) const&
+	{
+		return replace_n(
+			count,
+			equivalent_utf16_string_view::from_code_units_unchecked(from.as_view()),
+			equivalent_utf16_string_view::from_code_units_unchecked(to.as_view()));
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_n(size_type count, utf16_char from, utf16_string_view to) const&
+	{
+		return replace_n(count, equivalent_utf16_string_view::from_code_units_unchecked(from.as_view()), to);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_n(size_type count, utf16_string_view from, utf16_char to) const&
+	{
+		return replace_n(count, from, equivalent_utf16_string_view::from_code_units_unchecked(to.as_view()));
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_n(size_type count, utf16_string_view from, utf16_string_view to) const&
+	{
+		return replace_code_units_copy(from.base(), to.base(), count, base_.get_allocator());
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_n(size_type count, utf16_char from, utf16_char to) &&
+	{
+		return std::move(*this).replace_n(
+			count,
+			equivalent_utf16_string_view::from_code_units_unchecked(from.as_view()),
+			equivalent_utf16_string_view::from_code_units_unchecked(to.as_view()));
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_n(size_type count, utf16_char from, utf16_string_view to) &&
+	{
+		return std::move(*this).replace_n(
+			count,
+			equivalent_utf16_string_view::from_code_units_unchecked(from.as_view()),
+			to);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_n(size_type count, utf16_string_view from, utf16_char to) &&
+	{
+		return std::move(*this).replace_n(
+			count,
+			from,
+			equivalent_utf16_string_view::from_code_units_unchecked(to.as_view()));
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_n(size_type count, utf16_string_view from, utf16_string_view to) &&
+	{
+		replace_code_units_in_place(from.base(), to.base(), count);
+		return std::move(*this);
+	}
+
+	template <typename OtherAllocator>
+	[[nodiscard]]
+	constexpr basic_utf16_string<OtherAllocator> replace_all(
+		utf16_char from,
+		utf16_char to,
+		const OtherAllocator& alloc) const
+	{
+		return static_cast<const crtp&>(*this).template replace_all<OtherAllocator>(from, to, alloc);
+	}
+
+	template <typename OtherAllocator>
+	[[nodiscard]]
+	constexpr basic_utf16_string<OtherAllocator> replace_all(
+		utf16_char from,
+		utf16_string_view to,
+		const OtherAllocator& alloc) const
+	{
+		return static_cast<const crtp&>(*this).template replace_all<OtherAllocator>(from, to, alloc);
+	}
+
+	template <typename OtherAllocator>
+	[[nodiscard]]
+	constexpr basic_utf16_string<OtherAllocator> replace_all(
+		utf16_string_view from,
+		utf16_char to,
+		const OtherAllocator& alloc) const
+	{
+		return static_cast<const crtp&>(*this).template replace_all<OtherAllocator>(from, to, alloc);
+	}
+
+	template <typename OtherAllocator>
+	[[nodiscard]]
+	constexpr basic_utf16_string<OtherAllocator> replace_all(
+		utf16_string_view from,
+		utf16_string_view to,
+		const OtherAllocator& alloc) const
+	{
+		return static_cast<const crtp&>(*this).template replace_all<OtherAllocator>(from, to, alloc);
+	}
+
+	template <details::utf16_char_predicate Pred, typename OtherAllocator>
+	[[nodiscard]]
+	constexpr basic_utf16_string<OtherAllocator> replace_all(
+		Pred pred,
+		utf16_char to,
+		const OtherAllocator& alloc) const
+	{
+		return static_cast<const crtp&>(*this).template replace_all<std::remove_cvref_t<Pred>, OtherAllocator>(
+			std::move(pred),
+			to,
+			alloc);
+	}
+
+	template <details::utf16_char_predicate Pred, typename OtherAllocator>
+	[[nodiscard]]
+	constexpr basic_utf16_string<OtherAllocator> replace_all(
+		Pred pred,
+		utf16_string_view to,
+		const OtherAllocator& alloc) const
+	{
+		return static_cast<const crtp&>(*this).template replace_all<std::remove_cvref_t<Pred>, OtherAllocator>(
+			std::move(pred),
+			to,
+			alloc);
+	}
+
+	template <typename OtherAllocator>
+	[[nodiscard]]
+	constexpr basic_utf16_string<OtherAllocator> replace_n(
+		size_type count,
+		utf16_char from,
+		utf16_char to,
+		const OtherAllocator& alloc) const
+	{
+		return static_cast<const crtp&>(*this).template replace_n<OtherAllocator>(count, from, to, alloc);
+	}
+
+	template <typename OtherAllocator>
+	[[nodiscard]]
+	constexpr basic_utf16_string<OtherAllocator> replace_n(
+		size_type count,
+		utf16_char from,
+		utf16_string_view to,
+		const OtherAllocator& alloc) const
+	{
+		return static_cast<const crtp&>(*this).template replace_n<OtherAllocator>(count, from, to, alloc);
+	}
+
+	template <typename OtherAllocator>
+	[[nodiscard]]
+	constexpr basic_utf16_string<OtherAllocator> replace_n(
+		size_type count,
+		utf16_string_view from,
+		utf16_char to,
+		const OtherAllocator& alloc) const
+	{
+		return static_cast<const crtp&>(*this).template replace_n<OtherAllocator>(count, from, to, alloc);
+	}
+
+	template <typename OtherAllocator>
+	[[nodiscard]]
+	constexpr basic_utf16_string<OtherAllocator> replace_n(
+		size_type count,
+		utf16_string_view from,
+		utf16_string_view to,
+		const OtherAllocator& alloc) const
+	{
+		return static_cast<const crtp&>(*this).template replace_n<OtherAllocator>(count, from, to, alloc);
+	}
+
+	template <details::utf16_char_predicate Pred, typename OtherAllocator>
+	[[nodiscard]]
+	constexpr basic_utf16_string<OtherAllocator> replace_n(
+		size_type count,
+		Pred pred,
+		utf16_char to,
+		const OtherAllocator& alloc) const
+	{
+		return static_cast<const crtp&>(*this).template replace_n<std::remove_cvref_t<Pred>, OtherAllocator>(
+			count,
+			std::move(pred),
+			to,
+			alloc);
+	}
+
+	template <details::utf16_char_predicate Pred, typename OtherAllocator>
+	[[nodiscard]]
+	constexpr basic_utf16_string<OtherAllocator> replace_n(
+		size_type count,
+		Pred pred,
+		utf16_string_view to,
+		const OtherAllocator& alloc) const
+	{
+		return static_cast<const crtp&>(*this).template replace_n<std::remove_cvref_t<Pred>, OtherAllocator>(
+			count,
+			std::move(pred),
+			to,
+			alloc);
+	}
+
+	constexpr basic_utf16_string& replace_inplace(size_type pos, size_type count, utf16_string_view other)
 	{
 		if (pos > size()) [[unlikely]]
 		{
@@ -635,12 +950,12 @@ public:
 		return replace_code_units(pos, replace_count, other.base());
 	}
 
-	constexpr basic_utf16_string& replace(size_type pos, size_type count, utf16_char other)
+	constexpr basic_utf16_string& replace_inplace(size_type pos, size_type count, utf16_char other)
 	{
-		return replace(pos, count, equivalent_utf16_string_view::from_code_units_unchecked(other.as_view()));
+		return replace_inplace(pos, count, equivalent_utf16_string_view::from_code_units_unchecked(other.as_view()));
 	}
 
-	constexpr basic_utf16_string& replace(size_type pos, utf16_string_view other)
+	constexpr basic_utf16_string& replace_inplace(size_type pos, utf16_string_view other)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -656,7 +971,7 @@ public:
 		return replace_code_units(pos, replace_count, other.base());
 	}
 
-	constexpr basic_utf16_string& replace(size_type pos, utf16_char other)
+	constexpr basic_utf16_string& replace_inplace(size_type pos, utf16_char other)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -673,7 +988,7 @@ public:
 		return *this;
 	}
 
-	constexpr basic_utf16_string& replace_with_range(size_type pos, size_type count, views::utf16_view rg)
+	constexpr basic_utf16_string& replace_with_range_inplace(size_type pos, size_type count, views::utf16_view rg)
 	{
 		if (pos > size()) [[unlikely]]
 		{
@@ -692,7 +1007,7 @@ public:
 		return replace_code_units(pos, replace_count, rg.base());
 	}
 
-	constexpr basic_utf16_string& replace_with_range(size_type pos, size_type count, views::utf8_view rg)
+	constexpr basic_utf16_string& replace_with_range_inplace(size_type pos, size_type count, views::utf8_view rg)
 	{
 		if (pos > size()) [[unlikely]]
 		{
@@ -722,7 +1037,7 @@ public:
 	}
 
 	template <details::container_compatible_range<utf16_char> R>
-	constexpr basic_utf16_string& replace_with_range(size_type pos, size_type count, R&& rg)
+	constexpr basic_utf16_string& replace_with_range_inplace(size_type pos, size_type count, R&& rg)
 	{
 		if (pos > size()) [[unlikely]]
 		{
@@ -777,7 +1092,7 @@ public:
 		return *this;
 	}
 
-	constexpr basic_utf16_string& replace_with_range(size_type pos, views::utf16_view rg)
+	constexpr basic_utf16_string& replace_with_range_inplace(size_type pos, views::utf16_view rg)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -790,10 +1105,10 @@ public:
 		}
 
 		const auto replace_count = this->char_at_unchecked(pos).code_unit_count();
-		return replace_with_range(pos, replace_count, rg);
+		return replace_with_range_inplace(pos, replace_count, rg);
 	}
 
-	constexpr basic_utf16_string& replace_with_range(size_type pos, views::utf8_view rg)
+	constexpr basic_utf16_string& replace_with_range_inplace(size_type pos, views::utf8_view rg)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -806,11 +1121,11 @@ public:
 		}
 
 		const auto replace_count = this->char_at_unchecked(pos).code_unit_count();
-		return replace_with_range(pos, replace_count, rg);
+		return replace_with_range_inplace(pos, replace_count, rg);
 	}
 
 	template <details::container_compatible_range<utf16_char> R>
-	constexpr basic_utf16_string& replace_with_range(size_type pos, R&& rg)
+	constexpr basic_utf16_string& replace_with_range_inplace(size_type pos, R&& rg)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -1011,6 +1326,11 @@ public:
 
 private:
 	using base_class = details::utf16_string_crtp<basic_utf16_string<Allocator>, utf16_string_view>;
+
+	constexpr explicit basic_utf16_string(base_type&& code_units) noexcept
+		: base_(std::move(code_units))
+	{
+	}
 
 	base_type base_;
 };
