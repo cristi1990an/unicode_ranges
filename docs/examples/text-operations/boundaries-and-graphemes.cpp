@@ -7,7 +7,7 @@ using namespace unicode_ranges::literals;
 
 int main()
 {
-	constexpr auto text = u8"é🇷🇴!"_utf8_sv;
+	constexpr auto text = "é🇷🇴!"_utf8_sv;
 
 	std::println("is_char_boundary(1): {}", text.is_char_boundary(1));           // true
 	std::println("is_grapheme_boundary(1): {}", text.is_grapheme_boundary(1));   // false

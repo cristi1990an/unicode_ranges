@@ -8,23 +8,23 @@ using namespace unicode_ranges::literals;
 int main()
 {
 	utf8_string built;
-	built.append_range(u8"😄🇷🇴"_utf8_sv.chars());
-	built.push_back(u8"✨"_u8c);
-	std::println("append_range(u8\"😄🇷🇴\"_utf8_sv.chars()) + push_back('✨'): {}", built); // 😄🇷🇴✨
+	built.append_range("😄🇷🇴"_utf8_sv.chars());
+	built.push_back("✨"_u8c);
+	std::println("append_range(\"😄🇷🇴\"_utf8_sv.chars()) + push_back('✨'): {}", built); // 😄🇷🇴✨
 
 	auto transcoded = built;
 	transcoded.append_range(u"🎉"_utf16_sv.chars());
 	std::println("append_range(u\"🎉\"_utf16_sv.chars()): {}", transcoded); // 😄🇷🇴✨🎉
 
 	auto inserted = built;
-	inserted.insert(4, u8"🎉"_utf8_sv);
-	std::println("insert(4, u8\"🎉\"_utf8_sv): {}", inserted);    // 😄🎉🇷🇴✨
+	inserted.insert(4, "🎉"_utf8_sv);
+	std::println("insert(4, \"🎉\"_utf8_sv): {}", inserted);    // 😄🎉🇷🇴✨
 
 	auto reversed = built;
 	reversed.reverse();
 	std::println("reverse(): {}", reversed);                     // ✨🇷🇴😄
 
-	auto replaced = built.replace_all(u8"✨"_u8c, u8"🔥"_u8c);
+	auto replaced = built.replace_all("✨"_u8c, "🔥"_u8c);
 	std::println("replace_all('✨', '🔥'): {}", replaced);        // 😄🇷🇴🔥
 
 	utf8_string_view borrowed = built.as_view();

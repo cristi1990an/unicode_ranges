@@ -7,8 +7,8 @@ using namespace unicode_ranges::literals;
 
 int main()
 {
-	constexpr auto composed = u8"é"_utf8_sv;
-	constexpr auto decomposed = u8"é"_utf8_sv;
+	constexpr auto composed = "é"_utf8_sv;
+	constexpr auto decomposed = "é"_utf8_sv;
 
 	std::println("\"é\" is NFC: {}", composed.is_nfc());    // true
 	std::println("\"é\" is NFC: {}", decomposed.is_nfc()); // false

@@ -255,16 +255,16 @@ constexpr bool contains(Pred pred) const noexcept;
 
 ### Overload differences
 
-The examples below use `constexpr auto text = u8"😄🇷🇴✨"_utf8_sv;`.
+The examples below use `constexpr auto text = "😄🇷🇴✨"_utf8_sv;`.
 
 | Overload | Meaning | Example |
 | --- | --- | --- |
-| `contains(Char ch)` | exact validated character search | `text.contains(u8"✨"_u8c)` |
-| `contains(View sv)` | exact validated substring search | `text.contains(u8"🇷🇴"_utf8_sv)` |
-| `contains(std::span<const Char> chars)` | character-set membership: succeeds if **any one character** in the text equals **any one element** of the span | `text.contains(std::array{u8"🔥"_u8c, u8"✨"_u8c})` |
+| `contains(Char ch)` | exact validated character search | `text.contains("✨"_u8c)` |
+| `contains(View sv)` | exact validated substring search | `text.contains("🇷🇴"_utf8_sv)` |
+| `contains(std::span<const Char> chars)` | character-set membership: succeeds if **any one character** in the text equals **any one element** of the span | `text.contains(std::array{"🔥"_u8c, "✨"_u8c})` |
 | `contains(Pred pred)` | predicate match on validated characters | `text.contains([](utf8_char ch) { return !ch.is_ascii(); })` |
 
-The span overload is special because it is **not** substring matching. `std::array{u8"🇷"_u8c, u8"🇴"_u8c}` does not mean "find the grapheme `🇷🇴`" and it does not require adjacent characters. It means "match a single character that is either `🇷` or `🇴`".
+The span overload is special because it is **not** substring matching. `std::array{"🇷"_u8c, "🇴"_u8c}` does not mean "find the grapheme `🇷🇴`" and it does not require adjacent characters. It means "match a single character that is either `🇷` or `🇴`".
 
 ### Inspiration
 
@@ -370,14 +370,14 @@ constexpr size_type rfind(Pred pred, size_type pos = npos) const noexcept;
 
 ### Overload differences
 
-The examples below use `constexpr auto text = u8"😄-🇷🇴-✨"_utf8_sv;`.
+The examples below use `constexpr auto text = "😄-🇷🇴-✨"_utf8_sv;`.
 
 | Overload | Meaning | Example |
 | --- | --- | --- |
 | `find(char8_t ch, pos)` | raw code-unit search; usually most useful for ASCII punctuation or diagnostics | `text.find(u8'-') == 4` |
-| `find(Char ch, pos)` | exact validated character search | `text.find(u8"✨"_u8c) == 14` |
-| `find(View sv, pos)` | exact validated substring search | `text.find(u8"🇷🇴"_utf8_sv) == 5` |
-| `find(std::span<const Char> chars, pos)` | first character belonging to a character set | `text.find(std::array{u8"🔥"_u8c, u8"✨"_u8c}) == 14` |
+| `find(Char ch, pos)` | exact validated character search | `text.find("✨"_u8c) == 14` |
+| `find(View sv, pos)` | exact validated substring search | `text.find("🇷🇴"_utf8_sv) == 5` |
+| `find(std::span<const Char> chars, pos)` | first character belonging to a character set | `text.find(std::array{"🔥"_u8c, "✨"_u8c}) == 14` |
 | `find(Pred pred, pos)` | first validated character satisfying a predicate | `text.find([](utf8_char ch) { return ch.is_ascii_punctuation(); }) == 4` |
 
 The same distinctions apply to `rfind(...)`, but searching from the end.
@@ -454,15 +454,15 @@ constexpr size_type find_last_not_of(utf16_string_view sv, size_type pos = npos)
 
 ### Overload differences
 
-The examples below use `constexpr auto text = u8"😄🇷🇴✨"_utf8_sv;`.
+The examples below use `constexpr auto text = "😄🇷🇴✨"_utf8_sv;`.
 
 | Overload | Meaning | Example |
 | --- | --- | --- |
-| `find_first_of(Char ch)` | first exact character match | `text.find_first_of(u8"✨"_u8c)` |
-| `find_first_of(View sv)` | first character that is contained in `sv` | `text.find_first_of(u8"🇷✨"_utf8_sv)` |
-| `find_first_not_of(View sv)` | first character that is **not** contained in `sv` | `text.find_first_not_of(u8"😄"_utf8_sv)` |
-| `find_last_of(View sv)` | last character contained in `sv` | `text.find_last_of(u8"🇷✨"_utf8_sv)` |
-| `find_last_not_of(View sv)` | last character not contained in `sv` | `text.find_last_not_of(u8"✨"_utf8_sv)` |
+| `find_first_of(Char ch)` | first exact character match | `text.find_first_of("✨"_u8c)` |
+| `find_first_of(View sv)` | first character that is contained in `sv` | `text.find_first_of("🇷✨"_utf8_sv)` |
+| `find_first_not_of(View sv)` | first character that is **not** contained in `sv` | `text.find_first_not_of("😄"_utf8_sv)` |
+| `find_last_of(View sv)` | last character contained in `sv` | `text.find_last_of("🇷✨"_utf8_sv)` |
+| `find_last_not_of(View sv)` | last character not contained in `sv` | `text.find_last_not_of("✨"_utf8_sv)` |
 
 This family is intentionally character-set oriented. A `View` argument here is not a substring delimiter; it is a bag of candidate characters, much like the classic `find_first_of` family on the C++ standard string types.
 
@@ -620,13 +620,13 @@ constexpr bool ends_with(std::span<const utf16_char> chars) const noexcept;
 
 ### Overload differences
 
-The examples below use `constexpr auto text = u8"😄🇷🇴✨"_utf8_sv;`.
+The examples below use `constexpr auto text = "😄🇷🇴✨"_utf8_sv;`.
 
 | Overload | Meaning | Example |
 | --- | --- | --- |
-| `starts_with(Char ch)` | compare the first validated character | `text.starts_with(u8"😄"_u8c)` |
-| `starts_with(View sv)` | compare an exact encoded prefix | `text.starts_with(u8"😄🇷🇴"_utf8_sv)` |
-| `starts_with(std::span<const Char> chars)` | test whether the first character belongs to a character set | `text.starts_with(std::array{u8"😄"_u8c, u8"✨"_u8c})` |
+| `starts_with(Char ch)` | compare the first validated character | `text.starts_with("😄"_u8c)` |
+| `starts_with(View sv)` | compare an exact encoded prefix | `text.starts_with("😄🇷🇴"_utf8_sv)` |
+| `starts_with(std::span<const Char> chars)` | test whether the first character belongs to a character set | `text.starts_with(std::array{"😄"_u8c, "✨"_u8c})` |
 | `starts_with(Pred pred)` | test the first character with a predicate | `text.starts_with([](utf8_char ch) { return !ch.is_ascii(); })` |
 
 The same distinctions apply to `ends_with(...)`, but against the last character or suffix.
@@ -705,12 +705,12 @@ template <Predicate Pred> constexpr auto split_inclusive(Pred pred) const noexce
 
 ### Overload differences
 
-The examples below use `constexpr auto text = u8"😄 | 🇷🇴 | ✨"_utf8_sv;`.
+The examples below use `constexpr auto text = "😄 | 🇷🇴 | ✨"_utf8_sv;`.
 
 | Overload | Meaning | Example |
 | --- | --- | --- |
-| `split(Char ch)` | split on an exact validated character delimiter | `text.split(u8"|"_u8c)` |
-| `split(View sv)` | split on an exact validated substring delimiter | `text.split(u8" | "_utf8_sv)` |
+| `split(Char ch)` | split on an exact validated character delimiter | `text.split("|"_u8c)` |
+| `split(View sv)` | split on an exact validated substring delimiter | `text.split(" | "_utf8_sv)` |
 | `split(Pred pred)` | split whenever a validated character satisfies the predicate | `text.split([](utf8_char ch) { return ch.is_ascii_whitespace(); })` |
 
 The same pattern applies to `split_trimmed`, `split_terminator`, `split_inclusive`, `splitn`, `rsplit`, `rsplitn`, and `rsplit_terminator`.
@@ -786,13 +786,13 @@ constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) const n
 
 ### Overload differences
 
-The examples below use `constexpr auto text = u8"😄=🇷🇴=✨"_utf8_sv;`.
+The examples below use `constexpr auto text = "😄=🇷🇴=✨"_utf8_sv;`.
 
 | Overload | Meaning | Example |
 | --- | --- | --- |
-| `split_once(Char ch)` | split at the first exact character delimiter | `text.split_once(u8"="_u8c)` |
-| `split_once(View sv)` | split at the first exact substring delimiter | `text.split_once(u8"=🇷🇴="_utf8_sv)` |
-| `split_once(std::span<const Char> chars)` | split at the first character that belongs to a character set | `text.split_once(std::array{u8"="_u8c, u8"✨"_u8c})` |
+| `split_once(Char ch)` | split at the first exact character delimiter | `text.split_once("="_u8c)` |
+| `split_once(View sv)` | split at the first exact substring delimiter | `text.split_once("=🇷🇴="_utf8_sv)` |
+| `split_once(std::span<const Char> chars)` | split at the first character that belongs to a character set | `text.split_once(std::array{"="_u8c, "✨"_u8c})` |
 | `split_once(Pred pred)` | split at the first character satisfying the predicate | `text.split_once([](utf8_char ch) { return ch.is_ascii_punctuation(); })` |
 
 The same distinctions apply to `rsplit_once(...)`, but from the end.
@@ -867,20 +867,20 @@ constexpr View trim_ascii() const noexcept;
 
 ### Overload differences
 
-The examples below use `constexpr auto framed = u8"✨✨😄🇷🇴✨✨"_utf8_sv;`.
+The examples below use `constexpr auto framed = "✨✨😄🇷🇴✨✨"_utf8_sv;`.
 
 | Overload | Meaning | Example |
 | --- | --- | --- |
-| `strip_prefix(View sv)` | remove one exact prefix occurrence or return `std::nullopt` | `framed.strip_prefix(u8"✨✨"_utf8_sv)` |
-| `trim_prefix(View sv)` | remove one exact prefix occurrence or return the original view unchanged | `framed.trim_prefix(u8"✨✨"_utf8_sv)` |
-| `trim_start_matches(Char ch)` | repeatedly remove one exact character from the start | `framed.trim_start_matches(u8"✨"_u8c)` |
-| `trim_start_matches(View sv)` | repeatedly remove one exact substring from the start | `framed.trim_start_matches(u8"✨"_utf8_sv)` |
-| `trim_start_matches(std::span<const Char> chars)` | repeatedly remove any leading character that belongs to a set | `framed.trim_start_matches(std::array{u8"✨"_u8c, u8"😄"_u8c})` |
+| `strip_prefix(View sv)` | remove one exact prefix occurrence or return `std::nullopt` | `framed.strip_prefix("✨✨"_utf8_sv)` |
+| `trim_prefix(View sv)` | remove one exact prefix occurrence or return the original view unchanged | `framed.trim_prefix("✨✨"_utf8_sv)` |
+| `trim_start_matches(Char ch)` | repeatedly remove one exact character from the start | `framed.trim_start_matches("✨"_u8c)` |
+| `trim_start_matches(View sv)` | repeatedly remove one exact substring from the start | `framed.trim_start_matches("✨"_utf8_sv)` |
+| `trim_start_matches(std::span<const Char> chars)` | repeatedly remove any leading character that belongs to a set | `framed.trim_start_matches(std::array{"✨"_u8c, "😄"_u8c})` |
 | `trim_start_matches(Pred pred)` | repeatedly remove leading characters satisfying a predicate | `framed.trim_start_matches([](utf8_char ch) { return !ch.is_ascii(); })` |
 
 The same distinctions apply to `trim_end_matches(...)` and `trim_matches(...)`.
 
-For the span overload, adjacency does not matter. `std::array{u8"✨"_u8c, u8"😄"_u8c}` means "keep trimming while the next edge character is either `✨` or `😄`". It does **not** mean "trim the substring `✨😄`".
+For the span overload, adjacency does not matter. `std::array{"✨"_u8c, "😄"_u8c}` means "keep trimming while the next edge character is either `✨` or `😄`". It does **not** mean "trim the substring `✨😄`".
 
 ### Inspiration
 
@@ -1049,18 +1049,18 @@ The UTF-16 view surface exposes the same overload families with `utf16_char`, `u
 
 ### Overload differences
 
-The examples below use `const auto text = u8"😄🇷🇴✨"_utf8_sv;`.
+The examples below use `const auto text = "😄🇷🇴✨"_utf8_sv;`.
 
 | Overload | Meaning | Example |
 | --- | --- | --- |
-| `replace_all(Char from, Char to)` | replace an exact character everywhere | `text.replace_all(u8"✨"_u8c, u8"🔥"_u8c)` |
-| `replace_all(View from, View to)` | replace an exact validated substring everywhere | `text.replace_all(u8"🇷🇴"_utf8_sv, u8"🎉"_utf8_sv)` |
-| `replace_all(std::span<const Char> from, Char to)` | replace every character that belongs to a set | `text.replace_all(std::array{u8"😄"_u8c, u8"✨"_u8c}, u8"🎉"_u8c)` |
-| `replace_all(Pred pred, View to)` | replace every character satisfying a predicate | `text.replace_all([](utf8_char ch) { return !ch.is_ascii(); }, u8"⭐"_utf8_sv)` |
+| `replace_all(Char from, Char to)` | replace an exact character everywhere | `text.replace_all("✨"_u8c, "🔥"_u8c)` |
+| `replace_all(View from, View to)` | replace an exact validated substring everywhere | `text.replace_all("🇷🇴"_utf8_sv, "🎉"_utf8_sv)` |
+| `replace_all(std::span<const Char> from, Char to)` | replace every character that belongs to a set | `text.replace_all(std::array{"😄"_u8c, "✨"_u8c}, "🎉"_u8c)` |
+| `replace_all(Pred pred, View to)` | replace every character satisfying a predicate | `text.replace_all([](utf8_char ch) { return !ch.is_ascii(); }, "⭐"_utf8_sv)` |
 
 The same overload differences apply to `replace_n(...)`, except that it stops after at most `count` replacements.
 
-Again, the span overload is character-set based. `std::array{u8"🇷"_u8c, u8"🇴"_u8c}` will replace either regional-indicator character independently; it will not wait for the adjacent pair `🇷🇴`.
+Again, the span overload is character-set based. `std::array{"🇷"_u8c, "🇴"_u8c}` will replace either regional-indicator character independently; it will not wait for the adjacent pair `🇷🇴`.
 
 ### Inspiration
 

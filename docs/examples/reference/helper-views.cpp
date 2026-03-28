@@ -26,6 +26,6 @@ int main()
 	std::println("reversed_utf16_view: {}", utf16_reversed);      // [✨, 🇴, 🇷, 😄]
 	std::println("utf16 graphemes: {::s}", utf16_graphemes);      // [😄, 🇷🇴, ✨]
 
-	std::println("literal char: {}", u8"✨"_u8c);                  // ✨
-	std::println("literal grapheme: {}", u8"🇷🇴"_grapheme_utf8);    // 🇷🇴
+	std::println("literal char: {}", "✨"_u8c);                  // ✨
+	std::println("literal grapheme: {}", "🇷🇴"_grapheme_utf8);    // 🇷🇴
 }

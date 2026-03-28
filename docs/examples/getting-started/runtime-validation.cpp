@@ -18,8 +18,8 @@ int main()
 		return 1;
 	}
 
-	std::println("validated: {}", *text);               // Grüße din România 👋
-	std::println("characters: {}", text->char_count()); // 18
+	std::println("validated: {}", *text);                  // Grüße din România 👋
+	std::println("characters: {}", text->char_count());    // 18
 	std::println("first char: {}", text->front().value()); // G
 	std::println("last char: {}", text->back().value());   // 👋
 }

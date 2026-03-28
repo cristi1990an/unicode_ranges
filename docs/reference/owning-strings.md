@@ -167,16 +167,16 @@ constexpr basic_utf8_string(It it, Sent sent, const Allocator& alloc = Allocator
 
 ### Overload differences
 
-The table rows below start from declarations like `utf8_string text = u8"😄🇷🇴✨"_utf8_s;`.
+The table rows below start from declarations like `utf8_string text = "😄🇷🇴✨"_utf8_s;`.
 
 | Overload | Meaning | Example |
 | --- | --- | --- |
-| `basic_utf8_string(utf8_string_view view, alloc)` | copy validated text in the same encoding | `utf8_string a{u8"😄🇷🇴✨"_utf8_sv};` |
+| `basic_utf8_string(utf8_string_view view, alloc)` | copy validated text in the same encoding | `utf8_string a{"😄🇷🇴✨"_utf8_sv};` |
 | `basic_utf8_string(utf16_string_view view, alloc)` | transcode from UTF-16 into owned UTF-8 storage | `utf8_string a{u"😄🇷🇴✨"_utf16_sv};` |
-| `basic_utf8_string(count, utf8_char ch, alloc)` | repeat one validated character `count` times | `utf8_string a{3, u8"✨"_u8c};` |
-| `basic_utf8_string(std::from_range, R&& rg, alloc)` | build from a range of validated characters | `utf8_string a{std::from_range, std::array{u8"😄"_u8c, u8"✨"_u8c}};` |
-| `basic_utf8_string(std::initializer_list<utf8_char>, alloc)` | build from a braced list of validated characters | `utf8_string a{{u8"😄"_u8c, u8"✨"_u8c}};` |
-| `basic_utf8_string(It, Sent, alloc)` | build from an iterator/sentinel pair over validated characters | `const auto chars = u8"😄✨"_utf8_sv.chars(); utf8_string a{chars.begin(), chars.end()};` |
+| `basic_utf8_string(count, utf8_char ch, alloc)` | repeat one validated character `count` times | `utf8_string a{3, "✨"_u8c};` |
+| `basic_utf8_string(std::from_range, R&& rg, alloc)` | build from a range of validated characters | `utf8_string a{std::from_range, std::array{"😄"_u8c, "✨"_u8c}};` |
+| `basic_utf8_string(std::initializer_list<utf8_char>, alloc)` | build from a braced list of validated characters | `utf8_string a{{"😄"_u8c, "✨"_u8c}};` |
+| `basic_utf8_string(It, Sent, alloc)` | build from an iterator/sentinel pair over validated characters | `const auto chars = "😄✨"_utf8_sv.chars(); utf8_string a{chars.begin(), chars.end()};` |
 
 The UTF-16 constructors behave the same way, but operate on UTF-16 views and `utf16_char`.
 The braced-list constructor uses [`std::initializer_list`](https://en.cppreference.com/w/cpp/utility/initializer_list) in the usual C++ sense; the difference is that each element is already a validated Unicode character object rather than a raw code unit.
@@ -245,25 +245,25 @@ constexpr basic_utf8_string& operator+=(std::initializer_list<utf8_char> ilist);
 
 ### Overload differences
 
-The examples below use `utf8_string text = u8"😄"_utf8_s;`.
+The examples below use `utf8_string text = "😄"_utf8_s;`.
 
 | Overload | Meaning | Example |
 | --- | --- | --- |
-| `append_range(views::utf8_view rg)` | append a same-encoding character range without materializing another owning string | `text.append_range(u8"🇷🇴"_utf8_sv.chars());` |
+| `append_range(views::utf8_view rg)` | append a same-encoding character range without materializing another owning string | `text.append_range("🇷🇴"_utf8_sv.chars());` |
 | `append_range(views::utf16_view rg)` | append a cross-encoding character range with transcoding | `text.append_range(u"✨"_utf16_sv.chars());` |
-| `append_range(R&& rg)` | append a generic range whose elements are already `utf8_char` | `text.append_range(std::array{u8"🎉"_u8c, u8"🔥"_u8c});` |
-| `assign_range(...)` | same source shapes as `append_range`, but replaces the whole string first | `text.assign_range(u8"✨😄"_utf8_sv.chars());` |
-| `append(count, Char ch)` | append the same validated character repeatedly | `text.append(2, u8"✨"_u8c);` |
-| `assign(count, Char ch)` | replace the whole string with `count` copies of one validated character | `text.assign(3, u8"🎉"_u8c);` |
-| `append(View sv)` | append one validated substring | `text.append(u8"🇷🇴"_utf8_sv);` |
-| `assign(View sv)` | replace with one validated substring | `text.assign(u8"😄✨"_utf8_sv);` |
-| `append(It, Sent)` / `assign(It, Sent)` | consume an iterator pair of validated characters | `const auto chars = u8"✨🎉"_utf8_sv.chars(); text.append(chars.begin(), chars.end());` |
-| `append(std::initializer_list<Char>)` / `assign(std::initializer_list<Char>)` | operate on a short braced list of validated characters | `text.append({u8"✨"_u8c, u8"🎉"_u8c});` |
-| `operator=(View)` / `operator=(Char)` | shorthand for replacing the whole string | `text = u8"😄🇷🇴"_utf8_sv;` |
-| `operator+=(View)` / `operator+=(Char)` | shorthand for appending validated text | `text += u8"✨"_u8c;` |
+| `append_range(R&& rg)` | append a generic range whose elements are already `utf8_char` | `text.append_range(std::array{"🎉"_u8c, "🔥"_u8c});` |
+| `assign_range(...)` | same source shapes as `append_range`, but replaces the whole string first | `text.assign_range("✨😄"_utf8_sv.chars());` |
+| `append(count, Char ch)` | append the same validated character repeatedly | `text.append(2, "✨"_u8c);` |
+| `assign(count, Char ch)` | replace the whole string with `count` copies of one validated character | `text.assign(3, "🎉"_u8c);` |
+| `append(View sv)` | append one validated substring | `text.append("🇷🇴"_utf8_sv);` |
+| `assign(View sv)` | replace with one validated substring | `text.assign("😄✨"_utf8_sv);` |
+| `append(It, Sent)` / `assign(It, Sent)` | consume an iterator pair of validated characters | `const auto chars = "✨🎉"_utf8_sv.chars(); text.append(chars.begin(), chars.end());` |
+| `append(std::initializer_list<Char>)` / `assign(std::initializer_list<Char>)` | operate on a short braced list of validated characters | `text.append({"✨"_u8c, "🎉"_u8c});` |
+| `operator=(View)` / `operator=(Char)` | shorthand for replacing the whole string | `text = "😄🇷🇴"_utf8_sv;` |
+| `operator+=(View)` / `operator+=(Char)` | shorthand for appending validated text | `text += "✨"_u8c;` |
 | cross-encoding `operator+=` | append one validated `utf16_char` or `utf16_string_view` to a UTF-8 string, or the UTF-8 equivalents to a UTF-16 string | `text += u"🔥"_u16c;` |
 
-The range-based overloads are special because they work in terms of validated characters, not raw code units. `append_range(u8"🇷🇴"_utf8_sv.chars())` appends two regional-indicator characters; it does not splice raw UTF-8 bytes into the destination.
+The range-based overloads are special because they work in terms of validated characters, not raw code units. `append_range("🇷🇴"_utf8_sv.chars())` appends two regional-indicator characters; it does not splice raw UTF-8 bytes into the destination.
 
 ### Inspiration
 
@@ -317,17 +317,17 @@ constexpr basic_utf8_string& reverse(size_type pos, size_type count = npos);
 
 ### Overload differences
 
-The examples below use `utf8_string text = u8"😄🇷🇴✨"_utf8_s;`.
+The examples below use `utf8_string text = "😄🇷🇴✨"_utf8_s;`.
 
 | Overload | Meaning | Example |
 | --- | --- | --- |
-| `insert(index, View sv)` | splice one validated substring at a character boundary | `text.insert(4, u8"🎉"_utf8_sv);` |
-| `insert(index, Char ch)` | insert one validated character at a character boundary | `text.insert(4, u8"🎉"_u8c);` |
-| `insert(index, count, Char ch)` | insert `count` copies of one validated character | `text.insert(4, 2, u8"✨"_u8c);` |
-| `insert_range(index, views::utf8_view rg)` | splice a same-encoding character range | `text.insert_range(4, u8"🎉✨"_utf8_sv.chars());` |
+| `insert(index, View sv)` | splice one validated substring at a character boundary | `text.insert(4, "🎉"_utf8_sv);` |
+| `insert(index, Char ch)` | insert one validated character at a character boundary | `text.insert(4, "🎉"_u8c);` |
+| `insert(index, count, Char ch)` | insert `count` copies of one validated character | `text.insert(4, 2, "✨"_u8c);` |
+| `insert_range(index, views::utf8_view rg)` | splice a same-encoding character range | `text.insert_range(4, "🎉✨"_utf8_sv.chars());` |
 | `insert_range(index, views::utf16_view rg)` | splice a cross-encoding character range with transcoding | `text.insert_range(4, u"🎉✨"_utf16_sv.chars());` |
-| `insert_range(index, R&& rg)` | splice a generic range of validated characters | `text.insert_range(4, std::array{u8"🎉"_u8c, u8"✨"_u8c});` |
-| `insert(index, It, Sent)` / `insert(index, ilist)` | splice validated characters from iterators or a braced list | `text.insert(4, {u8"🎉"_u8c, u8"✨"_u8c});` |
+| `insert_range(index, R&& rg)` | splice a generic range of validated characters | `text.insert_range(4, std::array{"🎉"_u8c, "✨"_u8c});` |
+| `insert(index, It, Sent)` / `insert(index, ilist)` | splice validated characters from iterators or a braced list | `text.insert(4, {"🎉"_u8c, "✨"_u8c});` |
 | `erase(index, count)` | erase a boundary-aligned validated substring | `text.erase(4, 8);` |
 | `reverse()` | reverse the whole string by character | `text.reverse();` |
 | `reverse(pos, count)` | reverse one boundary-aligned substring by character | `text.reverse(4, 8);` |
@@ -433,20 +433,20 @@ constexpr basic_utf8_string<OtherAllocator> case_fold(const OtherAllocator& allo
 
 ### Overload differences
 
-The examples below use `utf8_string text = u8"wow 😄"_utf8_s;`.
+The examples below use `utf8_string text = "wow 😄"_utf8_s;`.
 
 | Overload | Meaning | Example |
 | --- | --- | --- |
 | `to_ascii_lowercase()` / `to_ascii_uppercase()` | ASCII-only mapping; non-ASCII characters such as `😄` are preserved | `const auto loud = text.to_ascii_uppercase();` |
 | `to_ascii_lowercase(pos, count)` / `to_ascii_uppercase(pos, count)` | ASCII-only mapping on one boundary-aligned subrange | `const auto loud = text.to_ascii_uppercase(0, 3);` |
-| `to_lowercase()` / `to_uppercase()` | full Unicode case mapping on the whole string | `const auto upper = utf8_string{u8"straße 😄"_utf8_sv}.to_uppercase();` |
+| `to_lowercase()` / `to_uppercase()` | full Unicode case mapping on the whole string | `const auto upper = utf8_string{"straße 😄"_utf8_sv}.to_uppercase();` |
 | `to_lowercase(pos, count)` / `to_uppercase(pos, count)` | full Unicode case mapping on one boundary-aligned subrange | `const auto upper = text.to_uppercase(0, 3);` |
 | allocator-taking overloads | produce the same transformed value with a caller-supplied allocator type | `const auto copy = text.to_uppercase(std::allocator<char8_t>{});` |
 | `const&` overloads | keep the source object unchanged and build a fresh result | `const auto a = text.to_uppercase();` |
-| `&&` overloads | may reuse the current allocation because the source is disposable | `auto a = utf8_string{u8"straße 😄"_utf8_sv}.to_uppercase();` |
-| `normalize(form)` | choose NFC/NFD/NFKC/NFKD at runtime | `const auto n = utf8_string{u8"é 😄"_utf8_sv}.normalize(normalization_form::nfc);` |
-| `to_nfc()` / `to_nfd()` / `to_nfkc()` / `to_nfkd()` | named normalization wrappers for the common forms | `const auto n = utf8_string{u8"ｅ́ 😄"_utf8_sv}.to_nfkc();` |
-| `case_fold()` | full Unicode case folding for caseless matching, not for presentation | `const auto folded = utf8_string{u8"Straße 😄"_utf8_sv}.case_fold();` |
+| `&&` overloads | may reuse the current allocation because the source is disposable | `auto a = utf8_string{"straße 😄"_utf8_sv}.to_uppercase();` |
+| `normalize(form)` | choose NFC/NFD/NFKC/NFKD at runtime | `const auto n = utf8_string{"é 😄"_utf8_sv}.normalize(normalization_form::nfc);` |
+| `to_nfc()` / `to_nfd()` / `to_nfkc()` / `to_nfkd()` | named normalization wrappers for the common forms | `const auto n = utf8_string{"ｅ́ 😄"_utf8_sv}.to_nfkc();` |
+| `case_fold()` | full Unicode case folding for caseless matching, not for presentation | `const auto folded = utf8_string{"Straße 😄"_utf8_sv}.case_fold();` |
 
 Normalization is intentionally whole-string only. Unlike partial case transforms, normalization has cross-boundary composition and decomposition rules, so a `pos, count` overload would be much easier to misuse.
 
@@ -530,22 +530,22 @@ constexpr basic_utf8_string<OtherAllocator> replace_n(size_type count, Pred pred
 
 ### Overload differences
 
-The examples below use `const auto text = u8"😄🇷🇴✨"_utf8_s;`.
+The examples below use `const auto text = "😄🇷🇴✨"_utf8_s;`.
 
 | Overload | Meaning | Example |
 | --- | --- | --- |
-| `replace_all(Char from, Char to)` | replace one exact validated character with another | `text.replace_all(u8"✨"_u8c, u8"🔥"_u8c)` |
-| `replace_all(Char from, View to)` | replace one character with a validated substring | `text.replace_all(u8"✨"_u8c, u8"🎉🎉"_utf8_sv)` |
-| `replace_all(View from, Char to)` | replace one validated substring with one character | `text.replace_all(u8"🇷🇴"_utf8_sv, u8"🎉"_u8c)` |
-| `replace_all(View from, View to)` | replace one validated substring with another | `text.replace_all(u8"🇷🇴"_utf8_sv, u8"🎉"_utf8_sv)` |
-| `replace_all(std::span<const Char> from, Char/View to)` | replace every character that belongs to a character set | `text.replace_all(std::array{u8"😄"_u8c, u8"✨"_u8c}, u8"🎉"_u8c)` |
-| `replace_all(Pred pred, Char/View to)` | replace every character satisfying a predicate | `text.replace_all([](utf8_char ch) { return !ch.is_ascii(); }, u8"⭐"_utf8_sv)` |
-| `replace_n(count, ...)` | same matching rules as `replace_all`, but stop after at most `count` replacements | `text.replace_n(1, u8"✨"_u8c, u8"🔥"_u8c)` |
-| `const&` overloads | keep the source string unchanged and return a copy | `const auto a = text.replace_all(u8"✨"_u8c, u8"🔥"_u8c);` |
-| `&&` overloads | may reuse the source allocation because the source is disposable | `auto a = utf8_string{u8"😄🇷🇴✨"_utf8_sv}.replace_all(u8"✨"_u8c, u8"🔥"_u8c);` |
-| allocator-taking overloads | return the same logical result with a caller-supplied allocator type | `const auto a = text.replace_all(u8"✨"_u8c, u8"🔥"_u8c, std::allocator<char8_t>{});` |
+| `replace_all(Char from, Char to)` | replace one exact validated character with another | `text.replace_all("✨"_u8c, "🔥"_u8c)` |
+| `replace_all(Char from, View to)` | replace one character with a validated substring | `text.replace_all("✨"_u8c, "🎉🎉"_utf8_sv)` |
+| `replace_all(View from, Char to)` | replace one validated substring with one character | `text.replace_all("🇷🇴"_utf8_sv, "🎉"_u8c)` |
+| `replace_all(View from, View to)` | replace one validated substring with another | `text.replace_all("🇷🇴"_utf8_sv, "🎉"_utf8_sv)` |
+| `replace_all(std::span<const Char> from, Char/View to)` | replace every character that belongs to a character set | `text.replace_all(std::array{"😄"_u8c, "✨"_u8c}, "🎉"_u8c)` |
+| `replace_all(Pred pred, Char/View to)` | replace every character satisfying a predicate | `text.replace_all([](utf8_char ch) { return !ch.is_ascii(); }, "⭐"_utf8_sv)` |
+| `replace_n(count, ...)` | same matching rules as `replace_all`, but stop after at most `count` replacements | `text.replace_n(1, "✨"_u8c, "🔥"_u8c)` |
+| `const&` overloads | keep the source string unchanged and return a copy | `const auto a = text.replace_all("✨"_u8c, "🔥"_u8c);` |
+| `&&` overloads | may reuse the source allocation because the source is disposable | `auto a = utf8_string{"😄🇷🇴✨"_utf8_sv}.replace_all("✨"_u8c, "🔥"_u8c);` |
+| allocator-taking overloads | return the same logical result with a caller-supplied allocator type | `const auto a = text.replace_all("✨"_u8c, "🔥"_u8c, std::allocator<char8_t>{});` |
 
-The span overload is special because it is character-set based rather than substring-based. `std::array{u8"🇷"_u8c, u8"🇴"_u8c}` matches either regional-indicator character independently; it does not wait for the adjacent grapheme `🇷🇴`.
+The span overload is special because it is character-set based rather than substring-based. `std::array{"🇷"_u8c, "🇴"_u8c}` matches either regional-indicator character independently; it does not wait for the adjacent grapheme `🇷🇴`.
 
 ### Inspiration
 
@@ -598,18 +598,18 @@ constexpr basic_utf8_string& replace_with_range_inplace(size_type pos, R&& rg);
 
 ### Overload differences
 
-The examples below use `utf8_string text = u8"wow 😄✨"_utf8_s;`.
+The examples below use `utf8_string text = "wow 😄✨"_utf8_s;`.
 
 | Overload | Meaning | Example |
 | --- | --- | --- |
-| `replace_inplace(pos, count, View other)` | replace one boundary-aligned validated substring with another | `text.replace_inplace(0, 3, u8"hey"_utf8_sv);` |
-| `replace_inplace(pos, count, Char other)` | replace one boundary-aligned validated substring with one character | `text.replace_inplace(4, 4, u8"🔥"_u8c);` |
-| `replace_inplace(pos, View other)` | replace the single validated character starting at `pos` with a substring | `text.replace_inplace(4, u8"🎉"_utf8_sv);` |
-| `replace_inplace(pos, Char other)` | replace the single validated character starting at `pos` with one character | `text.replace_inplace(4, u8"🔥"_u8c);` |
-| `replace_with_range_inplace(pos, count, views::utf8_view rg)` | replace a boundary-aligned substring with a same-encoding character range | `text.replace_with_range_inplace(4, 4, u8"🎉✨"_utf8_sv.chars());` |
+| `replace_inplace(pos, count, View other)` | replace one boundary-aligned validated substring with another | `text.replace_inplace(0, 3, "hey"_utf8_sv);` |
+| `replace_inplace(pos, count, Char other)` | replace one boundary-aligned validated substring with one character | `text.replace_inplace(4, 4, "🔥"_u8c);` |
+| `replace_inplace(pos, View other)` | replace the single validated character starting at `pos` with a substring | `text.replace_inplace(4, "🎉"_utf8_sv);` |
+| `replace_inplace(pos, Char other)` | replace the single validated character starting at `pos` with one character | `text.replace_inplace(4, "🔥"_u8c);` |
+| `replace_with_range_inplace(pos, count, views::utf8_view rg)` | replace a boundary-aligned substring with a same-encoding character range | `text.replace_with_range_inplace(4, 4, "🎉✨"_utf8_sv.chars());` |
 | `replace_with_range_inplace(pos, count, views::utf16_view rg)` | replace a boundary-aligned substring with a cross-encoding character range | `text.replace_with_range_inplace(4, 4, u"🎉✨"_utf16_sv.chars());` |
-| `replace_with_range_inplace(pos, count, R&& rg)` | replace a boundary-aligned substring with a generic range of validated characters | `text.replace_with_range_inplace(4, 4, std::array{u8"🎉"_u8c, u8"✨"_u8c});` |
-| `replace_with_range_inplace(pos, rg)` | replace the single validated character at `pos` with a validated range | `text.replace_with_range_inplace(4, u8"🎉"_utf8_sv.chars());` |
+| `replace_with_range_inplace(pos, count, R&& rg)` | replace a boundary-aligned substring with a generic range of validated characters | `text.replace_with_range_inplace(4, 4, std::array{"🎉"_u8c, "✨"_u8c});` |
+| `replace_with_range_inplace(pos, rg)` | replace the single validated character at `pos` with a validated range | `text.replace_with_range_inplace(4, "🎉"_utf8_sv.chars());` |
 
 The range overloads are special because the replacement is driven by validated characters, not by raw code units. Cross-encoding helper views let the caller describe the replacement in the other encoding without building a temporary owning string first.
 
@@ -666,7 +666,7 @@ constexpr void swap(basic_utf8_string& other) noexcept(/* conditional */);
 
 ### Overload differences
 
-The examples below use `utf8_string text = u8"😄🇷🇴✨"_utf8_s;`.
+The examples below use `utf8_string text = "😄🇷🇴✨"_utf8_s;`.
 
 | Overload | Meaning | Example |
 | --- | --- | --- |
@@ -676,7 +676,7 @@ The examples below use `utf8_string text = u8"😄🇷🇴✨"_utf8_s;`.
 | `operator utf8_string_view() const` | implicitly view the string as a borrowed validated view when a view is expected | `utf8_string_view borrowed = text;` |
 | `data()` / `c_str()` | expose raw code units for interop with code-unit-oriented APIs | `const char8_t* ptr = text.data();` |
 | `reserve(new_cap)` / `shrink_to_fit()` | manage capacity in terms of code units | `text.reserve(32);` |
-| `push_back(Char ch)` | append one validated character | `text.push_back(u8"🔥"_u8c);` |
+| `push_back(Char ch)` | append one validated character | `text.push_back("🔥"_u8c);` |
 | `swap(other)` | exchange the underlying storage | `text.swap(other);` |
 
 `base()` and `as_view()` solve different problems. `base()` is for interop with APIs that truly need the owning `std::basic_string`. `as_view()` is for APIs that only need a validated borrowed text view and should not take ownership.
@@ -751,12 +751,12 @@ constexpr auto operator ""_utf8_s();
 
 | Overload | Meaning | Example |
 | --- | --- | --- |
-| `operator==` / `<=>` with another owning string | compare two owning strings in the same encoding | `u8"😄"_utf8_s == u8"😄"_utf8_s` |
-| `operator==` / `<=>` with a view | compare an owning string against a borrowed validated view | `u8"😄"_utf8_s == u8"😄"_utf8_sv` |
-| `operator+(String, String)` | concatenate two owning strings | `u8"😄"_utf8_s + u8"✨"_utf8_s` |
-| `operator+(String, View)` / `operator+(View, String)` | concatenate an owning string with a borrowed validated substring | `u8"😄"_utf8_s + u8"✨"_utf8_sv` |
-| `operator+(String, Char)` / `operator+(Char, String)` | concatenate one validated character | `u8"😄"_utf8_s + u8"✨"_u8c` |
-| `_utf8_s` / `_utf16_s` | construct a compile-time validated owning string literal | `constexpr auto text = u8"😄🇷🇴✨"_utf8_s;` |
+| `operator==` / `<=>` with another owning string | compare two owning strings in the same encoding | `"😄"_utf8_s == "😄"_utf8_s` |
+| `operator==` / `<=>` with a view | compare an owning string against a borrowed validated view | `"😄"_utf8_s == "😄"_utf8_sv` |
+| `operator+(String, String)` | concatenate two owning strings | `"😄"_utf8_s + "✨"_utf8_s` |
+| `operator+(String, View)` / `operator+(View, String)` | concatenate an owning string with a borrowed validated substring | `"😄"_utf8_s + "✨"_utf8_sv` |
+| `operator+(String, Char)` / `operator+(Char, String)` | concatenate one validated character | `"😄"_utf8_s + "✨"_u8c` |
+| `_utf8_s` / `_utf16_s` | construct a compile-time validated owning string literal | `constexpr auto text = "😄🇷🇴✨"_utf8_s;` |
 
 ### Inspiration
 

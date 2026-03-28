@@ -7,10 +7,10 @@ using namespace unicode_ranges::literals;
 
 int main()
 {
-	constexpr auto line = u8" café | thé | apă "_utf8_sv;
-	constexpr auto framed = u8"***café***"_utf8_sv;
+	constexpr auto line = " café | thé | apă "_utf8_sv;
+	constexpr auto framed = "***café***"_utf8_sv;
 
-	for (auto part : line.split_trimmed(u8"|"_utf8_sv))
+	for (auto part : line.split_trimmed("|"_utf8_sv))
 	{
 		std::println("[{}]", part);
 	}
@@ -18,5 +18,5 @@ int main()
 	// [thé]
 	// [apă]
 
-	std::println("trim('*'): {}", framed.trim_matches(u8"*"_u8c)); // café
+	std::println("trim('*'): {}", framed.trim_matches("*"_u8c)); // café
 }

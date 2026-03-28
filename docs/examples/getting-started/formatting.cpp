@@ -7,7 +7,7 @@ using namespace unicode_ranges::literals;
 
 int main()
 {
-	const utf8_string text = u8"mañana 👩‍💻"_utf8_s;
+	const utf8_string text = "mañana 👩‍💻"_utf8_s;
 
 	std::println("text: {}", text);                      // mañana 👩‍💻
 	std::println("chars(): {}", text.chars());           // [m, a, ñ, a, n, a,  , 👩, ‍, 💻]

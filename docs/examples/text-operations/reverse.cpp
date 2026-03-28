@@ -7,7 +7,7 @@ using namespace unicode_ranges::literals;
 
 int main()
 {
-	auto text = u8"café noir"_utf8_s;
+	auto text = "café noir"_utf8_s;
 
 	text.reverse();
 	std::println("reverse(): {}", text); // rion éfac

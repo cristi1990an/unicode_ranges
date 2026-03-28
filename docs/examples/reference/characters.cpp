@@ -14,5 +14,5 @@ int main()
 	std::println("utf8_char code units: {}", sparkle.code_unit_count()); // 3
 	std::println("utf16_char: {}", smile);                          // 😄
 	std::println("utf16_char code units: {}", smile.code_unit_count());  // 2
-	std::println("ASCII upper('x'): {}", u8"x"_u8c.ascii_uppercase());   // X
+	std::println("ASCII upper('x'): {}", "x"_u8c.ascii_uppercase());   // X
 }
