@@ -104,6 +104,35 @@ constexpr const Mapping* find_source_mapping_paged(
     return nullptr;
 }
 
+template <typename Mapping, std::size_t N, std::size_t P>
+constexpr std::size_t find_source_mapping_paged_index(
+    std::uint32_t scalar,
+    const std::array<Mapping, N>& mappings,
+    const std::array<std::uint16_t, P>& page_index) noexcept
+{
+    const auto page = static_cast<std::size_t>(scalar >> unicode_mapping_page_shift);
+    std::size_t left = page_index[page];
+    std::size_t right = page_index[page + 1u];
+    while (left < right)
+    {
+        const std::size_t mid = left + (right - left) / 2;
+        const Mapping& mapping = mappings[mid];
+        if (scalar < mapping.source)
+        {
+            right = mid;
+        }
+        else if (scalar > mapping.source)
+        {
+            left = mid + 1;
+        }
+        else
+        {
+            return mid;
+        }
+    }
+    return N;
+}
+
 template <typename Range, std::size_t N>
 constexpr auto make_overlapping_range_page_slices(
     const std::array<Range, N>& ranges,
@@ -278,6 +307,36 @@ constexpr const unicode_composition_mapping* find_composition_mapping_paged(
         }
     }
     return nullptr;
+}
+
+template <std::size_t N, std::size_t P>
+constexpr std::size_t find_composition_mapping_paged_index(
+    std::uint32_t first,
+    std::uint32_t second,
+    const std::array<unicode_composition_mapping, N>& mappings,
+    const std::array<std::uint16_t, P>& page_index) noexcept
+{
+    const auto page = static_cast<std::size_t>(first >> unicode_mapping_page_shift);
+    std::size_t left = page_index[page];
+    std::size_t right = page_index[page + 1u];
+    while (left < right)
+    {
+        const std::size_t mid = left + (right - left) / 2;
+        const auto& mapping = mappings[mid];
+        if (first < mapping.first || (first == mapping.first && second < mapping.second))
+        {
+            right = mid;
+        }
+        else if (first > mapping.first || (first == mapping.first && second > mapping.second))
+        {
+            left = mid + 1;
+        }
+        else
+        {
+            return mid;
+        }
+    }
+    return N;
 }
 
 struct unicode_canonical_combining_class_range
@@ -16316,6 +16375,16 @@ constexpr const unicode_simple_case_mapping* lowercase_simple_mapping(std::uint3
 
 inline constexpr auto lowercase_special_mappings_page_index = make_source_mapping_page_index(lowercase_special_mappings);
 
+constexpr std::size_t lowercase_special_mapping_index(std::uint32_t scalar) noexcept
+{
+    return find_source_mapping_paged_index(scalar, lowercase_special_mappings, lowercase_special_mappings_page_index);
+}
+
+constexpr const unicode_special_case_mapping& lowercase_special_mapping_at(std::size_t index) noexcept
+{
+    return lowercase_special_mappings[index];
+}
+
 constexpr const unicode_special_case_mapping* lowercase_special_mapping(std::uint32_t scalar) noexcept
 {
     return find_source_mapping_paged(scalar, lowercase_special_mappings, lowercase_special_mappings_page_index);
@@ -16350,6 +16419,16 @@ constexpr const unicode_simple_case_mapping* uppercase_simple_mapping(std::uint3
 }
 
 inline constexpr auto uppercase_special_mappings_page_index = make_source_mapping_page_index(uppercase_special_mappings);
+
+constexpr std::size_t uppercase_special_mapping_index(std::uint32_t scalar) noexcept
+{
+    return find_source_mapping_paged_index(scalar, uppercase_special_mappings, uppercase_special_mappings_page_index);
+}
+
+constexpr const unicode_special_case_mapping& uppercase_special_mapping_at(std::size_t index) noexcept
+{
+    return uppercase_special_mappings[index];
+}
 
 constexpr const unicode_special_case_mapping* uppercase_special_mapping(std::uint32_t scalar) noexcept
 {
@@ -16386,6 +16465,16 @@ constexpr const unicode_simple_case_mapping* case_fold_simple_mapping(std::uint3
 
 inline constexpr auto case_fold_special_mappings_page_index = make_source_mapping_page_index(case_fold_special_mappings);
 
+constexpr std::size_t case_fold_special_mapping_index(std::uint32_t scalar) noexcept
+{
+    return find_source_mapping_paged_index(scalar, case_fold_special_mappings, case_fold_special_mappings_page_index);
+}
+
+constexpr const unicode_special_case_mapping& case_fold_special_mapping_at(std::size_t index) noexcept
+{
+    return case_fold_special_mappings[index];
+}
+
 constexpr const unicode_special_case_mapping* case_fold_special_mapping(std::uint32_t scalar) noexcept
 {
     return find_source_mapping_paged(scalar, case_fold_special_mappings, case_fold_special_mappings_page_index);
@@ -16393,12 +16482,32 @@ constexpr const unicode_special_case_mapping* case_fold_special_mapping(std::uin
 
 inline constexpr auto decomposition_mappings_page_index = make_source_mapping_page_index(decomposition_mappings);
 
+constexpr std::size_t decomposition_mapping_index(std::uint32_t scalar) noexcept
+{
+    return find_source_mapping_paged_index(scalar, decomposition_mappings, decomposition_mappings_page_index);
+}
+
+constexpr const unicode_decomposition_mapping& decomposition_mapping_at(std::size_t index) noexcept
+{
+    return decomposition_mappings[index];
+}
+
 constexpr const unicode_decomposition_mapping* decomposition_mapping(std::uint32_t scalar) noexcept
 {
     return find_source_mapping_paged(scalar, decomposition_mappings, decomposition_mappings_page_index);
 }
 
 inline constexpr auto composition_mappings_page_index = make_first_mapping_page_index(composition_mappings);
+
+constexpr std::size_t composition_mapping_index(std::uint32_t first, std::uint32_t second) noexcept
+{
+    return find_composition_mapping_paged_index(first, second, composition_mappings, composition_mappings_page_index);
+}
+
+constexpr const unicode_composition_mapping& composition_mapping_at(std::size_t index) noexcept
+{
+    return composition_mappings[index];
+}
 
 constexpr const unicode_composition_mapping* composition_mapping(std::uint32_t first, std::uint32_t second) noexcept
 {
