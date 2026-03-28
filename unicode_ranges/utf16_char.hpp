@@ -65,12 +65,16 @@ public:
 	[[nodiscard]]
 	constexpr std::uint32_t as_scalar() const noexcept
 	{
+		const auto first = static_cast<std::uint16_t>(code_units_[0]);
 		if (code_units_[1] == 0) [[likely]]
 		{
-			return static_cast<std::uint16_t>(code_units_[0]);
+			return first;
 		}
 
-		return details::decode_valid_utf16_char(code_units_.data(), code_unit_count());
+		const auto second = static_cast<std::uint16_t>(code_units_[1]);
+		return 0x10000u
+			+ ((static_cast<std::uint32_t>(first) - 0xD800u) << 10)
+			+ (static_cast<std::uint32_t>(second) - 0xDC00u);
 	}
 
 	constexpr operator utf8_char() const noexcept;

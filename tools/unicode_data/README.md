@@ -2,6 +2,9 @@ This directory holds versioned Unicode Character Database inputs used by `tools/
 
 Expected layout for version `17.0.0`:
 
+- `tools/unicode_data/17.0.0/ucd/UnicodeData.txt`
+- `tools/unicode_data/17.0.0/ucd/CompositionExclusions.txt`
+- `tools/unicode_data/17.0.0/ucd/CaseFolding.txt`
 - `tools/unicode_data/17.0.0/ucd/auxiliary/GraphemeBreakProperty.txt`
 - `tools/unicode_data/17.0.0/ucd/auxiliary/GraphemeBreakTest.txt`
 - `tools/unicode_data/17.0.0/ucd/emoji/emoji-data.txt`

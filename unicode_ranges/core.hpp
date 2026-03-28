@@ -110,6 +110,14 @@ struct unicode_scalar_error
 	std::size_t first_invalid_element_index = 0;
 };
 
+enum class normalization_form
+{
+	nfc,
+	nfd,
+	nfkc,
+	nfkd
+};
+
 namespace views
 {
 	class utf8_view;
@@ -1790,6 +1798,23 @@ namespace details
 			return value == cr || value == lf || value == control;
 		}
 
+		inline constexpr unicode::grapheme_cluster_break_property ascii_grapheme_break_property(
+			std::uint32_t scalar) noexcept
+		{
+			using enum unicode::grapheme_cluster_break_property;
+			if (scalar == static_cast<std::uint32_t>('\r'))
+			{
+				return cr;
+			}
+
+			if (scalar == static_cast<std::uint32_t>('\n'))
+			{
+				return lf;
+			}
+
+			return scalar < 0x20u || scalar == 0x7Fu ? control : other;
+		}
+
 		inline constexpr grapheme_scalar_info classify_grapheme_scalar(std::uint32_t scalar) noexcept
 		{
 			const auto properties = unicode::grapheme_properties(scalar);
@@ -1922,6 +1947,13 @@ namespace details
 
 		inline constexpr grapheme_state make_initial_grapheme_state(std::uint32_t scalar) noexcept
 		{
+			if (scalar < 0x80u) [[likely]]
+			{
+				return grapheme_state{
+					.previous_break = ascii_grapheme_break_property(scalar)
+				};
+			}
+
 			const auto break_property = unicode::grapheme_cluster_break(scalar);
 			return grapheme_state{
 				.previous_break = break_property,
@@ -1945,6 +1977,15 @@ namespace details
 
 		inline constexpr void consume_grapheme_scalar(grapheme_state& state, std::uint32_t scalar) noexcept
 		{
+			if (scalar < 0x80u) [[likely]]
+			{
+				state.previous_break = ascii_grapheme_break_property(scalar);
+				state.trailing_regional_indicator_count = 0;
+				state.emoji_suffix = grapheme_emoji_suffix_state::none;
+				state.indic_suffix = grapheme_indic_suffix_state::none;
+				return;
+			}
+
 			const auto break_property = unicode::grapheme_cluster_break(scalar);
 			state.previous_break = break_property;
 			if (break_property == unicode::grapheme_cluster_break_property::regional_indicator)
@@ -1982,6 +2023,25 @@ namespace details
 			const grapheme_state& state,
 			std::uint32_t scalar) noexcept
 		{
+			if (scalar < 0x80u) [[likely]]
+			{
+				const auto current_break = ascii_grapheme_break_property(scalar);
+				const auto previous_break = state.previous_break;
+
+				if (previous_break == unicode::grapheme_cluster_break_property::cr
+					&& current_break == unicode::grapheme_cluster_break_property::lf)
+				{
+					return true;
+				}
+
+				if (is_grapheme_control(previous_break) || is_grapheme_control(current_break))
+				{
+					return false;
+				}
+
+				return previous_break == unicode::grapheme_cluster_break_property::prepend;
+			}
+
 			using enum unicode::grapheme_cluster_break_property;
 
 			const auto current_break = unicode::grapheme_cluster_break(scalar);
@@ -2057,13 +2117,26 @@ namespace details
 
 			const auto current_break = scalar_info.break_property;
 			const auto previous_break = state.previous_break;
+			const auto has_tail_state =
+				state.emoji_suffix != grapheme_emoji_suffix_state::none
+				|| state.indic_suffix != grapheme_indic_suffix_state::none;
 
-			if (previous_break == other
-				&& current_break == other
-				&& state.emoji_suffix == grapheme_emoji_suffix_state::none
-				&& state.indic_suffix == grapheme_indic_suffix_state::none) [[likely]]
+			if (!has_tail_state && previous_break == other) [[likely]]
 			{
-				return false;
+				return current_break == extend
+					|| current_break == zwj
+					|| current_break == spacing_mark;
+			}
+
+			if (!has_tail_state && previous_break == regional_indicator)
+			{
+				if (current_break == extend || current_break == zwj || current_break == spacing_mark)
+				{
+					return true;
+				}
+
+				return current_break == regional_indicator
+					&& (state.trailing_regional_indicator_count % 2u) == 1u;
 			}
 
 			if (previous_break == cr && current_break == lf)
@@ -2194,6 +2267,11 @@ namespace details
 				return 0;
 			}
 
+			if (ascii_run.size() == 1)
+			{
+				return first_continues_previous ? 0u : 1u;
+			}
+
 			std::size_t count = first_continues_previous ? 0u : 1u;
 			for (std::size_t index = 1; index != ascii_run.size(); ++index)
 			{
@@ -2317,6 +2395,49 @@ namespace details
 			}
 
 			return count;
+		}
+
+		inline constexpr std::size_t char_count_scalar(std::u16string_view text) noexcept
+		{
+			std::size_t count = 0;
+			for (const auto value : text)
+			{
+				count += is_utf16_low_surrogate(static_cast<std::uint16_t>(value)) ? 0u : 1u;
+			}
+
+			return count;
+		}
+
+		inline std::size_t char_count_runtime(std::u16string_view text) noexcept
+		{
+			std::size_t count = 0;
+			std::size_t index = 0;
+			while (index < text.size())
+			{
+				const auto remaining = text.substr(index);
+				const auto ascii_run = ascii_prefix_length(remaining);
+				if (ascii_run != 0) [[likely]]
+				{
+					count += ascii_run;
+					index += ascii_run;
+					continue;
+				}
+
+				++count;
+				index += is_utf16_high_surrogate(static_cast<std::uint16_t>(text[index])) ? 2u : 1u;
+			}
+
+			return count;
+		}
+
+		inline constexpr std::size_t char_count(std::u16string_view text) noexcept
+		{
+			if (std::is_constant_evaluated())
+			{
+				return char_count_scalar(text);
+			}
+
+			return char_count_runtime(text);
 		}
 
 		template <typename CharT>

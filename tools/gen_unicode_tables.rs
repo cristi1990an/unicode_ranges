@@ -1,5 +1,5 @@
 use std::char;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::fs;
 use std::io;
@@ -65,6 +65,35 @@ struct CaseMappingRecord {
 struct SimpleCaseMappingRecord {
     source: u32,
     mapped: u32,
+}
+
+struct UnicodeDataRecord {
+    scalar: u32,
+    canonical_combining_class: u8,
+    decomposition_mapping: Option<DecompositionMappingRecord>,
+}
+
+struct DecompositionMappingRecord {
+    compatibility: bool,
+    mapped: Vec<u32>,
+}
+
+struct CanonicalCombiningClassRangeRecord {
+    first: u32,
+    last: u32,
+    canonical_combining_class: u8,
+}
+
+struct DecompositionRecord {
+    source: u32,
+    compatibility: bool,
+    mapped: Vec<u32>,
+}
+
+struct CompositionMappingRecord {
+    first: u32,
+    second: u32,
+    composed: u32,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -162,6 +191,231 @@ fn split_case_mappings(mappings: &[CaseMappingRecord]) -> (Vec<SimpleCaseMapping
     }
 
     (simple, special)
+}
+
+fn parse_unicode_scalar(value: &str) -> io::Result<u32> {
+    u32::from_str_radix(value.trim(), 16).map_err(|err| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("invalid scalar `{value}`: {err}"),
+        )
+    })
+}
+
+fn parse_unicode_data(path: &Path) -> io::Result<Vec<UnicodeDataRecord>> {
+    let content = fs::read_to_string(path)?;
+    let mut records = Vec::new();
+
+    for (line_index, line) in content.lines().enumerate() {
+        if line.trim().is_empty() {
+            continue;
+        }
+
+        let fields: Vec<&str> = line.split(';').collect();
+        if fields.len() < 15 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "{}:{}: expected 15 semicolon-separated fields",
+                    path.display(),
+                    line_index + 1
+                ),
+            ));
+        }
+
+        let scalar = parse_unicode_scalar(fields[0])?;
+        let canonical_combining_class = fields[3].parse::<u8>().map_err(|err| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "{}:{}: invalid canonical combining class `{}`: {err}",
+                    path.display(),
+                    line_index + 1,
+                    fields[3]
+                ),
+            )
+        })?;
+
+        let decomposition_mapping = if fields[5].trim().is_empty() {
+            None
+        } else {
+            let mut parts = fields[5].split_whitespace();
+            let compatibility = parts
+                .next()
+                .is_some_and(|first| first.starts_with('<'));
+            let mapped = if compatibility {
+                parts
+                    .map(parse_unicode_scalar)
+                    .collect::<io::Result<Vec<_>>>()?
+            } else {
+                fields[5]
+                    .split_whitespace()
+                    .map(parse_unicode_scalar)
+                    .collect::<io::Result<Vec<_>>>()?
+            };
+
+            Some(DecompositionMappingRecord {
+                compatibility,
+                mapped,
+            })
+        };
+
+        records.push(UnicodeDataRecord {
+            scalar,
+            canonical_combining_class,
+            decomposition_mapping,
+        });
+    }
+
+    Ok(records)
+}
+
+fn collect_canonical_combining_class_ranges(records: &[UnicodeDataRecord]) -> Vec<CanonicalCombiningClassRangeRecord> {
+    let mut ranges: Vec<CanonicalCombiningClassRangeRecord> = Vec::new();
+
+    for record in records {
+        if record.canonical_combining_class == 0 {
+            continue;
+        }
+
+        if let Some(previous) = ranges.last_mut() {
+            if previous.last + 1 == record.scalar
+                && previous.canonical_combining_class == record.canonical_combining_class
+            {
+                previous.last = record.scalar;
+                continue;
+            }
+        }
+
+        ranges.push(CanonicalCombiningClassRangeRecord {
+            first: record.scalar,
+            last: record.scalar,
+            canonical_combining_class: record.canonical_combining_class,
+        });
+    }
+
+    ranges
+}
+
+fn collect_decomposition_records(records: &[UnicodeDataRecord]) -> Vec<DecompositionRecord> {
+    records
+        .iter()
+        .filter_map(|record| {
+            record.decomposition_mapping.as_ref().map(|mapping| DecompositionRecord {
+                source: record.scalar,
+                compatibility: mapping.compatibility,
+                mapped: mapping.mapped.clone(),
+            })
+        })
+        .collect()
+}
+
+fn collect_composition_exclusions(path: &Path) -> io::Result<BTreeSet<u32>> {
+    let mut excluded = BTreeSet::new();
+    let content = fs::read_to_string(path)?;
+
+    for (line_index, line) in content.lines().enumerate() {
+        let line = line.split('#').next().unwrap().trim();
+        if line.is_empty() {
+            continue;
+        }
+
+        let (first, last) = parse_range_spec(line).map_err(|message| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("{}:{}: {message}", path.display(), line_index + 1),
+            )
+        })?;
+
+        for scalar in first..=last {
+            excluded.insert(scalar);
+        }
+    }
+
+    Ok(excluded)
+}
+
+fn collect_composition_records(
+    records: &[UnicodeDataRecord],
+    composition_exclusions: &BTreeSet<u32>,
+) -> Vec<CompositionMappingRecord> {
+    let mut compositions = Vec::new();
+
+    for record in records {
+        if composition_exclusions.contains(&record.scalar) {
+            continue;
+        }
+
+        let Some(mapping) = &record.decomposition_mapping else {
+            continue;
+        };
+
+        if mapping.compatibility || mapping.mapped.len() != 2 {
+            continue;
+        }
+
+        compositions.push(CompositionMappingRecord {
+            first: mapping.mapped[0],
+            second: mapping.mapped[1],
+            composed: record.scalar,
+        });
+    }
+
+    compositions.sort_unstable_by_key(|mapping| (mapping.first, mapping.second));
+    compositions
+}
+
+fn parse_case_folding(path: &Path) -> io::Result<Vec<CaseMappingRecord>> {
+    let content = fs::read_to_string(path)?;
+    let mut mappings = BTreeMap::<u32, CaseMappingRecord>::new();
+
+    for (line_index, line) in content.lines().enumerate() {
+        let line = line.split('#').next().unwrap().trim();
+        if line.is_empty() {
+            continue;
+        }
+
+        let fields: Vec<&str> = line.split(';').map(str::trim).collect();
+        if fields.len() < 3 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "{}:{}: expected at least three semicolon-separated fields",
+                    path.display(),
+                    line_index + 1
+                ),
+            ));
+        }
+
+        let source = parse_unicode_scalar(fields[0])?;
+        let status = fields[1];
+        let mapped = fields[2]
+            .split_whitespace()
+            .map(parse_unicode_scalar)
+            .collect::<io::Result<Vec<_>>>()?;
+
+        match status {
+            "F" => {
+                mappings.insert(source, CaseMappingRecord { source, mapped });
+            }
+            "C" | "S" => {
+                mappings.entry(source).or_insert(CaseMappingRecord { source, mapped });
+            }
+            "T" => {}
+            _ => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!(
+                        "{}:{}: unsupported case folding status `{status}`",
+                        path.display(),
+                        line_index + 1
+                    ),
+                ));
+            }
+        }
+    }
+
+    Ok(mappings.into_values().collect())
 }
 
 fn contains_scalar_in_ranges(ranges: &[Range], scalar: u32) -> bool {
@@ -309,6 +563,14 @@ fn emit_case_mapping_support(max_length: usize) {
     println!("    std::uint32_t mapped;");
     println!("}};");
     println!();
+    println!("struct unicode_simple_case_delta_range");
+    println!("{{");
+    println!("    std::uint32_t first;");
+    println!("    std::uint32_t last;");
+    println!("    std::int32_t delta;");
+    println!("    std::uint8_t stride;");
+    println!("}};");
+    println!();
     println!("struct unicode_special_case_mapping");
     println!("{{");
     println!("    std::uint32_t source;");
@@ -320,6 +582,24 @@ fn emit_case_mapping_support(max_length: usize) {
     println!();
     println!("inline constexpr std::size_t unicode_mapping_page_shift = 8;");
     println!("inline constexpr std::size_t unicode_mapping_page_count = (0x10FFFFu >> unicode_mapping_page_shift) + 1u;");
+    println!();
+    println!("struct unicode_range_page_slice");
+    println!("{{");
+    println!("    std::uint16_t begin;");
+    println!("    std::uint16_t end;");
+    println!("}};");
+    println!();
+    println!("template <std::size_t N>");
+    println!("struct unicode_simple_case_delta_range_set");
+    println!("{{");
+    println!("    std::array<unicode_simple_case_delta_range, N> ranges{{}};");
+    println!("    std::uint16_t count = 0;");
+    println!("}};");
+    println!();
+    println!("constexpr std::uint32_t apply_case_mapping_delta(std::uint32_t scalar, std::int32_t delta) noexcept");
+    println!("{{");
+    println!("    return static_cast<std::uint32_t>(static_cast<std::int64_t>(scalar) + static_cast<std::int64_t>(delta));");
+    println!("}}");
     println!();
     println!("template <typename Mapping, std::size_t N>");
     println!(
@@ -372,6 +652,117 @@ fn emit_case_mapping_support(max_length: usize) {
     println!("    return nullptr;");
     println!("}}");
     println!();
+    println!("template <typename Range, std::size_t N>");
+    println!("constexpr auto make_overlapping_range_page_slices(");
+    println!("    const std::array<Range, N>& ranges,");
+    println!("    std::size_t count = N) noexcept");
+    println!("{{");
+    println!("    std::array<unicode_range_page_slice, unicode_mapping_page_count> page_slices{{}};");
+    println!("    std::size_t begin = 0;");
+    println!("    std::size_t end = 0;");
+    println!("    for (std::size_t page = 0; page != unicode_mapping_page_count; ++page)");
+    println!("    {{");
+    println!("        const auto page_start = static_cast<std::uint32_t>(page << unicode_mapping_page_shift);");
+    println!("        const auto page_end = static_cast<std::uint32_t>((page + 1u) << unicode_mapping_page_shift);");
+    println!("        while (begin < count && ranges[begin].last < page_start)");
+    println!("        {{");
+    println!("            ++begin;");
+    println!("        }}");
+    println!("        if (end < begin)");
+    println!("        {{");
+    println!("            end = begin;");
+    println!("        }}");
+    println!("        while (end < count && ranges[end].first < page_end)");
+    println!("        {{");
+    println!("            ++end;");
+    println!("        }}");
+    println!("        page_slices[page] = unicode_range_page_slice{{");
+    println!("            static_cast<std::uint16_t>(begin),");
+    println!("            static_cast<std::uint16_t>(end)");
+    println!("        }};");
+    println!("    }}");
+    println!("    return page_slices;");
+    println!("}}");
+    println!();
+    println!("template <typename Range, std::size_t N, std::size_t P>");
+    println!("constexpr std::size_t find_overlapping_range_index_paged(");
+    println!("    std::uint32_t scalar,");
+    println!("    const std::array<Range, N>& ranges,");
+    println!("    std::size_t count,");
+    println!("    const std::array<unicode_range_page_slice, P>& page_slices) noexcept");
+    println!("{{");
+    println!("    const auto page = static_cast<std::size_t>(scalar >> unicode_mapping_page_shift);");
+    println!("    std::size_t left = page_slices[page].begin;");
+    println!("    std::size_t right = page_slices[page].end;");
+    println!("    while (left < right)");
+    println!("    {{");
+    println!("        const std::size_t mid = left + (right - left) / 2;");
+    println!("        const Range& range = ranges[mid];");
+    println!("        if (scalar < range.first)");
+    println!("        {{");
+    println!("            right = mid;");
+    println!("        }}");
+    println!("        else if (scalar > range.last)");
+    println!("        {{");
+    println!("            left = mid + 1;");
+    println!("        }}");
+    println!("        else");
+    println!("        {{");
+    println!("            return mid;");
+    println!("        }}");
+    println!("    }}");
+    println!("    return count;");
+    println!("}}");
+    println!();
+    println!("template <std::size_t N>");
+    println!("constexpr auto make_simple_case_delta_ranges(const std::array<unicode_simple_case_mapping, N>& mappings) noexcept");
+    println!("{{");
+    println!("    unicode_simple_case_delta_range_set<N> result{{}};");
+    println!("    std::size_t read = 0;");
+    println!("    while (read < N)");
+    println!("    {{");
+    println!("        const auto first = mappings[read];");
+    println!("        const auto delta = static_cast<std::int64_t>(first.mapped) - static_cast<std::int64_t>(first.source);");
+    println!("        std::size_t end = read;");
+    println!("        std::uint32_t stride = 0;");
+    println!("        while (end + 1 < N)");
+    println!("        {{");
+    println!("            const auto& current = mappings[end];");
+    println!("            const auto& next = mappings[end + 1];");
+    println!("            const auto next_delta = static_cast<std::int64_t>(next.mapped) - static_cast<std::int64_t>(next.source);");
+    println!("            const auto step = next.source - current.source;");
+    println!("            if (next_delta != delta || (step != 1u && step != 2u))");
+    println!("            {{");
+    println!("                break;");
+    println!("            }}");
+    println!("            if (stride == 0)");
+    println!("            {{");
+    println!("                stride = step;");
+    println!("            }}");
+    println!("            else if (step != stride)");
+    println!("            {{");
+    println!("                break;");
+    println!("            }}");
+    println!("            ++end;");
+    println!("        }}");
+    println!();
+    println!("        if (end > read)");
+    println!("        {{");
+    println!("            result.ranges[result.count++] = unicode_simple_case_delta_range{{");
+    println!("                first.source,");
+    println!("                mappings[end].source,");
+    println!("                static_cast<std::int32_t>(delta),");
+    println!("                static_cast<std::uint8_t>(stride)");
+    println!("            }};");
+    println!("            read = end + 1;");
+    println!("            continue;");
+    println!("        }}");
+    println!();
+    println!("        ++read;");
+    println!("    }}");
+    println!("    return result;");
+    println!("}}");
+    println!();
 }
 
 fn emit_simple_case_mappings(name: &str, mappings: &[SimpleCaseMappingRecord]) {
@@ -416,10 +807,189 @@ fn emit_special_case_mappings(name: &str, mappings: &[CaseMappingRecord], max_le
     println!();
 }
 
+fn emit_canonical_combining_class_support() {
+    println!("struct unicode_canonical_combining_class_range");
+    println!("{{");
+    println!("    std::uint32_t first;");
+    println!("    std::uint32_t last;");
+    println!("    std::uint8_t canonical_combining_class;");
+    println!("}};");
+    println!();
+}
+
+fn emit_canonical_combining_class_ranges(
+    name: &str,
+    ranges: &[CanonicalCombiningClassRangeRecord],
+) {
+    println!(
+        "inline constexpr std::array<unicode_canonical_combining_class_range, {}> {}{{{{",
+        ranges.len(),
+        name
+    );
+    for range in ranges {
+        println!(
+            "    {{ 0x{:04X}u, 0x{:04X}u, {}u }},",
+            range.first,
+            range.last,
+            range.canonical_combining_class
+        );
+    }
+    println!("}}}};");
+    println!();
+}
+
+fn emit_canonical_combining_class_lookup(name: &str, ranges_name: &str) {
+    println!("inline constexpr auto {ranges_name}_page_slices =");
+    println!("    make_overlapping_range_page_slices({ranges_name});");
+    println!();
+    println!("constexpr std::uint8_t {name}(std::uint32_t scalar) noexcept");
+    println!("{{");
+    println!("    const auto index = find_overlapping_range_index_paged(");
+    println!("        scalar,");
+    println!("        {ranges_name},");
+    println!("        {ranges_name}.size(),");
+    println!("        {ranges_name}_page_slices);");
+    println!("    if (index == {ranges_name}.size())");
+    println!("    {{");
+    println!("        return 0u;");
+    println!("    }}");
+    println!("    return {ranges_name}[index].canonical_combining_class;");
+    println!("}}");
+    println!();
+}
+
+fn decomposition_mapping_max_length(mappings: &[DecompositionRecord]) -> usize {
+    mappings
+        .iter()
+        .map(|mapping| mapping.mapped.len())
+        .max()
+        .unwrap_or(1)
+}
+
+fn emit_decomposition_support(max_length: usize) {
+    println!("inline constexpr std::size_t unicode_decomposition_max_length = {max_length};");
+    println!();
+    println!("struct unicode_decomposition_mapping");
+    println!("{{");
+    println!("    std::uint32_t source;");
+    println!("    bool compatibility;");
+    println!("    std::uint8_t count;");
+    println!("    std::array<std::uint32_t, unicode_decomposition_max_length> mapped;");
+    println!("}};");
+    println!();
+    println!("struct unicode_composition_mapping");
+    println!("{{");
+    println!("    std::uint32_t first;");
+    println!("    std::uint32_t second;");
+    println!("    std::uint32_t composed;");
+    println!("}};");
+    println!();
+    println!("template <std::size_t N>");
+    println!("constexpr auto make_first_mapping_page_index(const std::array<unicode_composition_mapping, N>& mappings) noexcept");
+    println!("{{");
+    println!("    std::array<std::uint16_t, unicode_mapping_page_count + 1> page_index{{}};");
+    println!("    std::size_t mapping_index = 0;");
+    println!("    for (std::size_t page = 0; page != unicode_mapping_page_count; ++page)");
+    println!("    {{");
+    println!("        page_index[page] = static_cast<std::uint16_t>(mapping_index);");
+    println!("        const auto page_end = static_cast<std::uint32_t>((page + 1u) << unicode_mapping_page_shift);");
+    println!("        while (mapping_index < N && mappings[mapping_index].first < page_end)");
+    println!("        {{");
+    println!("            ++mapping_index;");
+    println!("        }}");
+    println!("    }}");
+    println!("    page_index[unicode_mapping_page_count] = static_cast<std::uint16_t>(mapping_index);");
+    println!("    return page_index;");
+    println!("}}");
+    println!();
+    println!("template <std::size_t N, std::size_t P>");
+    println!("constexpr const unicode_composition_mapping* find_composition_mapping_paged(");
+    println!("    std::uint32_t first,");
+    println!("    std::uint32_t second,");
+    println!("    const std::array<unicode_composition_mapping, N>& mappings,");
+    println!("    const std::array<std::uint16_t, P>& page_index) noexcept");
+    println!("{{");
+    println!("    const auto page = static_cast<std::size_t>(first >> unicode_mapping_page_shift);");
+    println!("    std::size_t left = page_index[page];");
+    println!("    std::size_t right = page_index[page + 1u];");
+    println!("    while (left < right)");
+    println!("    {{");
+    println!("        const std::size_t mid = left + (right - left) / 2;");
+    println!("        const auto& mapping = mappings[mid];");
+    println!("        if (first < mapping.first || (first == mapping.first && second < mapping.second))");
+    println!("        {{");
+    println!("            right = mid;");
+    println!("        }}");
+    println!("        else if (first > mapping.first || (first == mapping.first && second > mapping.second))");
+    println!("        {{");
+    println!("            left = mid + 1;");
+    println!("        }}");
+    println!("        else");
+    println!("        {{");
+    println!("            return &mapping;");
+    println!("        }}");
+    println!("    }}");
+    println!("    return nullptr;");
+    println!("}}");
+    println!();
+}
+
+fn emit_decomposition_mappings(name: &str, mappings: &[DecompositionRecord], max_length: usize) {
+    println!(
+        "inline constexpr std::array<unicode_decomposition_mapping, {}> {}{{{{",
+        mappings.len(),
+        name
+    );
+    for mapping in mappings {
+        print!(
+            "    {{ 0x{:04X}u, {}, {}u, {{ ",
+            mapping.source,
+            if mapping.compatibility { "true" } else { "false" },
+            mapping.mapped.len()
+        );
+        for index in 0..max_length {
+            let scalar = mapping.mapped.get(index).copied().unwrap_or(0);
+            if index != 0 {
+                print!(", ");
+            }
+            print!("0x{scalar:04X}u");
+        }
+        println!(" }} }},");
+    }
+    println!("}}}};");
+    println!();
+}
+
+fn emit_composition_mappings(name: &str, mappings: &[CompositionMappingRecord]) {
+    println!(
+        "inline constexpr std::array<unicode_composition_mapping, {}> {}{{{{",
+        mappings.len(),
+        name
+    );
+    for mapping in mappings {
+        println!(
+            "    {{ 0x{:04X}u, 0x{:04X}u, 0x{:04X}u }},",
+            mapping.first,
+            mapping.second,
+            mapping.composed
+        );
+    }
+    println!("}}}};");
+    println!();
+}
+
 fn emit_source_mapping_lookup(fn_name: &str, mapping_type: &str, mappings_name: &str) {
     println!(
         "inline constexpr auto {mappings_name}_page_index = make_source_mapping_page_index({mappings_name});"
     );
+    emit_source_mapping_lookup_without_page_index(fn_name, mapping_type, mappings_name);
+}
+
+fn emit_source_mapping_lookup_without_page_index(
+    fn_name: &str,
+    mapping_type: &str,
+    mappings_name: &str,
+) {
     println!();
     println!(
         "constexpr const {mapping_type}* {fn_name}(std::uint32_t scalar) noexcept"
@@ -428,6 +998,31 @@ fn emit_source_mapping_lookup(fn_name: &str, mapping_type: &str, mappings_name: 
     println!(
         "    return find_source_mapping_paged(scalar, {mappings_name}, {mappings_name}_page_index);"
     );
+    println!("}}");
+    println!();
+}
+
+fn emit_simple_case_delta_lookup(fn_name: &str, mappings_name: &str) {
+    println!("inline constexpr auto {mappings_name}_page_index = make_source_mapping_page_index({mappings_name});");
+    println!("inline constexpr auto {mappings_name}_delta_ranges = make_simple_case_delta_ranges({mappings_name});");
+    println!("inline constexpr auto {mappings_name}_delta_ranges_page_slices =");
+    println!("    make_overlapping_range_page_slices({mappings_name}_delta_ranges.ranges, {mappings_name}_delta_ranges.count);");
+    println!();
+    println!("constexpr const unicode_simple_case_delta_range* {fn_name}(std::uint32_t scalar) noexcept");
+    println!("{{");
+    println!("    const auto index = find_overlapping_range_index_paged(");
+    println!("        scalar,");
+    println!("        {mappings_name}_delta_ranges.ranges,");
+    println!("        {mappings_name}_delta_ranges.count,");
+    println!("        {mappings_name}_delta_ranges_page_slices);");
+    println!("    if (index == {mappings_name}_delta_ranges.count)");
+    println!("    {{");
+    println!("        return nullptr;");
+    println!("    }}");
+    println!();
+    println!("    const auto& range = {mappings_name}_delta_ranges.ranges[index];");
+    println!("    const auto offset = scalar - range.first;");
+    println!("    return (range.stride != 0 && offset % range.stride == 0) ? &range : nullptr;");
     println!("}}");
     println!();
 }
@@ -522,6 +1117,16 @@ fn emit_grapheme_property_lookup(fn_name: &str, ranges_name: &str) {
     println!("        indic_conjunct_break_property::none,");
     println!("        false");
     println!("    }};");
+    println!("}}");
+    println!();
+}
+
+fn emit_composition_mapping_lookup(fn_name: &str, mappings_name: &str) {
+    println!("inline constexpr auto {mappings_name}_page_index = make_first_mapping_page_index({mappings_name});");
+    println!();
+    println!("constexpr const unicode_composition_mapping* {fn_name}(std::uint32_t first, std::uint32_t second) noexcept");
+    println!("{{");
+    println!("    return find_composition_mapping_paged(first, second, {mappings_name}, {mappings_name}_page_index);");
     println!("}}");
     println!();
 }
@@ -742,6 +1347,15 @@ fn main() -> io::Result<()> {
         &extended_pictographic_ranges,
         &indic_conjunct_break_ranges,
     );
+    let unicode_data = parse_unicode_data(&data_root.join("ucd").join("UnicodeData.txt"))?;
+    let canonical_combining_class_ranges =
+        collect_canonical_combining_class_ranges(&unicode_data);
+    let decomposition_mappings = collect_decomposition_records(&unicode_data);
+    let composition_exclusions =
+        collect_composition_exclusions(&data_root.join("ucd").join("CompositionExclusions.txt"))?;
+    let composition_mappings =
+        collect_composition_records(&unicode_data, &composition_exclusions);
+    let case_fold_mappings = parse_case_folding(&data_root.join("ucd").join("CaseFolding.txt"))?;
     let lowercase_mappings =
         collect_case_mappings(|ch| ch.to_lowercase().map(|mapped| mapped as u32).collect());
     let uppercase_mappings =
@@ -750,8 +1364,13 @@ fn main() -> io::Result<()> {
         split_case_mappings(&lowercase_mappings);
     let (uppercase_simple_mappings, uppercase_special_mappings) =
         split_case_mappings(&uppercase_mappings);
+    let (case_fold_simple_mappings, case_fold_special_mappings) =
+        split_case_mappings(&case_fold_mappings);
     let unicode_case_mapping_max_length = case_mapping_max_length(&lowercase_special_mappings)
-        .max(case_mapping_max_length(&uppercase_special_mappings));
+        .max(case_mapping_max_length(&uppercase_special_mappings))
+        .max(case_mapping_max_length(&case_fold_special_mappings));
+    let unicode_decomposition_max_length =
+        decomposition_mapping_max_length(&decomposition_mappings);
     println!("#ifndef UTF8_RANGES_UNICODE_TABLES_HPP");
     println!("#define UTF8_RANGES_UNICODE_TABLES_HPP");
     println!();
@@ -771,6 +1390,8 @@ fn main() -> io::Result<()> {
     );
     println!();
     emit_case_mapping_support(unicode_case_mapping_max_length);
+    emit_decomposition_support(unicode_decomposition_max_length);
+    emit_canonical_combining_class_support();
     println!("template <std::size_t N>");
     println!("constexpr bool in_ranges(std::uint32_t scalar, const std::array<unicode_range, N>& ranges) noexcept");
     println!("{{");
@@ -831,6 +1452,7 @@ fn main() -> io::Result<()> {
     emit_ranges("numeric_ranges", &collect_ranges(|ch| ch.is_numeric()));
     emit_ranges("digit_ranges", &collect_ranges(|ch| ch.is_digit(10)));
     emit_simple_case_mappings("lowercase_simple_mappings", &lowercase_simple_mappings);
+    emit_simple_case_mappings("case_fold_simple_mappings", &case_fold_simple_mappings);
     emit_special_case_mappings(
         "lowercase_special_mappings",
         &lowercase_special_mappings,
@@ -842,6 +1464,21 @@ fn main() -> io::Result<()> {
         &uppercase_special_mappings,
         unicode_case_mapping_max_length,
     );
+    emit_special_case_mappings(
+        "case_fold_special_mappings",
+        &case_fold_special_mappings,
+        unicode_case_mapping_max_length,
+    );
+    emit_decomposition_mappings(
+        "decomposition_mappings",
+        &decomposition_mappings,
+        unicode_decomposition_max_length,
+    );
+    emit_composition_mappings("composition_mappings", &composition_mappings);
+    emit_canonical_combining_class_ranges(
+        "canonical_combining_class_ranges",
+        &canonical_combining_class_ranges,
+    );
     emit_grapheme_property_ranges("grapheme_properties_ranges", &grapheme_properties_ranges);
 
     emit_bool_lookup("is_alphabetic", "alphabetic_ranges");
@@ -851,7 +1488,11 @@ fn main() -> io::Result<()> {
     emit_bool_lookup("is_control", "control_ranges");
     emit_bool_lookup("is_numeric", "numeric_ranges");
     emit_bool_lookup("is_digit", "digit_ranges");
-    emit_source_mapping_lookup(
+    emit_simple_case_delta_lookup(
+        "lowercase_simple_delta_range",
+        "lowercase_simple_mappings",
+    );
+    emit_source_mapping_lookup_without_page_index(
         "lowercase_simple_mapping",
         "unicode_simple_case_mapping",
         "lowercase_simple_mappings",
@@ -861,7 +1502,11 @@ fn main() -> io::Result<()> {
         "unicode_special_case_mapping",
         "lowercase_special_mappings",
     );
-    emit_source_mapping_lookup(
+    emit_simple_case_delta_lookup(
+        "uppercase_simple_delta_range",
+        "uppercase_simple_mappings",
+    );
+    emit_source_mapping_lookup_without_page_index(
         "uppercase_simple_mapping",
         "unicode_simple_case_mapping",
         "uppercase_simple_mappings",
@@ -870,6 +1515,33 @@ fn main() -> io::Result<()> {
         "uppercase_special_mapping",
         "unicode_special_case_mapping",
         "uppercase_special_mappings",
+    );
+    emit_simple_case_delta_lookup(
+        "case_fold_simple_delta_range",
+        "case_fold_simple_mappings",
+    );
+    emit_source_mapping_lookup_without_page_index(
+        "case_fold_simple_mapping",
+        "unicode_simple_case_mapping",
+        "case_fold_simple_mappings",
+    );
+    emit_source_mapping_lookup(
+        "case_fold_special_mapping",
+        "unicode_special_case_mapping",
+        "case_fold_special_mappings",
+    );
+    emit_source_mapping_lookup(
+        "decomposition_mapping",
+        "unicode_decomposition_mapping",
+        "decomposition_mappings",
+    );
+    emit_composition_mapping_lookup(
+        "composition_mapping",
+        "composition_mappings",
+    );
+    emit_canonical_combining_class_lookup(
+        "canonical_combining_class",
+        "canonical_combining_class_ranges",
     );
     emit_grapheme_property_lookup("grapheme_properties", "grapheme_properties_ranges");
     println!("constexpr grapheme_cluster_break_property grapheme_cluster_break(std::uint32_t scalar) noexcept");

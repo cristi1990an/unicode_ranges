@@ -1130,6 +1130,24 @@ public:
     template<class Allocator = std::allocator<char8_t>>
     constexpr basic_utf8_string<Allocator>
         to_uppercase(size_type pos, size_type count, const Allocator& alloc = Allocator()) const;
+    template<class Allocator = std::allocator<char8_t>>
+    constexpr basic_utf8_string<Allocator>
+        normalize(normalization_form form, const Allocator& alloc = Allocator()) const;
+    template<class Allocator = std::allocator<char8_t>>
+    constexpr basic_utf8_string<Allocator>
+        to_nfc(const Allocator& alloc = Allocator()) const;
+    template<class Allocator = std::allocator<char8_t>>
+    constexpr basic_utf8_string<Allocator>
+        to_nfd(const Allocator& alloc = Allocator()) const;
+    template<class Allocator = std::allocator<char8_t>>
+    constexpr basic_utf8_string<Allocator>
+        to_nfkc(const Allocator& alloc = Allocator()) const;
+    template<class Allocator = std::allocator<char8_t>>
+    constexpr basic_utf8_string<Allocator>
+        to_nfkd(const Allocator& alloc = Allocator()) const;
+    template<class Allocator = std::allocator<char8_t>>
+    constexpr basic_utf8_string<Allocator>
+        case_fold(const Allocator& alloc = Allocator()) const;
     constexpr utf8_string replace_all(utf8_char from, utf8_char to) const;
     constexpr utf8_string replace_all(utf8_char from, utf8_string_view to) const;
     constexpr utf8_string replace_all(utf8_string_view from, utf8_char to) const;
@@ -2338,6 +2356,24 @@ constexpr basic_utf8_string<Allocator>
 template<class Allocator = std::allocator<char8_t>>
 constexpr basic_utf8_string<Allocator>
     to_uppercase(size_type pos, size_type count, const Allocator& alloc = Allocator()) const;
+template<class Allocator = std::allocator<char8_t>>
+constexpr basic_utf8_string<Allocator>
+    normalize(normalization_form form, const Allocator& alloc = Allocator()) const;
+template<class Allocator = std::allocator<char8_t>>
+constexpr basic_utf8_string<Allocator>
+    to_nfc(const Allocator& alloc = Allocator()) const;
+template<class Allocator = std::allocator<char8_t>>
+constexpr basic_utf8_string<Allocator>
+    to_nfd(const Allocator& alloc = Allocator()) const;
+template<class Allocator = std::allocator<char8_t>>
+constexpr basic_utf8_string<Allocator>
+    to_nfkc(const Allocator& alloc = Allocator()) const;
+template<class Allocator = std::allocator<char8_t>>
+constexpr basic_utf8_string<Allocator>
+    to_nfkd(const Allocator& alloc = Allocator()) const;
+template<class Allocator = std::allocator<char8_t>>
+constexpr basic_utf8_string<Allocator>
+    case_fold(const Allocator& alloc = Allocator()) const;
 ```
 
 Return an owning UTF-8 string with Unicode case conversion applied.
@@ -2359,6 +2395,9 @@ assert(u8"ÄΩİ"_utf8_sv.to_lowercase() == u8"äωi̇"_utf8_s);
 assert(u8"äßω"_utf8_sv.to_uppercase() == u8"ÄSSΩ"_utf8_s);
 assert(u8"abäßcd"_utf8_sv.to_uppercase(2, 4) == u8"abÄSScd"_utf8_s);
 ```
+- `normalize(form)` selects `nfc`, `nfd`, `nfkc`, or `nfkd`.
+- `to_nfc`, `to_nfd`, `to_nfkc`, and `to_nfkd` are convenience wrappers.
+- `case_fold()` performs Unicode full case folding for caseless matching.
 - Linear in `sv.size()` for `utf8_string_view`
 
 #### `ends_with`
@@ -2622,6 +2661,24 @@ public:
     template<class Allocator = std::allocator<char16_t>>
     constexpr basic_utf16_string<Allocator>
         to_uppercase(size_type pos, size_type count, const Allocator& alloc = Allocator()) const;
+    template<class Allocator = std::allocator<char16_t>>
+    constexpr basic_utf16_string<Allocator>
+        normalize(normalization_form form, const Allocator& alloc = Allocator()) const;
+    template<class Allocator = std::allocator<char16_t>>
+    constexpr basic_utf16_string<Allocator>
+        to_nfc(const Allocator& alloc = Allocator()) const;
+    template<class Allocator = std::allocator<char16_t>>
+    constexpr basic_utf16_string<Allocator>
+        to_nfd(const Allocator& alloc = Allocator()) const;
+    template<class Allocator = std::allocator<char16_t>>
+    constexpr basic_utf16_string<Allocator>
+        to_nfkc(const Allocator& alloc = Allocator()) const;
+    template<class Allocator = std::allocator<char16_t>>
+    constexpr basic_utf16_string<Allocator>
+        to_nfkd(const Allocator& alloc = Allocator()) const;
+    template<class Allocator = std::allocator<char16_t>>
+    constexpr basic_utf16_string<Allocator>
+        case_fold(const Allocator& alloc = Allocator()) const;
     constexpr size_type ceil_char_boundary(size_type pos) const noexcept;
     constexpr size_type floor_char_boundary(size_type pos) const noexcept;
     constexpr size_type ceil_grapheme_boundary(size_type pos) const noexcept;
@@ -2705,6 +2762,24 @@ constexpr basic_utf16_string<Allocator>
 template<class Allocator = std::allocator<char16_t>>
 constexpr basic_utf16_string<Allocator>
     to_uppercase(size_type pos, size_type count, const Allocator& alloc = Allocator()) const;
+template<class Allocator = std::allocator<char16_t>>
+constexpr basic_utf16_string<Allocator>
+    normalize(normalization_form form, const Allocator& alloc = Allocator()) const;
+template<class Allocator = std::allocator<char16_t>>
+constexpr basic_utf16_string<Allocator>
+    to_nfc(const Allocator& alloc = Allocator()) const;
+template<class Allocator = std::allocator<char16_t>>
+constexpr basic_utf16_string<Allocator>
+    to_nfd(const Allocator& alloc = Allocator()) const;
+template<class Allocator = std::allocator<char16_t>>
+constexpr basic_utf16_string<Allocator>
+    to_nfkc(const Allocator& alloc = Allocator()) const;
+template<class Allocator = std::allocator<char16_t>>
+constexpr basic_utf16_string<Allocator>
+    to_nfkd(const Allocator& alloc = Allocator()) const;
+template<class Allocator = std::allocator<char16_t>>
+constexpr basic_utf16_string<Allocator>
+    case_fold(const Allocator& alloc = Allocator()) const;
 ```
 
 Returns a new UTF-16 owning string with ASCII-only or full Unicode case conversion applied.
@@ -2725,6 +2800,9 @@ assert(u"äßω"_utf16_sv.to_uppercase() == u"ÄSSΩ"_utf16_s);
 assert(u"abäßcd"_utf16_sv.to_uppercase(2, 2) == u"abÄSScd"_utf16_s);
 ```
 
+- `normalize(form)` selects `nfc`, `nfd`, `nfkc`, or `nfkd`.
+- `to_nfc`, `to_nfd`, `to_nfkc`, and `to_nfkd` are convenience wrappers.
+- `case_fold()` performs Unicode full case folding for caseless matching.
 - Linear in `sv.size()` for `utf16_string_view`
 
 #### `split`
@@ -3335,6 +3413,18 @@ constexpr basic_utf16_string to_uppercase() const&;
 constexpr basic_utf16_string to_uppercase(size_type pos, size_type count) const&;
 constexpr basic_utf16_string to_uppercase() &&;
 constexpr basic_utf16_string to_uppercase(size_type pos, size_type count) &&;
+constexpr basic_utf16_string normalize(normalization_form form) const&;
+constexpr basic_utf16_string normalize(normalization_form form) &&;
+constexpr basic_utf16_string to_nfc() const&;
+constexpr basic_utf16_string to_nfc() &&;
+constexpr basic_utf16_string to_nfd() const&;
+constexpr basic_utf16_string to_nfd() &&;
+constexpr basic_utf16_string to_nfkc() const&;
+constexpr basic_utf16_string to_nfkc() &&;
+constexpr basic_utf16_string to_nfkd() const&;
+constexpr basic_utf16_string to_nfkd() &&;
+constexpr basic_utf16_string case_fold() const&;
+constexpr basic_utf16_string case_fold() &&;
 ```
 
 Returns a new owning string after replacing non-overlapping matches of `from`.
@@ -3507,6 +3597,18 @@ public:
     constexpr basic_utf8_string to_uppercase(size_type pos, size_type count) const&;
     constexpr basic_utf8_string to_uppercase() &&;
     constexpr basic_utf8_string to_uppercase(size_type pos, size_type count) &&;
+    constexpr basic_utf8_string normalize(normalization_form form) const&;
+    constexpr basic_utf8_string normalize(normalization_form form) &&;
+    constexpr basic_utf8_string to_nfc() const&;
+    constexpr basic_utf8_string to_nfc() &&;
+    constexpr basic_utf8_string to_nfd() const&;
+    constexpr basic_utf8_string to_nfd() &&;
+    constexpr basic_utf8_string to_nfkc() const&;
+    constexpr basic_utf8_string to_nfkc() &&;
+    constexpr basic_utf8_string to_nfkd() const&;
+    constexpr basic_utf8_string to_nfkd() &&;
+    constexpr basic_utf8_string case_fold() const&;
+    constexpr basic_utf8_string case_fold() &&;
     constexpr void reserve(std::size_t new_cap);
     constexpr auto base() const& noexcept;
     constexpr auto base() && noexcept;

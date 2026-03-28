@@ -31,10 +31,6 @@ public:
 
 		iterator() = default;
 
-		constexpr iterator(std::u16string_view base, std::size_t current) noexcept
-			: base_(base), current_(current)
-		{}
-
 		constexpr reference operator*() const noexcept
 		{
 			const auto first = static_cast<std::uint16_t>(base_[current_]);
@@ -67,6 +63,12 @@ public:
 		}
 
 	private:
+		friend class utf16_char_indices_view;
+
+		constexpr iterator(std::u16string_view base, std::size_t current) noexcept
+			: base_(base), current_(current)
+		{}
+
 		std::u16string_view base_{};
 		std::size_t current_ = 0;
 	};
@@ -115,10 +117,6 @@ public:
 
 		iterator() = default;
 
-		constexpr iterator(std::u16string_view base, std::size_t current, std::size_t next) noexcept
-			: base_(base), current_(current), next_(next)
-		{}
-
 		constexpr reference operator*() const noexcept
 		{
 			return value_type{
@@ -155,6 +153,12 @@ public:
 		}
 
 	private:
+		friend class utf16_grapheme_indices_view<View>;
+
+		constexpr iterator(std::u16string_view base, std::size_t current, std::size_t next) noexcept
+			: base_(base), current_(current), next_(next)
+		{}
+
 		std::u16string_view base_{};
 		std::size_t current_ = 0;
 		std::size_t next_ = 0;
@@ -2909,6 +2913,20 @@ public:
 		size_type pos,
 		size_type count,
 		const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char16_t>>
+	constexpr basic_utf16_string<Allocator> normalize(
+		normalization_form form,
+		const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char16_t>>
+	constexpr basic_utf16_string<Allocator> to_nfc(const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char16_t>>
+	constexpr basic_utf16_string<Allocator> to_nfd(const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char16_t>>
+	constexpr basic_utf16_string<Allocator> to_nfkc(const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char16_t>>
+	constexpr basic_utf16_string<Allocator> to_nfkd(const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char16_t>>
+	constexpr basic_utf16_string<Allocator> case_fold(const Allocator& alloc = Allocator()) const;
 	template <typename Allocator = std::allocator<char8_t>>
 	constexpr basic_utf8_string<Allocator> to_utf8(const Allocator& alloc = Allocator()) const;
 
@@ -2944,6 +2962,31 @@ public:
 	constexpr bool is_grapheme_boundary(size_type index) const noexcept
 	{
 		return details::is_grapheme_boundary(code_unit_view(), index);
+	}
+
+	constexpr bool is_normalized(normalization_form form) const
+	{
+		return normalize(form) == View::from_code_units_unchecked(code_unit_view());
+	}
+
+	constexpr bool is_nfc() const
+	{
+		return is_normalized(normalization_form::nfc);
+	}
+
+	constexpr bool is_nfd() const
+	{
+		return is_normalized(normalization_form::nfd);
+	}
+
+	constexpr bool is_nfkc() const
+	{
+		return is_normalized(normalization_form::nfkc);
+	}
+
+	constexpr bool is_nfkd() const
+	{
+		return is_normalized(normalization_form::nfkd);
 	}
 
 	constexpr bool contains(utf16_char ch) const noexcept
@@ -3349,7 +3392,7 @@ public:
 
 	constexpr size_type char_count() const noexcept
 	{
-		return static_cast<size_type>(std::ranges::distance(chars()));
+		return static_cast<size_type>(details::char_count(code_unit_view()));
 	}
 
 	constexpr size_type grapheme_count() const noexcept

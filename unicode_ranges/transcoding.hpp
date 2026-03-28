@@ -246,6 +246,237 @@ namespace unicode_ranges
 			: encoding_constants::utf16_surrogate_code_unit_count;
 	}
 
+	inline constexpr bool normalization_uses_compatibility(normalization_form form) noexcept
+	{
+		return form == normalization_form::nfkc || form == normalization_form::nfkd;
+	}
+
+	inline constexpr bool normalization_uses_composition(normalization_form form) noexcept
+	{
+		return form == normalization_form::nfc || form == normalization_form::nfkc;
+	}
+
+	inline constexpr bool is_hangul_syllable(std::uint32_t scalar) noexcept
+	{
+		return scalar >= 0xAC00u && scalar < 0xD7A4u;
+	}
+
+	inline constexpr bool is_hangul_l_jamo(std::uint32_t scalar) noexcept
+	{
+		return scalar >= 0x1100u && scalar < 0x1113u;
+	}
+
+	inline constexpr bool is_hangul_v_jamo(std::uint32_t scalar) noexcept
+	{
+		return scalar >= 0x1161u && scalar < 0x1176u;
+	}
+
+	inline constexpr bool is_hangul_t_jamo(std::uint32_t scalar) noexcept
+	{
+		return scalar > 0x11A7u && scalar < 0x11C3u;
+	}
+
+	inline constexpr void append_reordered_scalar(
+		std::u32string& scalars,
+		std::size_t& segment_begin,
+		std::uint32_t scalar)
+	{
+		const auto combining_class = unicode::canonical_combining_class(scalar);
+		scalars.push_back(static_cast<char32_t>(scalar));
+		if (scalars.size() == 1)
+		{
+			segment_begin = 0;
+			return;
+		}
+
+		if (combining_class == 0)
+		{
+			segment_begin = scalars.size() - 1;
+			return;
+		}
+
+		std::size_t insert_index = scalars.size() - 1;
+		while (insert_index > segment_begin)
+		{
+			const auto previous = static_cast<std::uint32_t>(scalars[insert_index - 1]);
+			const auto previous_class = unicode::canonical_combining_class(previous);
+			if (previous_class == 0 || previous_class <= combining_class)
+			{
+				break;
+			}
+
+			std::swap(scalars[insert_index], scalars[insert_index - 1]);
+			--insert_index;
+		}
+	}
+
+	template <bool Compatibility>
+	constexpr void append_decomposed_scalar(
+		std::u32string& scalars,
+		std::size_t& segment_begin,
+		std::uint32_t scalar)
+	{
+		if (is_hangul_syllable(scalar))
+		{
+			const auto s_index = scalar - 0xAC00u;
+			const auto l = 0x1100u + (s_index / 588u);
+			const auto v = 0x1161u + ((s_index % 588u) / 28u);
+			const auto t = s_index % 28u;
+			append_reordered_scalar(scalars, segment_begin, l);
+			append_reordered_scalar(scalars, segment_begin, v);
+			if (t != 0)
+			{
+				append_reordered_scalar(scalars, segment_begin, 0x11A7u + t);
+			}
+			return;
+		}
+
+		if (const auto* mapping = unicode::decomposition_mapping(scalar);
+			mapping != nullptr && (Compatibility || !mapping->compatibility))
+		{
+			for (std::size_t index = 0; index != mapping->count; ++index)
+			{
+				append_decomposed_scalar<Compatibility>(scalars, segment_begin, mapping->mapped[index]);
+			}
+			return;
+		}
+
+		append_reordered_scalar(scalars, segment_begin, scalar);
+	}
+
+	template <bool Compatibility>
+	constexpr std::u32string decompose_scalars(std::u8string_view bytes)
+	{
+		std::u32string scalars;
+		scalars.reserve(bytes.size());
+		std::size_t segment_begin = 0;
+		for (std::size_t index = 0; index < bytes.size();)
+		{
+			const auto decoded = decode_next_scalar(bytes, index);
+			append_decomposed_scalar<Compatibility>(scalars, segment_begin, decoded.scalar);
+			index = decoded.next_index;
+		}
+		return scalars;
+	}
+
+	template <bool Compatibility>
+	constexpr std::u32string decompose_scalars(std::u16string_view code_units)
+	{
+		std::u32string scalars;
+		scalars.reserve(code_units.size());
+		std::size_t segment_begin = 0;
+		for (std::size_t index = 0; index < code_units.size();)
+		{
+			const auto decoded = decode_next_scalar(code_units, index);
+			append_decomposed_scalar<Compatibility>(scalars, segment_begin, decoded.scalar);
+			index = decoded.next_index;
+		}
+		return scalars;
+	}
+
+	inline constexpr std::uint32_t try_compose_hangul(std::uint32_t first, std::uint32_t second) noexcept
+	{
+		if (is_hangul_l_jamo(first) && is_hangul_v_jamo(second))
+		{
+			return 0xAC00u + ((first - 0x1100u) * 21u + (second - 0x1161u)) * 28u;
+		}
+
+		if (is_hangul_syllable(first)
+			&& ((first - 0xAC00u) % 28u == 0u)
+			&& is_hangul_t_jamo(second))
+		{
+			return first + (second - 0x11A7u);
+		}
+
+		return 0u;
+	}
+
+	inline constexpr std::u32string compose_scalars(std::u32string_view decomposed)
+	{
+		std::u32string result;
+		result.reserve(decomposed.size());
+
+		std::size_t starter_index = static_cast<std::size_t>(-1);
+		std::uint8_t last_combining_class = 0;
+
+		for (char32_t ch : decomposed)
+		{
+			const auto scalar = static_cast<std::uint32_t>(ch);
+			const auto combining_class = unicode::canonical_combining_class(scalar);
+			if (result.empty())
+			{
+				result.push_back(ch);
+				starter_index = combining_class == 0 ? 0 : static_cast<std::size_t>(-1);
+				last_combining_class = combining_class;
+				continue;
+			}
+
+			bool composed = false;
+			if (starter_index != static_cast<std::size_t>(-1)
+				&& (last_combining_class == 0 || last_combining_class < combining_class))
+			{
+				const auto starter = static_cast<std::uint32_t>(result[starter_index]);
+				if (const auto hangul = try_compose_hangul(starter, scalar); hangul != 0)
+				{
+					result[starter_index] = static_cast<char32_t>(hangul);
+					composed = true;
+				}
+				else if (const auto* mapping = unicode::composition_mapping(starter, scalar); mapping != nullptr)
+				{
+					result[starter_index] = static_cast<char32_t>(mapping->composed);
+					composed = true;
+				}
+			}
+
+			if (!composed)
+			{
+				result.push_back(ch);
+				if (combining_class == 0)
+				{
+					starter_index = result.size() - 1;
+				}
+				last_combining_class = combining_class;
+			}
+		}
+
+		return result;
+	}
+
+	template <typename InputView>
+	constexpr std::u32string normalized_scalars(InputView input, normalization_form form)
+	{
+		const auto decomposed = normalization_uses_compatibility(form)
+			? decompose_scalars<true>(input)
+			: decompose_scalars<false>(input);
+
+		if (!normalization_uses_composition(form))
+		{
+			return decomposed;
+		}
+
+		return compose_scalars(decomposed);
+	}
+
+	inline constexpr std::size_t scalar_sequence_utf8_size(std::u32string_view scalars) noexcept
+	{
+		std::size_t size = 0;
+		for (char32_t ch : scalars)
+		{
+			size += unicode_scalar_utf8_size(static_cast<std::uint32_t>(ch));
+		}
+		return size;
+	}
+
+	inline constexpr std::size_t scalar_sequence_utf16_size(std::u32string_view scalars) noexcept
+	{
+		std::size_t size = 0;
+		for (char32_t ch : scalars)
+		{
+			size += unicode_scalar_utf16_size(static_cast<std::uint32_t>(ch));
+		}
+		return size;
+	}
+
 	inline constexpr std::uint32_t lowercase_ascii_scalar(std::uint32_t scalar) noexcept
 	{
 		return (scalar >= static_cast<std::uint32_t>('A') && scalar <= static_cast<std::uint32_t>('Z'))
@@ -279,6 +510,30 @@ namespace unicode_ranges
 		std::uint32_t simple_mapped = 0;
 		const unicode::unicode_special_case_mapping* special = nullptr;
 	};
+
+	inline constexpr std::size_t case_special_mapping_utf8_size(
+		const unicode::unicode_special_case_mapping& mapping) noexcept
+	{
+		std::size_t size = 0;
+		for (std::size_t index = 0; index != mapping.count; ++index)
+		{
+			size += unicode_scalar_utf8_size(mapping.mapped[index]);
+		}
+
+		return size;
+	}
+
+	inline constexpr std::size_t case_special_mapping_utf16_size(
+		const unicode::unicode_special_case_mapping& mapping) noexcept
+	{
+		std::size_t size = 0;
+		for (std::size_t index = 0; index != mapping.count; ++index)
+		{
+			size += unicode_scalar_utf16_size(mapping.mapped[index]);
+		}
+
+		return size;
+	}
 
 	template <bool Lowercase>
 	inline constexpr case_mapping_lookup_result lookup_case_mapping(std::uint32_t scalar) noexcept
@@ -327,6 +582,29 @@ namespace unicode_ranges
 				.special = unicode::uppercase_special_mapping(scalar)
 			};
 		}
+	}
+
+	inline constexpr case_mapping_lookup_result lookup_case_fold_mapping(std::uint32_t scalar) noexcept
+	{
+		if (const auto* range = unicode::case_fold_simple_delta_range(scalar); range != nullptr)
+		{
+			return case_mapping_lookup_result{
+				.has_simple = true,
+				.simple_mapped = unicode::apply_case_mapping_delta(scalar, range->delta)
+			};
+		}
+
+		if (const auto* mapping = unicode::case_fold_simple_mapping(scalar); mapping != nullptr)
+		{
+			return case_mapping_lookup_result{
+				.has_simple = true,
+				.simple_mapped = mapping->mapped
+			};
+		}
+
+		return case_mapping_lookup_result{
+			.special = unicode::case_fold_special_mapping(scalar)
+		};
 	}
 
 	struct case_map_measurement
@@ -676,8 +954,18 @@ namespace unicode_ranges
 					const auto mapping = lookup_case_mapping<Lowercase>(decoded.scalar);
 					if (mapping.special != nullptr)
 					{
-						same_size = false;
-						return write_index;
+						if (case_special_mapping_utf8_size(*mapping.special) != input_size)
+						{
+							same_size = false;
+							return write_index;
+						}
+
+						for (std::size_t mapped_index = 0; mapped_index != mapping.special->count; ++mapped_index)
+						{
+							write_index += encode_unicode_scalar_utf8_unchecked(
+								mapping.special->mapped[mapped_index],
+								buffer + write_index);
+						}
 					}
 					else if (mapping.has_simple)
 					{
@@ -739,8 +1027,18 @@ namespace unicode_ranges
 					const auto mapping = lookup_case_mapping<Lowercase>(decoded.scalar);
 					if (mapping.special != nullptr)
 					{
-						same_size = false;
-						return write_index;
+						if (case_special_mapping_utf16_size(*mapping.special) != input_size)
+						{
+							same_size = false;
+							return write_index;
+						}
+
+						for (std::size_t mapped_index = 0; mapped_index != mapping.special->count; ++mapped_index)
+						{
+							write_index += encode_unicode_scalar_utf16_unchecked(
+								mapping.special->mapped[mapped_index],
+								buffer + write_index);
+						}
 					}
 					else if (mapping.has_simple)
 					{
@@ -801,13 +1099,10 @@ namespace unicode_ranges
 			return basic_utf8_string<Allocator>::from_bytes_unchecked(std::move(result));
 		}
 
-		if constexpr (Lowercase)
+		base_type same_size_result{ alloc };
+		if (try_case_map_utf8_same_size<Lowercase>(bytes, same_size_result))
 		{
-			base_type same_size_result{ alloc };
-			if (try_case_map_utf8_same_size<Lowercase>(bytes, same_size_result))
-			{
-				return basic_utf8_string<Allocator>::from_bytes_unchecked(std::move(same_size_result));
-			}
+			return basic_utf8_string<Allocator>::from_bytes_unchecked(std::move(same_size_result));
 		}
 
 		const auto measurement = measure_case_map_utf8<Lowercase>(bytes);
@@ -856,13 +1151,10 @@ namespace unicode_ranges
 			return basic_utf16_string<Allocator>::from_code_units_unchecked(std::move(result));
 		}
 
-		if constexpr (Lowercase)
+		base_type same_size_result{ alloc };
+		if (try_case_map_utf16_same_size<Lowercase>(code_units, same_size_result))
 		{
-			base_type same_size_result{ alloc };
-			if (try_case_map_utf16_same_size<Lowercase>(code_units, same_size_result))
-			{
-				return basic_utf16_string<Allocator>::from_code_units_unchecked(std::move(same_size_result));
-			}
+			return basic_utf16_string<Allocator>::from_code_units_unchecked(std::move(same_size_result));
 		}
 
 		const auto measurement = measure_case_map_utf16<Lowercase>(code_units);
@@ -873,6 +1165,302 @@ namespace unicode_ranges
 
 		base_type result{ alloc };
 		write_case_map_utf16<Lowercase>(code_units, result, measurement.output_size);
+
+		return basic_utf16_string<Allocator>::from_code_units_unchecked(std::move(result));
+	}
+
+	constexpr case_map_measurement measure_case_fold_utf8(std::u8string_view bytes) noexcept
+	{
+		case_map_measurement result{};
+		for (std::size_t index = 0; index < bytes.size();)
+		{
+			const auto remaining = std::u8string_view{ bytes.data() + index, bytes.size() - index };
+			const auto ascii_run = ascii_prefix_length(remaining);
+			if (ascii_run != 0)
+			{
+				result.output_size += ascii_run;
+				for (std::size_t ascii_index = 0; ascii_index != ascii_run; ++ascii_index)
+				{
+					const auto scalar = static_cast<std::uint8_t>(remaining[ascii_index]);
+					result.changed = result.changed || (lowercase_ascii_scalar(scalar) != scalar);
+				}
+
+				index += ascii_run;
+				continue;
+			}
+
+			const auto decoded = decode_next_scalar(bytes, index);
+			const auto mapping = lookup_case_fold_mapping(decoded.scalar);
+			if (mapping.has_simple)
+			{
+				result.changed = true;
+				result.output_size += unicode_scalar_utf8_size(mapping.simple_mapped);
+			}
+			else if (mapping.special != nullptr)
+			{
+				result.changed = true;
+				result.output_size += case_special_mapping_utf8_size(*mapping.special);
+			}
+			else
+			{
+				result.output_size += decoded.next_index - index;
+			}
+
+			index = decoded.next_index;
+		}
+
+		return result;
+	}
+
+	constexpr case_map_measurement measure_case_fold_utf16(std::u16string_view code_units) noexcept
+	{
+		case_map_measurement result{};
+		for (std::size_t index = 0; index < code_units.size();)
+		{
+			const auto remaining = std::u16string_view{ code_units.data() + index, code_units.size() - index };
+			const auto ascii_run = ascii_prefix_length(remaining);
+			if (ascii_run != 0)
+			{
+				result.output_size += ascii_run;
+				for (std::size_t ascii_index = 0; ascii_index != ascii_run; ++ascii_index)
+				{
+					const auto scalar = static_cast<std::uint16_t>(remaining[ascii_index]);
+					result.changed = result.changed || (lowercase_ascii_scalar(scalar) != scalar);
+				}
+
+				index += ascii_run;
+				continue;
+			}
+
+			const auto decoded = decode_next_scalar(code_units, index);
+			const auto mapping = lookup_case_fold_mapping(decoded.scalar);
+			if (mapping.has_simple)
+			{
+				result.changed = true;
+				result.output_size += unicode_scalar_utf16_size(mapping.simple_mapped);
+			}
+			else if (mapping.special != nullptr)
+			{
+				result.changed = true;
+				result.output_size += case_special_mapping_utf16_size(*mapping.special);
+			}
+			else
+			{
+				result.output_size += decoded.next_index - index;
+			}
+
+			index = decoded.next_index;
+		}
+
+		return result;
+	}
+
+	constexpr std::size_t write_case_fold_utf8_into(std::u8string_view bytes, char8_t* buffer) noexcept
+	{
+		std::size_t write_index = 0;
+		for (std::size_t index = 0; index < bytes.size();)
+		{
+			const auto remaining = std::u8string_view{ bytes.data() + index, bytes.size() - index };
+			const auto ascii_run = ascii_prefix_length(remaining);
+			if (ascii_run != 0)
+			{
+				ascii_lowercase_copy(buffer + write_index, remaining.substr(0, ascii_run));
+				write_index += ascii_run;
+				index += ascii_run;
+				continue;
+			}
+
+			const auto decoded = decode_next_scalar(bytes, index);
+			const auto mapping = lookup_case_fold_mapping(decoded.scalar);
+			if (mapping.has_simple)
+			{
+				write_index += encode_unicode_scalar_utf8_unchecked(mapping.simple_mapped, buffer + write_index);
+			}
+			else if (mapping.special != nullptr)
+			{
+				for (std::size_t mapped_index = 0; mapped_index != mapping.special->count; ++mapped_index)
+				{
+					write_index += encode_unicode_scalar_utf8_unchecked(
+						mapping.special->mapped[mapped_index],
+						buffer + write_index);
+				}
+			}
+			else
+			{
+				std::char_traits<char8_t>::copy(buffer + write_index, bytes.data() + index, decoded.next_index - index);
+				write_index += decoded.next_index - index;
+			}
+
+			index = decoded.next_index;
+		}
+
+		return write_index;
+	}
+
+	constexpr std::size_t write_case_fold_utf16_into(std::u16string_view code_units, char16_t* buffer) noexcept
+	{
+		std::size_t write_index = 0;
+		for (std::size_t index = 0; index < code_units.size();)
+		{
+			const auto remaining = std::u16string_view{ code_units.data() + index, code_units.size() - index };
+			const auto ascii_run = ascii_prefix_length(remaining);
+			if (ascii_run != 0)
+			{
+				ascii_lowercase_copy(buffer + write_index, remaining.substr(0, ascii_run));
+				write_index += ascii_run;
+				index += ascii_run;
+				continue;
+			}
+
+			const auto decoded = decode_next_scalar(code_units, index);
+			const auto mapping = lookup_case_fold_mapping(decoded.scalar);
+			if (mapping.has_simple)
+			{
+				write_index += encode_unicode_scalar_utf16_unchecked(mapping.simple_mapped, buffer + write_index);
+			}
+			else if (mapping.special != nullptr)
+			{
+				for (std::size_t mapped_index = 0; mapped_index != mapping.special->count; ++mapped_index)
+				{
+					write_index += encode_unicode_scalar_utf16_unchecked(
+						mapping.special->mapped[mapped_index],
+						buffer + write_index);
+				}
+			}
+			else
+			{
+				std::char_traits<char16_t>::copy(buffer + write_index, code_units.data() + index, decoded.next_index - index);
+				write_index += decoded.next_index - index;
+			}
+
+			index = decoded.next_index;
+		}
+
+		return write_index;
+	}
+
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator> case_fold_utf8_copy(
+		std::u8string_view bytes,
+		const Allocator& alloc)
+	{
+		using base_type = typename basic_utf8_string<Allocator>::base_type;
+
+		const auto measurement = measure_case_fold_utf8(bytes);
+		if (!measurement.changed)
+		{
+			return basic_utf8_string<Allocator>::from_bytes_unchecked(base_type{ bytes, alloc });
+		}
+
+		base_type result{ alloc };
+		result.resize_and_overwrite(measurement.output_size,
+			[&](char8_t* buffer, std::size_t) noexcept
+			{
+				return write_case_fold_utf8_into(bytes, buffer);
+			});
+
+		return basic_utf8_string<Allocator>::from_bytes_unchecked(std::move(result));
+	}
+
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator> case_fold_utf16_copy(
+		std::u16string_view code_units,
+		const Allocator& alloc)
+	{
+		using base_type = typename basic_utf16_string<Allocator>::base_type;
+
+		const auto measurement = measure_case_fold_utf16(code_units);
+		if (!measurement.changed)
+		{
+			return basic_utf16_string<Allocator>::from_code_units_unchecked(base_type{ code_units, alloc });
+		}
+
+		base_type result{ alloc };
+		result.resize_and_overwrite(measurement.output_size,
+			[&](char16_t* buffer, std::size_t) noexcept
+			{
+				return write_case_fold_utf16_into(code_units, buffer);
+			});
+
+		return basic_utf16_string<Allocator>::from_code_units_unchecked(std::move(result));
+	}
+
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator> normalize_utf8_copy(
+		std::u8string_view bytes,
+		normalization_form form,
+		const Allocator& alloc)
+	{
+		using base_type = typename basic_utf8_string<Allocator>::base_type;
+
+		if (bytes.empty())
+		{
+			return basic_utf8_string<Allocator>::from_bytes_unchecked(base_type{ alloc });
+		}
+
+		if (is_ascii_only(bytes))
+		{
+			return basic_utf8_string<Allocator>::from_bytes_unchecked(base_type{ bytes, alloc });
+		}
+
+		const auto normalized = normalized_scalars(bytes, form);
+		base_type result{ alloc };
+		result.resize_and_overwrite(scalar_sequence_utf8_size(normalized),
+			[&](char8_t* buffer, std::size_t) noexcept
+			{
+				std::size_t write_index = 0;
+				for (char32_t ch : normalized)
+				{
+					write_index += encode_unicode_scalar_utf8_unchecked(static_cast<std::uint32_t>(ch), buffer + write_index);
+				}
+				return write_index;
+			});
+
+		if (result.size() == bytes.size()
+			&& std::char_traits<char8_t>::compare(result.data(), bytes.data(), bytes.size()) == 0)
+		{
+			return basic_utf8_string<Allocator>::from_bytes_unchecked(base_type{ bytes, alloc });
+		}
+
+		return basic_utf8_string<Allocator>::from_bytes_unchecked(std::move(result));
+	}
+
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator> normalize_utf16_copy(
+		std::u16string_view code_units,
+		normalization_form form,
+		const Allocator& alloc)
+	{
+		using base_type = typename basic_utf16_string<Allocator>::base_type;
+
+		if (code_units.empty())
+		{
+			return basic_utf16_string<Allocator>::from_code_units_unchecked(base_type{ alloc });
+		}
+
+		if (is_ascii_only(code_units))
+		{
+			return basic_utf16_string<Allocator>::from_code_units_unchecked(base_type{ code_units, alloc });
+		}
+
+		const auto normalized = normalized_scalars(code_units, form);
+		base_type result{ alloc };
+		result.resize_and_overwrite(scalar_sequence_utf16_size(normalized),
+			[&](char16_t* buffer, std::size_t) noexcept
+			{
+				std::size_t write_index = 0;
+				for (char32_t ch : normalized)
+				{
+					write_index += encode_unicode_scalar_utf16_unchecked(static_cast<std::uint32_t>(ch), buffer + write_index);
+				}
+				return write_index;
+			});
+
+		if (result.size() == code_units.size()
+			&& std::char_traits<char16_t>::compare(result.data(), code_units.data(), code_units.size()) == 0)
+		{
+			return basic_utf16_string<Allocator>::from_code_units_unchecked(base_type{ code_units, alloc });
+		}
 
 		return basic_utf16_string<Allocator>::from_code_units_unchecked(std::move(result));
 	}
@@ -1058,6 +1646,50 @@ namespace unicode_ranges
 			});
 
 		return basic_utf8_string<Allocator>::from_bytes_unchecked(std::move(result));
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator> utf8_string_crtp<Derived, View>::normalize(
+		normalization_form form,
+		const Allocator& alloc) const
+	{
+		return normalize_utf8_copy(byte_view(), form, alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator> utf8_string_crtp<Derived, View>::to_nfc(const Allocator& alloc) const
+	{
+		return normalize(normalization_form::nfc, alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator> utf8_string_crtp<Derived, View>::to_nfd(const Allocator& alloc) const
+	{
+		return normalize(normalization_form::nfd, alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator> utf8_string_crtp<Derived, View>::to_nfkc(const Allocator& alloc) const
+	{
+		return normalize(normalization_form::nfkc, alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator> utf8_string_crtp<Derived, View>::to_nfkd(const Allocator& alloc) const
+	{
+		return normalize(normalization_form::nfkd, alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator> utf8_string_crtp<Derived, View>::case_fold(const Allocator& alloc) const
+	{
+		return case_fold_utf8_copy(byte_view(), alloc);
 	}
 
 	template <typename Derived, typename View>
@@ -1623,6 +2255,50 @@ namespace unicode_ranges
 			});
 
 		return basic_utf16_string<Allocator>::from_code_units_unchecked(std::move(result));
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::normalize(
+		normalization_form form,
+		const Allocator& alloc) const
+	{
+		return normalize_utf16_copy(code_unit_view(), form, alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::to_nfc(const Allocator& alloc) const
+	{
+		return normalize(normalization_form::nfc, alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::to_nfd(const Allocator& alloc) const
+	{
+		return normalize(normalization_form::nfd, alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::to_nfkc(const Allocator& alloc) const
+	{
+		return normalize(normalization_form::nfkc, alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::to_nfkd(const Allocator& alloc) const
+	{
+		return normalize(normalization_form::nfkd, alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::case_fold(const Allocator& alloc) const
+	{
+		return case_fold_utf16_copy(code_unit_view(), alloc);
 	}
 
 	template <typename Derived, typename View>

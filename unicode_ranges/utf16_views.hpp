@@ -42,10 +42,6 @@ namespace views
 
 			iterator() = default;
 
-			constexpr iterator(const char16_t* current, const char16_t* end) noexcept
-				: current_(current), end_(end)
-			{}
-
 			constexpr reference operator*() const noexcept
 			{
 				const auto first = static_cast<std::uint16_t>(*current_);
@@ -83,6 +79,12 @@ namespace views
 			}
 
 		private:
+			friend class utf16_view;
+
+			constexpr iterator(const char16_t* current, const char16_t* end) noexcept
+				: current_(current), end_(end)
+			{}
+
 			const char16_t* current_ = nullptr;
 			const char16_t* end_ = nullptr;
 		};
@@ -129,10 +131,6 @@ namespace views
 			using pointer = void;
 
 			iterator() = default;
-
-			constexpr iterator(const char16_t* begin, const char16_t* current) noexcept
-				: begin_(begin), current_(current)
-			{}
 
 			constexpr reference operator*() const noexcept
 			{
@@ -201,6 +199,12 @@ namespace views
 			}
 
 		private:
+			friend class reversed_utf16_view;
+
+			constexpr iterator(const char16_t* begin, const char16_t* current) noexcept
+				: begin_(begin), current_(current)
+			{}
+
 			const char16_t* begin_ = nullptr;
 			const char16_t* current_ = nullptr;
 		};
@@ -260,12 +264,6 @@ namespace views
 
 			iterator() = default;
 
-			constexpr iterator(const CharT* current, const CharT* end) noexcept
-				: current_(current), end_(end)
-			{
-				load_current();
-			}
-
 			constexpr reference operator*() const noexcept
 			{
 				return current_valid_ ? current_char_ : utf16_char::replacement_character;
@@ -301,6 +299,14 @@ namespace views
 			}
 
 		private:
+			friend class lossy_utf16_view<CharT>;
+
+			constexpr iterator(const CharT* current, const CharT* end) noexcept
+				: current_(current), end_(end)
+			{
+				load_current();
+			}
+
 			constexpr void load_current() noexcept
 			{
 				current_width_ = 0;

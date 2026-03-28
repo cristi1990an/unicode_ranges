@@ -1145,6 +1145,133 @@ public:
 	}
 
 	[[nodiscard]]
+	constexpr basic_utf8_string normalize(normalization_form form) const&
+	{
+		return static_cast<const crtp&>(*this).template normalize<Allocator>(form, base_.get_allocator());
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string normalize(normalization_form form) &&
+	{
+		if (details::is_ascii_only(std::u8string_view{ base_ }))
+		{
+			return std::move(*this);
+		}
+
+		return static_cast<const crtp&>(*this).template normalize<Allocator>(form, base_.get_allocator());
+	}
+
+	template <typename OtherAllocator>
+	[[nodiscard]]
+	constexpr basic_utf8_string<OtherAllocator> normalize(
+		normalization_form form,
+		const OtherAllocator& alloc) const
+	{
+		return static_cast<const crtp&>(*this).template normalize<OtherAllocator>(form, alloc);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string to_nfc() const&
+	{
+		return normalize(normalization_form::nfc);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string to_nfc() &&
+	{
+		return std::move(*this).normalize(normalization_form::nfc);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string to_nfd() const&
+	{
+		return normalize(normalization_form::nfd);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string to_nfd() &&
+	{
+		return std::move(*this).normalize(normalization_form::nfd);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string to_nfkc() const&
+	{
+		return normalize(normalization_form::nfkc);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string to_nfkc() &&
+	{
+		return std::move(*this).normalize(normalization_form::nfkc);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string to_nfkd() const&
+	{
+		return normalize(normalization_form::nfkd);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string to_nfkd() &&
+	{
+		return std::move(*this).normalize(normalization_form::nfkd);
+	}
+
+	template <typename OtherAllocator>
+	[[nodiscard]]
+	constexpr basic_utf8_string<OtherAllocator> to_nfc(const OtherAllocator& alloc) const
+	{
+		return normalize(normalization_form::nfc, alloc);
+	}
+
+	template <typename OtherAllocator>
+	[[nodiscard]]
+	constexpr basic_utf8_string<OtherAllocator> to_nfd(const OtherAllocator& alloc) const
+	{
+		return normalize(normalization_form::nfd, alloc);
+	}
+
+	template <typename OtherAllocator>
+	[[nodiscard]]
+	constexpr basic_utf8_string<OtherAllocator> to_nfkc(const OtherAllocator& alloc) const
+	{
+		return normalize(normalization_form::nfkc, alloc);
+	}
+
+	template <typename OtherAllocator>
+	[[nodiscard]]
+	constexpr basic_utf8_string<OtherAllocator> to_nfkd(const OtherAllocator& alloc) const
+	{
+		return normalize(normalization_form::nfkd, alloc);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string case_fold() const&
+	{
+		return static_cast<const crtp&>(*this).template case_fold<Allocator>(base_.get_allocator());
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string case_fold() &&
+	{
+		if (details::is_ascii_only(std::u8string_view{ base_ }))
+		{
+			details::ascii_lowercase_inplace(base_.data(), base_.size());
+			return std::move(*this);
+		}
+
+		return static_cast<const crtp&>(*this).template case_fold<Allocator>(base_.get_allocator());
+	}
+
+	template <typename OtherAllocator>
+	[[nodiscard]]
+	constexpr basic_utf8_string<OtherAllocator> case_fold(const OtherAllocator& alloc) const
+	{
+		return static_cast<const crtp&>(*this).template case_fold<OtherAllocator>(alloc);
+	}
+
+	[[nodiscard]]
 	constexpr basic_utf8_string replace_all(utf8_char from, utf8_char to) const&
 	{
 		return replace_all(

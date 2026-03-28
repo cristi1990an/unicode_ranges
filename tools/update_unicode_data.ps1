@@ -15,6 +15,18 @@ New-Item -ItemType Directory -Path $emojiRoot -Force | Out-Null
 
 $files = @(
     @{
+        Uri = "https://www.unicode.org/Public/$Version/ucd/UnicodeData.txt"
+        Path = Join-Path $ucdRoot "UnicodeData.txt"
+    },
+    @{
+        Uri = "https://www.unicode.org/Public/$Version/ucd/CompositionExclusions.txt"
+        Path = Join-Path $ucdRoot "CompositionExclusions.txt"
+    },
+    @{
+        Uri = "https://www.unicode.org/Public/$Version/ucd/CaseFolding.txt"
+        Path = Join-Path $ucdRoot "CaseFolding.txt"
+    },
+    @{
         Uri = "https://www.unicode.org/Public/$Version/ucd/auxiliary/GraphemeBreakProperty.txt"
         Path = Join-Path $auxRoot "GraphemeBreakProperty.txt"
     },

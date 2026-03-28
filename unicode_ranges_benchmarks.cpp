@@ -230,9 +230,9 @@ int main(int argc, char** argv)
 	const auto utf16_span_find_haystack = utf16_string_view::from_code_units_unchecked(utf16_span_find_haystack_storage);
 
 	assert(utf8_find_haystack.find(utf8_long_needle) == 6);
-	assert(utf8_find_haystack.rfind(utf8_long_needle) == utf8_find_haystack_storage.size() - 16);
+	assert(utf8_find_haystack.rfind(utf8_long_needle) == utf8_find_haystack_storage.size() - 17);
 	assert(utf16_find_haystack.find(utf16_long_needle) == 6);
-	assert(utf16_find_haystack.rfind(utf16_long_needle) == utf16_find_haystack_storage.size() - 16);
+	assert(utf16_find_haystack.rfind(utf16_long_needle) == utf16_find_haystack_storage.size() - 17);
 	assert(utf8_span_find_haystack.find(std::span{ utf8_small_any_of }) == utf8_span_find_haystack_storage.size() - 3);
 	assert(utf16_span_find_haystack.find(std::span{ utf16_small_any_of }) == utf16_span_find_haystack_storage.size() - 1);
 
@@ -296,8 +296,16 @@ int main(int argc, char** argv)
 	const auto utf16_grapheme_storage = repeat_text(
 		u"e\u0301 \U0001F469\u200D\U0001F4BB \U0001F1F7\U0001F1F4 "sv,
 		2048);
+	const auto utf8_char_count_storage = repeat_text(
+		u8"AbC-\u00E9\u00DF\U0001F642 "sv,
+		4096);
+	const auto utf16_char_count_storage = repeat_text(
+		u"AbC-\u00E9\u00DF\U0001F642 "sv,
+		4096);
 	const auto utf8_grapheme_text = utf8_string_view::from_bytes_unchecked(utf8_grapheme_storage);
 	const auto utf16_grapheme_text = utf16_string_view::from_code_units_unchecked(utf16_grapheme_storage);
+	const auto utf8_char_count_text = utf8_string_view::from_bytes_unchecked(utf8_char_count_storage);
+	const auto utf16_char_count_text = utf16_string_view::from_code_units_unchecked(utf16_char_count_storage);
 
 	assert(utf8_string_view::from_bytes_unchecked(utf8_ascii_upper_storage).to_ascii_lowercase()
 		== utf8_string_view::from_bytes_unchecked(utf8_ascii_lower_storage));
@@ -310,6 +318,8 @@ int main(int argc, char** argv)
 	assert(details::validate_utf8(std::u8string_view{ utf8_validate_storage }).has_value());
 	assert(utf8_grapheme_text.grapheme_count() != 0);
 	assert(utf16_grapheme_text.grapheme_count() != 0);
+	assert(utf8_char_count_text.char_count() != 0);
+	assert(utf16_char_count_text.char_count() != 0);
 
 	const auto utf8_chars = make_utf8_char_vector(u8"AbC-éß🙂 "sv, 4096);
 	const auto utf16_chars = make_utf16_char_vector(u"AbC-éß🙂 "sv, 4096);
@@ -410,12 +420,30 @@ int main(int argc, char** argv)
 		}
 	});
 	cases.push_back({
+		"utf8.char_count.mixed",
+		utf8_char_count_storage.size(),
+		8,
+		[&]() -> std::size_t
+		{
+			return utf8_char_count_text.char_count();
+		}
+	});
+	cases.push_back({
 		"utf16.grapheme_count.mixed",
 		utf16_grapheme_storage.size() * sizeof(char16_t),
 		8,
 		[&]() -> std::size_t
 		{
 			return utf16_grapheme_text.grapheme_count();
+		}
+	});
+	cases.push_back({
+		"utf16.char_count.mixed",
+		utf16_char_count_storage.size() * sizeof(char16_t),
+		8,
+		[&]() -> std::size_t
+		{
+			return utf16_char_count_text.char_count();
 		}
 	});
 	cases.push_back({
@@ -426,6 +454,20 @@ int main(int argc, char** argv)
 		{
 			std::size_t sum = 0;
 			for (const auto ch : utf8_chars)
+			{
+				sum += ch.as_scalar();
+			}
+			return sum;
+		}
+	});
+	cases.push_back({
+		"utf16_char.as_scalar.mixed",
+		utf16_chars.size() * 4u,
+		8,
+		[&]() -> std::size_t
+		{
+			std::size_t sum = 0;
+			for (const auto ch : utf16_chars)
 			{
 				sum += ch.as_scalar();
 			}

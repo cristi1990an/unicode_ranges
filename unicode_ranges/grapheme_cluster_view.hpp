@@ -35,10 +35,6 @@ namespace views
 
 			iterator() = default;
 
-			constexpr iterator(std::basic_string_view<CharT> base, std::size_t current, std::size_t next) noexcept
-				: base_(base), current_(current), next_(next)
-			{}
-
 			constexpr reference operator*() const noexcept
 			{
 				const auto cluster = base_.substr(current_, next_ - current_);
@@ -85,6 +81,12 @@ namespace views
 			}
 
 		private:
+			friend class grapheme_cluster_view<CharT>;
+
+			constexpr iterator(std::basic_string_view<CharT> base, std::size_t current, std::size_t next) noexcept
+				: base_(base), current_(current), next_(next)
+			{}
+
 			std::basic_string_view<CharT> base_{};
 			std::size_t current_ = 0;
 			std::size_t next_ = 0;

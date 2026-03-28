@@ -45,10 +45,6 @@ namespace views
 
 			iterator() = default;
 
-			constexpr iterator(const char8_t* current, const char8_t* end) noexcept
-				: current_(current), end_(end)
-			{}
-
 			constexpr reference operator*() const noexcept
 			{
 				const std::size_t len = details::utf8_byte_count_from_lead(static_cast<std::uint8_t>(*current_));
@@ -84,6 +80,12 @@ namespace views
 			}
 
 		private:
+			friend class utf8_view;
+
+			constexpr iterator(const char8_t* current, const char8_t* end) noexcept
+				: current_(current), end_(end)
+			{}
+
 			const char8_t* current_ = nullptr;
 			const char8_t* end_ = nullptr;
 		};
@@ -131,10 +133,6 @@ namespace views
 
 			iterator() = default;
 
-			constexpr iterator(const char8_t* begin, const char8_t* current) noexcept
-				: begin_(begin), current_(current)
-			{}
-
 			constexpr reference operator*() const noexcept
 			{
 				const std::size_t len = details::utf8_byte_count_from_lead(static_cast<std::uint8_t>(*current_));
@@ -180,6 +178,12 @@ namespace views
 			}
 
 		private:
+			friend class reversed_utf8_view;
+
+			constexpr iterator(const char8_t* begin, const char8_t* current) noexcept
+				: begin_(begin), current_(current)
+			{}
+
 			const char8_t* begin_ = nullptr;
 			const char8_t* current_ = nullptr;
 		};
@@ -238,12 +242,6 @@ namespace views
 
 			iterator() = default;
 
-			constexpr iterator(const CharT* current, const CharT* end) noexcept
-				: current_(current), end_(end)
-			{
-				load_current();
-			}
-
 			constexpr reference operator*() const noexcept
 			{
 				return current_char_.is_valid() ? current_char_ : utf8_char::replacement_character;
@@ -279,6 +277,14 @@ namespace views
 			}
 
 		private:
+			friend class lossy_utf8_view<CharT>;
+
+			constexpr iterator(const CharT* current, const CharT* end) noexcept
+				: current_(current), end_(end)
+			{
+				load_current();
+			}
+
 			constexpr void load_current() noexcept
 			{
 				if (current_ == end_) [[unlikely]]
