@@ -1,0 +1,44 @@
+site_name: unicode_ranges
+site_description: Header-only C++23 UTF-8 and UTF-16 text library
+site_url: https://cristi1990an.github.io/unicode_ranges/
+repo_url: https://github.com/cristi1990an/unicode_ranges
+repo_name: cristi1990an/unicode_ranges
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - content.code.copy
+    - search.highlight
+    - search.suggest
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Design: design.md
+  - Unicode Data: unicode-data.md
+  - Error Model: error-model.md
+  - Text Operations: text-operations.md
+  - Casing and Normalization: casing-and-normalization.md
+  - Reference:
+      - Overview: reference/index.md
+      - Characters: reference/chars.md
+      - String Views: reference/string-views.md
+      - Owning Strings: reference/owning-strings.md
+      - Views, Literals, and Formatting: reference/views-literals-formatting.md

@@ -4,6 +4,7 @@ x64/
 Debug/
 Win32/
 build_artifacts/
+.dotnet-home/
 *.user
 *.pdb
 *.ilk
