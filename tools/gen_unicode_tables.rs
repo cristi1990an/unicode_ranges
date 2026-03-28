@@ -449,7 +449,7 @@ fn emit_grapheme_property_support() {
     println!();
     println!("template <std::size_t N>");
     println!(
-        "constexpr const unicode_grapheme_property_range* find_grapheme_property_range(std::uint32_t scalar, const std::array<unicode_grapheme_property_range, N>& ranges) noexcept"
+        "constexpr std::size_t find_grapheme_property_range_index(std::uint32_t scalar, const std::array<unicode_grapheme_property_range, N>& ranges) noexcept"
     );
     println!("{{");
     println!("    std::size_t left = 0;");
@@ -468,10 +468,10 @@ fn emit_grapheme_property_support() {
     println!("        }}");
     println!("        else");
     println!("        {{");
-    println!("            return &ranges[mid];");
+    println!("            return mid;");
     println!("        }}");
     println!("    }}");
-    println!("    return nullptr;");
+    println!("    return N;");
     println!("}}");
     println!();
 }
@@ -511,9 +511,10 @@ fn emit_grapheme_property_lookup(fn_name: &str, ranges_name: &str) {
         "constexpr unicode_grapheme_properties {fn_name}(std::uint32_t scalar) noexcept"
     );
     println!("{{");
-    println!("    if (const auto* range = find_grapheme_property_range(scalar, {ranges_name}); range != nullptr)");
+    println!("    const auto index = find_grapheme_property_range_index(scalar, {ranges_name});");
+    println!("    if (index != {ranges_name}.size())");
     println!("    {{");
-    println!("        return range->properties;");
+    println!("        return {ranges_name}[index].properties;");
     println!("    }}");
     println!();
     println!("    return unicode_grapheme_properties{{");

@@ -144,7 +144,7 @@ struct unicode_grapheme_property_range
 };
 
 template <std::size_t N>
-constexpr const unicode_grapheme_property_range* find_grapheme_property_range(std::uint32_t scalar, const std::array<unicode_grapheme_property_range, N>& ranges) noexcept
+constexpr std::size_t find_grapheme_property_range_index(std::uint32_t scalar, const std::array<unicode_grapheme_property_range, N>& ranges) noexcept
 {
     std::size_t left = 0;
     std::size_t right = N;
@@ -162,10 +162,10 @@ constexpr const unicode_grapheme_property_range* find_grapheme_property_range(st
         }
         else
         {
-            return &ranges[mid];
+            return mid;
         }
     }
-    return nullptr;
+    return N;
 }
 
 inline constexpr std::array<unicode_range, 761> alphabetic_ranges{{
@@ -7225,9 +7225,10 @@ constexpr const unicode_special_case_mapping* uppercase_special_mapping(std::uin
 
 constexpr unicode_grapheme_properties grapheme_properties(std::uint32_t scalar) noexcept
 {
-    if (const auto* range = find_grapheme_property_range(scalar, grapheme_properties_ranges); range != nullptr)
+    const auto index = find_grapheme_property_range_index(scalar, grapheme_properties_ranges);
+    if (index != grapheme_properties_ranges.size())
     {
-        return range->properties;
+        return grapheme_properties_ranges[index].properties;
     }
 
     return unicode_grapheme_properties{
