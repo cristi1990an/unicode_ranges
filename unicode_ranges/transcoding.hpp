@@ -285,6 +285,14 @@ namespace unicode_ranges
 	{
 		if constexpr (Lowercase)
 		{
+			if (const auto* range = unicode::lowercase_simple_delta_range(scalar); range != nullptr)
+			{
+				return case_mapping_lookup_result{
+					.has_simple = true,
+					.simple_mapped = unicode::apply_case_mapping_delta(scalar, range->delta)
+				};
+			}
+
 			if (const auto* mapping = unicode::lowercase_simple_mapping(scalar); mapping != nullptr)
 			{
 				return case_mapping_lookup_result{
@@ -299,6 +307,14 @@ namespace unicode_ranges
 		}
 		else
 		{
+			if (const auto* range = unicode::uppercase_simple_delta_range(scalar); range != nullptr)
+			{
+				return case_mapping_lookup_result{
+					.has_simple = true,
+					.simple_mapped = unicode::apply_case_mapping_delta(scalar, range->delta)
+				};
+			}
+
 			if (const auto* mapping = unicode::uppercase_simple_mapping(scalar); mapping != nullptr)
 			{
 				return case_mapping_lookup_result{

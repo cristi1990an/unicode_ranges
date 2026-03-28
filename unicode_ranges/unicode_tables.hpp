@@ -21,6 +21,14 @@ struct unicode_simple_case_mapping
     std::uint32_t mapped;
 };
 
+struct unicode_simple_case_delta_range
+{
+    std::uint32_t first;
+    std::uint32_t last;
+    std::int32_t delta;
+    std::uint8_t stride;
+};
+
 struct unicode_special_case_mapping
 {
     std::uint32_t source;
@@ -30,6 +38,24 @@ struct unicode_special_case_mapping
 
 inline constexpr std::size_t unicode_mapping_page_shift = 8;
 inline constexpr std::size_t unicode_mapping_page_count = (0x10FFFFu >> unicode_mapping_page_shift) + 1u;
+
+struct unicode_range_page_slice
+{
+    std::uint16_t begin;
+    std::uint16_t end;
+};
+
+template <std::size_t N>
+struct unicode_simple_case_delta_range_set
+{
+    std::array<unicode_simple_case_delta_range, N> ranges{};
+    std::uint16_t count = 0;
+};
+
+constexpr std::uint32_t apply_case_mapping_delta(std::uint32_t scalar, std::int32_t delta) noexcept
+{
+    return static_cast<std::uint32_t>(static_cast<std::int64_t>(scalar) + static_cast<std::int64_t>(delta));
+}
 
 template <typename Mapping, std::size_t N>
 constexpr auto make_source_mapping_page_index(const std::array<Mapping, N>& mappings) noexcept
@@ -76,6 +102,117 @@ constexpr const Mapping* find_source_mapping_paged(
         }
     }
     return nullptr;
+}
+
+template <typename Range, std::size_t N>
+constexpr auto make_overlapping_range_page_slices(
+    const std::array<Range, N>& ranges,
+    std::size_t count = N) noexcept
+{
+    std::array<unicode_range_page_slice, unicode_mapping_page_count> page_slices{};
+    std::size_t begin = 0;
+    std::size_t end = 0;
+    for (std::size_t page = 0; page != unicode_mapping_page_count; ++page)
+    {
+        const auto page_start = static_cast<std::uint32_t>(page << unicode_mapping_page_shift);
+        const auto page_end = static_cast<std::uint32_t>((page + 1u) << unicode_mapping_page_shift);
+        while (begin < count && ranges[begin].last < page_start)
+        {
+            ++begin;
+        }
+        if (end < begin)
+        {
+            end = begin;
+        }
+        while (end < count && ranges[end].first < page_end)
+        {
+            ++end;
+        }
+        page_slices[page] = unicode_range_page_slice{
+            static_cast<std::uint16_t>(begin),
+            static_cast<std::uint16_t>(end)
+        };
+    }
+    return page_slices;
+}
+
+template <typename Range, std::size_t N, std::size_t P>
+constexpr std::size_t find_overlapping_range_index_paged(
+    std::uint32_t scalar,
+    const std::array<Range, N>& ranges,
+    std::size_t count,
+    const std::array<unicode_range_page_slice, P>& page_slices) noexcept
+{
+    const auto page = static_cast<std::size_t>(scalar >> unicode_mapping_page_shift);
+    std::size_t left = page_slices[page].begin;
+    std::size_t right = page_slices[page].end;
+    while (left < right)
+    {
+        const std::size_t mid = left + (right - left) / 2;
+        const Range& range = ranges[mid];
+        if (scalar < range.first)
+        {
+            right = mid;
+        }
+        else if (scalar > range.last)
+        {
+            left = mid + 1;
+        }
+        else
+        {
+            return mid;
+        }
+    }
+    return count;
+}
+
+template <std::size_t N>
+constexpr auto make_simple_case_delta_ranges(const std::array<unicode_simple_case_mapping, N>& mappings) noexcept
+{
+    unicode_simple_case_delta_range_set<N> result{};
+    std::size_t read = 0;
+    while (read < N)
+    {
+        const auto first = mappings[read];
+        const auto delta = static_cast<std::int64_t>(first.mapped) - static_cast<std::int64_t>(first.source);
+        std::size_t end = read;
+        std::uint32_t stride = 0;
+        while (end + 1 < N)
+        {
+            const auto& current = mappings[end];
+            const auto& next = mappings[end + 1];
+            const auto next_delta = static_cast<std::int64_t>(next.mapped) - static_cast<std::int64_t>(next.source);
+            const auto step = next.source - current.source;
+            if (next_delta != delta || (step != 1u && step != 2u))
+            {
+                break;
+            }
+            if (stride == 0)
+            {
+                stride = step;
+            }
+            else if (step != stride)
+            {
+                break;
+            }
+            ++end;
+        }
+
+        if (end > read)
+        {
+            result.ranges[result.count++] = unicode_simple_case_delta_range{
+                first.source,
+                mappings[end].source,
+                static_cast<std::int32_t>(delta),
+                static_cast<std::uint8_t>(stride)
+            };
+            read = end + 1;
+            continue;
+        }
+
+        ++read;
+    }
+    return result;
 }
 
 template <std::size_t N>
@@ -7196,6 +7333,26 @@ constexpr bool is_digit(std::uint32_t scalar) noexcept
 }
 
 inline constexpr auto lowercase_simple_mappings_page_index = make_source_mapping_page_index(lowercase_simple_mappings);
+inline constexpr auto lowercase_simple_delta_ranges = make_simple_case_delta_ranges(lowercase_simple_mappings);
+inline constexpr auto lowercase_simple_delta_ranges_page_slices =
+    make_overlapping_range_page_slices(lowercase_simple_delta_ranges.ranges, lowercase_simple_delta_ranges.count);
+
+constexpr const unicode_simple_case_delta_range* lowercase_simple_delta_range(std::uint32_t scalar) noexcept
+{
+    const auto index = find_overlapping_range_index_paged(
+        scalar,
+        lowercase_simple_delta_ranges.ranges,
+        lowercase_simple_delta_ranges.count,
+        lowercase_simple_delta_ranges_page_slices);
+    if (index == lowercase_simple_delta_ranges.count)
+    {
+        return nullptr;
+    }
+
+    const auto& range = lowercase_simple_delta_ranges.ranges[index];
+    const auto offset = scalar - range.first;
+    return (offset % range.stride) == 0 ? &range : nullptr;
+}
 
 constexpr const unicode_simple_case_mapping* lowercase_simple_mapping(std::uint32_t scalar) noexcept
 {
@@ -7210,6 +7367,26 @@ constexpr const unicode_special_case_mapping* lowercase_special_mapping(std::uin
 }
 
 inline constexpr auto uppercase_simple_mappings_page_index = make_source_mapping_page_index(uppercase_simple_mappings);
+inline constexpr auto uppercase_simple_delta_ranges = make_simple_case_delta_ranges(uppercase_simple_mappings);
+inline constexpr auto uppercase_simple_delta_ranges_page_slices =
+    make_overlapping_range_page_slices(uppercase_simple_delta_ranges.ranges, uppercase_simple_delta_ranges.count);
+
+constexpr const unicode_simple_case_delta_range* uppercase_simple_delta_range(std::uint32_t scalar) noexcept
+{
+    const auto index = find_overlapping_range_index_paged(
+        scalar,
+        uppercase_simple_delta_ranges.ranges,
+        uppercase_simple_delta_ranges.count,
+        uppercase_simple_delta_ranges_page_slices);
+    if (index == uppercase_simple_delta_ranges.count)
+    {
+        return nullptr;
+    }
+
+    const auto& range = uppercase_simple_delta_ranges.ranges[index];
+    const auto offset = scalar - range.first;
+    return (offset % range.stride) == 0 ? &range : nullptr;
+}
 
 constexpr const unicode_simple_case_mapping* uppercase_simple_mapping(std::uint32_t scalar) noexcept
 {
@@ -7223,9 +7400,16 @@ constexpr const unicode_special_case_mapping* uppercase_special_mapping(std::uin
     return find_source_mapping_paged(scalar, uppercase_special_mappings, uppercase_special_mappings_page_index);
 }
 
+inline constexpr auto grapheme_properties_ranges_page_slices =
+    make_overlapping_range_page_slices(grapheme_properties_ranges);
+
 constexpr unicode_grapheme_properties grapheme_properties(std::uint32_t scalar) noexcept
 {
-    const auto index = find_grapheme_property_range_index(scalar, grapheme_properties_ranges);
+    const auto index = find_overlapping_range_index_paged(
+        scalar,
+        grapheme_properties_ranges,
+        grapheme_properties_ranges.size(),
+        grapheme_properties_ranges_page_slices);
     if (index != grapheme_properties_ranges.size())
     {
         return grapheme_properties_ranges[index].properties;
