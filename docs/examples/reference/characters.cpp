@@ -10,9 +10,9 @@ int main()
 	const auto sparkle = utf8_char::from_scalar(U'✨').value();
 	const auto smile = utf16_char::from_scalar(U'😄').value();
 
-	std::println("utf8_char: {}", sparkle);                          // ✨
-	std::println("utf8_char code units: {}", sparkle.code_unit_count()); // 3
-	std::println("utf16_char: {}", smile);                          // 😄
-	std::println("utf16_char code units: {}", smile.code_unit_count());  // 2
-	std::println("ASCII upper('x'): {}", "x"_u8c.ascii_uppercase());   // X
+	std::println("{}", sparkle);                    // ✨
+	std::println("{}", sparkle.code_unit_count());  // 3
+	std::println("{}", smile);                      // 😄
+	std::println("{}", smile.code_unit_count());    // 2
+	std::println("{}", "x"_u8c.ascii_uppercase());  // X
 }

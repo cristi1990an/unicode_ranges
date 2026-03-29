@@ -41,6 +41,16 @@ jobs:
       - name: Build docs
         run: python -m mkdocs build --strict
 
+      - name: Verify Material site output
+        run: |
+          test -f _site/index.html
+          grep -q 'assets/stylesheets/main' _site/index.html
+          grep -q 'assets/javascripts/bundle' _site/index.html
+
+      - name: Mark site as static
+        run: |
+          touch _site/.nojekyll
+
       - name: Show generated site structure
         run: |
           echo "Top-level generated files:"

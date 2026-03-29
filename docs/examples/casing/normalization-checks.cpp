@@ -10,7 +10,7 @@ int main()
 	constexpr auto composed = "é"_utf8_sv;
 	constexpr auto decomposed = "é"_utf8_sv;
 
-	std::println("\"é\" is NFC: {}", composed.is_nfc());    // true
-	std::println("\"é\" is NFC: {}", decomposed.is_nfc()); // false
-	std::println("\"é\" is NFD: {}", decomposed.is_nfd()); // true
+	std::println("{}", composed.is_nfc());    // true
+	std::println("{}", decomposed.is_nfc());  // false
+	std::println("{}", decomposed.is_nfd());  // true
 }

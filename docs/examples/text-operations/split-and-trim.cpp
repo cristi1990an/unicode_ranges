@@ -18,5 +18,5 @@ int main()
 	// [thé]
 	// [apă]
 
-	std::println("trim('*'): {}", framed.trim_matches("*"_u8c)); // café
+	std::println("{}", framed.trim_matches("*"_u8c)); // café
 }

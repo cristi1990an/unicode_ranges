@@ -9,7 +9,7 @@ int main()
 {
 	constexpr auto text = "straße café"_utf8_sv;
 
-	std::println("ASCII upper: {}", text.to_ascii_uppercase()); // STRAßE CAFé
-	std::println("Unicode upper: {}", text.to_uppercase());     // STRASSE CAFÉ
-	std::println("Unicode lower: {}", "CAFÉ Ω"_utf8_sv.to_lowercase()); // café ω
+	std::println("{}", text.to_ascii_uppercase());       // STRAßE CAFé
+	std::println("{}", text.to_uppercase());             // STRASSE CAFÉ
+	std::println("{}", "CAFÉ Ω"_utf8_sv.to_lowercase()); // café ω
 }

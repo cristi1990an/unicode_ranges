@@ -51,14 +51,14 @@ int main()
 {
     constexpr auto text = "é🇷🇴!"_utf8_sv;
 
-    std::println("text: {}", text);                               // é🇷🇴!
-    std::println("size(): {}", text.size());                      // 12 UTF-8 code units
-    std::println("char_count(): {}", text.char_count());          // 5 Unicode scalars
-    std::println("grapheme_count(): {}", text.grapheme_count());  // 3 graphemes
-    std::println("find('!'): {}", text.find("!"_u8c));           // 11
-    std::println("find('🇷'): {}", text.find("🇷"_u8c));          // 3
-    std::println("chars(): {}", text.chars());                    // [e, ́, 🇷, 🇴, !]
-    std::println("graphemes(): {::s}", text.graphemes());         // [é, 🇷🇴, !]
+    std::println("{}", text);                   // é🇷🇴!
+    std::println("{}", text.size());            // 12 UTF-8 code units
+    std::println("{}", text.char_count());      // 5 Unicode scalars
+    std::println("{}", text.grapheme_count());  // 3 graphemes
+    std::println("{}", text.find("!"_u8c));     // 11
+    std::println("{}", text.find("🇷"_u8c));    // 3
+    std::println("{}", text.chars());           // [e, ́, 🇷, 🇴, !]
+    std::println("{::s}", text.graphemes());    // [é, 🇷🇴, !]
 }
 ```
 
@@ -85,10 +85,10 @@ int main()
         return 1;
     }
 
-    std::println("validated: {}", *text);                  // Grüße din România 👋
-    std::println("characters: {}", text->char_count());    // 18
-    std::println("first char: {}", text->front().value()); // G
-    std::println("last char: {}", text->back().value());   // 👋
+    std::println("{}", *text);                  // Grüße din România 👋
+    std::println("{}", text->char_count());     // 18
+    std::println("{}", text->front().value());  // G
+    std::println("{}", text->back().value());   // 👋
 }
 ```
 

@@ -10,5 +10,5 @@ int main()
 	auto text = "café noir"_utf8_s;
 
 	text.reverse();
-	std::println("reverse(): {}", text); // rion éfac
+	std::println("{}", text); // rion éfac
 }

@@ -9,6 +9,6 @@ int main()
 {
 	auto title = "café noir"_utf8_s;
 
-	std::println("whole string: {}", title.to_uppercase());                       // CAFÉ NOIR
-	std::println("tail only: {}", title.to_uppercase(6, utf8_string::npos));      // café NOIR
+	std::println("{}", title.to_uppercase());                                  // CAFÉ NOIR
+	std::println("{}", title.to_uppercase(6, utf8_string::npos));               // café NOIR
 }
