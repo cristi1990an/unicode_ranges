@@ -35,7 +35,9 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Install And Integrate: install-and-integrate.md
   - Getting Started: getting-started.md
+  - Common Tasks: common-tasks.md
   - Design: design.md
   - Unicode Data: unicode-data.md
   - Error Model: error-model.md

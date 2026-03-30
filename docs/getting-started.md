@@ -13,11 +13,33 @@ Minimum toolchains currently exercised in CI:
 
 The checked-in Unicode data currently tracks Unicode `17.0.0`.
 
+## Install and integrate
+
+If you have not wired the library into your build yet, start with [Install And Integrate](install-and-integrate.md).
+
+Short version:
+
+- the library is header-only
+- today, the normal consumption path is vendoring, a git submodule, or source-fetching in CMake
+- there is not yet a first-party package-manager or CMake package integration
+- your build needs C++23 and the repository root on the include path
+
 ## Include the library
 
 ```cpp
 #include "unicode_ranges.hpp"
 ```
+
+## Terminology cheat sheet
+
+| Term | Meaning here |
+| --- | --- |
+| code unit | one UTF-8 byte or one UTF-16 code unit |
+| scalar | one Unicode scalar value |
+| grapheme | one user-perceived character under the default Unicode grapheme rules |
+| UTF-8 offset | byte offset |
+| UTF-16 offset | code-unit offset |
+| boundary API | an API such as `is_char_boundary()` or `ceil_grapheme_boundary()` that works in terms of valid semantic cut points |
 
 ## Choose the right entry point
 
@@ -33,6 +55,14 @@ This is the style the docs will use going forward: visible Unicode text, runnabl
 --8<-- "examples/getting-started/validated-view.cpp"
 ```
 
+!!! info
+    Reading the first example:
+
+    - `é` is `U+0065 LATIN SMALL LETTER E` followed by `U+0301 COMBINING ACUTE ACCENT`.
+    - That means `é` is one grapheme, but two scalars.
+    - `🇷🇴` is one grapheme built from two regional-indicator scalars.
+    - This is why `size()`, `char_count()`, and `grapheme_count()` intentionally differ.
+
 ## Runtime validation
 
 When text arrives at runtime as raw bytes, validate it once and keep the validated type:
@@ -45,15 +75,16 @@ When text arrives at runtime as raw bytes, validate it once and keep the validat
 
 Library-defined UTF-8 and UTF-16 types support formatting and printing directly. Borrowed views such as `chars()` and `graphemes()` are easy to inspect too. For grapheme views, the examples use `"{::s}"` so the printed range stays visually uniform with the underlying text:
 
+!!! warning
+    `std::println("{}", text.chars())` and `std::println("{::s}", text.graphemes())` rely on C++23 range-formatting support in the standard library.
+
+    - this works on the MSVC STL and on libc++
+    - libstdc++ 14 does not currently format these custom helper views directly
+    - the GCC docs-example CI job therefore treats that specific limitation as informational rather than blocking
+
 ```cpp
 --8<-- "examples/getting-started/formatting.cpp"
 ```
-
-Note:
-
-- direct `std::println("{}", text.chars())` and `std::println("{::s}", text.graphemes())` rely on C++23 range-formatting support in the standard library
-- this works on the MSVC STL and on libc++
-- libstdc++ 14 does not currently format these custom view types directly, so the GCC docs-example CI job is informational rather than blocking
 
 ## Views versus owning strings
 
@@ -79,6 +110,7 @@ The examples under `docs/examples/` are compiled in CI so the docs do not silent
 
 ## Where to go next
 
+- [Common Tasks](common-tasks.md)
 - [Design](design.md)
 - [Text Operations](text-operations.md)
 - [Casing and Normalization](casing-and-normalization.md)

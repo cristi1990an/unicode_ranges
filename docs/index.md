@@ -4,9 +4,11 @@
 
 It is built around a simple idea: Unicode scalar values are the canonical model, while UTF-8 and UTF-16 remain first-class encodings with dedicated APIs. The library gives you validated characters, borrowed views, owning strings, scalar iteration, grapheme iteration, Unicode casing, normalization, formatting support, and conversion between encodings.
 
-## Start here
+## New users: start here
 
+- [Install And Integrate](install-and-integrate.md): how to consume the library today, including the current packaging reality.
 - [Getting Started](getting-started.md): include, validate, and use the core types quickly.
+- [Common Tasks](common-tasks.md): validate input, iterate scalars versus graphemes, normalize, case-map, and convert encodings.
 - [Design](design.md): ownership, indexing, boundaries, and what the library treats as a character.
 - [Text Operations](text-operations.md): search, split, trim, replace, reverse, and boundary queries.
 - [Casing and Normalization](casing-and-normalization.md): Unicode casing, case folding, and normalization forms.
