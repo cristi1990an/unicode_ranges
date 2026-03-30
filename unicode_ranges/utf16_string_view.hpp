@@ -27,6 +27,7 @@ public:
 
 	static constexpr utf16_string_view from_code_units_unchecked(std::u16string_view code_units) noexcept
 	{
+		assert(details::validate_utf16(code_units).has_value());
 		return utf16_string_view{ code_units };
 	}
 

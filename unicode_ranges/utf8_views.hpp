@@ -106,6 +106,7 @@ namespace views
 
 		static constexpr utf8_view from_bytes_unchecked(std::u8string_view base) noexcept
 		{
+			assert(details::validate_utf8(base).has_value());
 			return utf8_view{ base };
 		}
 
@@ -219,6 +220,7 @@ namespace views
 
 		static constexpr reversed_utf8_view from_bytes_unchecked(std::u8string_view base) noexcept
 		{
+			assert(details::validate_utf8(base).has_value());
 			return reversed_utf8_view{ base };
 		}
 

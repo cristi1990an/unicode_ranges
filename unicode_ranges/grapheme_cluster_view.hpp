@@ -116,6 +116,15 @@ namespace views
 
 		static constexpr grapheme_cluster_view from_code_units_unchecked(std::basic_string_view<CharT> base) noexcept
 		{
+			if constexpr (std::same_as<CharT, char8_t>)
+			{
+				assert(details::validate_utf8(base).has_value());
+			}
+			else
+			{
+				assert(details::validate_utf16(base).has_value());
+			}
+
 			return grapheme_cluster_view{ base };
 		}
 

@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include <array>
+#include <cassert>
 #include <charconv>
 #include <compare>
 #include <concepts>

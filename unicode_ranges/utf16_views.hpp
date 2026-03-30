@@ -105,6 +105,7 @@ namespace views
 
 		static constexpr utf16_view from_code_units_unchecked(std::u16string_view base) noexcept
 		{
+			assert(details::validate_utf16(base).has_value());
 			return utf16_view{ base };
 		}
 
@@ -241,6 +242,7 @@ namespace views
 
 		static constexpr reversed_utf16_view from_code_units_unchecked(std::u16string_view base) noexcept
 		{
+			assert(details::validate_utf16(base).has_value());
 			return reversed_utf16_view{ base };
 		}
 

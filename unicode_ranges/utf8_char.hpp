@@ -48,6 +48,9 @@ public:
 	[[nodiscard]]
 	static constexpr utf8_char from_utf8_bytes_unchecked(const CharT* bytes, std::size_t size) noexcept
 	{
+		assert(bytes != nullptr);
+		assert(details::is_single_valid_utf8_char(std::basic_string_view<CharT>{ bytes, size }));
+
 		utf8_char value;
 		switch (size)
 		{
@@ -848,6 +851,8 @@ private:
 
 	constexpr void assign_scalar_unchecked(std::uint32_t scalar) noexcept
 	{
+		assert(details::is_valid_unicode_scalar(scalar));
+
 		if (scalar <= details::encoding_constants::ascii_scalar_max) [[likely]]
 		{
 			set_ascii(static_cast<std::uint8_t>(scalar));

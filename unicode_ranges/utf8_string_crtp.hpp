@@ -16,6 +16,7 @@ class utf8_char_indices_view : public std::ranges::view_interface<utf8_char_indi
 public:
 	static constexpr utf8_char_indices_view from_bytes_unchecked(std::u8string_view base) noexcept
 	{
+		assert(details::validate_utf8(base).has_value());
 		return utf8_char_indices_view{ base };
 	}
 
@@ -100,6 +101,7 @@ class utf8_grapheme_indices_view : public std::ranges::view_interface<utf8_graph
 public:
 	static constexpr utf8_grapheme_indices_view from_bytes_unchecked(std::u8string_view base) noexcept
 	{
+		assert(details::validate_utf8(base).has_value());
 		return utf8_grapheme_indices_view{ base };
 	}
 
@@ -2715,6 +2717,7 @@ class utf8_whitespace_split_view : public std::ranges::view_interface<utf8_white
 private:
 	static constexpr utf8_whitespace_split_view from_bytes_unchecked(std::u8string_view base) noexcept
 	{
+		assert(details::validate_utf8(base).has_value());
 		return utf8_whitespace_split_view{ base };
 	}
 
@@ -3727,6 +3730,8 @@ public:
 
 	constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) const noexcept
 	{
+		assert(is_char_boundary(delim));
+
 		const auto bytes = byte_view();
 		return {
 			View::from_bytes_unchecked(bytes.substr(0, delim)),
@@ -4066,6 +4071,9 @@ public:
 
 	constexpr utf8_char char_at_unchecked(size_type index) const noexcept
 	{
+		assert(index < size());
+		assert(is_char_boundary(index));
+
 		const auto bytes = byte_view();
 		const auto len = details::utf8_byte_count_from_lead(static_cast<std::uint8_t>(bytes[index]));
 		return utf8_char::from_utf8_bytes_unchecked(bytes.data() + index, len);
@@ -4142,6 +4150,7 @@ public:
 
 	constexpr utf8_char front_unchecked() const noexcept
 	{
+		assert(!empty());
 		return *chars().begin();
 	}
 
@@ -4157,6 +4166,7 @@ public:
 
 	constexpr utf8_char back_unchecked() const noexcept
 	{
+		assert(!empty());
 		return *reversed_chars().begin();
 	}
 
