@@ -4,6 +4,20 @@
 
 It is built around a simple idea: Unicode scalar values are the canonical model, while UTF-8 and UTF-16 remain first-class encodings with dedicated APIs. The library gives you validated characters, borrowed views, owning strings, scalar iteration, grapheme iteration, Unicode casing, normalization, formatting support, and conversion between encodings.
 
+## Why this library exists
+
+Existing C and C++ text handling often starts from raw byte buffers, raw code-unit strings, or APIs with preconditions that are easy to violate and hard to see at the call site. Validation rules, boundary rules, and error handling are frequently left to documentation and convention instead of being carried by the type system.
+
+`unicode_ranges` exists to push that cost to the edge:
+
+- validate once, then operate with invariants
+- represent UTF-8 and UTF-16 text with lightweight dedicated types instead of "maybe valid" raw strings
+- make invalid states unrepresentable once construction succeeds
+- keep construction available both at compile time through validated literals and at runtime through checked factories
+- still expose explicit unchecked fast paths when the caller has already proved validity elsewhere
+
+The design goal is not "maximum abstraction". It is predictable Unicode handling with clear invariants, explicit failure modes, and no repeated worry about whether the current value is valid text.
+
 ## New users: start here
 
 - [Install And Integrate](install-and-integrate.md): how to consume the library today, including the current packaging reality.
@@ -41,6 +55,7 @@ Everything public lives in namespace `unicode_ranges`. Literal operators live in
 
 - Validated text types instead of raw `std::u8string_view` / `std::u16string_view`
 - Predictable, STL-style APIs with Rust-inspired Unicode ergonomics
+- Separate checked, unchecked, Unicode-aware, and ASCII-only paths so you do not pay for what you do not use
 - `constexpr`-friendly literals and core operations where practical
 - Table-driven Unicode properties and grapheme segmentation
 - Fast ASCII paths without degrading Unicode correctness

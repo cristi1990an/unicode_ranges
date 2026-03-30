@@ -1,5 +1,24 @@
 # Design
 
+## Problem statement
+
+The library is meant to solve a recurring problem in C and C++ Unicode handling: too many APIs operate on raw strings with important preconditions left implicit.
+
+Typical pain points are:
+
+- validation is separate from the type that is later passed around
+- invalid UTF-8 or UTF-16 can survive too long in ordinary string types
+- boundary-sensitive operations rely on callers remembering byte or code-unit rules
+- error handling is inconsistent across libraries and easy to lose when composing APIs
+
+`unicode_ranges` takes a different approach:
+
+- validate once at construction
+- encode the result in dedicated lightweight types with clear invariants
+- keep those invariants stable across later operations
+
+Once you have a `utf8_char`, `utf16_char`, `utf8_string_view`, `utf16_string_view`, `utf8_string`, or `utf16_string`, you are working with validated text, not with raw storage that might or might not be valid.
+
 ## Core model
 
 The library is built around a few explicit rules:
@@ -46,7 +65,7 @@ Checked construction validates input and reports structured errors. Unchecked co
 - `char_at(...)`
 - `char_at_unchecked(...)`
 
-The unchecked APIs are there for callers that already proved validity elsewhere and want to skip redundant checks.
+The unchecked APIs are there for callers that already proved validity elsewhere and want to skip redundant checks. This is the core "validate once, operate without worry" rule of the library: checked APIs establish the invariant, and unchecked APIs are the explicit escape hatch when that invariant is already known by other means.
 
 ## ASCII fast paths and Unicode correctness
 
@@ -70,6 +89,17 @@ Many literals and core operations are meant to remain usable in constant evaluat
 - grapheme segmentation
 
 Not every operation is `constexpr`, but it is a deliberate design target rather than an accidental bonus.
+
+## You do not pay for what you do not use
+
+The library tries to keep costs explicit instead of hidden:
+
+- checked and unchecked entry points are separate
+- borrowed and owning types are separate
+- ASCII-only and Unicode-aware operations are separate
+- scalar iteration and grapheme iteration are separate
+
+That separation is deliberate. Callers who need full validation and Unicode semantics can opt into them directly. Callers who already have validated text or only need ASCII behavior do not have to keep paying for heavier paths at every call site.
 
 ## Scope boundaries
 
