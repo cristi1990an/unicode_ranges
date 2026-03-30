@@ -4,6 +4,20 @@
 
 It provides validated character types, borrowed string views, owning strings, grapheme-aware iteration, Unicode casing, normalization, and conversion between UTF-8 and UTF-16.
 
+## Why this library exists
+
+Many existing C and C++ Unicode/text APIs start from raw byte buffers or raw code-unit strings and rely on documentation, preconditions, and caller discipline to keep invalid text out. Validation, boundary rules, and error handling are often separate from the type that is later passed around.
+
+`unicode_ranges` takes the opposite approach:
+
+- validate once, then operate with invariants
+- use lightweight dedicated UTF-8 and UTF-16 types instead of "maybe valid" raw strings
+- make invalid states unrepresentable once construction succeeds
+- support both compile-time construction through validated literals and runtime construction through checked factories
+- keep explicit `_unchecked` escape hatches for callers that already proved validity elsewhere
+
+The goal is predictable Unicode handling with clear invariants and explicit failure modes. You do not pay for what you do not use: checked and unchecked paths are separate, borrowed and owning types are separate, ASCII-only and Unicode-aware operations are separate, and scalar-level and grapheme-level APIs are separate.
+
 ## Documentation
 
 - Docs site: [https://cristi1990an.github.io/unicode_ranges/](https://cristi1990an.github.io/unicode_ranges/)
