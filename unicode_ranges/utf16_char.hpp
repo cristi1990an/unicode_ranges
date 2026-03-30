@@ -57,8 +57,8 @@ public:
 	[[nodiscard]]
 	static constexpr utf16_char from_utf16_code_units_unchecked(const CharT* code_units, std::size_t size) noexcept
 	{
-		assert(code_units != nullptr);
-		assert(details::is_single_valid_utf16_char(std::basic_string_view<CharT>{ code_units, size }));
+		UTF8_RANGES_DEBUG_ASSERT(code_units != nullptr);
+		UTF8_RANGES_DEBUG_ASSERT(details::is_single_valid_utf16_char(std::basic_string_view<CharT>{ code_units, size }));
 
 		utf16_char value;
 		std::ranges::copy_n(code_units, size, value.code_units_.begin());
@@ -474,7 +474,7 @@ private:
 
 	constexpr void assign_scalar_unchecked(std::uint32_t scalar) noexcept
 	{
-		assert(details::is_valid_unicode_scalar(scalar));
+		UTF8_RANGES_DEBUG_ASSERT(details::is_valid_unicode_scalar(scalar));
 
 		code_units_.fill(0);
 		details::encode_unicode_scalar_utf16_unchecked(scalar, code_units_.data());

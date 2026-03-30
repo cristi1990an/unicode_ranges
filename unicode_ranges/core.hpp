@@ -42,6 +42,19 @@
 #include <emmintrin.h>
 #endif
 
+#if defined(NDEBUG)
+#define UTF8_RANGES_DEBUG_ASSERT(expr) ((void)0)
+#else
+#define UTF8_RANGES_DEBUG_ASSERT(expr) \
+	do \
+	{ \
+		if (!std::is_constant_evaluated()) \
+		{ \
+			assert(expr); \
+		} \
+	} while (false)
+#endif
+
 #include "unicode_tables.hpp"
 
 namespace unicode_ranges

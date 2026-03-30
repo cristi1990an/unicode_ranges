@@ -16,7 +16,7 @@ class utf16_char_indices_view : public std::ranges::view_interface<utf16_char_in
 public:
 	static constexpr utf16_char_indices_view from_code_units_unchecked(std::u16string_view base) noexcept
 	{
-		assert(details::validate_utf16(base).has_value());
+		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf16(base).has_value());
 		return utf16_char_indices_view{ base };
 	}
 
@@ -103,7 +103,7 @@ class utf16_grapheme_indices_view : public std::ranges::view_interface<utf16_gra
 public:
 	static constexpr utf16_grapheme_indices_view from_code_units_unchecked(std::u16string_view base) noexcept
 	{
-		assert(details::validate_utf16(base).has_value());
+		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf16(base).has_value());
 		return utf16_grapheme_indices_view{ base };
 	}
 
@@ -2764,7 +2764,7 @@ class utf16_whitespace_split_view : public std::ranges::view_interface<utf16_whi
 private:
 	static constexpr utf16_whitespace_split_view from_code_units_unchecked(std::u16string_view base) noexcept
 	{
-		assert(details::validate_utf16(base).has_value());
+		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf16(base).has_value());
 		return utf16_whitespace_split_view{ base };
 	}
 
@@ -3765,7 +3765,7 @@ public:
 
 	constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) const noexcept
 	{
-		assert(is_char_boundary(delim));
+		UTF8_RANGES_DEBUG_ASSERT(is_char_boundary(delim));
 
 		const auto code_units = code_unit_view();
 		return {
@@ -4106,8 +4106,8 @@ public:
 
 	constexpr utf16_char char_at_unchecked(size_type index) const noexcept
 	{
-		assert(index < size());
-		assert(is_char_boundary(index));
+		UTF8_RANGES_DEBUG_ASSERT(index < size());
+		UTF8_RANGES_DEBUG_ASSERT(is_char_boundary(index));
 
 		const auto code_units = code_unit_view();
 		const auto first = static_cast<std::uint16_t>(code_units[index]);
@@ -4186,7 +4186,7 @@ public:
 
 	constexpr utf16_char front_unchecked() const noexcept
 	{
-		assert(!empty());
+		UTF8_RANGES_DEBUG_ASSERT(!empty());
 		return *chars().begin();
 	}
 
@@ -4202,7 +4202,7 @@ public:
 
 	constexpr utf16_char back_unchecked() const noexcept
 	{
-		assert(!empty());
+		UTF8_RANGES_DEBUG_ASSERT(!empty());
 		return *reversed_chars().begin();
 	}
 

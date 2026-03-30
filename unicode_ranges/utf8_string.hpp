@@ -87,7 +87,7 @@ class basic_utf8_string : public details::utf8_string_crtp<basic_utf8_string<All
 	static constexpr auto from_bytes_unchecked(std::string_view bytes, const Allocator& alloc = Allocator()) noexcept
 		-> basic_utf8_string
 	{
-		assert(details::validate_utf8(bytes).has_value());
+		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf8(bytes).has_value());
 
 		base_type result{ alloc };
 		result.resize_and_overwrite(bytes.size(),
@@ -109,7 +109,7 @@ class basic_utf8_string : public details::utf8_string_crtp<basic_utf8_string<All
 	{
 		if constexpr (sizeof(wchar_t) == 2)
 		{
-			assert(details::validate_utf16(bytes).has_value());
+			UTF8_RANGES_DEBUG_ASSERT(details::validate_utf16(bytes).has_value());
 
 			base_type result{ alloc };
 			result.resize_and_overwrite(bytes.size() * details::encoding_constants::three_code_unit_count,
@@ -135,7 +135,7 @@ class basic_utf8_string : public details::utf8_string_crtp<basic_utf8_string<All
 			return from_base_unchecked(std::move(result));
 		}
 
-		assert(details::validate_unicode_scalars(bytes).has_value());
+		UTF8_RANGES_DEBUG_ASSERT(details::validate_unicode_scalars(bytes).has_value());
 
 		base_type result{ alloc };
 		result.resize_and_overwrite(bytes.size() * details::encoding_constants::max_utf8_code_units,
@@ -361,10 +361,10 @@ private:
 
 	constexpr basic_utf8_string& reverse_bytes_unchecked(size_type pos, size_type count) noexcept
 	{
-		assert(pos <= size());
-		assert(count <= size() - pos);
-		assert(this->is_char_boundary(pos));
-		assert(this->is_char_boundary(pos + count));
+		UTF8_RANGES_DEBUG_ASSERT(pos <= size());
+		UTF8_RANGES_DEBUG_ASSERT(count <= size() - pos);
+		UTF8_RANGES_DEBUG_ASSERT(this->is_char_boundary(pos));
+		UTF8_RANGES_DEBUG_ASSERT(this->is_char_boundary(pos + count));
 
 		const auto end = pos + count;
 		for (size_type index = pos; index < end; )
@@ -2061,7 +2061,7 @@ private:
 
 	static constexpr basic_utf8_string from_base_unchecked(base_type bytes) noexcept
 	{
-		assert(details::validate_utf8(equivalent_string_view{ bytes }).has_value());
+		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf8(equivalent_string_view{ bytes }).has_value());
 		return basic_utf8_string{ std::move(bytes) };
 	}
 

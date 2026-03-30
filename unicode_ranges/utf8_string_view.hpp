@@ -27,7 +27,7 @@ public:
 
 	static constexpr utf8_string_view from_bytes_unchecked(std::u8string_view bytes) noexcept
 	{
-		assert(details::validate_utf8(bytes).has_value());
+		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf8(bytes).has_value());
 		return utf8_string_view{ bytes };
 	}
 

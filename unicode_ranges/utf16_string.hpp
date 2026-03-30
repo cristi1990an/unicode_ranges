@@ -80,7 +80,7 @@ public:
 
 	static constexpr basic_utf16_string from_code_units_unchecked(base_type code_units) noexcept
 	{
-		assert(details::validate_utf16(equivalent_string_view{ code_units }).has_value());
+		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf16(equivalent_string_view{ code_units }).has_value());
 		return basic_utf16_string{ std::move(code_units) };
 	}
 
@@ -93,7 +93,7 @@ public:
 		equivalent_string_view code_units,
 		const Allocator& alloc = Allocator()) noexcept
 	{
-		assert(details::validate_utf16(code_units).has_value());
+		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf16(code_units).has_value());
 
 		basic_utf16_string result;
 		result.base_ = base_type{ code_units, alloc };
@@ -108,7 +108,7 @@ public:
 	static constexpr auto from_bytes_unchecked(std::string_view bytes, const Allocator& alloc = Allocator()) noexcept
 		-> basic_utf16_string
 	{
-		assert(details::validate_utf8(bytes).has_value());
+		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf8(bytes).has_value());
 
 		base_type utf16_code_units{ alloc };
 		utf16_code_units.resize_and_overwrite(bytes.size(),
@@ -136,7 +136,7 @@ public:
 	{
 		if constexpr (sizeof(wchar_t) == 2)
 		{
-			assert(details::validate_utf16(bytes).has_value());
+			UTF8_RANGES_DEBUG_ASSERT(details::validate_utf16(bytes).has_value());
 
 			base_type result{ alloc };
 			result.resize_and_overwrite(bytes.size(),
@@ -153,7 +153,7 @@ public:
 			return from_code_units_unchecked(std::move(result));
 		}
 
-		assert(details::validate_unicode_scalars(bytes).has_value());
+		UTF8_RANGES_DEBUG_ASSERT(details::validate_unicode_scalars(bytes).has_value());
 
 		base_type utf16_code_units{ alloc };
 		utf16_code_units.resize_and_overwrite(bytes.size() * details::encoding_constants::utf16_surrogate_code_unit_count,
@@ -379,10 +379,10 @@ private:
 
 	constexpr basic_utf16_string& reverse_code_units_unchecked(size_type pos, size_type count) noexcept
 	{
-		assert(pos <= size());
-		assert(count <= size() - pos);
-		assert(this->is_char_boundary(pos));
-		assert(this->is_char_boundary(pos + count));
+		UTF8_RANGES_DEBUG_ASSERT(pos <= size());
+		UTF8_RANGES_DEBUG_ASSERT(count <= size() - pos);
+		UTF8_RANGES_DEBUG_ASSERT(this->is_char_boundary(pos));
+		UTF8_RANGES_DEBUG_ASSERT(this->is_char_boundary(pos + count));
 
 		const auto end = pos + count;
 		for (size_type index = pos; index < end; )
