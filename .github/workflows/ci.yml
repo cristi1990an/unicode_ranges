@@ -217,34 +217,61 @@ jobs:
           UBSAN_OPTIONS: ${{ matrix.ubsan_options }}
 
   linux-icu:
-    name: GCC + ICU (O2, C++23)
+    name: ${{ matrix.name }} + ICU (O2, C++23)
     runs-on: ubuntu-24.04
+    continue-on-error: ${{ matrix.install_kind == 'clang' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: GCC
+            install_kind: gcc
+            packages: g++-14 libicu-dev pkg-config
+            cxx: g++-14
+            cxxflags: ""
+            output: unicode_ranges_gcc_icu
+          - name: Clang trunk
+            install_kind: clang
+            packages: clang-22 libc++-22-dev libc++abi-22-dev libicu-dev pkg-config
+            cxx: clang++-22
+            cxxflags: "-stdlib=libc++"
+            output: unicode_ranges_clang_icu
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Install GCC and ICU
+        if: matrix.install_kind == 'gcc'
         run: |
           sudo apt-get update
-          sudo apt-get install -y g++-14 libicu-dev pkg-config
+          sudo apt-get install -y ${{ matrix.packages }}
+
+      - name: Install Clang trunk and ICU
+        if: matrix.install_kind == 'clang'
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 22
+          sudo apt-get install -y ${{ matrix.packages }}
 
       - name: Show tool versions
         run: |
-          g++-14 --version
+          ${{ matrix.cxx }} --version
           pkg-config --modversion icu-uc
 
       - name: Build with ICU enabled
         run: |
-          g++-14 -std=c++23 -O2 -Wall -Wextra -Werror -pedantic \
+          ${{ matrix.cxx }} -std=c++23 -O2 -Wall -Wextra -Werror -pedantic \
             -DUTF8_RANGES_ENABLE_ICU=1 \
+            ${{ matrix.cxxflags }} \
             $(pkg-config --cflags icu-uc) \
             source.cpp \
-            -o unicode_ranges_gcc_icu \
+            -o ${{ matrix.output }} \
             $(pkg-config --libs icu-uc)
 
       - name: Run ICU-enabled tests
-        run: ./unicode_ranges_gcc_icu
+        run: ./${{ matrix.output }}
 
   docs-examples:
     name: Docs examples (${{ matrix.name }}, C++23)
