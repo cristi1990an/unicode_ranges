@@ -385,6 +385,30 @@ private:
 		return *this;
 	}
 
+	constexpr basic_utf8_string& reverse_grapheme_bytes_unchecked(size_type pos, size_type count) noexcept
+	{
+		UTF8_RANGES_DEBUG_ASSERT(pos <= size());
+		UTF8_RANGES_DEBUG_ASSERT(count <= size() - pos);
+		UTF8_RANGES_DEBUG_ASSERT(this->is_grapheme_boundary(pos));
+		UTF8_RANGES_DEBUG_ASSERT(this->is_grapheme_boundary(pos + count));
+
+		const auto end = pos + count;
+		const auto bytes = equivalent_string_view{ base_ };
+		for (size_type index = pos; index < end; )
+		{
+			const auto next = details::next_grapheme_boundary(bytes, index);
+			std::reverse(
+				base_.begin() + static_cast<difference_type>(index),
+				base_.begin() + static_cast<difference_type>(next));
+			index = next;
+		}
+
+		std::reverse(
+			base_.begin() + static_cast<difference_type>(pos),
+			base_.begin() + static_cast<difference_type>(end));
+		return *this;
+	}
+
 public:
 
 	basic_utf8_string() = default;
@@ -868,6 +892,11 @@ public:
 		return reverse_bytes_unchecked(0, size());
 	}
 
+	constexpr basic_utf8_string& reverse_graphemes() noexcept
+	{
+		return reverse_grapheme_bytes_unchecked(0, size());
+	}
+
 	constexpr basic_utf8_string& reverse(size_type pos, size_type count = npos)
 	{
 		if (pos > size()) [[unlikely]]
@@ -889,6 +918,29 @@ public:
 		}
 
 		return reverse_bytes_unchecked(pos, reverse_count);
+	}
+
+	constexpr basic_utf8_string& reverse_graphemes(size_type pos, size_type count = npos)
+	{
+		if (pos > size()) [[unlikely]]
+		{
+			throw std::out_of_range("reverse_graphemes index out of range");
+		}
+
+		const auto remaining = size() - pos;
+		const auto reverse_count = count == npos ? remaining : count;
+		if (reverse_count > remaining) [[unlikely]]
+		{
+			throw std::out_of_range("reverse_graphemes count out of range");
+		}
+
+		const auto end = pos + reverse_count;
+		if (!this->is_grapheme_boundary(pos) || !this->is_grapheme_boundary(end)) [[unlikely]]
+		{
+			throw std::out_of_range("reverse_graphemes range must be a valid UTF-8 grapheme substring");
+		}
+
+		return reverse_grapheme_bytes_unchecked(pos, reverse_count);
 	}
 
 	[[nodiscard]]

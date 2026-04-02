@@ -3275,7 +3275,14 @@ static_assert(std::same_as<utf8_string::value_type, utf8_char>);
 static_assert(std::same_as<decltype(utf8_string{}.get_allocator()), std::allocator<char8_t>>);
 static_assert(std::same_as<decltype(utf8_string{}.pop_back()), std::optional<utf8_char>>);
 static_assert(std::same_as<decltype(utf8_string{}.reverse()), utf8_string&>);
+static_assert(std::same_as<decltype(utf8_string{}.reverse_graphemes()), utf8_string&>);
 static_assert(noexcept(utf8_string{}.reverse()));
+static_assert(noexcept(utf8_string{}.reverse_graphemes()));
+static_assert([] {
+	auto s = u8"e\u0301\U0001F1F7\U0001F1F4!"_utf8_s;
+	s.reverse_graphemes();
+	return s == u8"!\U0001F1F7\U0001F1F4e\u0301"_utf8_sv;
+}());
 	{
 		auto bytes = std::u8string{ u8"A\u00E9\U0001F600" };
 		const auto result = utf8_string::from_bytes(std::move(bytes));
@@ -3487,7 +3494,14 @@ static_assert(std::same_as<utf16_string::value_type, utf16_char>);
 static_assert(std::same_as<decltype(utf16_string{}.get_allocator()), std::allocator<char16_t>>);
 static_assert(std::same_as<decltype(utf16_string{}.pop_back()), std::optional<utf16_char>>);
 static_assert(std::same_as<decltype(utf16_string{}.reverse()), utf16_string&>);
+static_assert(std::same_as<decltype(utf16_string{}.reverse_graphemes()), utf16_string&>);
 static_assert(noexcept(utf16_string{}.reverse()));
+static_assert(noexcept(utf16_string{}.reverse_graphemes()));
+static_assert([] {
+	auto s = u"e\u0301\U0001F1F7\U0001F1F4!"_utf16_s;
+	s.reverse_graphemes();
+	return s == u"!\U0001F1F7\U0001F1F4e\u0301"_utf16_sv;
+}());
 	assert(u"Aé😀"_utf16_s == utf16_text);
 	assert(utf16_string{ utf16_text } == u"Aé😀"_utf16_s);
 	assert((utf16_string{ u8"Aé😀"_utf8_sv } == u"Aé😀"_utf16_sv));
@@ -3650,13 +3664,28 @@ static_assert(noexcept(utf16_string{}.reverse()));
 		assert(s == u"\U0001F600\u00E9A"_utf16_sv);
 	}
 	{
+		auto s = u"e\u0301\U0001F1F7\U0001F1F4!"_utf16_s;
+		s.reverse_graphemes();
+		assert(s == u"!\U0001F1F7\U0001F1F4e\u0301"_utf16_sv);
+	}
+	{
 		auto s = u"A\u00E9B\U0001F600C"_utf16_s;
 		s.reverse(1, 4);
 		assert(s == u"A\U0001F600B\u00E9C"_utf16_sv);
 	}
 	{
+		auto s = u"Xe\u0301\U0001F1F7\U0001F1F4!Y"_utf16_s;
+		s.reverse_graphemes(1, 7);
+		assert(s == u"X!\U0001F1F7\U0001F1F4e\u0301Y"_utf16_sv);
+	}
+	{
 		auto s = u"A\u00E9"_utf16_s;
 		s.reverse(s.size(), 0);
+		assert(s == u"A\u00E9"_utf16_sv);
+	}
+	{
+		auto s = u"A\u00E9"_utf16_s;
+		s.reverse_graphemes(s.size(), 0);
 		assert(s == u"A\u00E9"_utf16_sv);
 	}
 	{
@@ -3806,13 +3835,28 @@ static_assert(noexcept(utf16_string{}.reverse()));
 		assert(s == u8"\U0001F600\u00E9A"_utf8_sv);
 	}
 	{
+		auto s = u8"e\u0301\U0001F1F7\U0001F1F4!"_utf8_s;
+		s.reverse_graphemes();
+		assert(s == u8"!\U0001F1F7\U0001F1F4e\u0301"_utf8_sv);
+	}
+	{
 		auto s = u8"A\u00E9B\U0001F600C"_utf8_s;
 		s.reverse(1, 7);
 		assert(s == u8"A\U0001F600B\u00E9C"_utf8_sv);
 	}
 	{
+		auto s = u8"Xe\u0301\U0001F1F7\U0001F1F4!Y"_utf8_s;
+		s.reverse_graphemes(1, 12);
+		assert(s == u8"X!\U0001F1F7\U0001F1F4e\u0301Y"_utf8_sv);
+	}
+	{
 		auto s = u8"A\u00E9"_utf8_s;
 		s.reverse(s.size(), 0);
+		assert(s == u8"A\u00E9"_utf8_sv);
+	}
+	{
+		auto s = u8"A\u00E9"_utf8_s;
+		s.reverse_graphemes(s.size(), 0);
 		assert(s == u8"A\u00E9"_utf8_sv);
 	}
 	{
@@ -4125,6 +4169,20 @@ static_assert(noexcept(utf16_string{}.reverse()));
 		}
 	}
 	{
+		auto s = u"e\u0301\U0001F1F7\U0001F1F4!"_utf16_s;
+		if (!expect_out_of_range([&] { s.reverse_graphemes(1, 6); }))
+		{
+			assert(false);
+		}
+	}
+	{
+		auto s = u"e\u0301\U0001F1F7\U0001F1F4!"_utf16_s;
+		if (!expect_out_of_range([&] { s.reverse_graphemes(2, 2); }))
+		{
+			assert(false);
+		}
+	}
+	{
 		utf8_string s{ utf8_text };
 		if (!expect_out_of_range([&] { s.reverse(decltype(s)::npos); }))
 		{
@@ -4148,6 +4206,20 @@ static_assert(noexcept(utf16_string{}.reverse()));
 	{
 		utf8_string s{ utf8_text };
 		if (!expect_out_of_range([&] { s.reverse(1, 1); }))
+		{
+			assert(false);
+		}
+	}
+	{
+		auto s = u8"e\u0301\U0001F1F7\U0001F1F4!"_utf8_s;
+		if (!expect_out_of_range([&] { s.reverse_graphemes(1, 11); }))
+		{
+			assert(false);
+		}
+	}
+	{
+		auto s = u8"e\u0301\U0001F1F7\U0001F1F4!"_utf8_s;
+		if (!expect_out_of_range([&] { s.reverse_graphemes(3, 4); }))
 		{
 			assert(false);
 		}

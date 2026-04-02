@@ -7,8 +7,12 @@ using namespace unicode_ranges::literals;
 
 int main()
 {
-	auto text = "café noir"_utf8_s;
+	auto chars = "é🇷🇴!"_utf8_s;
+	auto graphemes = chars;
 
-	text.reverse();
-	std::println("{}", text); // rion éfac
+	chars.reverse();
+	graphemes.reverse_graphemes();
+
+	std::println("{}", chars);      // !🇴🇷́e
+	std::println("{}", graphemes);  // !🇷🇴é
 }

@@ -305,14 +305,17 @@ constexpr std::optional<value_type> pop_back();
 constexpr basic_utf8_string& erase(size_type index, size_type count = npos);
 constexpr basic_utf8_string& reverse() noexcept;
 constexpr basic_utf8_string& reverse(size_type pos, size_type count = npos);
+constexpr basic_utf8_string& reverse_graphemes() noexcept;
+constexpr basic_utf8_string& reverse_graphemes(size_type pos, size_type count = npos);
 
 // The UTF-16 type exposes the same families with utf16_string_view and utf16_char.
 ```
 
 ### Behavior
 
-- Insertion, erasure, and partial reversal require valid character boundaries.
+- Insertion, erasure, partial character reversal, and partial grapheme reversal require valid boundaries.
 - `reverse()` reverses characters, not raw code units.
+- `reverse_graphemes()` reverses grapheme clusters, not raw code units.
 - `pop_back()` removes and returns the last validated character when present.
 
 ### Overload differences
@@ -331,6 +334,8 @@ The examples below use `utf8_string text = "😄🇷🇴✨"_utf8_s;`.
 | `erase(index, count)` | erase a boundary-aligned validated substring | `text.erase(4, 8);` |
 | `reverse()` | reverse the whole string by character | `text.reverse();` |
 | `reverse(pos, count)` | reverse one boundary-aligned substring by character | `text.reverse(4, 8);` |
+| `reverse_graphemes()` | reverse the whole string by grapheme cluster | `text.reverse_graphemes();` |
+| `reverse_graphemes(pos, count)` | reverse one grapheme-boundary-aligned substring by grapheme cluster | `text.reverse_graphemes(0, 12);` |
 | `pop_back()` | remove and return the last validated character | `const auto last = text.pop_back();` |
 
 ### Inspiration
@@ -348,12 +353,13 @@ Linear in the amount of moved or reversed data.
 
 ### Exceptions
 
-- `insert`, `insert_range`, `erase`, and partial `reverse(pos, count)` throw [`std::out_of_range`](https://en.cppreference.com/w/cpp/error/out_of_range) for invalid indices or invalid UTF substring boundaries.
+- `insert`, `insert_range`, `erase`, `reverse(pos, count)`, and `reverse_graphemes(pos, count)` throw [`std::out_of_range`](https://en.cppreference.com/w/cpp/error/out_of_range) for invalid indices or invalid substring boundaries.
 - Allocation may also fail.
 
 ### `noexcept`
 
 - `reverse()` without arguments is `noexcept`.
+- `reverse_graphemes()` without arguments is `noexcept`.
 - The remaining overloads are not `noexcept`.
 
 ## Case Mapping, Normalization, And Case Folding

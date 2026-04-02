@@ -3,5 +3,4 @@
 int main()
 {
 	run_unicode_ranges_tests();
-	return 0;
 }

@@ -79,6 +79,8 @@ Owning strings add mutating APIs such as:
 - `erase`
 - `reverse()`
 - `reverse(pos, count = npos)`
+- `reverse_graphemes()`
+- `reverse_graphemes(pos, count = npos)`
 - `replace(...)`
 - `replace_all(...)`
 - `replace_n(...)`
