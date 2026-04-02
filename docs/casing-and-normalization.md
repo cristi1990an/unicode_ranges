@@ -20,6 +20,18 @@ The Unicode-aware APIs are locale-independent. They follow generated Unicode tab
 --8<-- "examples/casing/unicode-case.cpp"
 ```
 
+If the library is built with `UTF8_RANGES_ENABLE_ICU=1`, additional ICU-backed locale overloads are available for lowercasing:
+
+```cpp
+using namespace unicode_ranges;
+using namespace unicode_ranges::literals;
+
+const auto turkish = locale_id{ "tr" };
+assert(u8"I\u0130"_utf8_sv.to_lowercase(turkish) == u8"\u0131i"_utf8_sv);
+```
+
+Those overloads do not exist in the dependency-free default build.
+
 ## Partial casing on owning strings
 
 Owning strings support both whole-string and subrange casing. The checked subrange overloads validate bounds and character boundaries. Whole-string overloads remain the cheaper path.
@@ -82,6 +94,6 @@ Implemented:
 
 Out of scope:
 
-- locale-specific casing
+- built-in locale-specific casing tables without ICU
 - locale-specific collation
 - Turkic-specific case-fold tailoring switches

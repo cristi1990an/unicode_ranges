@@ -215,6 +215,36 @@ jobs:
           ASAN_OPTIONS: ${{ matrix.asan_options }}
           UBSAN_OPTIONS: ${{ matrix.ubsan_options }}
 
+  linux-icu:
+    name: GCC + ICU (O2, C++23)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install GCC and ICU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++-14 libicu-dev pkg-config
+
+      - name: Show tool versions
+        run: |
+          g++-14 --version
+          pkg-config --modversion icu-uc
+
+      - name: Build with ICU enabled
+        run: |
+          g++-14 -std=c++23 -O2 -Wall -Wextra -Werror -pedantic \
+            -DUTF8_RANGES_ENABLE_ICU=1 \
+            $(pkg-config --cflags icu-uc) \
+            source.cpp \
+            -o unicode_ranges_gcc_icu \
+            $(pkg-config --libs icu-uc)
+
+      - name: Run ICU-enabled tests
+        run: ./unicode_ranges_gcc_icu
+
   docs-examples:
     name: Docs examples (${{ matrix.name }}, C++23)
     runs-on: ubuntu-24.04

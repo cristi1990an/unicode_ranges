@@ -1165,6 +1165,50 @@ public:
 		return static_cast<const crtp&>(*this).template to_lowercase<OtherAllocator>(pos, count, alloc);
 	}
 
+#if UTF8_RANGES_HAS_ICU
+	[[nodiscard]]
+	basic_utf16_string to_lowercase(locale_id locale) const&
+	{
+		return static_cast<const crtp&>(*this).template to_lowercase<Allocator>(locale, base_.get_allocator());
+	}
+
+	[[nodiscard]]
+	basic_utf16_string to_lowercase(size_type pos, size_type count, locale_id locale) const&
+	{
+		return static_cast<const crtp&>(*this).template to_lowercase<Allocator>(pos, count, locale, base_.get_allocator());
+	}
+
+	[[nodiscard]]
+	basic_utf16_string to_lowercase(locale_id locale) &&
+	{
+		return static_cast<const crtp&>(*this).template to_lowercase<Allocator>(locale, base_.get_allocator());
+	}
+
+	[[nodiscard]]
+	basic_utf16_string to_lowercase(size_type pos, size_type count, locale_id locale) &&
+	{
+		return static_cast<const crtp&>(*this).template to_lowercase<Allocator>(pos, count, locale, base_.get_allocator());
+	}
+
+	template <typename OtherAllocator>
+	[[nodiscard]]
+	basic_utf16_string<OtherAllocator> to_lowercase(locale_id locale, const OtherAllocator& alloc) const
+	{
+		return static_cast<const crtp&>(*this).template to_lowercase<OtherAllocator>(locale, alloc);
+	}
+
+	template <typename OtherAllocator>
+	[[nodiscard]]
+	basic_utf16_string<OtherAllocator> to_lowercase(
+		size_type pos,
+		size_type count,
+		locale_id locale,
+		const OtherAllocator& alloc) const
+	{
+		return static_cast<const crtp&>(*this).template to_lowercase<OtherAllocator>(pos, count, locale, alloc);
+	}
+#endif
+
 	[[nodiscard]]
 	constexpr basic_utf16_string to_uppercase() const&
 	{
