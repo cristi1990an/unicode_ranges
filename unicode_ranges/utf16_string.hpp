@@ -452,8 +452,16 @@ public:
 	{ }
 
 	constexpr basic_utf16_string(utf16_string_view view, const Allocator& alloc = Allocator())
-		: base_(view.base(), alloc)
-	{}
+		: base_(alloc)
+	{
+		const auto code_units = view.base();
+		base_.resize_and_overwrite(code_units.size(),
+			[&](char16_t* buffer, std::size_t) noexcept
+			{
+				std::char_traits<char16_t>::copy(buffer, code_units.data(), code_units.size());
+				return code_units.size();
+			});
+	}
 
 	constexpr basic_utf16_string(utf8_string_view view, const Allocator& alloc = Allocator());
 
