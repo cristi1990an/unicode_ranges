@@ -50,6 +50,7 @@
 #endif
 #endif
 #include <unicode/ucasemap.h>
+#include <unicode/uloc.h>
 #define UTF8_RANGES_HAS_ICU 1
 #else
 #define UTF8_RANGES_HAS_ICU 0
@@ -93,6 +94,8 @@ struct locale_id
 {
 	std::string_view name{};
 };
+
+[[nodiscard]] bool is_available_locale(locale_id locale);
 #endif
 
 namespace pmr

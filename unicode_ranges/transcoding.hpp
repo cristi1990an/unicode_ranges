@@ -878,6 +878,17 @@ namespace unicode_ranges
 		}
 	};
 
+	struct uenumeration_closer
+	{
+		void operator()(UEnumeration* enumeration) const noexcept
+		{
+			if (enumeration != nullptr)
+			{
+				uenum_close(enumeration);
+			}
+		}
+	};
+
 	inline std::string checked_icu_locale_name(locale_id locale)
 	{
 		if (locale.name.find('\0') != std::string_view::npos)
@@ -888,6 +899,44 @@ namespace unicode_ranges
 		return std::string{ locale.name };
 	}
 
+	[[noreturn]] inline void throw_icu_error(const char* operation, UErrorCode error)
+	{
+		throw std::runtime_error(std::string{ operation } + " failed: " + u_errorName(error));
+	}
+
+	inline std::string normalized_icu_locale_name(locale_id locale)
+	{
+		const auto locale_name = checked_icu_locale_name(locale);
+		if (locale_name.empty())
+		{
+			return {};
+		}
+
+		std::array<char, 160> buffer{};
+		UErrorCode error = U_ZERO_ERROR;
+		auto written = uloc_getName(locale_name.c_str(), buffer.data(), static_cast<int32_t>(buffer.size()), &error);
+		if (error == U_BUFFER_OVERFLOW_ERROR)
+		{
+			std::string expanded(static_cast<std::size_t>(written), '\0');
+			error = U_ZERO_ERROR;
+			written = uloc_getName(locale_name.c_str(), expanded.data(), static_cast<int32_t>(expanded.size() + 1), &error);
+			if (U_FAILURE(error))
+			{
+				throw_icu_error("uloc_getName", error);
+			}
+
+			expanded.resize(static_cast<std::size_t>(written));
+			return expanded;
+		}
+
+		if (U_FAILURE(error))
+		{
+			throw_icu_error("uloc_getName", error);
+		}
+
+		return std::string{ buffer.data(), static_cast<std::size_t>(written) };
+	}
+
 	inline int32_t checked_icu_length(std::size_t size, const char* what)
 	{
 		if (size > static_cast<std::size_t>((std::numeric_limits<int32_t>::max)()))
@@ -896,11 +945,6 @@ namespace unicode_ranges
 		}
 
 		return static_cast<int32_t>(size);
-	}
-
-	[[noreturn]] inline void throw_icu_error(const char* operation, UErrorCode error)
-	{
-		throw std::runtime_error(std::string{ operation } + " failed: " + u_errorName(error));
 	}
 
 	inline std::unique_ptr<UCaseMap, ucasemap_closer> make_icu_case_map(locale_id locale)
@@ -3231,6 +3275,45 @@ namespace unicode_ranges
 			alloc
 		};
 	}
+
+#if UTF8_RANGES_HAS_ICU
+	inline bool is_available_locale(locale_id locale)
+	{
+		const auto normalized = details::normalized_icu_locale_name(locale);
+		if (normalized.empty())
+		{
+			return false;
+		}
+
+		UErrorCode error = U_ZERO_ERROR;
+		auto available = std::unique_ptr<UEnumeration, details::uenumeration_closer>{
+			uloc_openAvailableByType(ULOC_AVAILABLE_WITH_LEGACY_ALIASES, &error)
+		};
+		if (U_FAILURE(error) || available == nullptr)
+		{
+			details::throw_icu_error("uloc_openAvailableByType", error);
+		}
+
+		int32_t candidate_length = 0;
+		for (const char* candidate = uenum_next(available.get(), &candidate_length, &error);
+			candidate != nullptr;
+			candidate = uenum_next(available.get(), &candidate_length, &error))
+		{
+			if (normalized.size() == static_cast<std::size_t>(candidate_length)
+				&& std::char_traits<char>::compare(normalized.data(), candidate, static_cast<std::size_t>(candidate_length)) == 0)
+			{
+				return true;
+			}
+		}
+
+		if (U_FAILURE(error))
+		{
+			details::throw_icu_error("uenum_next", error);
+		}
+
+		return false;
+	}
+#endif
 
 }
 

@@ -30,6 +30,12 @@ assert(u8"I\u0130"_utf8_sv.to_lowercase("tr"_locale) == u8"\u0131i"_utf8_sv);
 assert(u8"i\u0131"_utf8_sv.to_uppercase("tr"_locale) == u8"\u0130I"_utf8_sv);
 ```
 
+You can also check whether the current ICU data set explicitly exposes a locale identifier:
+
+```cpp
+assert(is_available_locale("tr"_locale));
+```
+
 Those overloads do not exist in the dependency-free default build.
 
 ## Partial casing on owning strings
