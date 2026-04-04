@@ -2748,6 +2748,24 @@ namespace details
 	}
 }
 
+#if UTF8_RANGES_HAS_ICU
+namespace literals
+{
+	consteval locale_id operator ""_locale(const char* name, std::size_t size)
+	{
+		for (std::size_t i = 0; i < size; ++i)
+		{
+			if (name[i] == '\0')
+			{
+				throw std::invalid_argument("locale literal must not contain embedded NUL");
+			}
+		}
+
+		return locale_id{ std::string_view{ name, size } };
+	}
+}
+#endif
+
 }
 
 #endif // UTF8_RANGES_CORE_HPP

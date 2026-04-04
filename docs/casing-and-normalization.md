@@ -20,14 +20,14 @@ The Unicode-aware APIs are locale-independent. They follow generated Unicode tab
 --8<-- "examples/casing/unicode-case.cpp"
 ```
 
-If the library is built with `UTF8_RANGES_ENABLE_ICU=1`, additional ICU-backed locale overloads are available for lowercasing:
+If the library is built with `UTF8_RANGES_ENABLE_ICU=1`, additional ICU-backed locale overloads are available for lowercasing and uppercasing:
 
 ```cpp
 using namespace unicode_ranges;
 using namespace unicode_ranges::literals;
 
-const auto turkish = locale_id{ "tr" };
-assert(u8"I\u0130"_utf8_sv.to_lowercase(turkish) == u8"\u0131i"_utf8_sv);
+assert(u8"I\u0130"_utf8_sv.to_lowercase("tr"_locale) == u8"\u0131i"_utf8_sv);
+assert(u8"i\u0131"_utf8_sv.to_uppercase("tr"_locale) == u8"\u0130I"_utf8_sv);
 ```
 
 Those overloads do not exist in the dependency-free default build.

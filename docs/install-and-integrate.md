@@ -65,7 +65,7 @@ target_link_libraries(your_target PRIVATE unicode_ranges)
 
 The default library build stays dependency-free and exposes only locale-independent Unicode casing.
 
-If you want ICU-backed locale-sensitive casing overloads such as `to_lowercase(locale_id{ "tr" })`, enable ICU explicitly in your build. For a header-only library, the cleanest model is:
+If you want ICU-backed locale-sensitive casing overloads such as `to_lowercase("tr"_locale)` or `to_uppercase("tr"_locale)`, enable ICU explicitly in your build. For a header-only library, the cleanest model is:
 
 - find and link ICU in the consuming target
 - define `UTF8_RANGES_ENABLE_ICU=1` on the same target

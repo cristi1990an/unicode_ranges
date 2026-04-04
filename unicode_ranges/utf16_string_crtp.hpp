@@ -2918,6 +2918,14 @@ public:
 		size_type count,
 		locale_id locale,
 		const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char16_t>>
+	basic_utf16_string<Allocator> to_uppercase(locale_id locale, const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char16_t>>
+	basic_utf16_string<Allocator> to_uppercase(
+		size_type pos,
+		size_type count,
+		locale_id locale,
+		const Allocator& alloc = Allocator()) const;
 #endif
 	template <typename Allocator = std::allocator<char16_t>>
 	constexpr basic_utf16_string<Allocator> to_uppercase(const Allocator& alloc = Allocator()) const;

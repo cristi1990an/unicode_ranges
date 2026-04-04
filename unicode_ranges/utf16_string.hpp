@@ -1207,6 +1207,48 @@ public:
 	{
 		return static_cast<const crtp&>(*this).template to_lowercase<OtherAllocator>(pos, count, locale, alloc);
 	}
+
+	[[nodiscard]]
+	basic_utf16_string to_uppercase(locale_id locale) const&
+	{
+		return static_cast<const crtp&>(*this).template to_uppercase<Allocator>(locale, base_.get_allocator());
+	}
+
+	[[nodiscard]]
+	basic_utf16_string to_uppercase(size_type pos, size_type count, locale_id locale) const&
+	{
+		return static_cast<const crtp&>(*this).template to_uppercase<Allocator>(pos, count, locale, base_.get_allocator());
+	}
+
+	[[nodiscard]]
+	basic_utf16_string to_uppercase(locale_id locale) &&
+	{
+		return static_cast<const crtp&>(*this).template to_uppercase<Allocator>(locale, base_.get_allocator());
+	}
+
+	[[nodiscard]]
+	basic_utf16_string to_uppercase(size_type pos, size_type count, locale_id locale) &&
+	{
+		return static_cast<const crtp&>(*this).template to_uppercase<Allocator>(pos, count, locale, base_.get_allocator());
+	}
+
+	template <typename OtherAllocator>
+	[[nodiscard]]
+	basic_utf16_string<OtherAllocator> to_uppercase(locale_id locale, const OtherAllocator& alloc) const
+	{
+		return static_cast<const crtp&>(*this).template to_uppercase<OtherAllocator>(locale, alloc);
+	}
+
+	template <typename OtherAllocator>
+	[[nodiscard]]
+	basic_utf16_string<OtherAllocator> to_uppercase(
+		size_type pos,
+		size_type count,
+		locale_id locale,
+		const OtherAllocator& alloc) const
+	{
+		return static_cast<const crtp&>(*this).template to_uppercase<OtherAllocator>(pos, count, locale, alloc);
+	}
 #endif
 
 	[[nodiscard]]
