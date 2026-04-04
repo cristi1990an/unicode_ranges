@@ -36,6 +36,8 @@ You can also check whether the current ICU data set explicitly exposes a locale 
 assert(is_available_locale("tr"_locale));
 ```
 
+`is_available_locale(...)` is a non-throwing probe. It returns `false` for invalid or unusable locale identifiers as well as for locale identifiers that are simply not exposed by the current ICU data set.
+
 Behavior note:
 
 - `locale_id` only rejects embedded NULs directly.

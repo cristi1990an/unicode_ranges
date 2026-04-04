@@ -3277,41 +3277,43 @@ namespace unicode_ranges
 	}
 
 #if UTF8_RANGES_HAS_ICU
-	inline bool is_available_locale(locale_id locale)
+	inline bool is_available_locale(locale_id locale) noexcept
 	{
-		const auto normalized = details::normalized_icu_locale_name(locale);
-		if (normalized.empty())
+		try
+		{
+			const auto normalized = details::normalized_icu_locale_name(locale);
+			if (normalized.empty())
+			{
+				return false;
+			}
+
+			UErrorCode error = U_ZERO_ERROR;
+			auto available = std::unique_ptr<UEnumeration, details::uenumeration_closer>{
+				uloc_openAvailableByType(ULOC_AVAILABLE_WITH_LEGACY_ALIASES, &error)
+			};
+			if (U_FAILURE(error) || available == nullptr)
+			{
+				return false;
+			}
+
+			int32_t candidate_length = 0;
+			for (const char* candidate = uenum_next(available.get(), &candidate_length, &error);
+				candidate != nullptr;
+				candidate = uenum_next(available.get(), &candidate_length, &error))
+			{
+				if (normalized.size() == static_cast<std::size_t>(candidate_length)
+					&& std::char_traits<char>::compare(normalized.data(), candidate, static_cast<std::size_t>(candidate_length)) == 0)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+		catch (...)
 		{
 			return false;
 		}
-
-		UErrorCode error = U_ZERO_ERROR;
-		auto available = std::unique_ptr<UEnumeration, details::uenumeration_closer>{
-			uloc_openAvailableByType(ULOC_AVAILABLE_WITH_LEGACY_ALIASES, &error)
-		};
-		if (U_FAILURE(error) || available == nullptr)
-		{
-			details::throw_icu_error("uloc_openAvailableByType", error);
-		}
-
-		int32_t candidate_length = 0;
-		for (const char* candidate = uenum_next(available.get(), &candidate_length, &error);
-			candidate != nullptr;
-			candidate = uenum_next(available.get(), &candidate_length, &error))
-		{
-			if (normalized.size() == static_cast<std::size_t>(candidate_length)
-				&& std::char_traits<char>::compare(normalized.data(), candidate, static_cast<std::size_t>(candidate_length)) == 0)
-			{
-				return true;
-			}
-		}
-
-		if (U_FAILURE(error))
-		{
-			details::throw_icu_error("uenum_next", error);
-		}
-
-		return false;
 	}
 #endif
 

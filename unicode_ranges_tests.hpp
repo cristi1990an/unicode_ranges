@@ -1951,6 +1951,7 @@ inline void run_unicode_ranges_tests()
 			assert(uppered_locale_alloc.get_allocator().resource() == &resource);
 			assert(is_available_locale("tr"_locale));
 			assert(!is_available_locale("definitely_not_a_real_locale"_locale));
+			assert(!is_available_locale(locale_id{ std::string_view{ "tr\0oops", 7 } }));
 #endif
 			[[maybe_unused]] const auto normalized_alloc = u8"e\u0301"_utf8_sv.to_nfc(alloc);
 			assert(normalized_alloc == u8"\u00E9"_utf8_sv);
@@ -2648,6 +2649,7 @@ inline void run_unicode_ranges_tests()
 			assert(uppered_locale_alloc.get_allocator().resource() == &resource);
 			assert(is_available_locale("tr"_locale));
 			assert(!is_available_locale("definitely_not_a_real_locale"_locale));
+			assert(!is_available_locale(locale_id{ std::string_view{ "tr\0oops", 7 } }));
 #endif
 			[[maybe_unused]] const auto normalized_alloc = u"e\u0301"_utf16_sv.to_nfc(alloc);
 			assert(normalized_alloc == u"\u00E9"_utf16_sv);

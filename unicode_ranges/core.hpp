@@ -95,7 +95,7 @@ struct locale_id
 	std::string_view name{};
 };
 
-[[nodiscard]] bool is_available_locale(locale_id locale);
+[[nodiscard]] bool is_available_locale(locale_id locale) noexcept;
 #endif
 
 namespace pmr
