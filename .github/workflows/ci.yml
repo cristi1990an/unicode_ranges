@@ -34,7 +34,7 @@ jobs:
       - name: Run tests
         run: .\x64\${{ matrix.configuration }}\unicode_ranges.exe
 
-  clang-cl:
+  clang_cl:
     name: Clang-cl (${{ matrix.configuration }}, C++23)
     runs-on: windows-latest
     strategy:
@@ -216,7 +216,7 @@ jobs:
           ASAN_OPTIONS: ${{ matrix.asan_options }}
           UBSAN_OPTIONS: ${{ matrix.ubsan_options }}
 
-  linux-icu:
+  linux_icu:
     name: ${{ matrix.name }} + ICU (O2, C++23)
     runs-on: ubuntu-24.04
     continue-on-error: ${{ matrix.install_kind == 'clang' }}
@@ -273,7 +273,7 @@ jobs:
       - name: Run ICU-enabled tests
         run: ./${{ matrix.output }}
 
-  docs-examples:
+  docs_examples:
     name: Docs examples (${{ matrix.name }}, C++23)
     runs-on: ubuntu-24.04
     strategy:
@@ -368,6 +368,23 @@ jobs:
         with:
           name: coverage-report
           path: coverage/
+
+  required:
+    name: Required CI
+    if: github.event_name == 'pull_request'
+    needs:
+      - msvc
+      - clang_cl
+      - linux
+      - linux_icu
+      - docs_examples
+      - coverage
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Verify required jobs
+        run: |
+          echo "All required CI jobs passed."
 
   benchmarks:
     name: Benchmark (${{ matrix.name }}, ${{ matrix.opt_name }}, C++23)
