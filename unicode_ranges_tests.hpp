@@ -235,7 +235,7 @@ inline void run_unicode_ranges_tests()
 		decltype(utf8_text.to_lowercase(0, 1, std::pmr::polymorphic_allocator<char8_t>{})),
 		pmr::utf8_string>);
 #if UTF8_RANGES_HAS_ICU
-	static_assert("tr"_locale.name == std::string_view{ "tr" });
+	static_assert(std::string_view{ "tr"_locale.name } == std::string_view{ "tr" });
 	static_assert(std::same_as<decltype(is_available_locale("tr"_locale)), bool>);
 	static_assert(std::same_as<decltype(utf8_text.to_lowercase("tr"_locale)), utf8_string>);
 	static_assert(std::same_as<decltype(utf8_text.to_lowercase(0, 1, "tr"_locale)), utf8_string>);
@@ -1950,8 +1950,9 @@ inline void run_unicode_ranges_tests()
 			assert(uppered_locale_alloc == u8"\u0130I"_utf8_sv);
 			assert(uppered_locale_alloc.get_allocator().resource() == &resource);
 			assert(is_available_locale("tr"_locale));
+			assert(is_available_locale(locale_id{ "tr" }));
 			assert(!is_available_locale("definitely_not_a_real_locale"_locale));
-			assert(!is_available_locale(locale_id{ std::string_view{ "tr\0oops", 7 } }));
+			assert(!is_available_locale(locale_id{ nullptr }));
 #endif
 			[[maybe_unused]] const auto normalized_alloc = u8"e\u0301"_utf8_sv.to_nfc(alloc);
 			assert(normalized_alloc == u8"\u00E9"_utf8_sv);
@@ -2648,8 +2649,9 @@ inline void run_unicode_ranges_tests()
 			assert(uppered_locale_alloc == u"\u0130I"_utf16_sv);
 			assert(uppered_locale_alloc.get_allocator().resource() == &resource);
 			assert(is_available_locale("tr"_locale));
+			assert(is_available_locale(locale_id{ "tr" }));
 			assert(!is_available_locale("definitely_not_a_real_locale"_locale));
-			assert(!is_available_locale(locale_id{ std::string_view{ "tr\0oops", 7 } }));
+			assert(!is_available_locale(locale_id{ nullptr }));
 #endif
 			[[maybe_unused]] const auto normalized_alloc = u"e\u0301"_utf16_sv.to_nfc(alloc);
 			assert(normalized_alloc == u"\u00E9"_utf16_sv);

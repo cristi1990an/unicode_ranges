@@ -889,14 +889,14 @@ namespace unicode_ranges
 		}
 	};
 
-	inline std::string checked_icu_locale_name(locale_id locale)
+	inline const char* checked_icu_locale_name(locale_id locale)
 	{
-		if (locale.name.find('\0') != std::string_view::npos)
+		if (locale.name == nullptr)
 		{
-			throw std::invalid_argument("locale_id must not contain embedded NUL");
+			throw std::invalid_argument("locale_id must not be null");
 		}
 
-		return std::string{ locale.name };
+		return locale.name;
 	}
 
 	[[noreturn]] inline void throw_icu_error(const char* operation, UErrorCode error)
@@ -907,19 +907,19 @@ namespace unicode_ranges
 	inline std::string normalized_icu_locale_name(locale_id locale)
 	{
 		const auto locale_name = checked_icu_locale_name(locale);
-		if (locale_name.empty())
+		if (*locale_name == '\0')
 		{
 			return {};
 		}
 
 		std::array<char, 160> buffer{};
 		UErrorCode error = U_ZERO_ERROR;
-		auto written = uloc_getName(locale_name.c_str(), buffer.data(), static_cast<int32_t>(buffer.size()), &error);
+		auto written = uloc_getName(locale_name, buffer.data(), static_cast<int32_t>(buffer.size()), &error);
 		if (error == U_BUFFER_OVERFLOW_ERROR)
 		{
 			std::string expanded(static_cast<std::size_t>(written), '\0');
 			error = U_ZERO_ERROR;
-			written = uloc_getName(locale_name.c_str(), expanded.data(), static_cast<int32_t>(expanded.size() + 1), &error);
+			written = uloc_getName(locale_name, expanded.data(), static_cast<int32_t>(expanded.size() + 1), &error);
 			if (U_FAILURE(error))
 			{
 				throw_icu_error("uloc_getName", error);
@@ -951,7 +951,7 @@ namespace unicode_ranges
 	{
 		const auto locale_name = checked_icu_locale_name(locale);
 		UErrorCode error = U_ZERO_ERROR;
-		auto map = std::unique_ptr<UCaseMap, ucasemap_closer>{ ucasemap_open(locale_name.c_str(), 0, &error) };
+		auto map = std::unique_ptr<UCaseMap, ucasemap_closer>{ ucasemap_open(locale_name, 0, &error) };
 		if (U_FAILURE(error) || map == nullptr)
 		{
 			throw_icu_error("ucasemap_open", error);
@@ -1088,7 +1088,7 @@ namespace unicode_ranges
 			0,
 			source,
 			input_size,
-			locale_name.c_str(),
+			locale_name,
 			&error);
 
 		if (error != U_BUFFER_OVERFLOW_ERROR && U_FAILURE(error))
@@ -1106,7 +1106,7 @@ namespace unicode_ranges
 				needed,
 				source,
 				input_size,
-				locale_name.c_str(),
+				locale_name,
 				&error);
 			if (U_FAILURE(error))
 			{
@@ -1143,7 +1143,7 @@ namespace unicode_ranges
 			0,
 			source,
 			input_size,
-			locale_name.c_str(),
+			locale_name,
 			&error);
 
 		if (error != U_BUFFER_OVERFLOW_ERROR && U_FAILURE(error))
@@ -1161,7 +1161,7 @@ namespace unicode_ranges
 				needed,
 				source,
 				input_size,
-				locale_name.c_str(),
+				locale_name,
 				&error);
 			if (U_FAILURE(error))
 			{

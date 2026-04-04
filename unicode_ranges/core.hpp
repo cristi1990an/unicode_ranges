@@ -92,7 +92,7 @@ using utf16_string = basic_utf16_string<>;
 #if UTF8_RANGES_HAS_ICU
 struct locale_id
 {
-	std::string_view name{};
+	const char* name = nullptr;
 };
 
 [[nodiscard]] bool is_available_locale(locale_id locale) noexcept;
@@ -2764,7 +2764,7 @@ namespace literals
 			}
 		}
 
-		return locale_id{ std::string_view{ name, size } };
+		return locale_id{ name };
 	}
 }
 #endif

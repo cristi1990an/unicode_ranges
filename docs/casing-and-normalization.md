@@ -40,8 +40,9 @@ assert(is_available_locale("tr"_locale));
 
 Behavior note:
 
-- `locale_id` only rejects embedded NULs directly.
-- Other locale strings are normalized and then passed to ICU.
+- `locale_id` is a raw null-terminated locale-name token.
+- `_locale` rejects embedded NULs in string literals at compile time.
+- Raw `locale_id{ ... }` values are passed to ICU as C strings after lightweight validation.
 - If the locale is not explicitly available in the current ICU data set, ICU may resolve it through its normal locale fallback rules rather than making `to_lowercase(...)` or `to_uppercase(...)` fail.
 - If you need an exact availability check before calling a locale-aware casing overload, use `is_available_locale(...)`.
 
