@@ -1004,29 +1004,26 @@ namespace unicode_ranges
 
 		auto case_map = make_icu_case_map(locale);
 		const auto input_size = checked_icu_length(bytes.size(), "UTF-8 input");
+		base_type result{ alloc };
+		result.resize(bytes.size());
+
 		UErrorCode error = U_ZERO_ERROR;
-		const auto needed = ucasemap_utf8ToLower(
+		const auto written = ucasemap_utf8ToLower(
 			case_map.get(),
-			nullptr,
-			0,
+			reinterpret_cast<char*>(result.data()),
+			input_size,
 			reinterpret_cast<const char*>(bytes.data()),
 			input_size,
 			&error);
 
-		if (error != U_BUFFER_OVERFLOW_ERROR && U_FAILURE(error))
+		if (error == U_BUFFER_OVERFLOW_ERROR)
 		{
-			throw_icu_error("ucasemap_utf8ToLower", error);
-		}
-
-		base_type result{ alloc };
-		if (needed != 0)
-		{
-			result.resize(static_cast<std::size_t>(needed));
+			result.resize(static_cast<std::size_t>(written));
 			error = U_ZERO_ERROR;
-			const auto written = ucasemap_utf8ToLower(
+			const auto rerun_written = ucasemap_utf8ToLower(
 				case_map.get(),
 				reinterpret_cast<char*>(result.data()),
-				needed,
+				written,
 				reinterpret_cast<const char*>(bytes.data()),
 				input_size,
 				&error);
@@ -1035,6 +1032,14 @@ namespace unicode_ranges
 				throw_icu_error("ucasemap_utf8ToLower", error);
 			}
 
+			result.resize(static_cast<std::size_t>(rerun_written));
+		}
+		else if (U_FAILURE(error))
+		{
+			throw_icu_error("ucasemap_utf8ToLower", error);
+		}
+		else
+		{
 			result.resize(static_cast<std::size_t>(written));
 		}
 
@@ -1056,29 +1061,26 @@ namespace unicode_ranges
 
 		auto case_map = make_icu_case_map(locale);
 		const auto input_size = checked_icu_length(bytes.size(), "UTF-8 input");
+		base_type result{ alloc };
+		result.resize(bytes.size());
+
 		UErrorCode error = U_ZERO_ERROR;
-		const auto needed = ucasemap_utf8ToUpper(
+		const auto written = ucasemap_utf8ToUpper(
 			case_map.get(),
-			nullptr,
-			0,
+			reinterpret_cast<char*>(result.data()),
+			input_size,
 			reinterpret_cast<const char*>(bytes.data()),
 			input_size,
 			&error);
 
-		if (error != U_BUFFER_OVERFLOW_ERROR && U_FAILURE(error))
+		if (error == U_BUFFER_OVERFLOW_ERROR)
 		{
-			throw_icu_error("ucasemap_utf8ToUpper", error);
-		}
-
-		base_type result{ alloc };
-		if (needed != 0)
-		{
-			result.resize(static_cast<std::size_t>(needed));
+			result.resize(static_cast<std::size_t>(written));
 			error = U_ZERO_ERROR;
-			const auto written = ucasemap_utf8ToUpper(
+			const auto rerun_written = ucasemap_utf8ToUpper(
 				case_map.get(),
 				reinterpret_cast<char*>(result.data()),
-				needed,
+				written,
 				reinterpret_cast<const char*>(bytes.data()),
 				input_size,
 				&error);
@@ -1087,6 +1089,14 @@ namespace unicode_ranges
 				throw_icu_error("ucasemap_utf8ToUpper", error);
 			}
 
+			result.resize(static_cast<std::size_t>(rerun_written));
+		}
+		else if (U_FAILURE(error))
+		{
+			throw_icu_error("ucasemap_utf8ToUpper", error);
+		}
+		else
+		{
 			result.resize(static_cast<std::size_t>(written));
 		}
 
@@ -1111,28 +1121,25 @@ namespace unicode_ranges
 		const auto locale_name = checked_icu_locale_name(locale);
 		const auto input_size = checked_icu_length(code_units.size(), "UTF-16 input");
 		const auto* source = reinterpret_cast<const UChar*>(code_units.data());
+		base_type result{ alloc };
+		result.resize(code_units.size());
+
 		UErrorCode error = U_ZERO_ERROR;
-		const auto needed = u_strToLower(
-			nullptr,
-			0,
+		const auto written = u_strToLower(
+			reinterpret_cast<UChar*>(result.data()),
+			input_size,
 			source,
 			input_size,
 			locale_name,
 			&error);
 
-		if (error != U_BUFFER_OVERFLOW_ERROR && U_FAILURE(error))
+		if (error == U_BUFFER_OVERFLOW_ERROR)
 		{
-			throw_icu_error("u_strToLower", error);
-		}
-
-		base_type result{ alloc };
-		if (needed != 0)
-		{
-			result.resize(static_cast<std::size_t>(needed));
+			result.resize(static_cast<std::size_t>(written));
 			error = U_ZERO_ERROR;
-			const auto written = u_strToLower(
+			const auto rerun_written = u_strToLower(
 				reinterpret_cast<UChar*>(result.data()),
-				needed,
+				written,
 				source,
 				input_size,
 				locale_name,
@@ -1142,6 +1149,14 @@ namespace unicode_ranges
 				throw_icu_error("u_strToLower", error);
 			}
 
+			result.resize(static_cast<std::size_t>(rerun_written));
+		}
+		else if (U_FAILURE(error))
+		{
+			throw_icu_error("u_strToLower", error);
+		}
+		else
+		{
 			result.resize(static_cast<std::size_t>(written));
 		}
 
@@ -1166,28 +1181,25 @@ namespace unicode_ranges
 		const auto locale_name = checked_icu_locale_name(locale);
 		const auto input_size = checked_icu_length(code_units.size(), "UTF-16 input");
 		const auto* source = reinterpret_cast<const UChar*>(code_units.data());
+		base_type result{ alloc };
+		result.resize(code_units.size());
+
 		UErrorCode error = U_ZERO_ERROR;
-		const auto needed = u_strToUpper(
-			nullptr,
-			0,
+		const auto written = u_strToUpper(
+			reinterpret_cast<UChar*>(result.data()),
+			input_size,
 			source,
 			input_size,
 			locale_name,
 			&error);
 
-		if (error != U_BUFFER_OVERFLOW_ERROR && U_FAILURE(error))
+		if (error == U_BUFFER_OVERFLOW_ERROR)
 		{
-			throw_icu_error("u_strToUpper", error);
-		}
-
-		base_type result{ alloc };
-		if (needed != 0)
-		{
-			result.resize(static_cast<std::size_t>(needed));
+			result.resize(static_cast<std::size_t>(written));
 			error = U_ZERO_ERROR;
-			const auto written = u_strToUpper(
+			const auto rerun_written = u_strToUpper(
 				reinterpret_cast<UChar*>(result.data()),
-				needed,
+				written,
 				source,
 				input_size,
 				locale_name,
@@ -1197,6 +1209,14 @@ namespace unicode_ranges
 				throw_icu_error("u_strToUpper", error);
 			}
 
+			result.resize(static_cast<std::size_t>(rerun_written));
+		}
+		else if (U_FAILURE(error))
+		{
+			throw_icu_error("u_strToUpper", error);
+		}
+		else
+		{
 			result.resize(static_cast<std::size_t>(written));
 		}
 
@@ -1218,29 +1238,26 @@ namespace unicode_ranges
 
 		auto case_map = make_icu_case_map(locale, icu_case_fold_options(locale));
 		const auto input_size = checked_icu_length(bytes.size(), "UTF-8 input");
+		base_type result{ alloc };
+		result.resize(bytes.size());
+
 		UErrorCode error = U_ZERO_ERROR;
-		const auto needed = ucasemap_utf8FoldCase(
+		const auto written = ucasemap_utf8FoldCase(
 			case_map.get(),
-			nullptr,
-			0,
+			reinterpret_cast<char*>(result.data()),
+			input_size,
 			reinterpret_cast<const char*>(bytes.data()),
 			input_size,
 			&error);
 
-		if (error != U_BUFFER_OVERFLOW_ERROR && U_FAILURE(error))
+		if (error == U_BUFFER_OVERFLOW_ERROR)
 		{
-			throw_icu_error("ucasemap_utf8FoldCase", error);
-		}
-
-		base_type result{ alloc };
-		if (needed != 0)
-		{
-			result.resize(static_cast<std::size_t>(needed));
+			result.resize(static_cast<std::size_t>(written));
 			error = U_ZERO_ERROR;
-			const auto written = ucasemap_utf8FoldCase(
+			const auto rerun_written = ucasemap_utf8FoldCase(
 				case_map.get(),
 				reinterpret_cast<char*>(result.data()),
-				needed,
+				written,
 				reinterpret_cast<const char*>(bytes.data()),
 				input_size,
 				&error);
@@ -1249,6 +1266,14 @@ namespace unicode_ranges
 				throw_icu_error("ucasemap_utf8FoldCase", error);
 			}
 
+			result.resize(static_cast<std::size_t>(rerun_written));
+		}
+		else if (U_FAILURE(error))
+		{
+			throw_icu_error("ucasemap_utf8FoldCase", error);
+		}
+		else
+		{
 			result.resize(static_cast<std::size_t>(written));
 		}
 
@@ -1273,28 +1298,25 @@ namespace unicode_ranges
 		const auto input_size = checked_icu_length(code_units.size(), "UTF-16 input");
 		const auto options = icu_case_fold_options(locale);
 		const auto* source = reinterpret_cast<const UChar*>(code_units.data());
+		base_type result{ alloc };
+		result.resize(code_units.size());
+
 		UErrorCode error = U_ZERO_ERROR;
-		const auto needed = u_strFoldCase(
-			nullptr,
-			0,
+		const auto written = u_strFoldCase(
+			reinterpret_cast<UChar*>(result.data()),
+			input_size,
 			source,
 			input_size,
 			options,
 			&error);
 
-		if (error != U_BUFFER_OVERFLOW_ERROR && U_FAILURE(error))
+		if (error == U_BUFFER_OVERFLOW_ERROR)
 		{
-			throw_icu_error("u_strFoldCase", error);
-		}
-
-		base_type result{ alloc };
-		if (needed != 0)
-		{
-			result.resize(static_cast<std::size_t>(needed));
+			result.resize(static_cast<std::size_t>(written));
 			error = U_ZERO_ERROR;
-			const auto written = u_strFoldCase(
+			const auto rerun_written = u_strFoldCase(
 				reinterpret_cast<UChar*>(result.data()),
-				needed,
+				written,
 				source,
 				input_size,
 				options,
@@ -1304,6 +1326,14 @@ namespace unicode_ranges
 				throw_icu_error("u_strFoldCase", error);
 			}
 
+			result.resize(static_cast<std::size_t>(rerun_written));
+		}
+		else if (U_FAILURE(error))
+		{
+			throw_icu_error("u_strFoldCase", error);
+		}
+		else
+		{
 			result.resize(static_cast<std::size_t>(written));
 		}
 
