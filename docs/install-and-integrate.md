@@ -65,7 +65,7 @@ target_link_libraries(your_target PRIVATE unicode_ranges)
 
 The default library build stays dependency-free and exposes only locale-independent Unicode casing.
 
-If you want ICU-backed locale-sensitive casing overloads such as `to_lowercase("tr"_locale)` or `to_uppercase("tr"_locale)`, enable ICU explicitly in your build. For a header-only library, the cleanest model is:
+If you want ICU-backed locale-sensitive casing overloads such as `to_lowercase("tr"_locale)`, `to_uppercase("tr"_locale)`, or `case_fold("tr"_locale)`, enable ICU explicitly in your build. For a header-only library, the cleanest model is:
 
 - find and link ICU in the consuming target
 - define `UTF8_RANGES_ENABLE_ICU=1` on the same target
@@ -91,7 +91,7 @@ endif()
 
 This keeps the default build small and dependency-free while making the locale-sensitive overloads disappear entirely when ICU is not available.
 
-When ICU is enabled, locale-aware casing follows ICU locale resolution behavior. `locale_id` is a raw null-terminated locale-name token, while `_locale` gives you a compile-time checked literal form. Locale names are normalized and then passed through to ICU, which may fall back to a more general locale instead of failing. Use `is_available_locale(...)` if you want to require that the current ICU data set explicitly exposes a locale before calling a locale-aware casing overload.
+When ICU is enabled, locale-aware casing follows ICU locale resolution behavior. `locale_id` is a raw null-terminated locale-name token, while `_locale` gives you a compile-time checked literal form. The locale-aware overloads pass the token through to ICU, which may canonicalize it or fall back to a more general locale instead of failing. Use `is_available_locale(...)` if you want to require that the current ICU data set explicitly exposes a locale before calling a locale-aware casing overload.
 
 ## CMake: FetchContent
 

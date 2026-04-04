@@ -947,17 +947,46 @@ namespace unicode_ranges
 		return static_cast<int32_t>(size);
 	}
 
-	inline std::unique_ptr<UCaseMap, ucasemap_closer> make_icu_case_map(locale_id locale)
+	inline std::unique_ptr<UCaseMap, ucasemap_closer> make_icu_case_map(locale_id locale, uint32_t options = 0)
 	{
 		const auto locale_name = checked_icu_locale_name(locale);
 		UErrorCode error = U_ZERO_ERROR;
-		auto map = std::unique_ptr<UCaseMap, ucasemap_closer>{ ucasemap_open(locale_name, 0, &error) };
+		auto map = std::unique_ptr<UCaseMap, ucasemap_closer>{ ucasemap_open(locale_name, options, &error) };
 		if (U_FAILURE(error) || map == nullptr)
 		{
 			throw_icu_error("ucasemap_open", error);
 		}
 
 		return map;
+	}
+
+	inline uint32_t icu_case_fold_options(locale_id locale)
+	{
+		const auto normalized = normalized_icu_locale_name(locale);
+		if (normalized.empty())
+		{
+			return U_FOLD_CASE_DEFAULT;
+		}
+
+		std::array<char, 32> language{};
+		UErrorCode error = U_ZERO_ERROR;
+		const auto written = uloc_getLanguage(
+			normalized.c_str(),
+			language.data(),
+			static_cast<int32_t>(language.size()),
+			&error);
+		if (U_FAILURE(error))
+		{
+			throw_icu_error("uloc_getLanguage", error);
+		}
+
+		const auto language_name = std::string_view{ language.data(), static_cast<std::size_t>(written) };
+		if (language_name == "tr" || language_name == "az")
+		{
+			return U_FOLD_CASE_EXCLUDE_SPECIAL_I;
+		}
+
+		return U_FOLD_CASE_DEFAULT;
 	}
 
 	template <typename Allocator>
@@ -1166,6 +1195,113 @@ namespace unicode_ranges
 			if (U_FAILURE(error))
 			{
 				throw_icu_error("u_strToUpper", error);
+			}
+
+			result.resize(static_cast<std::size_t>(written));
+		}
+
+		return basic_utf16_string<Allocator>::from_code_units_unchecked(std::move(result));
+	}
+
+	template <typename Allocator>
+	basic_utf8_string<Allocator> icu_case_fold_utf8_copy(
+		std::u8string_view bytes,
+		locale_id locale,
+		const Allocator& alloc)
+	{
+		using base_type = typename basic_utf8_string<Allocator>::base_type;
+
+		if (bytes.empty())
+		{
+			return basic_utf8_string<Allocator>::from_bytes_unchecked(base_type{ alloc });
+		}
+
+		auto case_map = make_icu_case_map(locale, icu_case_fold_options(locale));
+		const auto input_size = checked_icu_length(bytes.size(), "UTF-8 input");
+		UErrorCode error = U_ZERO_ERROR;
+		const auto needed = ucasemap_utf8FoldCase(
+			case_map.get(),
+			nullptr,
+			0,
+			reinterpret_cast<const char*>(bytes.data()),
+			input_size,
+			&error);
+
+		if (error != U_BUFFER_OVERFLOW_ERROR && U_FAILURE(error))
+		{
+			throw_icu_error("ucasemap_utf8FoldCase", error);
+		}
+
+		base_type result{ alloc };
+		if (needed != 0)
+		{
+			result.resize(static_cast<std::size_t>(needed));
+			error = U_ZERO_ERROR;
+			const auto written = ucasemap_utf8FoldCase(
+				case_map.get(),
+				reinterpret_cast<char*>(result.data()),
+				needed,
+				reinterpret_cast<const char*>(bytes.data()),
+				input_size,
+				&error);
+			if (U_FAILURE(error))
+			{
+				throw_icu_error("ucasemap_utf8FoldCase", error);
+			}
+
+			result.resize(static_cast<std::size_t>(written));
+		}
+
+		return basic_utf8_string<Allocator>::from_bytes_unchecked(std::move(result));
+	}
+
+	template <typename Allocator>
+	basic_utf16_string<Allocator> icu_case_fold_utf16_copy(
+		std::u16string_view code_units,
+		locale_id locale,
+		const Allocator& alloc)
+	{
+		static_assert(sizeof(UChar) == sizeof(char16_t));
+
+		using base_type = typename basic_utf16_string<Allocator>::base_type;
+
+		if (code_units.empty())
+		{
+			return basic_utf16_string<Allocator>::from_code_units_unchecked(base_type{ alloc });
+		}
+
+		const auto input_size = checked_icu_length(code_units.size(), "UTF-16 input");
+		const auto options = icu_case_fold_options(locale);
+		const auto* source = reinterpret_cast<const UChar*>(code_units.data());
+		UErrorCode error = U_ZERO_ERROR;
+		const auto needed = u_strFoldCase(
+			nullptr,
+			0,
+			source,
+			input_size,
+			options,
+			&error);
+
+		if (error != U_BUFFER_OVERFLOW_ERROR && U_FAILURE(error))
+		{
+			throw_icu_error("u_strFoldCase", error);
+		}
+
+		base_type result{ alloc };
+		if (needed != 0)
+		{
+			result.resize(static_cast<std::size_t>(needed));
+			error = U_ZERO_ERROR;
+			const auto written = u_strFoldCase(
+				reinterpret_cast<UChar*>(result.data()),
+				needed,
+				source,
+				input_size,
+				options,
+				&error);
+			if (U_FAILURE(error))
+			{
+				throw_icu_error("u_strFoldCase", error);
 			}
 
 			result.resize(static_cast<std::size_t>(written));
@@ -2176,6 +2312,15 @@ namespace unicode_ranges
 		return case_fold_utf8_copy(byte_view(), alloc);
 	}
 
+#if UTF8_RANGES_HAS_ICU
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	basic_utf8_string<Allocator> utf8_string_crtp<Derived, View>::case_fold(locale_id locale, const Allocator& alloc) const
+	{
+		return icu_case_fold_utf8_copy(byte_view(), locale, alloc);
+	}
+#endif
+
 	template <typename Derived, typename View>
 	template <typename Allocator>
 	constexpr basic_utf16_string<Allocator> utf8_string_crtp<Derived, View>::to_utf16(const Allocator& alloc) const
@@ -2872,6 +3017,15 @@ namespace unicode_ranges
 	{
 		return case_fold_utf16_copy(code_unit_view(), alloc);
 	}
+
+#if UTF8_RANGES_HAS_ICU
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::case_fold(locale_id locale, const Allocator& alloc) const
+	{
+		return icu_case_fold_utf16_copy(code_unit_view(), locale, alloc);
+	}
+#endif
 
 	template <typename Derived, typename View>
 	template <typename Allocator>

@@ -247,6 +247,10 @@ inline void run_unicode_ranges_tests()
 	static_assert(std::same_as<
 		decltype(utf8_text.to_uppercase("tr"_locale, std::pmr::polymorphic_allocator<char8_t>{})),
 		pmr::utf8_string>);
+	static_assert(std::same_as<decltype(utf8_text.case_fold("tr"_locale)), utf8_string>);
+	static_assert(std::same_as<
+		decltype(utf8_text.case_fold("tr"_locale, std::pmr::polymorphic_allocator<char8_t>{})),
+		pmr::utf8_string>);
 #endif
 	static_assert(std::same_as<decltype(utf8_text.to_uppercase()), utf8_string>);
 	static_assert(std::same_as<decltype(utf8_text.to_uppercase(0, 1)), utf8_string>);
@@ -278,6 +282,10 @@ inline void run_unicode_ranges_tests()
 	static_assert(std::same_as<decltype(pmr::utf8_string{}.to_uppercase(0, 0)), pmr::utf8_string>);
 	static_assert(std::same_as<decltype(pmr::utf8_string{}.to_nfc()), pmr::utf8_string>);
 	static_assert(std::same_as<decltype(pmr::utf8_string{}.case_fold()), pmr::utf8_string>);
+#if UTF8_RANGES_HAS_ICU
+	static_assert(std::same_as<decltype(utf8_string{}.case_fold("tr"_locale)), utf8_string>);
+	static_assert(std::same_as<decltype(pmr::utf8_string{}.case_fold("tr"_locale)), pmr::utf8_string>);
+#endif
 	static_assert(std::same_as<
 		decltype(utf8_text.rsplit_once(u8"\u00E9"_u8c)),
 		std::optional<std::pair<utf8_string_view, utf8_string_view>>>);
@@ -446,6 +454,10 @@ inline void run_unicode_ranges_tests()
 	static_assert(std::same_as<
 		decltype(utf16_text.to_uppercase("tr"_locale, std::pmr::polymorphic_allocator<char16_t>{})),
 		pmr::utf16_string>);
+	static_assert(std::same_as<decltype(utf16_text.case_fold("tr"_locale)), utf16_string>);
+	static_assert(std::same_as<
+		decltype(utf16_text.case_fold("tr"_locale, std::pmr::polymorphic_allocator<char16_t>{})),
+		pmr::utf16_string>);
 #endif
 	static_assert(std::same_as<decltype(utf16_text.to_uppercase()), utf16_string>);
 	static_assert(std::same_as<decltype(utf16_text.to_uppercase(0, 1)), utf16_string>);
@@ -477,6 +489,10 @@ inline void run_unicode_ranges_tests()
 	static_assert(std::same_as<decltype(pmr::utf16_string{}.to_uppercase(0, 0)), pmr::utf16_string>);
 	static_assert(std::same_as<decltype(pmr::utf16_string{}.to_nfc()), pmr::utf16_string>);
 	static_assert(std::same_as<decltype(pmr::utf16_string{}.case_fold()), pmr::utf16_string>);
+#if UTF8_RANGES_HAS_ICU
+	static_assert(std::same_as<decltype(utf16_string{}.case_fold("tr"_locale)), utf16_string>);
+	static_assert(std::same_as<decltype(pmr::utf16_string{}.case_fold("tr"_locale)), pmr::utf16_string>);
+#endif
 	static_assert(std::same_as<
 		decltype(utf16_text.rsplit_once(u"\u00E9"_u16c)),
 		std::optional<std::pair<utf16_string_view, utf16_string_view>>>);
@@ -1949,6 +1965,10 @@ inline void run_unicode_ranges_tests()
 			[[maybe_unused]] const auto uppered_locale_alloc = u8"i\u0131"_utf8_sv.to_uppercase("tr"_locale, alloc);
 			assert(uppered_locale_alloc == u8"\u0130I"_utf8_sv);
 			assert(uppered_locale_alloc.get_allocator().resource() == &resource);
+			assert(u8"I\u0130"_utf8_sv.case_fold("tr"_locale) == u8"\u0131i"_utf8_sv);
+			[[maybe_unused]] const auto folded_locale_alloc = u8"I\u0130"_utf8_sv.case_fold("tr"_locale, alloc);
+			assert(folded_locale_alloc == u8"\u0131i"_utf8_sv);
+			assert(folded_locale_alloc.get_allocator().resource() == &resource);
 			assert(is_available_locale("tr"_locale));
 			assert(is_available_locale(locale_id{ "tr" }));
 			assert(!is_available_locale("definitely_not_a_real_locale"_locale));
@@ -2648,6 +2668,10 @@ inline void run_unicode_ranges_tests()
 			[[maybe_unused]] const auto uppered_locale_alloc = u"i\u0131"_utf16_sv.to_uppercase("tr"_locale, alloc);
 			assert(uppered_locale_alloc == u"\u0130I"_utf16_sv);
 			assert(uppered_locale_alloc.get_allocator().resource() == &resource);
+			assert(u"I\u0130"_utf16_sv.case_fold("tr"_locale) == u"\u0131i"_utf16_sv);
+			[[maybe_unused]] const auto folded_locale_alloc = u"I\u0130"_utf16_sv.case_fold("tr"_locale, alloc);
+			assert(folded_locale_alloc == u"\u0131i"_utf16_sv);
+			assert(folded_locale_alloc.get_allocator().resource() == &resource);
 			assert(is_available_locale("tr"_locale));
 			assert(is_available_locale(locale_id{ "tr" }));
 			assert(!is_available_locale("definitely_not_a_real_locale"_locale));

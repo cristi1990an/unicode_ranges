@@ -238,6 +238,58 @@ Invalid literal contents are rejected during constant evaluation.
 --8<-- "examples/reference/literals-and-formatting.cpp"
 ```
 
+## Optional ICU Locale Tokens
+
+### Synopsis
+
+```cpp
+#if UTF8_RANGES_HAS_ICU
+struct locale_id
+{
+    const char* name = nullptr;
+};
+
+using namespace unicode_ranges::literals;
+
+consteval locale_id operator ""_locale(const char* name, std::size_t size);
+bool is_available_locale(locale_id locale) noexcept;
+#endif
+```
+
+### Behavior
+
+- This API family exists only when the library is built with `UTF8_RANGES_ENABLE_ICU=1`.
+- `locale_id` is a non-owning null-terminated locale token for ICU-backed casing operations.
+- `_locale` validates string literals at compile time and rejects embedded NUL bytes.
+- Raw `locale_id{ ... }` values must point to storage that stays alive for the duration of the call.
+- `is_available_locale(...)` is a non-throwing probe against the current ICU data set.
+- Locale-aware casing overloads may still succeed for locales that are not explicitly available, because ICU may canonicalize or fall back to a more general locale.
+
+### Return value
+
+- `_locale` returns a `locale_id`.
+- `is_available_locale(...)` returns `true` when the current ICU data set explicitly exposes the locale and `false` otherwise.
+
+### Complexity
+
+- `_locale` is constant evaluation only.
+- `is_available_locale(...)` is linear in the number of locales exposed by the current ICU data set.
+
+### Exceptions
+
+- `_locale` rejects embedded NUL bytes during constant evaluation.
+- `is_available_locale(...)` does not throw.
+
+### `noexcept`
+
+- `is_available_locale(...)` is `noexcept`.
+
+### Example
+
+```cpp
+--8<-- "examples/casing/locale-case.cpp"
+```
+
 ## Formatting And Printing
 
 ### Synopsis

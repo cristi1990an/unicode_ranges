@@ -20,14 +20,10 @@ The Unicode-aware APIs are locale-independent. They follow generated Unicode tab
 --8<-- "examples/casing/unicode-case.cpp"
 ```
 
-If the library is built with `UTF8_RANGES_ENABLE_ICU=1`, additional ICU-backed locale overloads are available for lowercasing and uppercasing:
+If the library is built with `UTF8_RANGES_ENABLE_ICU=1`, additional ICU-backed locale overloads are available for lowercasing, uppercasing, and case folding:
 
 ```cpp
-using namespace unicode_ranges;
-using namespace unicode_ranges::literals;
-
-assert(u8"I\u0130"_utf8_sv.to_lowercase("tr"_locale) == u8"\u0131i"_utf8_sv);
-assert(u8"i\u0131"_utf8_sv.to_uppercase("tr"_locale) == u8"\u0130I"_utf8_sv);
+--8<-- "examples/casing/locale-case.cpp"
 ```
 
 You can also check whether the current ICU data set explicitly exposes a locale identifier:
@@ -42,8 +38,11 @@ Behavior note:
 
 - `locale_id` is a raw null-terminated locale-name token.
 - `_locale` rejects embedded NULs in string literals at compile time.
-- Raw `locale_id{ ... }` values are passed to ICU as C strings after lightweight validation.
-- If the locale is not explicitly available in the current ICU data set, ICU may resolve it through its normal locale fallback rules rather than making `to_lowercase(...)` or `to_uppercase(...)` fail.
+- Raw `locale_id{ ... }` values do not own storage; the pointed-to locale name must stay alive for the duration of the call.
+- The locale-aware overloads reject obviously unusable tokens such as `locale_id{ nullptr }`.
+- Otherwise, locale-aware `to_lowercase(...)`, `to_uppercase(...)`, and `case_fold(...)` forward the locale name to ICU.
+- If the locale is not explicitly available in the current ICU data set, ICU may canonicalize the locale or fall back to a more general locale instead of failing the call.
+- If ICU rejects the locale name or another ICU operation fails, the locale-aware overload throws `std::runtime_error`.
 - If you need an exact availability check before calling a locale-aware casing overload, use `is_available_locale(...)`.
 
 Those overloads do not exist in the dependency-free default build.
@@ -59,6 +58,8 @@ Owning strings support both whole-string and subrange casing. The checked subran
 ## Case folding
 
 Case folding is the Unicode form intended for caseless matching rather than display transformation.
+
+If ICU is enabled, `case_fold(locale)` is also available. In practice, the locale-sensitive difference is the Turkic special-I fold; most locales produce the same result as the default `case_fold()`.
 
 ```cpp
 --8<-- "examples/casing/case-fold.cpp"

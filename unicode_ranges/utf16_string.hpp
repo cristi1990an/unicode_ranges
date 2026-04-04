@@ -1249,6 +1249,25 @@ public:
 	{
 		return static_cast<const crtp&>(*this).template to_uppercase<OtherAllocator>(pos, count, locale, alloc);
 	}
+
+	[[nodiscard]]
+	basic_utf16_string case_fold(locale_id locale) const&
+	{
+		return static_cast<const crtp&>(*this).template case_fold<Allocator>(locale, base_.get_allocator());
+	}
+
+	[[nodiscard]]
+	basic_utf16_string case_fold(locale_id locale) &&
+	{
+		return static_cast<const crtp&>(*this).template case_fold<Allocator>(locale, base_.get_allocator());
+	}
+
+	template <typename OtherAllocator>
+	[[nodiscard]]
+	basic_utf16_string<OtherAllocator> case_fold(locale_id locale, const OtherAllocator& alloc) const
+	{
+		return static_cast<const crtp&>(*this).template case_fold<OtherAllocator>(locale, alloc);
+	}
 #endif
 
 	[[nodiscard]]
