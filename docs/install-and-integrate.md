@@ -91,6 +91,8 @@ endif()
 
 This keeps the default build small and dependency-free while making the locale-sensitive overloads disappear entirely when ICU is not available.
 
+When ICU is enabled, locale-aware casing follows ICU locale resolution behavior. The library rejects embedded NULs in `locale_id`, but otherwise passes normalized locale names through to ICU, which may fall back to a more general locale instead of failing. Use `is_available_locale(...)` if you want to require that the current ICU data set explicitly exposes a locale before calling a locale-aware casing overload.
+
 ## CMake: FetchContent
 
 If you prefer to fetch sources at configure time, keep the same interface-target pattern:

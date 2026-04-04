@@ -36,6 +36,13 @@ You can also check whether the current ICU data set explicitly exposes a locale 
 assert(is_available_locale("tr"_locale));
 ```
 
+Behavior note:
+
+- `locale_id` only rejects embedded NULs directly.
+- Other locale strings are normalized and then passed to ICU.
+- If the locale is not explicitly available in the current ICU data set, ICU may resolve it through its normal locale fallback rules rather than making `to_lowercase(...)` or `to_uppercase(...)` fail.
+- If you need an exact availability check before calling a locale-aware casing overload, use `is_available_locale(...)`.
+
 Those overloads do not exist in the dependency-free default build.
 
 ## Partial casing on owning strings
