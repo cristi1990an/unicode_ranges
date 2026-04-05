@@ -2862,6 +2862,26 @@ public:
 		size_type pos,
 		size_type count,
 		const Allocator& alloc = Allocator()) const;
+#if UTF8_RANGES_HAS_ICU
+	template <typename Allocator = std::allocator<char8_t>>
+	basic_utf8_string<Allocator> to_lowercase(locale_id locale, const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char8_t>>
+	basic_utf8_string<Allocator> to_lowercase(
+		size_type pos,
+		size_type count,
+		locale_id locale,
+		const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char8_t>>
+	basic_utf8_string<Allocator> to_uppercase(locale_id locale, const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char8_t>>
+	basic_utf8_string<Allocator> to_uppercase(
+		size_type pos,
+		size_type count,
+		locale_id locale,
+		const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char8_t>>
+	basic_utf8_string<Allocator> case_fold(locale_id locale, const Allocator& alloc = Allocator()) const;
+#endif
 	template <typename Allocator = std::allocator<char8_t>>
 	constexpr basic_utf8_string<Allocator> to_uppercase(const Allocator& alloc = Allocator()) const;
 	template <typename Allocator = std::allocator<char8_t>>

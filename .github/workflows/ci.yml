@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/**
   pull_request:
   workflow_dispatch:
   schedule:
@@ -33,7 +34,7 @@ jobs:
       - name: Run tests
         run: .\x64\${{ matrix.configuration }}\unicode_ranges.exe
 
-  clang-cl:
+  clang_cl:
     name: Clang-cl (${{ matrix.configuration }}, C++23)
     runs-on: windows-latest
     strategy:
@@ -215,7 +216,64 @@ jobs:
           ASAN_OPTIONS: ${{ matrix.asan_options }}
           UBSAN_OPTIONS: ${{ matrix.ubsan_options }}
 
-  docs-examples:
+  linux_icu:
+    name: ${{ matrix.name }} + ICU (O2, C++23)
+    runs-on: ubuntu-24.04
+    continue-on-error: ${{ matrix.install_kind == 'clang' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: GCC
+            install_kind: gcc
+            packages: g++-14 libicu-dev pkg-config
+            cxx: g++-14
+            cxxflags: ""
+            output: unicode_ranges_gcc_icu
+          - name: Clang trunk
+            install_kind: clang
+            packages: clang-22 libc++-22-dev libc++abi-22-dev libicu-dev pkg-config
+            cxx: clang++-22
+            cxxflags: "-stdlib=libc++"
+            output: unicode_ranges_clang_icu
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install GCC and ICU
+        if: matrix.install_kind == 'gcc'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.packages }}
+
+      - name: Install Clang trunk and ICU
+        if: matrix.install_kind == 'clang'
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 22
+          sudo apt-get install -y ${{ matrix.packages }}
+
+      - name: Show tool versions
+        run: |
+          ${{ matrix.cxx }} --version
+          pkg-config --modversion icu-uc
+
+      - name: Build with ICU enabled
+        run: |
+          ${{ matrix.cxx }} -std=c++23 -O2 -Wall -Wextra -Werror -pedantic \
+            -DUTF8_RANGES_ENABLE_ICU=1 \
+            ${{ matrix.cxxflags }} \
+            $(pkg-config --cflags icu-uc) \
+            source.cpp \
+            -o ${{ matrix.output }} \
+            $(pkg-config --libs icu-uc)
+
+      - name: Run ICU-enabled tests
+        run: ./${{ matrix.output }}
+
+  docs_examples:
     name: Docs examples (${{ matrix.name }}, C++23)
     runs-on: ubuntu-24.04
     strategy:
@@ -310,6 +368,23 @@ jobs:
         with:
           name: coverage-report
           path: coverage/
+
+  required:
+    name: Required CI
+    if: github.event_name == 'pull_request'
+    needs:
+      - msvc
+      - clang_cl
+      - linux
+      - linux_icu
+      - docs_examples
+      - coverage
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Verify required jobs
+        run: |
+          echo "All required CI jobs passed."
 
   benchmarks:
     name: Benchmark (${{ matrix.name }}, ${{ matrix.opt_name }}, C++23)

@@ -234,6 +234,24 @@ inline void run_unicode_ranges_tests()
 	static_assert(std::same_as<
 		decltype(utf8_text.to_lowercase(0, 1, std::pmr::polymorphic_allocator<char8_t>{})),
 		pmr::utf8_string>);
+#if UTF8_RANGES_HAS_ICU
+	static_assert(std::string_view{ "tr"_locale.name } == std::string_view{ "tr" });
+	static_assert(std::same_as<decltype(is_available_locale("tr"_locale)), bool>);
+	static_assert(std::same_as<decltype(utf8_text.to_lowercase("tr"_locale)), utf8_string>);
+	static_assert(std::same_as<decltype(utf8_text.to_lowercase(0, 1, "tr"_locale)), utf8_string>);
+	static_assert(std::same_as<
+		decltype(utf8_text.to_lowercase("tr"_locale, std::pmr::polymorphic_allocator<char8_t>{})),
+		pmr::utf8_string>);
+	static_assert(std::same_as<decltype(utf8_text.to_uppercase("tr"_locale)), utf8_string>);
+	static_assert(std::same_as<decltype(utf8_text.to_uppercase(0, 1, "tr"_locale)), utf8_string>);
+	static_assert(std::same_as<
+		decltype(utf8_text.to_uppercase("tr"_locale, std::pmr::polymorphic_allocator<char8_t>{})),
+		pmr::utf8_string>);
+	static_assert(std::same_as<decltype(utf8_text.case_fold("tr"_locale)), utf8_string>);
+	static_assert(std::same_as<
+		decltype(utf8_text.case_fold("tr"_locale, std::pmr::polymorphic_allocator<char8_t>{})),
+		pmr::utf8_string>);
+#endif
 	static_assert(std::same_as<decltype(utf8_text.to_uppercase()), utf8_string>);
 	static_assert(std::same_as<decltype(utf8_text.to_uppercase(0, 1)), utf8_string>);
 	static_assert(std::same_as<
@@ -264,6 +282,10 @@ inline void run_unicode_ranges_tests()
 	static_assert(std::same_as<decltype(pmr::utf8_string{}.to_uppercase(0, 0)), pmr::utf8_string>);
 	static_assert(std::same_as<decltype(pmr::utf8_string{}.to_nfc()), pmr::utf8_string>);
 	static_assert(std::same_as<decltype(pmr::utf8_string{}.case_fold()), pmr::utf8_string>);
+#if UTF8_RANGES_HAS_ICU
+	static_assert(std::same_as<decltype(utf8_string{}.case_fold("tr"_locale)), utf8_string>);
+	static_assert(std::same_as<decltype(pmr::utf8_string{}.case_fold("tr"_locale)), pmr::utf8_string>);
+#endif
 	static_assert(std::same_as<
 		decltype(utf8_text.rsplit_once(u8"\u00E9"_u8c)),
 		std::optional<std::pair<utf8_string_view, utf8_string_view>>>);
@@ -421,6 +443,22 @@ inline void run_unicode_ranges_tests()
 	static_assert(std::same_as<
 		decltype(utf16_text.to_lowercase(0, 1, std::pmr::polymorphic_allocator<char16_t>{})),
 		pmr::utf16_string>);
+#if UTF8_RANGES_HAS_ICU
+	static_assert(std::same_as<decltype(utf16_text.to_lowercase("tr"_locale)), utf16_string>);
+	static_assert(std::same_as<decltype(utf16_text.to_lowercase(0, 1, "tr"_locale)), utf16_string>);
+	static_assert(std::same_as<
+		decltype(utf16_text.to_lowercase("tr"_locale, std::pmr::polymorphic_allocator<char16_t>{})),
+		pmr::utf16_string>);
+	static_assert(std::same_as<decltype(utf16_text.to_uppercase("tr"_locale)), utf16_string>);
+	static_assert(std::same_as<decltype(utf16_text.to_uppercase(0, 1, "tr"_locale)), utf16_string>);
+	static_assert(std::same_as<
+		decltype(utf16_text.to_uppercase("tr"_locale, std::pmr::polymorphic_allocator<char16_t>{})),
+		pmr::utf16_string>);
+	static_assert(std::same_as<decltype(utf16_text.case_fold("tr"_locale)), utf16_string>);
+	static_assert(std::same_as<
+		decltype(utf16_text.case_fold("tr"_locale, std::pmr::polymorphic_allocator<char16_t>{})),
+		pmr::utf16_string>);
+#endif
 	static_assert(std::same_as<decltype(utf16_text.to_uppercase()), utf16_string>);
 	static_assert(std::same_as<decltype(utf16_text.to_uppercase(0, 1)), utf16_string>);
 	static_assert(std::same_as<
@@ -451,6 +489,10 @@ inline void run_unicode_ranges_tests()
 	static_assert(std::same_as<decltype(pmr::utf16_string{}.to_uppercase(0, 0)), pmr::utf16_string>);
 	static_assert(std::same_as<decltype(pmr::utf16_string{}.to_nfc()), pmr::utf16_string>);
 	static_assert(std::same_as<decltype(pmr::utf16_string{}.case_fold()), pmr::utf16_string>);
+#if UTF8_RANGES_HAS_ICU
+	static_assert(std::same_as<decltype(utf16_string{}.case_fold("tr"_locale)), utf16_string>);
+	static_assert(std::same_as<decltype(pmr::utf16_string{}.case_fold("tr"_locale)), pmr::utf16_string>);
+#endif
 	static_assert(std::same_as<
 		decltype(utf16_text.rsplit_once(u"\u00E9"_u16c)),
 		std::optional<std::pair<utf16_string_view, utf16_string_view>>>);
@@ -1912,6 +1954,26 @@ inline void run_unicode_ranges_tests()
 			[[maybe_unused]] const auto partial_uppered_alloc = u8"ab\u00E4\u00DFcd"_utf8_sv.to_uppercase(2, 4, alloc);
 			assert(partial_uppered_alloc == u8"ab\u00C4SScd"_utf8_sv);
 			assert(partial_uppered_alloc.get_allocator().resource() == &resource);
+#if UTF8_RANGES_HAS_ICU
+			assert(u8"I\u0130"_utf8_sv.to_lowercase("tr"_locale) == u8"\u0131i"_utf8_sv);
+			assert(u8"XXI\u0130YY"_utf8_sv.to_lowercase(2, 3, "tr"_locale) == u8"XX\u0131iYY"_utf8_sv);
+			[[maybe_unused]] const auto lowered_locale_alloc = u8"I\u0130"_utf8_sv.to_lowercase("tr"_locale, alloc);
+			assert(lowered_locale_alloc == u8"\u0131i"_utf8_sv);
+			assert(lowered_locale_alloc.get_allocator().resource() == &resource);
+			assert(u8"i\u0131"_utf8_sv.to_uppercase("tr"_locale) == u8"\u0130I"_utf8_sv);
+			assert(u8"XXi\u0131YY"_utf8_sv.to_uppercase(2, 3, "tr"_locale) == u8"XX\u0130IYY"_utf8_sv);
+			[[maybe_unused]] const auto uppered_locale_alloc = u8"i\u0131"_utf8_sv.to_uppercase("tr"_locale, alloc);
+			assert(uppered_locale_alloc == u8"\u0130I"_utf8_sv);
+			assert(uppered_locale_alloc.get_allocator().resource() == &resource);
+			assert(u8"I\u0130"_utf8_sv.case_fold("tr"_locale) == u8"\u0131i"_utf8_sv);
+			[[maybe_unused]] const auto folded_locale_alloc = u8"I\u0130"_utf8_sv.case_fold("tr"_locale, alloc);
+			assert(folded_locale_alloc == u8"\u0131i"_utf8_sv);
+			assert(folded_locale_alloc.get_allocator().resource() == &resource);
+			assert(is_available_locale("tr"_locale));
+			assert(is_available_locale(locale_id{ "tr" }));
+			assert(!is_available_locale("definitely_not_a_real_locale"_locale));
+			assert(!is_available_locale(locale_id{ nullptr }));
+#endif
 			[[maybe_unused]] const auto normalized_alloc = u8"e\u0301"_utf8_sv.to_nfc(alloc);
 			assert(normalized_alloc == u8"\u00E9"_utf8_sv);
 			assert(normalized_alloc.get_allocator().resource() == &resource);
@@ -2595,6 +2657,26 @@ inline void run_unicode_ranges_tests()
 			[[maybe_unused]] const auto partial_uppered_alloc = u"ab\u00E4\u00DFcd"_utf16_sv.to_uppercase(2, 2, alloc);
 			assert(partial_uppered_alloc == u"ab\u00C4SScd"_utf16_sv);
 			assert(partial_uppered_alloc.get_allocator().resource() == &resource);
+#if UTF8_RANGES_HAS_ICU
+			assert(u"I\u0130"_utf16_sv.to_lowercase("tr"_locale) == u"\u0131i"_utf16_sv);
+			assert(u"XXI\u0130YY"_utf16_sv.to_lowercase(2, 2, "tr"_locale) == u"XX\u0131iYY"_utf16_sv);
+			[[maybe_unused]] const auto lowered_locale_alloc = u"I\u0130"_utf16_sv.to_lowercase("tr"_locale, alloc);
+			assert(lowered_locale_alloc == u"\u0131i"_utf16_sv);
+			assert(lowered_locale_alloc.get_allocator().resource() == &resource);
+			assert(u"i\u0131"_utf16_sv.to_uppercase("tr"_locale) == u"\u0130I"_utf16_sv);
+			assert(u"XXi\u0131YY"_utf16_sv.to_uppercase(2, 2, "tr"_locale) == u"XX\u0130IYY"_utf16_sv);
+			[[maybe_unused]] const auto uppered_locale_alloc = u"i\u0131"_utf16_sv.to_uppercase("tr"_locale, alloc);
+			assert(uppered_locale_alloc == u"\u0130I"_utf16_sv);
+			assert(uppered_locale_alloc.get_allocator().resource() == &resource);
+			assert(u"I\u0130"_utf16_sv.case_fold("tr"_locale) == u"\u0131i"_utf16_sv);
+			[[maybe_unused]] const auto folded_locale_alloc = u"I\u0130"_utf16_sv.case_fold("tr"_locale, alloc);
+			assert(folded_locale_alloc == u"\u0131i"_utf16_sv);
+			assert(folded_locale_alloc.get_allocator().resource() == &resource);
+			assert(is_available_locale("tr"_locale));
+			assert(is_available_locale(locale_id{ "tr" }));
+			assert(!is_available_locale("definitely_not_a_real_locale"_locale));
+			assert(!is_available_locale(locale_id{ nullptr }));
+#endif
 			[[maybe_unused]] const auto normalized_alloc = u"e\u0301"_utf16_sv.to_nfc(alloc);
 			assert(normalized_alloc == u"\u00E9"_utf16_sv);
 			assert(normalized_alloc.get_allocator().resource() == &resource);

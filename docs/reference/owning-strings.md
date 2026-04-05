@@ -478,6 +478,49 @@ Linear in the processed code units, plus extra work for Unicode case expansion a
 - The whole-string ASCII `&&` overloads are `noexcept`.
 - The other overloads are not `noexcept`.
 
+### Optional ICU Locale-Aware Overloads
+
+When the library is built with `UTF8_RANGES_ENABLE_ICU=1`, the owning-string types also expose these overload families:
+
+```cpp
+basic_utf8_string to_lowercase(locale_id locale) const&;
+basic_utf8_string to_lowercase(locale_id locale) &&;
+basic_utf8_string to_lowercase(size_type pos, size_type count, locale_id locale) const&;
+basic_utf8_string to_lowercase(size_type pos, size_type count, locale_id locale) &&;
+template <typename OtherAllocator>
+basic_utf8_string<OtherAllocator> to_lowercase(locale_id locale, const OtherAllocator& alloc) const;
+template <typename OtherAllocator>
+basic_utf8_string<OtherAllocator> to_lowercase(size_type pos, size_type count, locale_id locale, const OtherAllocator& alloc) const;
+
+basic_utf8_string to_uppercase(locale_id locale) const&;
+basic_utf8_string to_uppercase(locale_id locale) &&;
+basic_utf8_string to_uppercase(size_type pos, size_type count, locale_id locale) const&;
+basic_utf8_string to_uppercase(size_type pos, size_type count, locale_id locale) &&;
+template <typename OtherAllocator>
+basic_utf8_string<OtherAllocator> to_uppercase(locale_id locale, const OtherAllocator& alloc) const;
+template <typename OtherAllocator>
+basic_utf8_string<OtherAllocator> to_uppercase(size_type pos, size_type count, locale_id locale, const OtherAllocator& alloc) const;
+
+basic_utf8_string case_fold(locale_id locale) const&;
+basic_utf8_string case_fold(locale_id locale) &&;
+template <typename OtherAllocator>
+basic_utf8_string<OtherAllocator> case_fold(locale_id locale, const OtherAllocator& alloc) const;
+
+// The UTF-16 type exposes the same locale-aware families with basic_utf16_string return types.
+```
+
+- These overloads exist only when ICU support is enabled.
+- `const&`, `&&`, and allocator-taking locale overloads follow the same ownership rules as the default casing members.
+- `case_fold(locale)` uses ICU fold options derived from the locale. In practice, the meaningful difference is the Turkic special-I fold; other locales normally produce the same result as `case_fold()`.
+- `locale_id` is a non-owning null-terminated token, so raw `locale_id{ ... }` values must outlive the call.
+- The locale-aware overloads reject `locale_id{nullptr}` with `std::invalid_argument`.
+- Otherwise they pass the locale name through to ICU, which may canonicalize it or fall back to a more general locale instead of failing.
+- ICU normalization or casing failures surface as `std::runtime_error`.
+
+```cpp
+--8<-- "examples/casing/locale-case.cpp"
+```
+
 ## Copying Replacement Families
 
 ### Synopsis

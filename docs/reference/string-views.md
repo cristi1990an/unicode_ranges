@@ -1008,6 +1008,46 @@ Not `noexcept`.
 --8<-- "examples/casing/unicode-case.cpp"
 ```
 
+### Optional ICU Locale-Aware Overloads
+
+When the library is built with `UTF8_RANGES_ENABLE_ICU=1`, the string-view types also expose these overloads:
+
+```cpp
+template <typename Allocator = std::allocator<char8_t>>
+basic_utf8_string<Allocator> to_lowercase(locale_id locale, const Allocator& alloc = Allocator()) const;
+template <typename Allocator = std::allocator<char8_t>>
+basic_utf8_string<Allocator> to_lowercase(size_type pos, size_type count, locale_id locale, const Allocator& alloc = Allocator()) const;
+template <typename Allocator = std::allocator<char8_t>>
+basic_utf8_string<Allocator> to_uppercase(locale_id locale, const Allocator& alloc = Allocator()) const;
+template <typename Allocator = std::allocator<char8_t>>
+basic_utf8_string<Allocator> to_uppercase(size_type pos, size_type count, locale_id locale, const Allocator& alloc = Allocator()) const;
+template <typename Allocator = std::allocator<char8_t>>
+basic_utf8_string<Allocator> case_fold(locale_id locale, const Allocator& alloc = Allocator()) const;
+
+template <typename Allocator = std::allocator<char16_t>>
+basic_utf16_string<Allocator> to_lowercase(locale_id locale, const Allocator& alloc = Allocator()) const;
+template <typename Allocator = std::allocator<char16_t>>
+basic_utf16_string<Allocator> to_lowercase(size_type pos, size_type count, locale_id locale, const Allocator& alloc = Allocator()) const;
+template <typename Allocator = std::allocator<char16_t>>
+basic_utf16_string<Allocator> to_uppercase(locale_id locale, const Allocator& alloc = Allocator()) const;
+template <typename Allocator = std::allocator<char16_t>>
+basic_utf16_string<Allocator> to_uppercase(size_type pos, size_type count, locale_id locale, const Allocator& alloc = Allocator()) const;
+template <typename Allocator = std::allocator<char16_t>>
+basic_utf16_string<Allocator> case_fold(locale_id locale, const Allocator& alloc = Allocator()) const;
+```
+
+- These overloads do not exist in the dependency-free default build.
+- `to_lowercase(locale)` and `to_uppercase(locale)` delegate to ICU locale-sensitive case mapping.
+- `case_fold(locale)` delegates to ICU case folding. In practice, the only fold-specific tailoring ICU exposes here is the Turkic special-I mode, so most locales behave the same as the default `case_fold()`.
+- `locale_id` is a raw null-terminated token. `locale_id{nullptr}` is rejected with `std::invalid_argument`.
+- Non-null locale names are passed through to ICU, which may canonicalize them or fall back to a more general locale instead of failing.
+- A null locale token throws `std::invalid_argument`. ICU normalization or casing failures throw `std::runtime_error`.
+- If you need an exact availability check before calling a locale-aware overload, use `is_available_locale(locale)`.
+
+```cpp
+--8<-- "examples/casing/locale-case.cpp"
+```
+
 ## View-Based Replacement Families
 
 ### Synopsis

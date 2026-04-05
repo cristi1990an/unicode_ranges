@@ -15,6 +15,7 @@
 #include <format>
 #include <functional>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <memory_resource>
 #include <optional>
@@ -40,6 +41,19 @@
 
 #if UTF8_RANGES_HAS_SSE2_INTRINSICS
 #include <emmintrin.h>
+#endif
+
+#if defined(UTF8_RANGES_ENABLE_ICU) && UTF8_RANGES_ENABLE_ICU
+#if defined(__has_include)
+#if !__has_include(<unicode/ucasemap.h>)
+#error "UTF8_RANGES_ENABLE_ICU requires ICU headers such as <unicode/ucasemap.h>"
+#endif
+#endif
+#include <unicode/ucasemap.h>
+#include <unicode/uloc.h>
+#define UTF8_RANGES_HAS_ICU 1
+#else
+#define UTF8_RANGES_HAS_ICU 0
 #endif
 
 #if defined(NDEBUG)
@@ -74,6 +88,15 @@ template <typename Allocator = std::allocator<char16_t>>
 class basic_utf16_string;
 
 using utf16_string = basic_utf16_string<>;
+
+#if UTF8_RANGES_HAS_ICU
+struct locale_id
+{
+	const char* name = nullptr;
+};
+
+[[nodiscard]] bool is_available_locale(locale_id locale) noexcept;
+#endif
 
 namespace pmr
 {
@@ -2727,6 +2750,24 @@ namespace details
 		};
 	}
 }
+
+#if UTF8_RANGES_HAS_ICU
+namespace literals
+{
+	consteval locale_id operator ""_locale(const char* name, std::size_t size)
+	{
+		for (std::size_t i = 0; i < size; ++i)
+		{
+			if (name[i] == '\0')
+			{
+				throw std::invalid_argument("locale literal must not contain embedded NUL");
+			}
+		}
+
+		return locale_id{ name };
+	}
+}
+#endif
 
 }
 
