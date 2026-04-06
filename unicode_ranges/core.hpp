@@ -1488,7 +1488,7 @@ namespace details
 	inline constexpr std::uint32_t decode_valid_utf16_char(std::basic_string_view<CharT> ch) noexcept;
 
 	template<typename CharT>
-	inline constexpr std::uint32_t decode_valid_utf32_char(const CharT* ch, std::size_t size) noexcept;
+	inline constexpr std::uint32_t decode_valid_utf32_char(const CharT* ch) noexcept;
 
 	template<typename CharT>
 	inline constexpr std::uint32_t decode_valid_utf32_char(std::basic_string_view<CharT> ch) noexcept;
@@ -2086,16 +2086,16 @@ namespace details
 	}
 
 	template<typename CharT>
-	inline constexpr std::uint32_t decode_valid_utf32_char(const CharT* ch, std::size_t size) noexcept
+	inline constexpr std::uint32_t decode_valid_utf32_char(const CharT* ch) noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(size == encoding_constants::single_code_unit_count);
 		return static_cast<std::uint32_t>(ch[0]);
 	}
 
 	template<typename CharT>
 	inline constexpr std::uint32_t decode_valid_utf32_char(std::basic_string_view<CharT> ch) noexcept
 	{
-		return decode_valid_utf32_char(ch.data(), ch.size());
+		UTF8_RANGES_DEBUG_ASSERT(ch.size() == encoding_constants::single_code_unit_count);
+		return decode_valid_utf32_char(ch.data());
 	}
 
 	struct decoded_scalar
@@ -2129,7 +2129,7 @@ namespace details
 	{
 		const auto* const current = cursor;
 		cursor += encoding_constants::single_code_unit_count;
-		return decode_valid_utf32_char(current, encoding_constants::single_code_unit_count);
+		return decode_valid_utf32_char(current);
 	}
 
 	inline constexpr decoded_scalar decode_next_scalar(std::u8string_view text, std::size_t index) noexcept
