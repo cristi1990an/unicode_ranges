@@ -57,6 +57,22 @@ jobs:
       - name: Run tests
         run: .\x64\${{ matrix.configuration }}\unicode_ranges.exe
 
+  static_analysis:
+    name: Static analysis (MSVC /analyze)
+    runs-on: windows-latest
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Run static analysis
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File .\tools\run_static_analysis.ps1 -Project unicode_ranges.vcxproj
+
   linux:
     name: ${{ matrix.name }} (${{ matrix.opt_name }}${{ matrix.sanitizer_name }}, C++23)
     runs-on: ubuntu-24.04
