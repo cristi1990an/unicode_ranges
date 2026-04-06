@@ -3,6 +3,7 @@
 
 #include "utf8_string_view.hpp"
 #include "utf16_string_view.hpp"
+#include "utf32_string_view.hpp"
 
 namespace unicode_ranges
 {
@@ -13,10 +14,12 @@ namespace views
 	class grapheme_cluster_view : public std::ranges::view_interface<grapheme_cluster_view<CharT>>
 	{
 	public:
-		static_assert(std::same_as<CharT, char8_t> || std::same_as<CharT, char16_t>);
+		static_assert(std::same_as<CharT, char8_t> || std::same_as<CharT, char16_t> || std::same_as<CharT, char32_t>);
 
 		using code_unit_type = CharT;
-		using cluster_type = std::conditional_t<std::same_as<CharT, char8_t>, utf8_string_view, utf16_string_view>;
+		using cluster_type =
+			std::conditional_t<std::same_as<CharT, char8_t>, utf8_string_view,
+			std::conditional_t<std::same_as<CharT, char16_t>, utf16_string_view, utf32_string_view>>;
 
 		class iterator
 		{
@@ -37,9 +40,13 @@ namespace views
 				{
 					return details::utf8_string_view_from_bytes_unchecked(cluster);
 				}
-				else
+				else if constexpr (std::same_as<CharT, char16_t>)
 				{
 					return details::utf16_string_view_from_code_units_unchecked(cluster);
+				}
+				else
+				{
+					return details::utf32_string_view_from_code_points_unchecked(cluster);
 				}
 			}
 
@@ -114,15 +121,22 @@ namespace views
 		template <typename Derived, typename View>
 		friend class details::utf16_string_crtp;
 
+		template <typename Derived, typename View>
+		friend class details::utf32_string_crtp;
+
 		static constexpr grapheme_cluster_view from_code_units_unchecked(std::basic_string_view<CharT> base) noexcept
 		{
 			if constexpr (std::same_as<CharT, char8_t>)
 			{
 				UTF8_RANGES_DEBUG_ASSERT(details::validate_utf8(base).has_value());
 			}
-			else
+			else if constexpr (std::same_as<CharT, char16_t>)
 			{
 				UTF8_RANGES_DEBUG_ASSERT(details::validate_utf16(base).has_value());
+			}
+			else
+			{
+				UTF8_RANGES_DEBUG_ASSERT(details::validate_utf32(base).has_value());
 			}
 
 			return grapheme_cluster_view{ base };
@@ -148,6 +162,12 @@ namespace details
 	constexpr auto utf16_string_crtp<Derived, View>::graphemes() const noexcept -> views::grapheme_cluster_view<char16_t>
 	{
 		return views::grapheme_cluster_view<char16_t>::from_code_units_unchecked(code_unit_view());
+	}
+
+	template <typename Derived, typename View>
+	constexpr auto utf32_string_crtp<Derived, View>::graphemes() const noexcept -> views::grapheme_cluster_view<char32_t>
+	{
+		return views::grapheme_cluster_view<char32_t>::from_code_units_unchecked(code_unit_view());
 	}
 }
 
@@ -179,6 +199,24 @@ namespace literals
 		if (!result)
 		{
 			throw std::invalid_argument("literal must contain only valid UTF-16");
+		}
+
+		if (sv.empty() || details::next_grapheme_boundary(sv, 0) != sv.size())
+		{
+			throw std::invalid_argument("literal must contain exactly one grapheme cluster");
+		}
+
+		return result.value();
+	}
+
+	template<details::literals::constexpr_utf32_string Str>
+	consteval auto operator ""_grapheme_utf32()
+	{
+		const auto sv = std::u32string_view{ Str.data(), decltype(Str)::SIZE - 1 };
+		const auto result = utf32_string_view::from_code_points(sv);
+		if (!result)
+		{
+			throw std::invalid_argument("literal must contain only valid UTF-32");
 		}
 
 		if (sv.empty() || details::next_grapheme_boundary(sv, 0) != sv.size())

@@ -111,6 +111,7 @@ public:
 	}
 
 	constexpr operator utf16_char() const noexcept;
+	constexpr operator utf32_char() const noexcept;
 
 	template <typename Allocator = std::allocator<char8_t>>
 	constexpr basic_utf8_string<Allocator> to_utf8_owned(const Allocator& alloc = Allocator()) const;
@@ -803,6 +804,17 @@ public:
 		*out++ = static_cast<CharT>(details::encoding_constants::high_surrogate_min + (shifted >> details::encoding_constants::utf16_high_surrogate_shift));
 		*out++ = static_cast<CharT>(details::encoding_constants::low_surrogate_min + (shifted & details::encoding_constants::surrogate_payload_mask));
 		return details::encoding_constants::utf16_surrogate_code_unit_count;
+	}
+
+	template<typename CharT, typename OutIt>
+	requires (std::is_integral_v<CharT>
+		&& !std::is_same_v<CharT, bool>
+		&& details::non_narrowing_convertible<char32_t, CharT>
+		&& std::output_iterator<OutIt, CharT>)
+	constexpr std::size_t encode_utf32(OutIt out) const noexcept
+	{
+		*out++ = static_cast<CharT>(as_scalar());
+		return details::encoding_constants::single_code_unit_count;
 	}
 
 	friend constexpr bool operator==(const utf8_char&, const utf8_char&) = default;

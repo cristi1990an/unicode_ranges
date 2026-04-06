@@ -42,9 +42,9 @@ Visually identical Unicode text can be spelled with different scalar sequences. 
 --8<-- "examples/common-tasks/normalize-before-compare.cpp"
 ```
 
-## Convert UTF-8 and UTF-16
+## Convert UTF-8, UTF-16, and UTF-32
 
-Validated UTF-8 and UTF-16 text can be converted directly without falling back to raw transcoding code:
+Validated UTF-8, UTF-16, and UTF-32 text can be converted directly without falling back to raw transcoding code:
 
 ```cpp
 --8<-- "examples/common-tasks/convert-encodings.cpp"

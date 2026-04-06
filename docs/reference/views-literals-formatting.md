@@ -1,8 +1,8 @@
 # Views, Literals, and Formatting
 
-This page covers the helper view types in `unicode_ranges::views`, the compile-time validated literals in `unicode_ranges::literals`, and the shared formatting model used by the library-defined UTF-8 and UTF-16 types.
+This page covers the helper view types in `unicode_ranges::views`, the compile-time validated literals in `unicode_ranges::literals`, and the shared formatting model used by the library-defined UTF-8, UTF-16, and UTF-32 types.
 
-## `views::utf8_view` And `views::utf16_view`
+## `views::utf8_view`, `views::utf16_view`, And `views::utf32_view`
 
 ### Synopsis
 
@@ -22,13 +22,21 @@ public:
     constexpr std::default_sentinel_t end() const noexcept;
     constexpr std::size_t reserve_hint() const noexcept;
 };
+
+class utf32_view : public std::ranges::view_interface<utf32_view> {
+public:
+    constexpr std::u32string_view base() const noexcept;
+    constexpr iterator begin() const noexcept;
+    constexpr std::default_sentinel_t end() const noexcept;
+    constexpr std::size_t reserve_hint() const noexcept;
+};
 ```
 
 ### Behavior
 
-- These views adapt already-validated code-unit sequences into ranges of `utf8_char` or `utf16_char`.
+- These views adapt already-validated code-unit sequences into ranges of `utf8_char`, `utf16_char`, or `utf32_char`.
 - The views inherit [`std::ranges::view_interface`](https://en.cppreference.com/w/cpp/ranges/view_interface) and model lazy borrowed forward views.
-- They are normally obtained from validated text via `chars()`, for example `"😄🇷🇴✨"_utf8_sv.chars()` or `u"😄🇷🇴✨"_utf16_sv.chars()`.
+- They are normally obtained from validated text via `chars()`, for example `"😄🇷🇴✨"_utf8_sv.chars()`, `u"😄🇷🇴✨"_utf16_sv.chars()`, or `U"😄🇷🇴✨"_utf32_sv.chars()`.
 - The views are cheap to copy.
 - `reserve_hint()` reports the number of source code units, which is a safe upper bound for the number of yielded characters.
 
@@ -55,7 +63,7 @@ All listed members are `noexcept`.
 --8<-- "examples/reference/lossy-views.cpp"
 ```
 
-## `views::reversed_utf8_view` And `views::reversed_utf16_view`
+## `views::reversed_utf8_view`, `views::reversed_utf16_view`, And `views::reversed_utf32_view`
 
 ### Synopsis
 
@@ -68,6 +76,13 @@ public:
 };
 
 class reversed_utf16_view : public std::ranges::view_interface<reversed_utf16_view> {
+public:
+    constexpr iterator begin() const noexcept;
+    constexpr std::default_sentinel_t end() const noexcept;
+    constexpr std::size_t reserve_hint() const noexcept;
+};
+
+class reversed_utf32_view : public std::ranges::view_interface<reversed_utf32_view> {
 public:
     constexpr iterator begin() const noexcept;
     constexpr std::default_sentinel_t end() const noexcept;
@@ -109,7 +124,10 @@ All listed members are `noexcept`.
 template <typename CharT>
 class grapheme_cluster_view : public std::ranges::view_interface<grapheme_cluster_view<CharT>> {
 public:
-    using cluster_type = std::conditional_t<std::same_as<CharT, char8_t>, utf8_string_view, utf16_string_view>;
+    using cluster_type = std::conditional_t<
+        std::same_as<CharT, char8_t>,
+        utf8_string_view,
+        std::conditional_t<std::same_as<CharT, char16_t>, utf16_string_view, utf32_string_view>>;
 
     constexpr iterator begin() const noexcept;
     constexpr std::default_sentinel_t end() const noexcept;
@@ -121,6 +139,7 @@ public:
 
 - `grapheme_cluster_view<char8_t>` yields `utf8_string_view` grapheme clusters.
 - `grapheme_cluster_view<char16_t>` yields `utf16_string_view` grapheme clusters.
+- `grapheme_cluster_view<char32_t>` yields `utf32_string_view` grapheme clusters.
 - The view inherits [`std::ranges::view_interface`](https://en.cppreference.com/w/cpp/ranges/view_interface).
 - It is normally obtained from validated text via `graphemes()`.
 - It is a lazy borrowed forward view and computes grapheme boundaries on demand during iteration.
@@ -138,7 +157,7 @@ None.
 
 All listed members are `noexcept`.
 
-## `views::lossy_utf8_view` And `views::lossy_utf16_view`
+## `views::lossy_utf8_view`, `views::lossy_utf16_view`, And `views::lossy_utf32_view`
 
 ### Synopsis
 
@@ -163,6 +182,16 @@ public:
     constexpr std::size_t reserve_hint() const noexcept;
 };
 
+template <typename CharT>
+class lossy_utf32_view : public std::ranges::view_interface<lossy_utf32_view<CharT>> {
+public:
+    lossy_utf32_view() = default;
+    constexpr lossy_utf32_view(std::basic_string_view<CharT> base) noexcept;
+    constexpr iterator begin() const noexcept;
+    constexpr std::default_sentinel_t end() const noexcept;
+    constexpr std::size_t reserve_hint() const noexcept;
+};
+
 struct lossy_utf8_fn : std::ranges::range_adaptor_closure<lossy_utf8_fn> {
     template<lossy_utf8_viewable_range R>
     constexpr auto operator()(R&& range) const noexcept;
@@ -175,6 +204,7 @@ struct lossy_utf16_fn : std::ranges::range_adaptor_closure<lossy_utf16_fn> {
 
 inline constexpr lossy_utf8_fn lossy_utf8{};
 inline constexpr lossy_utf16_fn lossy_utf16{};
+inline constexpr lossy_utf32_fn lossy_utf32{};
 ```
 
 ### Behavior
@@ -206,23 +236,27 @@ using namespace unicode_ranges::literals;
 
 consteval utf8_char operator ""_u8c();
 consteval utf16_char operator ""_u16c();
+consteval utf32_char operator ""_u32c();
 
 consteval utf8_string_view operator ""_utf8_sv();
 consteval utf16_string_view operator ""_utf16_sv();
+consteval utf32_string_view operator ""_utf32_sv();
 
 constexpr utf8_string operator ""_utf8_s();
 constexpr utf16_string operator ""_utf16_s();
+constexpr utf32_string operator ""_utf32_s();
 
 consteval utf8_string_view operator ""_grapheme_utf8();
 consteval utf16_string_view operator ""_grapheme_utf16();
+consteval utf32_string_view operator ""_grapheme_utf32();
 ```
 
 ### Behavior
 
-- `_u8c` and `_u16c` require exactly one valid character in the corresponding encoding.
-- `_utf8_sv` and `_utf16_sv` require fully valid UTF literals.
-- `_utf8_s` and `_utf16_s` build owning strings from validated literals.
-- `_grapheme_utf8` and `_grapheme_utf16` require exactly one grapheme cluster.
+- `_u8c`, `_u16c`, and `_u32c` require exactly one valid character in the corresponding encoding.
+- `_utf8_sv`, `_utf16_sv`, and `_utf32_sv` require fully valid UTF literals.
+- `_utf8_s`, `_utf16_s`, and `_utf32_s` build owning strings from validated literals.
+- `_grapheme_utf8`, `_grapheme_utf16`, and `_grapheme_utf32` require exactly one grapheme cluster.
 
 ### Return value
 
@@ -299,10 +333,14 @@ template<> struct std::formatter<utf8_char, char>;
 template<> struct std::formatter<utf8_char, wchar_t>;
 template<> struct std::formatter<utf16_char, char>;
 template<> struct std::formatter<utf16_char, wchar_t>;
+template<> struct std::formatter<utf32_char, char>;
+template<> struct std::formatter<utf32_char, wchar_t>;
 template<> struct std::formatter<utf8_string_view, char>;
 template<> struct std::formatter<utf16_string_view, char>;
+template<> struct std::formatter<utf32_string_view, char>;
 template<typename Allocator> struct std::formatter<basic_utf8_string<Allocator>, char>;
 template<typename Allocator> struct std::formatter<basic_utf16_string<Allocator>, char>;
+template<typename Allocator> struct std::formatter<basic_utf32_string<Allocator>, char>;
 ```
 
 ### Behavior

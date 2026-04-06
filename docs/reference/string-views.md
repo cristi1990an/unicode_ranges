@@ -1,6 +1,6 @@
 # String Views
 
-`utf8_string_view` and `utf16_string_view` are borrowed validated text views.
+`utf8_string_view`, `utf16_string_view`, and `utf32_string_view` are borrowed validated text views.
 
 They expose most of the library's read-only Unicode surface: validated iteration, boundary-aware access, raw code-unit search, character-aware search, grapheme-aware search, split/trim views, and owning transformations.
 
@@ -10,6 +10,11 @@ When a signature block uses `Char`, `View`, or `Predicate`, it refers to the enc
 
 - UTF-8: `utf8_char`, `utf8_string_view`, `details::utf8_char_predicate`
 - UTF-16: `utf16_char`, `utf16_string_view`, `details::utf16_char_predicate`
+- UTF-32: `utf32_char`, `utf32_string_view`, `details::utf32_char_predicate`
+
+Unless a section explicitly narrows the discussion, the UTF-8, UTF-16, and UTF-32 view APIs are structurally parallel.
+
+To keep the larger synopsis blocks readable, some sections spell out the UTF-8 and UTF-16 overload families explicitly and rely on this rule for UTF-32. Unless a section says otherwise, replace `char8_t` / `utf8_char` / `utf8_string_view` / `basic_utf8_string` or `char16_t` / `utf16_char` / `utf16_string_view` / `basic_utf16_string` with the corresponding UTF-32 names and you get the same API family.
 
 ## Construction And Raw View Access
 
@@ -44,6 +49,21 @@ public:
     constexpr std::u16string_view base() const noexcept;
     constexpr std::u16string_view as_view() const noexcept;
     constexpr operator std::u16string_view() const noexcept;
+};
+
+class utf32_string_view {
+public:
+    utf32_string_view() = default;
+
+    static constexpr std::expected<utf32_string_view, utf32_error>
+    from_code_points(std::u32string_view code_points) noexcept;
+
+    static constexpr utf32_string_view
+    from_code_points_unchecked(std::u32string_view code_points) noexcept;
+
+    constexpr std::u32string_view base() const noexcept;
+    constexpr std::u32string_view as_view() const noexcept;
+    constexpr operator std::u32string_view() const noexcept;
 };
 ```
 
@@ -93,6 +113,12 @@ friend constexpr auto operator<=>(const utf16_string_view&, const utf16_string_v
 std::ostream& operator<<(std::ostream&, utf16_string_view);
 template<> struct std::hash<utf16_string_view>;
 template<> struct std::formatter<utf16_string_view, char>;
+
+friend constexpr bool operator==(const utf32_string_view&, const utf32_string_view&) noexcept;
+friend constexpr auto operator<=>(const utf32_string_view&, const utf32_string_view&) noexcept;
+std::ostream& operator<<(std::ostream&, utf32_string_view);
+template<> struct std::hash<utf32_string_view>;
+template<> struct std::formatter<utf32_string_view, char>;
 ```
 
 ### Behavior
@@ -100,6 +126,7 @@ template<> struct std::formatter<utf16_string_view, char>;
 - Equality and ordering compare encoded contents lexicographically.
 - UTF-8 streams directly to `std::ostream`.
 - UTF-16 converts each scalar to UTF-8 when written to `std::ostream`.
+- UTF-32 converts each scalar to UTF-8 when written to `std::ostream`.
 - The [`std::formatter`](https://en.cppreference.com/w/cpp/utility/format/formatter) specializations format textual output.
 - The [`std::hash`](https://en.cppreference.com/w/cpp/utility/hash) specializations hash the underlying standard-library string view.
 
@@ -978,6 +1005,8 @@ template <typename Allocator = std::allocator<char16_t>>
 constexpr basic_utf16_string<Allocator> case_fold(const Allocator& alloc = Allocator()) const;
 ```
 
+The UTF-32 view surface exposes the same transformation families with `basic_utf32_string` return types, plus the same cross-encoding `to_utf8(...)`, `to_utf16(...)`, and same-encoding `to_utf32_owned(...)` entry points.
+
 ### Behavior
 
 - All transformation members return owning validated strings.
@@ -1040,6 +1069,8 @@ template <typename Allocator = std::allocator<char16_t>>
 basic_utf16_string<Allocator> case_fold(locale_id locale, const Allocator& alloc = Allocator()) const;
 ```
 
+The UTF-32 view type exposes the same ICU-gated locale-aware overload families with `basic_utf32_string` return types.
+
 - These overloads do not exist in the dependency-free default build.
 - `to_lowercase(locale)` and `to_uppercase(locale)` delegate to ICU locale-sensitive case mapping.
 - `to_titlecase(locale)` delegates to ICU locale-sensitive titlecasing.
@@ -1069,6 +1100,8 @@ constexpr bool starts_with_ignore_case(utf16_string_view sv) const noexcept;
 constexpr bool ends_with_ignore_case(utf16_string_view sv) const noexcept;
 constexpr std::weak_ordering compare_ignore_case(utf16_string_view sv) const noexcept;
 ```
+
+The UTF-32 view type exposes the same four non-allocating helpers with `utf32_string_view`.
 
 ### Behavior
 
@@ -1120,6 +1153,8 @@ bool ends_with_ignore_case(utf16_string_view sv, locale_id locale) const;
 std::weak_ordering compare_ignore_case(utf16_string_view sv, locale_id locale) const;
 ```
 
+The UTF-32 view type exposes the same ICU-gated locale-aware comparison overloads with `utf32_string_view`.
+
 - These overloads keep the same fold-only, non-normalizing semantics.
 - They do not materialize a temporary folded string.
 - The locale only affects ICU fold options. In practice, the meaningful difference is the Turkic special-I mode.
@@ -1155,7 +1190,7 @@ constexpr basic_utf8_string<> replace_n(size_type count, Pred pred, utf8_string_
 // Each family also has allocator-taking overloads.
 ```
 
-The UTF-16 view surface exposes the same overload families with `utf16_char`, `utf16_string_view`, and `basic_utf16_string`.
+The UTF-16 and UTF-32 view surfaces expose the same overload families with `utf16_char` / `utf32_char`, `utf16_string_view` / `utf32_string_view`, and `basic_utf16_string` / `basic_utf32_string`.
 
 ### Behavior
 

@@ -381,6 +381,19 @@ namespace unicode_ranges
 		return scalars;
 	}
 
+	template <bool Compatibility>
+	constexpr std::u32string decompose_scalars(std::u32string_view code_points)
+	{
+		std::u32string scalars;
+		scalars.reserve(code_points.size());
+		std::size_t segment_begin = 0;
+		for (char32_t ch : code_points)
+		{
+			append_decomposed_scalar<Compatibility>(scalars, segment_begin, static_cast<std::uint32_t>(ch));
+		}
+		return scalars;
+	}
+
 	inline constexpr std::uint32_t try_compose_hangul(std::uint32_t first, std::uint32_t second) noexcept
 	{
 		if (is_hangul_l_jamo(first) && is_hangul_v_jamo(second))
