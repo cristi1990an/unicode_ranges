@@ -3,6 +3,7 @@ param(
 	[string[]]$Project = @("unicode_ranges.vcxproj"),
 	[string]$Configuration = "Debug",
 	[string]$Platform = "x64",
+	[string]$PlatformToolset = "",
 	[switch]$TreatWarningsAsErrors,
 	[switch]$Rebuild
 )
@@ -48,14 +49,23 @@ foreach ($projectPath in $Project) {
 		throw "Project '$projectPath' was not found."
 	}
 
-	Write-Host "Running MSVC static analysis for '$projectPath' ($Configuration|$Platform)..." -ForegroundColor Cyan
+	$displayToolset = if ([string]::IsNullOrWhiteSpace($PlatformToolset)) { "project default" } else { $PlatformToolset }
+	Write-Host "Running MSVC static analysis for '$projectPath' ($Configuration|$Platform, toolset: $displayToolset)..." -ForegroundColor Cyan
 
-	& $msbuildPath $projectPath `
-		/t:$target `
-		/p:Configuration=$Configuration `
-		/p:Platform=$Platform `
-		/p:RunCodeAnalysis=true `
-		/p:TreatWarningAsError=$treatWarnings
+	$arguments = @(
+		$projectPath
+		"/t:$target"
+		"/p:Configuration=$Configuration"
+		"/p:Platform=$Platform"
+		"/p:RunCodeAnalysis=true"
+		"/p:TreatWarningAsError=$treatWarnings"
+	)
+
+	if (-not [string]::IsNullOrWhiteSpace($PlatformToolset)) {
+		$arguments += "/p:PlatformToolset=$PlatformToolset"
+	}
+
+	& $msbuildPath @arguments
 
 	if ($LASTEXITCODE -ne 0) {
 		throw "Static analysis failed for '$projectPath'."

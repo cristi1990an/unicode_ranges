@@ -71,7 +71,7 @@ jobs:
 
       - name: Run static analysis
         shell: powershell
-        run: powershell -ExecutionPolicy Bypass -File .\tools\run_static_analysis.ps1 -Project unicode_ranges.vcxproj
+        run: powershell -ExecutionPolicy Bypass -File .\tools\run_static_analysis.ps1 -Project unicode_ranges.vcxproj -PlatformToolset v143
 
   linux:
     name: ${{ matrix.name }} (${{ matrix.opt_name }}${{ matrix.sanitizer_name }}, C++23)
