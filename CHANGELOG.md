@@ -11,6 +11,18 @@ tracking local work before it is tagged or versioned.
 
 - generator support for grapheme-segmentation property tables sourced from official Unicode data files
 - `tools/regenerate_unicode_tables.ps1` to regenerate `unicode_ranges/unicode_tables.hpp` as UTF-8 without BOM for Clang-cl compatibility
+- `utf8_string::reverse_graphemes()` / `reverse_graphemes(pos, count)` and matching `utf16_string` APIs
+- optional ICU-backed locale-aware casing APIs:
+  `to_lowercase(locale_id)`, `to_uppercase(locale_id)`, `to_titlecase(locale_id)`, and `case_fold(locale_id)`
+- `locale_id`, `operator ""_locale`, and `is_available_locale(...)` when ICU support is enabled
+- allocation-free case-insensitive comparison helpers:
+  `eq_ignore_case(...)`, `starts_with_ignore_case(...)`, `ends_with_ignore_case(...)`, and `compare_ignore_case(...)`
+- locale-aware overloads of the case-insensitive comparison helpers when ICU support is enabled
+- `unicode_ranges::characters::utf8::...` and `unicode_ranges::characters::utf16::...` curated convenience constants
+- scalar property queries on `utf8_char` and `utf16_char`:
+  `general_category()`, `canonical_combining_class()`, `grapheme_break_property()`, `script()`,
+  `east_asian_width()`, `line_break_class()`, `bidi_class()`, `word_break_property()`,
+  `sentence_break_property()`, `is_emoji()`, `is_emoji_presentation()`, and `is_extended_pictographic()`
 - `utf8_string::get_allocator()`
 - `utf8_string::erase(index, count = npos)`
 - `utf8_string::insert(...)` and `utf8_string::insert_range(...)`
@@ -40,9 +52,13 @@ tracking local work before it is tagged or versioned.
 - `operator ""_utf16_s`
 - `std::formatter<utf8_char, wchar_t>`
 - `std::formatter<utf16_char, wchar_t>`
+- a non-blocking MSVC `/analyze` static-analysis CI job
 
 ### Changed
 
+- unchecked construction/access APIs now mirror the checked preconditions with debug-only assertions
+- GCC docs-example compilation is now treated as informational for the known libstdc++ formatting limitation
+- locale-aware titlecasing is available only as a whole-string ICU-backed operation; partial locale-aware titlecasing overloads are intentionally not exposed
 - the public umbrella header is now `unicode_ranges.hpp`
 - the Visual Studio project files are now named `unicode_ranges.*`
 - `utf8_char::byte_count()` has been renamed to `code_unit_count()`
@@ -55,6 +71,11 @@ tracking local work before it is tagged or versioned.
 
 ### Documentation
 
+- documented the optional ICU-backed locale-aware casing APIs, locale tokens, and ICU fallback behavior
+- added reference coverage and compiled examples for the new case-insensitive comparison helpers
+- added reference coverage and examples for the curated `characters::utf8` / `characters::utf16` namespaces
+- added reference coverage and examples for the new scalar Unicode property queries
+- expanded onboarding with install/integration guidance, a terminology cheat sheet, common-task recipes, and clearer library rationale
 - expanded the `utf8_string_view` reference for `char_at` and `char_at_unchecked`
 - added documentation for `utf16_string_view`, `utf16_string`, `_utf16_sv`, and `_utf16_s`
 - documented the `utf8_string` mutation APIs, including `assign`, `insert`, `erase`, `replace`, `replace_with_range`, `operator+`, and `get_allocator`
