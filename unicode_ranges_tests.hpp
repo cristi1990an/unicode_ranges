@@ -84,6 +84,18 @@ inline void run_unicode_ranges_tests()
 	static_assert(unicode_character<utf16_char&&>);
 	static_assert(!unicode_character<char8_t>);
 	static_assert(!unicode_character<char16_t>);
+	static_assert(std::same_as<decltype(characters::utf8::emojis::clown_face), const utf8_char>);
+	static_assert(std::same_as<decltype(characters::utf16::emojis::clown_face), const utf16_char>);
+	static_assert(characters::utf8::punctuation::ellipsis == "…"_u8c);
+	static_assert(characters::utf16::punctuation::ellipsis == u"…"_u16c);
+	static_assert(characters::utf8::currency::euro_sign == "€"_u8c);
+	static_assert(characters::utf16::currency::euro_sign == u"€"_u16c);
+	static_assert(characters::utf8::arrows::right_arrow == "→"_u8c);
+	static_assert(characters::utf16::arrows::right_arrow == u"→"_u16c);
+	static_assert(characters::utf8::emojis::clown_face == "🤡"_u8c);
+	static_assert(characters::utf16::emojis::clown_face == u"🤡"_u16c);
+	static_assert(characters::utf8::emojis::red_heart == "❤"_u8c);
+	static_assert(characters::utf16::emojis::red_heart == u"❤"_u16c);
 
 	// Standard ranges/view concept coverage for the library view surface.
 	static_assert(std::ranges::view<views::utf8_view>);
