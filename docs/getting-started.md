@@ -34,7 +34,7 @@ Short version:
 
 | Term | Meaning here |
 | --- | --- |
-| code unit | one UTF-8 byte or one UTF-16 code unit |
+| code unit | one UTF-8 byte, one UTF-16 code unit, or one UTF-32 code point unit |
 | scalar | one Unicode scalar value |
 | grapheme | one user-perceived character under the default Unicode grapheme rules |
 | UTF-8 offset | byte offset |
@@ -43,9 +43,9 @@ Short version:
 
 ## Choose the right entry point
 
-- Use `_utf8_sv` / `_utf16_sv` for validated compile-time views.
-- Use `utf8_string::from_bytes(...)` / `utf16_string::from_code_units(...)` when input arrives as raw runtime data.
-- Use `_utf8_s` / `_utf16_s` when you want an owning validated string immediately.
+- Use `_utf8_sv` / `_utf16_sv` / `_utf32_sv` for validated compile-time views.
+- Use `utf8_string::from_bytes(...)`, `utf16_string::from_code_units(...)`, or `utf32_string::from_code_points(...)` when input arrives as raw runtime data.
+- Use `_utf8_s` / `_utf16_s` / `_utf32_s` when you want an owning validated string immediately.
 
 ## A first validated view
 
@@ -73,7 +73,7 @@ When text arrives at runtime as raw bytes, validate it once and keep the validat
 
 ## Formatting and printing
 
-Library-defined UTF-8 and UTF-16 types support formatting and printing directly. Borrowed views such as `chars()` and `graphemes()` are easy to inspect too. For grapheme views, the examples use `"{::s}"` so the printed range stays visually uniform with the underlying text:
+Library-defined UTF-8, UTF-16, and UTF-32 types support formatting and printing directly. Borrowed views such as `chars()` and `graphemes()` are easy to inspect too. For grapheme views, the examples use `"{::s}"` so the printed range stays visually uniform with the underlying text:
 
 !!! warning
     `std::println("{}", text.chars())` and `std::println("{::s}", text.graphemes())` rely on C++23 range-formatting support in the standard library.
@@ -88,8 +88,8 @@ Library-defined UTF-8 and UTF-16 types support formatting and printing directly.
 
 ## Views versus owning strings
 
-- `utf8_string_view` / `utf16_string_view` borrow existing storage.
-- `utf8_string` / `utf16_string` own and mutate storage.
+- `utf8_string_view` / `utf16_string_view` / `utf32_string_view` borrow existing storage.
+- `utf8_string` / `utf16_string` / `utf32_string` own and mutate storage.
 - `chars()`, `graphemes()`, `char_indices()`, and `grapheme_indices()` are borrowing range views.
 
 Do not keep borrowed ranges alive after the source storage dies or after the owning string mutates.
@@ -102,7 +102,7 @@ The library intentionally distinguishes:
 - Unicode scalar values: `char_count()`
 - grapheme clusters: `grapheme_count()`
 
-UTF-8 view/string search APIs generally return byte offsets. UTF-16 view/string search APIs generally return code-unit offsets. Character-oriented APIs are named explicitly, such as `char_at`, `is_char_boundary`, and `ceil_char_boundary`.
+UTF-8 view/string search APIs generally return byte offsets. UTF-16 and UTF-32 view/string search APIs generally return code-unit offsets. Character-oriented APIs are named explicitly, such as `char_at`, `is_char_boundary`, and `ceil_char_boundary`.
 
 ## Example sanity checks
 

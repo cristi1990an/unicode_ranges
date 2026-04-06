@@ -79,6 +79,8 @@ struct utf8_char;
 class utf8_string_view;
 class utf16_string_view;
 struct utf16_char;
+class utf32_string_view;
+struct utf32_char;
 
 template <typename Allocator = std::allocator<char8_t>>
 class basic_utf8_string;
@@ -89,6 +91,11 @@ template <typename Allocator = std::allocator<char16_t>>
 class basic_utf16_string;
 
 using utf16_string = basic_utf16_string<>;
+
+template <typename Allocator = std::allocator<char32_t>>
+class basic_utf32_string;
+
+using utf32_string = basic_utf32_string<>;
 
 #if UTF8_RANGES_HAS_ICU
 struct locale_id
@@ -104,13 +111,15 @@ namespace pmr
 
 using utf8_string = basic_utf8_string<std::pmr::polymorphic_allocator<char8_t>>;
 using utf16_string = basic_utf16_string<std::pmr::polymorphic_allocator<char16_t>>;
+using utf32_string = basic_utf32_string<std::pmr::polymorphic_allocator<char32_t>>;
 
 }
 
 template <typename T>
 concept unicode_character =
 	std::same_as<std::remove_cvref_t<T>, utf8_char>
-	|| std::same_as<std::remove_cvref_t<T>, utf16_char>;
+	|| std::same_as<std::remove_cvref_t<T>, utf16_char>
+	|| std::same_as<std::remove_cvref_t<T>, utf32_char>;
 
 enum class utf8_error_code
 {
@@ -135,6 +144,17 @@ struct utf16_error
 {
 	utf16_error_code code{};
 	std::size_t first_invalid_code_unit_index = 0;
+};
+
+enum class utf32_error_code
+{
+	invalid_scalar
+};
+
+struct utf32_error
+{
+	utf32_error_code code{};
+	std::size_t first_invalid_code_point_index = 0;
 };
 
 enum class unicode_scalar_error_code
@@ -169,11 +189,16 @@ namespace views
 
 	class reversed_utf16_view;
 
+	class utf32_view;
+
 	template <typename CharT>
 	class lossy_utf8_view;
 
 	template <typename CharT>
 	class lossy_utf16_view;
+
+	template <typename CharT>
+	class lossy_utf32_view;
 }
 
 namespace details
@@ -184,11 +209,17 @@ namespace details
 	[[nodiscard]]
 	constexpr utf16_string_view utf16_string_view_from_code_units_unchecked(std::u16string_view code_units) noexcept;
 
+	[[nodiscard]]
+	constexpr utf32_string_view utf32_string_view_from_code_points_unchecked(std::u32string_view code_points) noexcept;
+
 	template <typename Derived, typename View = utf8_string_view>
 	class utf8_string_crtp;
 
 	template <typename Derived, typename View = utf16_string_view>
 	class utf16_string_crtp;
+
+	template <typename Derived, typename View = utf32_string_view>
+	class utf32_string_crtp;
 
 	template<typename From, typename To>
 	concept non_narrowing_convertible =
@@ -217,6 +248,7 @@ namespace details
 		inline constexpr std::size_t three_code_unit_count = 3;
 		inline constexpr std::size_t four_code_unit_count = 4;
 		inline constexpr std::size_t utf16_surrogate_code_unit_count = two_code_unit_count;
+		inline constexpr std::size_t utf32_surrogate_code_unit_count = single_code_unit_count;
 		inline constexpr std::size_t max_utf8_code_units = four_code_unit_count;
 		inline constexpr std::uint32_t utf8_continuation_payload_bits = 6u;
 		inline constexpr std::uint32_t utf8_two_byte_lead_shift = utf8_continuation_payload_bits;
@@ -558,6 +590,42 @@ namespace details
 		return changed;
 	}
 
+	inline constexpr bool ascii_lowercase_copy_scalar(char32_t* out, std::u32string_view code_points) noexcept
+	{
+		bool changed = false;
+		for (std::size_t index = 0; index != code_points.size(); ++index)
+		{
+			auto value = code_points[index];
+			if (value >= U'A' && value <= U'Z')
+			{
+				value = static_cast<char32_t>(value + (U'a' - U'A'));
+				changed = true;
+			}
+
+			out[index] = value;
+		}
+
+		return changed;
+	}
+
+	inline constexpr bool ascii_uppercase_copy_scalar(char32_t* out, std::u32string_view code_points) noexcept
+	{
+		bool changed = false;
+		for (std::size_t index = 0; index != code_points.size(); ++index)
+		{
+			auto value = code_points[index];
+			if (value >= U'a' && value <= U'z')
+			{
+				value = static_cast<char32_t>(value - (U'a' - U'A'));
+				changed = true;
+			}
+
+			out[index] = value;
+		}
+
+		return changed;
+	}
+
 	inline bool ascii_lowercase_copy_runtime(char8_t* out, std::u8string_view bytes) noexcept
 	{
 #if UTF8_RANGES_HAS_SSE2_INTRINSICS
@@ -734,6 +802,16 @@ namespace details
 		return ascii_uppercase_copy_runtime(out, code_units);
 	}
 
+	inline constexpr bool ascii_lowercase_copy(char32_t* out, std::u32string_view code_points) noexcept
+	{
+		return ascii_lowercase_copy_scalar(out, code_points);
+	}
+
+	inline constexpr bool ascii_uppercase_copy(char32_t* out, std::u32string_view code_points) noexcept
+	{
+		return ascii_uppercase_copy_scalar(out, code_points);
+	}
+
 	inline constexpr bool ascii_lowercase_inplace(char8_t* bytes, std::size_t size) noexcept
 	{
 		return ascii_lowercase_copy(bytes, std::u8string_view{ bytes, size });
@@ -752,6 +830,16 @@ namespace details
 	inline constexpr bool ascii_uppercase_inplace(char16_t* code_units, std::size_t size) noexcept
 	{
 		return ascii_uppercase_copy(code_units, std::u16string_view{ code_units, size });
+	}
+
+	inline constexpr bool ascii_lowercase_inplace(char32_t* code_points, std::size_t size) noexcept
+	{
+		return ascii_lowercase_copy(code_points, std::u32string_view{ code_points, size });
+	}
+
+	inline constexpr bool ascii_uppercase_inplace(char32_t* code_points, std::size_t size) noexcept
+	{
+		return ascii_uppercase_copy(code_points, std::u32string_view{ code_points, size });
 	}
 
 	inline constexpr void copy_ascii_bytes_to_utf8_scalar(char8_t* out, std::string_view bytes) noexcept
@@ -971,6 +1059,9 @@ namespace details
 	template <typename Allocator>
 	using utf16_base_string = std::basic_string<char16_t, std::char_traits<char16_t>, Allocator>;
 
+	template <typename Allocator>
+	using utf32_base_string = std::basic_string<char32_t, std::char_traits<char32_t>, Allocator>;
+
 	template<typename CharT>
 	inline constexpr bool is_single_valid_utf8_char(std::basic_string_view<CharT> value) noexcept
 	{
@@ -1148,6 +1239,13 @@ namespace details
 		return false;
 	}
 
+	template<typename CharT>
+	inline constexpr bool is_single_valid_utf32_char(std::basic_string_view<CharT> value) noexcept
+	{
+		return value.size() == encoding_constants::single_code_unit_count
+			&& is_valid_unicode_scalar(static_cast<std::uint32_t>(value.front()));
+	}
+
 	inline constexpr bool is_utf16_high_surrogate(std::uint16_t value) noexcept
 	{
 		return value >= encoding_constants::high_surrogate_min && value <= encoding_constants::high_surrogate_max;
@@ -1156,6 +1254,16 @@ namespace details
 	inline constexpr bool is_utf16_low_surrogate(std::uint16_t value) noexcept
 	{
 		return value >= encoding_constants::low_surrogate_min && value <= encoding_constants::low_surrogate_max;
+	}
+
+	inline constexpr bool is_utf32_high_surrogate(std::uint16_t) noexcept
+	{
+		return false;
+	}
+
+	inline constexpr bool is_utf32_low_surrogate(std::uint16_t) noexcept
+	{
+		return false;
 	}
 
 	template<typename CharT>
@@ -1187,6 +1295,30 @@ namespace details
 			return 0;
 		}
 		return encode_unicode_scalar_utf16_unchecked(scalar, out);
+	}
+
+	template<typename CharT>
+	requires (std::is_integral_v<CharT>
+		&& !std::is_same_v<CharT, bool>
+		&& non_narrowing_convertible<char32_t, CharT>)
+	inline constexpr std::size_t encode_unicode_scalar_utf32_unchecked(std::uint32_t scalar, CharT* out) noexcept
+	{
+		out[0] = static_cast<CharT>(scalar);
+		return encoding_constants::single_code_unit_count;
+	}
+
+	template<typename CharT>
+	requires (std::is_integral_v<CharT>
+		&& !std::is_same_v<CharT, bool>
+		&& non_narrowing_convertible<char32_t, CharT>)
+	inline constexpr std::size_t encode_unicode_scalar_utf32(std::uint32_t scalar, CharT* out) noexcept
+	{
+		if (!is_valid_unicode_scalar(scalar)) [[unlikely]]
+		{
+			return 0;
+		}
+
+		return encode_unicode_scalar_utf32_unchecked(scalar, out);
 	}
 
 	inline constexpr std::size_t encode_unicode_scalar_wchar_unchecked(std::uint32_t scalar, wchar_t* out) noexcept
@@ -1354,6 +1486,12 @@ namespace details
 	inline constexpr std::uint32_t decode_valid_utf16_char(std::basic_string_view<CharT> ch) noexcept;
 
 	template<typename CharT>
+	inline constexpr std::uint32_t decode_valid_utf32_char(const CharT* ch) noexcept;
+
+	template<typename CharT>
+	inline constexpr std::uint32_t decode_valid_utf32_char(std::basic_string_view<CharT> ch) noexcept;
+
+	template<typename CharT>
 	inline constexpr std::expected<void, utf8_error> validate_utf8(std::basic_string_view<CharT> value) noexcept
 	{
 		std::size_t index = 0;
@@ -1405,6 +1543,41 @@ namespace details
 		return {};
 	}
 
+	template<typename CharT>
+	inline constexpr std::expected<void, utf32_error> validate_utf32(std::basic_string_view<CharT> value) noexcept
+	{
+		for (std::size_t index = 0; index != value.size(); ++index)
+		{
+			if (!is_valid_unicode_scalar(static_cast<std::uint32_t>(value[index])))
+			{
+				return std::unexpected(utf32_error{
+					.code = utf32_error_code::invalid_scalar,
+					.first_invalid_code_point_index = index
+				});
+			}
+		}
+
+		return {};
+	}
+
+	template<typename CharT>
+	requires (sizeof(CharT) >= 4)
+	inline constexpr std::expected<void, unicode_scalar_error> validate_unicode_scalars(std::basic_string_view<CharT> value) noexcept
+	{
+		for (std::size_t index = 0; index != value.size(); ++index)
+		{
+			if (!is_valid_unicode_scalar(static_cast<std::uint32_t>(value[index])))
+			{
+				return std::unexpected(unicode_scalar_error{
+					.code = unicode_scalar_error_code::invalid_scalar,
+					.first_invalid_element_index = index
+				});
+			}
+		}
+
+		return {};
+	}
+
 	inline constexpr std::expected<void, unicode_scalar_error> validate_unicode_scalars(std::wstring_view value) noexcept
 	{
 		for (std::size_t index = 0; index != value.size(); ++index)
@@ -1419,6 +1592,11 @@ namespace details
 		}
 
 		return {};
+	}
+
+	inline constexpr std::expected<void, unicode_scalar_error> validate_unicode_scalars(std::u32string_view value) noexcept
+	{
+		return validate_unicode_scalars<char32_t>(value);
 	}
 
 	template <typename Allocator>
@@ -1621,6 +1799,120 @@ namespace details
 	}
 
 	template <typename Allocator>
+	inline constexpr auto transcode_utf8_to_utf32_checked(
+		std::string_view bytes,
+		const Allocator& alloc) -> std::expected<utf32_base_string<Allocator>, utf8_error>
+	{
+		utf32_base_string<Allocator> result{ alloc };
+		std::optional<utf8_error> error;
+		result.resize_and_overwrite(bytes.size(),
+			[&](char32_t* buffer, std::size_t) noexcept
+			{
+				std::size_t write_index = 0;
+				std::size_t read_index = 0;
+				while (read_index < bytes.size())
+				{
+					const auto remaining = std::string_view{ bytes.data() + read_index, bytes.size() - read_index };
+					const auto ascii_run = ascii_prefix_length(remaining);
+					if (ascii_run != 0)
+					{
+						for (std::size_t i = 0; i != ascii_run; ++i)
+						{
+							buffer[write_index + i] = static_cast<char32_t>(static_cast<unsigned char>(remaining[i]));
+						}
+
+						write_index += ascii_run;
+						read_index += ascii_run;
+						continue;
+					}
+
+					const auto sequence_length = validate_utf8_sequence_at(bytes, read_index);
+					if (!sequence_length) [[unlikely]]
+					{
+						error = sequence_length.error();
+						return std::size_t{ 0 };
+					}
+
+					buffer[write_index++] = static_cast<char32_t>(decode_valid_utf8_char(bytes.data() + read_index, *sequence_length));
+					read_index += *sequence_length;
+				}
+
+				return write_index;
+			});
+
+		if (error) [[unlikely]]
+		{
+			return std::unexpected(*error);
+		}
+
+		return result;
+	}
+
+	template <typename Allocator>
+	inline constexpr auto transcode_utf16_to_utf32_checked(
+		std::wstring_view code_units,
+		const Allocator& alloc) -> std::expected<utf32_base_string<Allocator>, utf16_error>
+		requires (sizeof(wchar_t) == 2)
+	{
+		utf32_base_string<Allocator> result{ alloc };
+		std::optional<utf16_error> error;
+		result.resize_and_overwrite(code_units.size(),
+			[&](char32_t* buffer, std::size_t) noexcept
+			{
+				std::size_t write_index = 0;
+				std::size_t read_index = 0;
+				while (read_index < code_units.size())
+				{
+					const auto remaining = std::wstring_view{ code_units.data() + read_index, code_units.size() - read_index };
+					const auto ascii_run = ascii_prefix_length(remaining);
+					if (ascii_run != 0)
+					{
+						for (std::size_t i = 0; i != ascii_run; ++i)
+						{
+							buffer[write_index + i] = static_cast<char32_t>(remaining[i]);
+						}
+
+						write_index += ascii_run;
+						read_index += ascii_run;
+						continue;
+					}
+
+					const auto sequence_length = validate_utf16_sequence_at(code_units, read_index);
+					if (!sequence_length) [[unlikely]]
+					{
+						error = sequence_length.error();
+						return std::size_t{ 0 };
+					}
+
+					buffer[write_index++] = static_cast<char32_t>(decode_valid_utf16_char(code_units.data() + read_index, *sequence_length));
+					read_index += *sequence_length;
+				}
+
+				return write_index;
+			});
+
+		if (error) [[unlikely]]
+		{
+			return std::unexpected(*error);
+		}
+
+		return result;
+	}
+
+	template <typename Allocator>
+	inline constexpr auto copy_validated_utf32_code_points(
+		std::u32string_view code_points,
+		const Allocator& alloc) -> std::expected<utf32_base_string<Allocator>, utf32_error>
+	{
+		if (auto validation = validate_utf32(code_points); !validation)
+		{
+			return std::unexpected(validation.error());
+		}
+
+		return utf32_base_string<Allocator>{ code_points, alloc };
+	}
+
+	template <typename Allocator>
 	inline constexpr auto transcode_unicode_scalars_to_utf8_checked(
 		std::wstring_view scalars,
 		const Allocator& alloc) -> std::expected<utf8_base_string<Allocator>, unicode_scalar_error>
@@ -1696,6 +1988,44 @@ namespace details
 		return result;
 	}
 
+	template <typename Allocator>
+	inline constexpr auto transcode_unicode_scalars_to_utf32_checked(
+		std::wstring_view scalars,
+		const Allocator& alloc) -> std::expected<utf32_base_string<Allocator>, unicode_scalar_error>
+		requires (sizeof(wchar_t) == 4)
+	{
+		utf32_base_string<Allocator> result{ alloc };
+		std::optional<unicode_scalar_error> error;
+		result.resize_and_overwrite(scalars.size(),
+			[&](char32_t* buffer, std::size_t) noexcept
+			{
+				std::size_t write_index = 0;
+				for (std::size_t read_index = 0; read_index != scalars.size(); ++read_index)
+				{
+					const auto scalar = static_cast<std::uint32_t>(scalars[read_index]);
+					if (!is_valid_unicode_scalar(scalar)) [[unlikely]]
+					{
+						error = unicode_scalar_error{
+							.code = unicode_scalar_error_code::invalid_scalar,
+							.first_invalid_element_index = read_index
+						};
+						return std::size_t{ 0 };
+					}
+
+					buffer[write_index++] = static_cast<char32_t>(scalar);
+				}
+
+				return write_index;
+			});
+
+		if (error) [[unlikely]]
+		{
+			return std::unexpected(*error);
+		}
+
+		return result;
+	}
+
 	template<typename CharT>
 	inline constexpr std::uint32_t decode_valid_utf8_char(const CharT* ch, std::size_t size) noexcept
 	{
@@ -1753,6 +2083,19 @@ namespace details
 		return decode_valid_utf16_char(ch.data(), ch.size());
 	}
 
+	template<typename CharT>
+	inline constexpr std::uint32_t decode_valid_utf32_char(const CharT* ch) noexcept
+	{
+		return static_cast<std::uint32_t>(ch[0]);
+	}
+
+	template<typename CharT>
+	inline constexpr std::uint32_t decode_valid_utf32_char(std::basic_string_view<CharT> ch) noexcept
+	{
+		UTF8_RANGES_DEBUG_ASSERT(ch.size() == encoding_constants::single_code_unit_count);
+		return decode_valid_utf32_char(ch.data());
+	}
+
 	struct decoded_scalar
 	{
 		std::uint32_t scalar = 0;
@@ -1779,6 +2122,14 @@ namespace details
 		return decode_valid_utf16_char(current, length);
 	}
 
+	template<typename CharT>
+	inline constexpr std::uint32_t decode_next_utf32_scalar(const CharT*& cursor) noexcept
+	{
+		const auto* const current = cursor;
+		cursor += encoding_constants::single_code_unit_count;
+		return decode_valid_utf32_char(current);
+	}
+
 	inline constexpr decoded_scalar decode_next_scalar(std::u8string_view text, std::size_t index) noexcept
 	{
 		const auto* cursor = text.data() + index;
@@ -1793,6 +2144,16 @@ namespace details
 	{
 		const auto* cursor = text.data() + index;
 		const auto scalar = decode_next_utf16_scalar(cursor);
+		return decoded_scalar{
+			.scalar = scalar,
+			.next_index = static_cast<std::size_t>(cursor - text.data())
+		};
+	}
+
+	inline constexpr decoded_scalar decode_next_scalar(std::u32string_view text, std::size_t index) noexcept
+	{
+		const auto* cursor = text.data() + index;
+		const auto scalar = decode_next_utf32_scalar(cursor);
 		return decoded_scalar{
 			.scalar = scalar,
 			.next_index = static_cast<std::size_t>(cursor - text.data())
@@ -2295,6 +2656,34 @@ namespace details
 			return text.size();
 		}
 
+		inline constexpr std::size_t next_grapheme_boundary(std::u32string_view text, std::size_t index) noexcept
+		{
+			if (index >= text.size()) [[unlikely]]
+			{
+				return text.size();
+			}
+
+			const auto* const begin = text.data();
+			const auto* const end = begin + text.size();
+			auto position = begin + index;
+			auto state = make_initial_grapheme_state(classify_grapheme_scalar(decode_next_utf32_scalar(position)));
+
+			while (position < end)
+			{
+				auto next_position = position;
+				const auto next_scalar_info = classify_grapheme_scalar(decode_next_utf32_scalar(next_position));
+				if (!should_continue_grapheme_cluster(state, next_scalar_info))
+				{
+					return static_cast<std::size_t>(position - begin);
+				}
+
+				consume_grapheme_scalar(state, next_scalar_info);
+				position = next_position;
+			}
+
+			return text.size();
+		}
+
 		template <typename CharT>
 		inline constexpr std::size_t count_ascii_grapheme_run(
 			std::basic_string_view<CharT> ascii_run,
@@ -2466,6 +2855,11 @@ namespace details
 			}
 
 			return count;
+		}
+
+		inline constexpr std::size_t char_count(std::u32string_view text) noexcept
+		{
+			return text.size();
 		}
 
 		inline constexpr std::size_t char_count(std::u16string_view text) noexcept
@@ -2745,6 +3139,51 @@ namespace details
 			}
 
 			consteval const char16_t* data() const noexcept
+			{
+				return &p[0];
+			}
+		};
+
+		template<typename CharT, std::size_t N>
+		struct constexpr_utf32_character
+		{
+			CharT p[N]{};
+
+			static constexpr std::size_t SIZE = N;
+			using CHAR_T = CharT;
+
+			consteval constexpr_utf32_character(CharT const(&pp)[N])
+			{
+				std::ranges::copy(pp, p);
+
+				if (!details::is_single_valid_utf32_char(std::basic_string_view<CharT>{ &p[0], N - 1 }))
+				{
+					throw std::invalid_argument("literal must contain exactly one valid UTF-32 character");
+				}
+			}
+
+			consteval const CharT* data() const noexcept
+			{
+				return &p[0];
+			}
+		};
+
+		template<typename CharT, std::size_t N>
+		struct constexpr_utf32_string
+		{
+			char32_t p[N]{};
+
+			static constexpr std::size_t SIZE = N;
+
+			consteval constexpr_utf32_string(CharT const(&pp)[N])
+			{
+				for (std::size_t i = 0; i < N; ++i)
+				{
+					p[i] = static_cast<char32_t>(pp[i]);
+				}
+			}
+
+			consteval const char32_t* data() const noexcept
 			{
 				return &p[0];
 			}

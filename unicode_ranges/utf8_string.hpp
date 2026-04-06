@@ -443,6 +443,7 @@ public:
 	}
 
 	constexpr basic_utf8_string(utf16_string_view view, const Allocator& alloc = Allocator());
+	constexpr basic_utf8_string(utf32_string_view view, const Allocator& alloc = Allocator());
 
 	constexpr basic_utf8_string(std::size_t count, utf8_char ch, const Allocator& alloc = Allocator())
 		: base_(alloc)
@@ -473,6 +474,8 @@ public:
 	constexpr basic_utf8_string& append_range(views::utf8_view rg);
 
 	constexpr basic_utf8_string& append_range(views::utf16_view rg);
+
+	constexpr basic_utf8_string& append_range(views::utf32_view rg);
 
 	template <details::container_compatible_range<utf8_char> R>
 	constexpr basic_utf8_string& append_range(R&& rg)
@@ -534,6 +537,8 @@ public:
 	constexpr basic_utf8_string& assign_range(views::utf8_view rg);
 
 	constexpr basic_utf8_string& assign_range(views::utf16_view rg);
+
+	constexpr basic_utf8_string& assign_range(views::utf32_view rg);
 
 	template <details::container_compatible_range<utf8_char> R>
 	constexpr basic_utf8_string& assign_range(R&& rg)
@@ -682,6 +687,7 @@ public:
 	}
 
 	constexpr basic_utf8_string& operator+=(utf16_string_view sv);
+	constexpr basic_utf8_string& operator+=(utf32_string_view sv);
 
 	constexpr basic_utf8_string& operator+=(utf8_char ch)
 	{
@@ -690,6 +696,12 @@ public:
 	}
 
 	constexpr basic_utf8_string& operator+=(utf16_char ch)
+	{
+		push_back(static_cast<utf8_char>(ch));
+		return *this;
+	}
+
+	constexpr basic_utf8_string& operator+=(utf32_char ch)
 	{
 		push_back(static_cast<utf8_char>(ch));
 		return *this;

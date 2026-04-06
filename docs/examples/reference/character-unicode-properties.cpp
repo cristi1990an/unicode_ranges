@@ -19,4 +19,6 @@ int main()
 	std::println("{}", "😀"_u8c.is_emoji());                                                            // true
 	std::println("{}", "😀"_u8c.is_emoji_presentation());                                               // true
 	std::println("{}", "😀"_u8c.is_extended_pictographic());                                            // true
+	std::println("{}", U"Ω"_u32c.script() == unicode_script::greek);                                   // true
+	std::println("{}", U"😀"_u32c.is_emoji());                                                          // true
 }

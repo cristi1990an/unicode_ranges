@@ -2911,6 +2911,8 @@ public:
 	constexpr basic_utf8_string<Allocator> case_fold(const Allocator& alloc = Allocator()) const;
 	template <typename Allocator = std::allocator<char16_t>>
 	constexpr basic_utf16_string<Allocator> to_utf16(const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char32_t>>
+	constexpr basic_utf32_string<Allocator> to_utf32(const Allocator& alloc = Allocator()) const;
 	constexpr bool eq_ignore_case(View sv) const noexcept;
 	constexpr bool starts_with_ignore_case(View sv) const noexcept;
 	constexpr bool ends_with_ignore_case(View sv) const noexcept;

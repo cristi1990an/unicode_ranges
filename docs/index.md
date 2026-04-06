@@ -1,8 +1,8 @@
 # unicode_ranges
 
-`unicode_ranges` is a header-only C++23 library for validated UTF-8 and UTF-16 text.
+`unicode_ranges` is a header-only C++23 library for validated UTF-8, UTF-16, and UTF-32 text.
 
-It is built around a simple idea: Unicode scalar values are the canonical model, while UTF-8 and UTF-16 remain first-class encodings with dedicated APIs. The library gives you validated characters, borrowed views, owning strings, scalar iteration, grapheme iteration, Unicode casing, normalization, formatting support, and conversion between encodings.
+It is built around a simple idea: Unicode scalar values are the canonical model, while UTF-8, UTF-16, and UTF-32 remain first-class encodings with dedicated APIs. The library gives you validated characters, borrowed views, owning strings, scalar iteration, grapheme iteration, Unicode casing, normalization, formatting support, and conversion between encodings.
 
 ## Why this library exists
 
@@ -11,7 +11,7 @@ Existing C and C++ text handling often starts from raw byte buffers, raw code-un
 `unicode_ranges` exists to push that cost to the edge:
 
 - validate once, then operate with invariants
-- represent UTF-8 and UTF-16 text with lightweight dedicated types instead of "maybe valid" raw strings
+- represent UTF-8, UTF-16, and UTF-32 text with lightweight dedicated types instead of "maybe valid" raw strings
 - make invalid states unrepresentable once construction succeeds
 - keep construction available both at compile time through validated literals and at runtime through checked factories
 - still expose explicit unchecked fast paths when the caller has already proved validity elsewhere
@@ -30,15 +30,15 @@ The design goal is not "maximum abstraction". It is predictable Unicode handling
 
 ## Type map
 
-| Category | UTF-8 | UTF-16 |
-| --- | --- | --- |
-| Character | `utf8_char` | `utf16_char` |
-| Borrowed text | `utf8_string_view` | `utf16_string_view` |
-| Owning text | `utf8_string` | `utf16_string` |
-| Forward scalar iteration | `views::utf8_view` | `views::utf16_view` |
-| Reverse scalar iteration | `views::reversed_utf8_view` | `views::reversed_utf16_view` |
-| Grapheme iteration | `views::grapheme_cluster_view<char8_t>` | `views::grapheme_cluster_view<char16_t>` |
-| Lossy iteration | `views::lossy_utf8_view<CharT>` | `views::lossy_utf16_view<CharT>` |
+| Category | UTF-8 | UTF-16 | UTF-32 |
+| --- | --- | --- | --- |
+| Character | `utf8_char` | `utf16_char` | `utf32_char` |
+| Borrowed text | `utf8_string_view` | `utf16_string_view` | `utf32_string_view` |
+| Owning text | `utf8_string` | `utf16_string` | `utf32_string` |
+| Forward scalar iteration | `views::utf8_view` | `views::utf16_view` | `views::utf32_view` |
+| Reverse scalar iteration | `views::reversed_utf8_view` | `views::reversed_utf16_view` | `views::reversed_utf32_view` |
+| Grapheme iteration | `views::grapheme_cluster_view<char8_t>` | `views::grapheme_cluster_view<char16_t>` | `views::grapheme_cluster_view<char32_t>` |
+| Lossy iteration | `views::lossy_utf8_view<CharT>` | `views::lossy_utf16_view<CharT>` | `views::lossy_utf32_view<CharT>` |
 
 ## Public entry point
 

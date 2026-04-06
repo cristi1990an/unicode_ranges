@@ -15,4 +15,8 @@ int main()
 	std::println("{}", characters::utf16::arrows::right_arrow);       // →
 	std::println("{}", characters::utf16::emojis::red_heart);         // ❤
 	std::println("{}", characters::utf16::emojis::rocket);            // 🚀
+	std::println("{}", characters::utf32::currency::euro_sign);       // €
+	std::println("{}", characters::utf32::symbols::section_sign);     // §
+	std::println("{}", characters::utf32::emojis::sparkles);          // ✨
+	std::println("{}", characters::utf32::emojis::rocket);            // 🚀
 }

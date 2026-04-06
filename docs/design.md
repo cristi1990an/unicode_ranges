@@ -7,7 +7,7 @@ The library is meant to solve a recurring problem in C and C++ Unicode handling:
 Typical pain points are:
 
 - validation is separate from the type that is later passed around
-- invalid UTF-8 or UTF-16 can survive too long in ordinary string types
+- invalid UTF-8, UTF-16, or UTF-32 can survive too long in ordinary string types
 - boundary-sensitive operations rely on callers remembering byte or code-unit rules
 - error handling is inconsistent across libraries and easy to lose when composing APIs
 
@@ -17,22 +17,22 @@ Typical pain points are:
 - encode the result in dedicated lightweight types with clear invariants
 - keep those invariants stable across later operations
 
-Once you have a `utf8_char`, `utf16_char`, `utf8_string_view`, `utf16_string_view`, `utf8_string`, or `utf16_string`, you are working with validated text, not with raw storage that might or might not be valid.
+Once you have a `utf8_char`, `utf16_char`, `utf32_char`, `utf8_string_view`, `utf16_string_view`, `utf32_string_view`, `utf8_string`, `utf16_string`, or `utf32_string`, you are working with validated text, not with raw storage that might or might not be valid.
 
 ## Core model
 
 The library is built around a few explicit rules:
 
 - Unicode scalar values are the semantic model.
-- UTF-8 and UTF-16 are both first-class encodings.
+- UTF-8, UTF-16, and UTF-32 are all first-class encodings.
 - Checked and unchecked APIs are kept distinct.
 - Borrowed and owning types are separate.
 - Performance matters, especially on ASCII-heavy paths, but not at the expense of Unicode correctness.
 
 ## Ownership model
 
-- `utf8_string_view` / `utf16_string_view` borrow validated storage.
-- `utf8_string` / `utf16_string` own validated storage.
+- `utf8_string_view` / `utf16_string_view` / `utf32_string_view` borrow validated storage.
+- `utf8_string` / `utf16_string` / `utf32_string` own validated storage.
 - range-returning APIs such as `chars()` and `graphemes()` borrow from the source text.
 
 This makes lifetime and mutation rules explicit instead of implicit.
@@ -41,7 +41,7 @@ This makes lifetime and mutation rules explicit instead of implicit.
 
 The library exposes all three levels:
 
-- code units: raw UTF-8 bytes or UTF-16 code units
+- code units: raw UTF-8 bytes, UTF-16 code units, or UTF-32 code points
 - scalars: Unicode scalar values
 - graphemes: user-perceived characters under default Unicode grapheme-cluster rules
 
@@ -105,7 +105,7 @@ That separation is deliberate. Callers who need full validation and Unicode sema
 
 Supported:
 
-- validated UTF-8 and UTF-16 text handling
+- validated UTF-8, UTF-16, and UTF-32 text handling
 - Unicode predicates
 - default grapheme segmentation
 - Unicode casing and normalization

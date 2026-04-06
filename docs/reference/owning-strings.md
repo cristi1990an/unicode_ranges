@@ -1,17 +1,23 @@
 # Owning Strings
 
-`basic_utf8_string<Allocator>` and `basic_utf16_string<Allocator>` are validated owning string types.
+`basic_utf8_string<Allocator>`, `basic_utf16_string<Allocator>`, and `basic_utf32_string<Allocator>` are validated owning string types.
 
 The aliases exported from [`unicode_ranges/core.hpp`](https://github.com/cristi1990an/unicode_ranges/blob/main/unicode_ranges/core.hpp) are:
 
 - `utf8_string = basic_utf8_string<>`
 - `utf16_string = basic_utf16_string<>`
+- `utf32_string = basic_utf32_string<>`
 - `pmr::utf8_string = basic_utf8_string<std::pmr::polymorphic_allocator<char8_t>>`
 - `pmr::utf16_string = basic_utf16_string<std::pmr::polymorphic_allocator<char16_t>>`
+- `pmr::utf32_string = basic_utf32_string<std::pmr::polymorphic_allocator<char32_t>>`
 
-Unless otherwise stated, the UTF-8 and UTF-16 surfaces are structurally parallel.
+Unless otherwise stated, the UTF-8, UTF-16, and UTF-32 surfaces are structurally parallel.
 
 When a signature block uses `Char`, `View`, `String`, or `Predicate`, it refers to the encoding-specific family being described in that section.
+
+Unless a section explicitly narrows the discussion, the UTF-8, UTF-16, and UTF-32 owning-string APIs are structurally parallel.
+
+To keep the longer synopsis blocks manageable, many sections spell out the UTF-8 forms explicitly and describe UTF-16 and UTF-32 by parallel rule. Unless a section says otherwise, replacing `char8_t` / `utf8_char` / `utf8_string_view` / `basic_utf8_string` with the matching UTF-16 or UTF-32 names gives the corresponding owning-string surface.
 
 ```cpp
 --8<-- "examples/reference/owning-strings.cpp"
@@ -62,7 +68,7 @@ The table rows below use visible source inputs like `"😄🇷🇴✨"`, `u8"�
 | `from_bytes(std::wstring_view bytes, alloc)` | validate or transcode a wide-character source; the exact validation path depends on `sizeof(wchar_t)` | `auto text = utf16_string::from_bytes(L"😄🇷🇴✨");` |
 | `from_bytes(base_type&& bytes)` | validate a moved-in `std::u8string` or `std::u16string` in place | `auto text = utf8_string::from_bytes(std::u8string{u8"😄🇷🇴✨"});` |
 
-The wide-string overload is convenient when interoperating with platform APIs, but it is the least portable surface because the meaning of `wchar_t` differs across platforms. The UTF-8 and UTF-16 overloads have fixed semantics.
+The wide-string overload is convenient when interoperating with platform APIs, but it is the least portable surface because the meaning of `wchar_t` differs across platforms. The UTF-8, UTF-16, and UTF-32 overloads have fixed semantics.
 
 ### Inspiration
 
@@ -155,7 +161,7 @@ constexpr basic_utf8_string(std::initializer_list<utf8_char> ilist, const Alloca
 template <std::input_iterator It, std::sentinel_for<It> Sent>
 constexpr basic_utf8_string(It it, Sent sent, const Allocator& alloc = Allocator());
 
-// The UTF-16 type exposes the same constructor families with utf16_string_view and utf16_char.
+// The UTF-16 and UTF-32 types expose the same constructor families with utf16_string_view / utf32_string_view and utf16_char / utf32_char.
 ```
 
 ### Behavior
@@ -178,7 +184,7 @@ The table rows below start from declarations like `utf8_string text = "😄🇷�
 | `basic_utf8_string(std::initializer_list<utf8_char>, alloc)` | build from a braced list of validated characters | `utf8_string a{{"😄"_u8c, "✨"_u8c}};` |
 | `basic_utf8_string(It, Sent, alloc)` | build from an iterator/sentinel pair over validated characters | `const auto chars = "😄✨"_utf8_sv.chars(); utf8_string a{chars.begin(), chars.end()};` |
 
-The UTF-16 constructors behave the same way, but operate on UTF-16 views and `utf16_char`.
+The UTF-16 and UTF-32 constructors behave the same way, but operate on their own validated views and character types.
 The braced-list constructor uses [`std::initializer_list`](https://en.cppreference.com/w/cpp/utility/initializer_list) in the usual C++ sense; the difference is that each element is already a validated Unicode character object rather than a raw code unit.
 
 ### Inspiration
@@ -233,7 +239,7 @@ constexpr basic_utf8_string& operator+=(utf8_char ch);
 constexpr basic_utf8_string& operator+=(utf16_char ch);
 constexpr basic_utf8_string& operator+=(std::initializer_list<utf8_char> ilist);
 
-// The UTF-16 type exposes the same families with utf16_string_view and utf16_char.
+// The UTF-16 and UTF-32 types expose the same families with their corresponding view and character types.
 ```
 
 ### Behavior
@@ -308,7 +314,7 @@ constexpr basic_utf8_string& reverse(size_type pos, size_type count = npos);
 constexpr basic_utf8_string& reverse_graphemes() noexcept;
 constexpr basic_utf8_string& reverse_graphemes(size_type pos, size_type count = npos);
 
-// The UTF-16 type exposes the same families with utf16_string_view and utf16_char.
+// The UTF-16 and UTF-32 types expose the same families with their corresponding view and character types.
 ```
 
 ### Behavior
@@ -426,7 +432,7 @@ constexpr basic_utf8_string case_fold() &&;
 template <typename OtherAllocator>
 constexpr basic_utf8_string<OtherAllocator> case_fold(const OtherAllocator& alloc) const;
 
-// The UTF-16 type exposes the same method families with basic_utf16_string return types.
+// The UTF-16 and UTF-32 types expose the same method families with basic_utf16_string / basic_utf32_string return types.
 ```
 
 ### Behavior
@@ -511,7 +517,7 @@ basic_utf8_string case_fold(locale_id locale) &&;
 template <typename OtherAllocator>
 basic_utf8_string<OtherAllocator> case_fold(locale_id locale, const OtherAllocator& alloc) const;
 
-// The UTF-16 type exposes the same locale-aware families with basic_utf16_string return types.
+// The UTF-16 and UTF-32 types expose the same locale-aware families with basic_utf16_string / basic_utf32_string return types.
 ```
 
 - These overloads exist only when ICU support is enabled.
@@ -640,7 +646,7 @@ template <details::utf8_char_predicate Pred> constexpr basic_utf8_string replace
 template <details::utf8_char_predicate Pred, typename OtherAllocator>
 constexpr basic_utf8_string<OtherAllocator> replace_n(size_type count, Pred pred, ..., const OtherAllocator& alloc) const;
 
-// The UTF-16 type exposes the same families with utf16_char and utf16_string_view.
+// The UTF-16 and UTF-32 types expose the same families with their corresponding character and view types.
 ```
 
 ### Behavior
@@ -710,7 +716,7 @@ constexpr basic_utf8_string& replace_with_range_inplace(size_type pos, views::ut
 template <details::container_compatible_range<utf8_char> R>
 constexpr basic_utf8_string& replace_with_range_inplace(size_type pos, R&& rg);
 
-// The UTF-16 type exposes the same families with utf16_string_view, utf16_char, and views::utf16_view/views::utf8_view.
+// The UTF-16 and UTF-32 types expose the same families with their corresponding view, character, and helper-view types.
 ```
 
 ### Behavior
@@ -776,7 +782,7 @@ constexpr operator utf8_string_view() const noexcept;
 constexpr void push_back(utf8_char ch);
 constexpr void swap(basic_utf8_string& other) noexcept(/* conditional */);
 
-// The UTF-16 type exposes the same families with char16_t and utf16_string_view.
+// The UTF-16 and UTF-32 types expose the same families with their corresponding raw code-unit and validated view types.
 ```
 
 ### Behavior
@@ -860,7 +866,7 @@ template<typename Allocator, typename OtherAllocator> struct std::uses_allocator
 template<details::literals::constexpr_utf8_string Str>
 constexpr auto operator ""_utf8_s();
 
-// The UTF-16 type exposes the parallel comparison, concatenation, formatting, and literal families.
+// The UTF-16 and UTF-32 types expose the parallel comparison, concatenation, formatting, and literal families.
 ```
 
 ### Behavior
@@ -868,7 +874,7 @@ constexpr auto operator ""_utf8_s();
 - Comparison operators compare encoded contents.
 - `operator+` builds a new owning string.
 - Stream insertion and the formatter delegate to the borrowed view representation.
-- `_utf8_s` and `_utf16_s` are compile-time validated owning-string literals.
+- `_utf8_s`, `_utf16_s`, and `_utf32_s` are compile-time validated owning-string literals.
 
 ### Overload differences
 
@@ -879,7 +885,7 @@ constexpr auto operator ""_utf8_s();
 | `operator+(String, String)` | concatenate two owning strings | `"😄"_utf8_s + "✨"_utf8_s` |
 | `operator+(String, View)` / `operator+(View, String)` | concatenate an owning string with a borrowed validated substring | `"😄"_utf8_s + "✨"_utf8_sv` |
 | `operator+(String, Char)` / `operator+(Char, String)` | concatenate one validated character | `"😄"_utf8_s + "✨"_u8c` |
-| `_utf8_s` / `_utf16_s` | construct a compile-time validated owning string literal | `constexpr auto text = "😄🇷🇴✨"_utf8_s;` |
+| `_utf8_s` / `_utf16_s` / `_utf32_s` | construct a compile-time validated owning string literal | `constexpr auto text = "😄🇷🇴✨"_utf8_s;` |
 
 ### Inspiration
 
@@ -895,7 +901,7 @@ Comparison and concatenation follow the general shape of [`std::basic_string`](h
 
 - Comparison does not throw.
 - Concatenation, formatting, and owning-string literal materialization may throw allocator or container exceptions.
-- Invalid `_utf8_s` or `_utf16_s` literals are rejected during constant evaluation.
+- Invalid `_utf8_s`, `_utf16_s`, or `_utf32_s` literals are rejected during constant evaluation.
 
 ### `noexcept`
 

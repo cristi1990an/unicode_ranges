@@ -3,6 +3,7 @@
 
 #include "utf8_char.hpp"
 #include "utf16_char.hpp"
+#include "utf32_char.hpp"
 
 #define UTF8_RANGES_PUNCTUATION_CHARACTERS(X) \
 	X(bullet, "•", u"•") \
@@ -279,6 +280,7 @@
 
 #define UTF8_RANGES_DEFINE_UTF8_CHARACTER(name, utf8_literal, utf16_literal) inline constexpr auto name = utf8_literal##_u8c;
 #define UTF8_RANGES_DEFINE_UTF16_CHARACTER(name, utf8_literal, utf16_literal) inline constexpr auto name = static_cast<utf16_char>(utf8_literal##_u8c);
+#define UTF8_RANGES_DEFINE_UTF32_CHARACTER(name, utf8_literal, utf16_literal) inline constexpr auto name = static_cast<utf32_char>(utf8_literal##_u8c);
 
 namespace unicode_ranges::characters
 {
@@ -303,8 +305,19 @@ namespace math { UTF8_RANGES_MATH_CHARACTERS(UTF8_RANGES_DEFINE_UTF16_CHARACTER)
 namespace arrows { UTF8_RANGES_ARROW_CHARACTERS(UTF8_RANGES_DEFINE_UTF16_CHARACTER) }
 namespace emojis { UTF8_RANGES_EMOJI_CHARACTERS(UTF8_RANGES_DEFINE_UTF16_CHARACTER) }
 }
+
+namespace utf32
+{
+namespace punctuation { UTF8_RANGES_PUNCTUATION_CHARACTERS(UTF8_RANGES_DEFINE_UTF32_CHARACTER) }
+namespace symbols { UTF8_RANGES_SYMBOL_CHARACTERS(UTF8_RANGES_DEFINE_UTF32_CHARACTER) }
+namespace currency { UTF8_RANGES_CURRENCY_CHARACTERS(UTF8_RANGES_DEFINE_UTF32_CHARACTER) }
+namespace math { UTF8_RANGES_MATH_CHARACTERS(UTF8_RANGES_DEFINE_UTF32_CHARACTER) }
+namespace arrows { UTF8_RANGES_ARROW_CHARACTERS(UTF8_RANGES_DEFINE_UTF32_CHARACTER) }
+namespace emojis { UTF8_RANGES_EMOJI_CHARACTERS(UTF8_RANGES_DEFINE_UTF32_CHARACTER) }
+}
 }
 
+#undef UTF8_RANGES_DEFINE_UTF32_CHARACTER
 #undef UTF8_RANGES_DEFINE_UTF16_CHARACTER
 #undef UTF8_RANGES_DEFINE_UTF8_CHARACTER
 #undef UTF8_RANGES_EMOJI_CHARACTERS

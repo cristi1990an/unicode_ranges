@@ -1,9 +1,9 @@
-#ifndef UTF8_RANGES_UTF16_STRING_CRTP_HPP
-#define UTF8_RANGES_UTF16_STRING_CRTP_HPP
+#ifndef UTF8_RANGES_UTF32_STRING_CRTP_HPP
+#define UTF8_RANGES_UTF32_STRING_CRTP_HPP
 
 #include <span>
 
-#include "utf16_views.hpp"
+#include "utf32_views.hpp"
 
 namespace unicode_ranges
 {
@@ -11,21 +11,21 @@ namespace unicode_ranges
 namespace details
 {
 
-class utf16_char_indices_view : public std::ranges::view_interface<utf16_char_indices_view>
+class utf32_char_indices_view : public std::ranges::view_interface<utf32_char_indices_view>
 {
 public:
-	static constexpr utf16_char_indices_view from_code_units_unchecked(std::u16string_view base) noexcept
+	static constexpr utf32_char_indices_view from_code_points_unchecked(std::u32string_view base) noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf16(base).has_value());
-		return utf16_char_indices_view{ base };
+		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf32(base).has_value());
+		return utf32_char_indices_view{ base };
 	}
 
 	class iterator
 	{
 	public:
-		using iterator_category = std::forward_iterator_tag;
-		using iterator_concept = std::forward_iterator_tag;
-		using value_type = std::pair<std::size_t, utf16_char>;
+		using iterator_category = std::random_access_iterator_tag;
+		using iterator_concept = std::random_access_iterator_tag;
+		using value_type = std::pair<std::size_t, utf32_char>;
 		using difference_type = std::ptrdiff_t;
 		using reference = value_type;
 		using pointer = void;
@@ -34,15 +34,18 @@ public:
 
 		constexpr reference operator*() const noexcept
 		{
-			const auto first = static_cast<std::uint16_t>(base_[current_]);
-			const auto count = details::is_utf16_high_surrogate(first) ? 2u : 1u;
-			return { current_, utf16_char::from_utf16_code_units_unchecked(base_.data() + current_, count) };
+			return { current_, utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(base_[current_])) };
+		}
+
+		constexpr reference operator[](difference_type offset) const noexcept
+		{
+			const auto index = static_cast<std::size_t>(static_cast<difference_type>(current_) + offset);
+			return { index, utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(base_[index])) };
 		}
 
 		constexpr iterator& operator++() noexcept
 		{
-			const auto first = static_cast<std::uint16_t>(base_[current_]);
-			current_ += details::is_utf16_high_surrogate(first) ? 2u : 1u;
+			++current_;
 			return *this;
 		}
 
@@ -53,24 +56,65 @@ public:
 			return old;
 		}
 
-		friend constexpr bool operator==(const iterator& it, std::default_sentinel_t) noexcept
+		constexpr iterator& operator--() noexcept
 		{
-			return it.current_ == it.base_.size();
+			--current_;
+			return *this;
 		}
 
-		friend constexpr bool operator==(std::default_sentinel_t, const iterator& it) noexcept
+		constexpr iterator operator--(int) noexcept
 		{
-			return it.current_ == it.base_.size();
+			iterator old = *this;
+			--(*this);
+			return old;
 		}
+
+		constexpr iterator& operator+=(difference_type offset) noexcept
+		{
+			current_ = static_cast<std::size_t>(static_cast<difference_type>(current_) + offset);
+			return *this;
+		}
+
+		constexpr iterator& operator-=(difference_type offset) noexcept
+		{
+			current_ = static_cast<std::size_t>(static_cast<difference_type>(current_) - offset);
+			return *this;
+		}
+
+		friend constexpr iterator operator+(iterator it, difference_type offset) noexcept
+		{
+			it += offset;
+			return it;
+		}
+
+		friend constexpr iterator operator+(difference_type offset, iterator it) noexcept
+		{
+			it += offset;
+			return it;
+		}
+
+		friend constexpr iterator operator-(iterator it, difference_type offset) noexcept
+		{
+			it -= offset;
+			return it;
+		}
+
+		friend constexpr difference_type operator-(const iterator& lhs, const iterator& rhs) noexcept
+		{
+			return static_cast<difference_type>(lhs.current_) - static_cast<difference_type>(rhs.current_);
+		}
+
+		friend constexpr bool operator==(const iterator&, const iterator&) noexcept = default;
+		friend constexpr auto operator<=>(const iterator&, const iterator&) noexcept = default;
 
 	private:
-		friend class utf16_char_indices_view;
+		friend class utf32_char_indices_view;
 
-		constexpr iterator(std::u16string_view base, std::size_t current) noexcept
+		constexpr iterator(std::u32string_view base, std::size_t current) noexcept
 			: base_(base), current_(current)
 		{}
 
-		std::u16string_view base_{};
+		std::u32string_view base_{};
 		std::size_t current_ = 0;
 	};
 
@@ -79,9 +123,14 @@ public:
 		return iterator{ base_, 0 };
 	}
 
-	constexpr std::default_sentinel_t end() const noexcept
+	constexpr iterator end() const noexcept
 	{
-		return std::default_sentinel;
+		return iterator{ base_, base_.size() };
+	}
+
+	constexpr std::size_t size() const noexcept
+	{
+		return base_.size();
 	}
 
 	constexpr std::size_t reserve_hint() const noexcept
@@ -90,21 +139,21 @@ public:
 	}
 
 private:
-	constexpr explicit utf16_char_indices_view(std::u16string_view base) noexcept
+	constexpr explicit utf32_char_indices_view(std::u32string_view base) noexcept
 		: base_(base)
 	{}
 
-	std::u16string_view base_{};
+	std::u32string_view base_{};
 };
 
 template <typename View>
-class utf16_grapheme_indices_view : public std::ranges::view_interface<utf16_grapheme_indices_view<View>>
+class utf32_grapheme_indices_view : public std::ranges::view_interface<utf32_grapheme_indices_view<View>>
 {
 public:
-	static constexpr utf16_grapheme_indices_view from_code_units_unchecked(std::u16string_view base) noexcept
+	static constexpr utf32_grapheme_indices_view from_code_points_unchecked(std::u32string_view base) noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf16(base).has_value());
-		return utf16_grapheme_indices_view{ base };
+		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf32(base).has_value());
+		return utf32_grapheme_indices_view{ base };
 	}
 
 	class iterator
@@ -123,7 +172,7 @@ public:
 		{
 			return value_type{
 				current_,
-				View::from_code_units_unchecked(base_.substr(current_, next_ - current_))
+				View::from_code_points_unchecked(base_.substr(current_, next_ - current_))
 			};
 		}
 
@@ -155,13 +204,13 @@ public:
 		}
 
 	private:
-		friend class utf16_grapheme_indices_view<View>;
+		friend class utf32_grapheme_indices_view<View>;
 
-		constexpr iterator(std::u16string_view base, std::size_t current, std::size_t next) noexcept
+		constexpr iterator(std::u32string_view base, std::size_t current, std::size_t next) noexcept
 			: base_(base), current_(current), next_(next)
 		{}
 
-		std::u16string_view base_{};
+		std::u32string_view base_{};
 		std::size_t current_ = 0;
 		std::size_t next_ = 0;
 	};
@@ -187,16 +236,16 @@ public:
 	}
 
 private:
-	constexpr explicit utf16_grapheme_indices_view(std::u16string_view base) noexcept
+	constexpr explicit utf32_grapheme_indices_view(std::u32string_view base) noexcept
 		: base_(base)
 	{}
 
-	std::u16string_view base_{};
+	std::u32string_view base_{};
 };
 
-inline constexpr bool utf16_exact_match_at_scalar(
-	std::u16string_view base,
-	std::u16string_view needle,
+inline constexpr bool utf32_exact_match_at_scalar(
+	std::u32string_view base,
+	std::u32string_view needle,
 	std::size_t pos) noexcept
 {
 	for (std::size_t needle_index = 0; needle_index != needle.size(); ++needle_index)
@@ -210,33 +259,33 @@ inline constexpr bool utf16_exact_match_at_scalar(
 	return true;
 }
 
-inline bool utf16_exact_match_at_runtime(
-	std::u16string_view base,
-	std::u16string_view needle,
+inline bool utf32_exact_match_at_runtime(
+	std::u32string_view base,
+	std::u32string_view needle,
 	std::size_t pos) noexcept
 {
-	return std::char_traits<char16_t>::compare(base.data() + pos, needle.data(), needle.size()) == 0;
+	return std::char_traits<char32_t>::compare(base.data() + pos, needle.data(), needle.size()) == 0;
 }
 
-class utf16_runtime_exact_searcher
+class utf32_runtime_exact_searcher
 {
 public:
-	explicit utf16_runtime_exact_searcher(std::u16string_view needle) noexcept
+	explicit utf32_runtime_exact_searcher(std::u32string_view needle) noexcept
 		: needle_(needle),
 		  last_index_(needle.empty() ? 0u : needle.size() - 1u)
 	{
 	}
 
-	std::size_t find(std::u16string_view base, std::size_t pos) const noexcept
+	std::size_t find(std::u32string_view base, std::size_t pos) const noexcept
 	{
 		if (needle_.empty())
 		{
-			return pos <= base.size() ? pos : std::u16string_view::npos;
+			return pos <= base.size() ? pos : std::u32string_view::npos;
 		}
 
 		if (pos > base.size() || needle_.size() > base.size() - pos)
 		{
-			return std::u16string_view::npos;
+			return std::u32string_view::npos;
 		}
 
 		if (needle_.size() == 1u)
@@ -249,13 +298,13 @@ public:
 		while (pos <= limit)
 		{
 			pos = base.find(first, pos);
-			if (pos == std::u16string_view::npos || pos > limit)
+			if (pos == std::u32string_view::npos || pos > limit)
 			{
-				return std::u16string_view::npos;
+				return std::u32string_view::npos;
 			}
 
 			if (base[pos + last_index_] == needle_[last_index_]
-				&& utf16_exact_match_at_runtime(base, needle_, pos))
+				&& utf32_exact_match_at_runtime(base, needle_, pos))
 			{
 				return pos;
 			}
@@ -263,10 +312,10 @@ public:
 			++pos;
 		}
 
-		return std::u16string_view::npos;
+		return std::u32string_view::npos;
 	}
 
-	std::size_t rfind(std::u16string_view base, std::size_t max_start) const noexcept
+	std::size_t rfind(std::u32string_view base, std::size_t max_start) const noexcept
 	{
 		if (needle_.empty())
 		{
@@ -275,7 +324,7 @@ public:
 
 		if (needle_.size() > base.size())
 		{
-			return std::u16string_view::npos;
+			return std::u32string_view::npos;
 		}
 
 		max_start = (std::min)(max_start, base.size() - needle_.size());
@@ -286,7 +335,7 @@ public:
 
 		const auto last = needle_[last_index_];
 		auto candidate_end = base.rfind(last, max_start + last_index_);
-		while (candidate_end != std::u16string_view::npos)
+		while (candidate_end != std::u32string_view::npos)
 		{
 			if (candidate_end < last_index_)
 			{
@@ -294,7 +343,7 @@ public:
 			}
 
 			const auto candidate = candidate_end - last_index_;
-			if (utf16_exact_match_at_runtime(base, needle_, candidate))
+			if (utf32_exact_match_at_runtime(base, needle_, candidate))
 			{
 				return candidate;
 			}
@@ -307,50 +356,50 @@ public:
 			candidate_end = base.rfind(last, candidate_end - 1u);
 		}
 
-		return std::u16string_view::npos;
+		return std::u32string_view::npos;
 	}
 
 private:
-	std::u16string_view needle_{};
+	std::u32string_view needle_{};
 	std::size_t last_index_ = 0;
 };
 
-inline constexpr std::size_t find_utf16_exact(
-	std::u16string_view base,
-	std::u16string_view needle,
+inline constexpr std::size_t find_utf32_exact(
+	std::u32string_view base,
+	std::u32string_view needle,
 	std::size_t pos) noexcept
 {
 	if (needle.empty())
 	{
-		return pos <= base.size() ? pos : std::u16string_view::npos;
+		return pos <= base.size() ? pos : std::u32string_view::npos;
 	}
 
 	if (pos > base.size() || needle.size() > base.size() - pos)
 	{
-		return std::u16string_view::npos;
+		return std::u32string_view::npos;
 	}
 
 	if consteval
 	{
 		for (std::size_t index = pos; index + needle.size() <= base.size(); ++index)
 		{
-			if (utf16_exact_match_at_scalar(base, needle, index))
+			if (utf32_exact_match_at_scalar(base, needle, index))
 			{
 				return index;
 			}
 		}
 
-		return std::u16string_view::npos;
+		return std::u32string_view::npos;
 	}
 	else
 	{
-		return utf16_runtime_exact_searcher{ needle }.find(base, pos);
+		return utf32_runtime_exact_searcher{ needle }.find(base, pos);
 	}
 }
 
-inline constexpr std::size_t rfind_utf16_exact(
-	std::u16string_view base,
-	std::u16string_view needle,
+inline constexpr std::size_t rfind_utf32_exact(
+	std::u32string_view base,
+	std::u32string_view needle,
 	std::size_t max_start) noexcept
 {
 	if (needle.empty())
@@ -360,7 +409,7 @@ inline constexpr std::size_t rfind_utf16_exact(
 
 	if (needle.size() > base.size())
 	{
-		return std::u16string_view::npos;
+		return std::u32string_view::npos;
 	}
 
 	max_start = (std::min)(max_start, base.size() - needle.size());
@@ -369,88 +418,88 @@ inline constexpr std::size_t rfind_utf16_exact(
 		for (std::size_t index = max_start + 1; index != 0; --index)
 		{
 			const auto candidate = index - 1;
-			if (utf16_exact_match_at_scalar(base, needle, candidate))
+			if (utf32_exact_match_at_scalar(base, needle, candidate))
 			{
 				return candidate;
 			}
 		}
 
-		return std::u16string_view::npos;
+		return std::u32string_view::npos;
 	}
 	else
 	{
-		return utf16_runtime_exact_searcher{ needle }.rfind(base, max_start);
+		return utf32_runtime_exact_searcher{ needle }.rfind(base, max_start);
 	}
 }
 
-inline constexpr std::size_t find_utf16_split_delimiter(
-	std::u16string_view base,
-	std::u16string_view delimiter,
+inline constexpr std::size_t find_utf32_split_delimiter(
+	std::u32string_view base,
+	std::u32string_view delimiter,
 	std::size_t pos) noexcept
 {
 	if (delimiter.empty())
 	{
-		return std::u16string_view::npos;
+		return std::u32string_view::npos;
 	}
 
 	if (pos > base.size() || delimiter.size() > base.size() - pos)
 	{
-		return std::u16string_view::npos;
+		return std::u32string_view::npos;
 	}
 
-	return details::find_utf16_exact(base, delimiter, pos);
+	return details::find_utf32_exact(base, delimiter, pos);
 }
 
-inline constexpr std::size_t rfind_utf16_split_delimiter(
-	std::u16string_view base,
-	std::u16string_view delimiter,
+inline constexpr std::size_t rfind_utf32_split_delimiter(
+	std::u32string_view base,
+	std::u32string_view delimiter,
 	std::size_t end_exclusive) noexcept
 {
 	if (delimiter.empty() || delimiter.size() > base.size() || end_exclusive < delimiter.size())
 	{
-		return std::u16string_view::npos;
+		return std::u32string_view::npos;
 	}
 
 	const auto max_start = (std::min)(base.size() - delimiter.size(), end_exclusive - delimiter.size());
-	return details::rfind_utf16_exact(base, delimiter, max_start);
+	return details::rfind_utf32_exact(base, delimiter, max_start);
 }
 
-inline constexpr bool utf16_split_input_ends_with_delimiter(
-	std::u16string_view base,
-	std::u16string_view delimiter) noexcept
+inline constexpr bool utf32_split_input_ends_with_delimiter(
+	std::u32string_view base,
+	std::u32string_view delimiter) noexcept
 {
 	return !delimiter.empty()
 		&& base.size() >= delimiter.size()
 		&& base.substr(base.size() - delimiter.size()) == delimiter;
 }
 
-struct borrowed_utf16_split_delimiter
+struct borrowed_utf32_split_delimiter
 {
-	std::u16string_view value{};
+	std::u32string_view value{};
 
-	constexpr borrowed_utf16_split_delimiter() = default;
+	constexpr borrowed_utf32_split_delimiter() = default;
 
-	constexpr explicit borrowed_utf16_split_delimiter(std::u16string_view value) noexcept
+	constexpr explicit borrowed_utf32_split_delimiter(std::u32string_view value) noexcept
 		: value(value)
 	{
 	}
 
-	constexpr std::u16string_view view() const noexcept
+	constexpr std::u32string_view view() const noexcept
 	{
 		return value;
 	}
 };
 
-struct owned_utf16_split_char_delimiter
+struct owned_utf32_split_char_delimiter
 {
-	std::array<char16_t, 2> bytes{};
+	std::array<char32_t, 2> bytes{};
 	std::uint8_t size = 0;
 
-	constexpr owned_utf16_split_char_delimiter() = default;
+	constexpr owned_utf32_split_char_delimiter() = default;
 
-	constexpr explicit owned_utf16_split_char_delimiter(utf16_char delimiter) noexcept
+	constexpr explicit owned_utf32_split_char_delimiter(utf32_char delimiter) noexcept
 	{
-		const auto delimiter_view = details::utf16_char_view(delimiter);
+		const auto delimiter_view = details::utf32_char_view(delimiter);
 		size = static_cast<std::uint8_t>(delimiter_view.size());
 		for (std::size_t i = 0; i != delimiter_view.size(); ++i)
 		{
@@ -458,36 +507,36 @@ struct owned_utf16_split_char_delimiter
 		}
 	}
 
-	constexpr std::u16string_view view() const noexcept
+	constexpr std::u32string_view view() const noexcept
 	{
-		return std::u16string_view{ bytes.data(), size };
+		return std::u32string_view{ bytes.data(), size };
 	}
 };
 
 template <typename Pred>
-concept utf16_char_predicate
+concept utf32_char_predicate
 	= std::copy_constructible<std::remove_cvref_t<Pred>>
-	&& std::predicate<const std::remove_cvref_t<Pred>&, utf16_char>;
+	&& std::predicate<const std::remove_cvref_t<Pred>&, utf32_char>;
 
-struct utf16_char_span_matcher
+struct utf32_char_span_matcher
 {
 	static constexpr std::size_t non_ascii_inline_capacity = 16;
 
-	std::span<const utf16_char> chars{};
+	std::span<const utf32_char> chars{};
 	std::array<std::uint64_t, 2> ascii_bits{};
-	std::array<std::uint16_t, non_ascii_inline_capacity> bmp_non_ascii_code_units{};
+	std::array<std::uint16_t, non_ascii_inline_capacity> bmp_non_ascii_code_points{};
 	std::array<std::uint32_t, non_ascii_inline_capacity> supplementary_scalars{};
 	std::uint8_t bmp_non_ascii_count = 0;
 	std::uint8_t supplementary_count = 0;
 	bool bmp_non_ascii_overflow = false;
 	bool supplementary_overflow = false;
 
-	constexpr utf16_char_span_matcher() noexcept = default;
+	constexpr utf32_char_span_matcher() noexcept = default;
 
-	constexpr explicit utf16_char_span_matcher(std::span<const utf16_char> chars) noexcept
+	constexpr explicit utf32_char_span_matcher(std::span<const utf32_char> chars) noexcept
 		: chars(chars)
 	{
-		for (utf16_char ch : chars)
+		for (utf32_char ch : chars)
 		{
 			const auto scalar = ch.as_scalar();
 			if (scalar <= encoding_constants::ascii_scalar_max)
@@ -555,7 +604,7 @@ struct utf16_char_span_matcher
 			return contains_bmp_non_ascii_code_unit(code_unit);
 		}
 
-		for (utf16_char candidate : chars)
+		for (utf32_char candidate : chars)
 		{
 			if (!candidate.is_ascii()
 				&& candidate.code_unit_count() == 1u
@@ -591,7 +640,7 @@ struct utf16_char_span_matcher
 			return contains_supplementary_scalar(scalar);
 		}
 
-		for (utf16_char candidate : chars)
+		for (utf32_char candidate : chars)
 		{
 			if (candidate.code_unit_count() == 2u && candidate.as_scalar() == scalar)
 			{
@@ -603,7 +652,7 @@ struct utf16_char_span_matcher
 	}
 
 	[[nodiscard]]
-	constexpr bool operator()(utf16_char ch) const noexcept
+	constexpr bool operator()(utf32_char ch) const noexcept
 	{
 		const auto scalar = ch.as_scalar();
 		if (scalar <= encoding_constants::ascii_scalar_max)
@@ -689,7 +738,7 @@ private:
 	{
 		insert_sorted_unique(
 			code_unit,
-			bmp_non_ascii_code_units,
+			bmp_non_ascii_code_points,
 			bmp_non_ascii_count,
 			bmp_non_ascii_overflow);
 	}
@@ -706,7 +755,7 @@ private:
 	[[nodiscard]]
 	constexpr bool contains_bmp_non_ascii_code_unit(std::uint16_t code_unit) const noexcept
 	{
-		return contains_sorted(code_unit, bmp_non_ascii_code_units, bmp_non_ascii_count);
+		return contains_sorted(code_unit, bmp_non_ascii_code_points, bmp_non_ascii_count);
 	}
 
 	[[nodiscard]]
@@ -716,23 +765,21 @@ private:
 	}
 };
 
-struct utf16_predicate_match
+struct utf32_predicate_match
 {
-	std::size_t pos = std::u16string_view::npos;
+	std::size_t pos = std::u32string_view::npos;
 	std::uint8_t size = 0;
 };
 
-inline constexpr utf16_char utf16_char_from_code_units_at(
-	std::u16string_view base,
+inline constexpr utf32_char utf32_char_from_code_points_at(
+	std::u32string_view base,
 	std::size_t pos) noexcept
 {
-	const auto first = static_cast<std::uint16_t>(base[pos]);
-	const auto size = details::is_utf16_high_surrogate(first) ? 2u : 1u;
-	return utf16_char::from_utf16_code_units_unchecked(base.data() + pos, size);
+	return utf32_char::from_utf32_code_points_unchecked(base.data() + pos, 1u);
 }
 
-inline constexpr std::size_t previous_utf16_scalar_boundary(
-	std::u16string_view base,
+inline constexpr std::size_t previous_utf32_scalar_boundary(
+	std::u32string_view base,
 	std::size_t pos) noexcept
 {
 	if (pos == 0)
@@ -740,21 +787,13 @@ inline constexpr std::size_t previous_utf16_scalar_boundary(
 		return 0;
 	}
 
-	pos = (std::min)(pos, base.size());
-	--pos;
-	if (pos != 0
-		&& details::is_utf16_low_surrogate(static_cast<std::uint16_t>(base[pos])))
-	{
-		--pos;
-	}
-
-	return pos;
+	return (std::min)(pos, base.size()) - 1;
 }
 
-inline constexpr utf16_predicate_match find_utf16_predicate_match(
-	std::u16string_view base,
+inline constexpr utf32_predicate_match find_utf32_predicate_match(
+	std::u32string_view base,
 	std::size_t pos,
-	const utf16_char_span_matcher& matcher) noexcept
+	const utf32_char_span_matcher& matcher) noexcept
 {
 	const auto has_ascii = matcher.has_ascii();
 	const auto has_non_ascii = matcher.has_non_ascii();
@@ -770,10 +809,10 @@ inline constexpr utf16_predicate_match find_utf16_predicate_match(
 			}
 		}
 
-		const auto first = static_cast<std::uint16_t>(base[pos]);
-		if (first <= encoding_constants::ascii_scalar_max)
+		const auto scalar = static_cast<std::uint32_t>(base[pos]);
+		if (scalar <= encoding_constants::ascii_scalar_max)
 		{
-			if (matcher.matches_ascii(static_cast<std::uint8_t>(first)))
+			if (matcher.matches_ascii(static_cast<std::uint8_t>(scalar)))
 			{
 				return { pos, 1 };
 			}
@@ -782,36 +821,28 @@ inline constexpr utf16_predicate_match find_utf16_predicate_match(
 			continue;
 		}
 
-		if (!details::is_utf16_high_surrogate(first))
+		if (scalar <= details::encoding_constants::bmp_scalar_max)
 		{
-			if (has_non_ascii && matcher.matches_bmp_non_ascii(first))
+			if (has_non_ascii && matcher.matches_bmp_non_ascii(static_cast<std::uint16_t>(scalar)))
 			{
 				return { pos, 1 };
 			}
-
-			++pos;
-			continue;
 		}
-
-		if (has_supplementary)
+		else if (has_supplementary && matcher.matches_non_ascii_scalar(scalar))
 		{
-			const auto scalar = details::decode_valid_utf16_char(base.data() + pos, 2u);
-			if (matcher.matches_non_ascii_scalar(scalar))
-			{
-				return { pos, 2 };
-			}
+			return { pos, 1 };
 		}
 
-		pos += 2;
+		++pos;
 	}
 
 	return {};
 }
 
-inline constexpr utf16_predicate_match rfind_utf16_predicate_match(
-	std::u16string_view base,
+inline constexpr utf32_predicate_match rfind_utf32_predicate_match(
+	std::u32string_view base,
 	std::size_t end_exclusive,
-	const utf16_char_span_matcher& matcher) noexcept
+	const utf32_char_span_matcher& matcher) noexcept
 {
 	if (base.empty() || end_exclusive == 0)
 	{
@@ -820,31 +851,26 @@ inline constexpr utf16_predicate_match rfind_utf16_predicate_match(
 
 	const auto has_non_ascii = matcher.has_non_ascii();
 	const auto has_supplementary = matcher.has_supplementary();
-	for (std::size_t pos = details::previous_utf16_scalar_boundary(base, end_exclusive);; pos = details::previous_utf16_scalar_boundary(base, pos))
+	for (std::size_t pos = details::previous_utf32_scalar_boundary(base, end_exclusive);; pos = details::previous_utf32_scalar_boundary(base, pos))
 	{
-		const auto first = static_cast<std::uint16_t>(base[pos]);
-		const auto size = static_cast<std::uint8_t>(details::is_utf16_high_surrogate(first) ? 2u : 1u);
-		if (first <= encoding_constants::ascii_scalar_max)
+		const auto scalar = static_cast<std::uint32_t>(base[pos]);
+		if (scalar <= encoding_constants::ascii_scalar_max)
 		{
-			if (matcher.matches_ascii(static_cast<std::uint8_t>(first)))
+			if (matcher.matches_ascii(static_cast<std::uint8_t>(scalar)))
 			{
-				return { pos, size };
+				return { pos, 1 };
 			}
 		}
-		else if (!details::is_utf16_high_surrogate(first))
+		else if (scalar <= details::encoding_constants::bmp_scalar_max)
 		{
-			if (has_non_ascii && matcher.matches_bmp_non_ascii(first))
+			if (has_non_ascii && matcher.matches_bmp_non_ascii(static_cast<std::uint16_t>(scalar)))
 			{
-				return { pos, size };
+				return { pos, 1 };
 			}
 		}
-		else if (has_supplementary)
+		else if (has_supplementary && matcher.matches_non_ascii_scalar(scalar))
 		{
-			const auto scalar = details::decode_valid_utf16_char(base.data() + pos, size);
-			if (matcher.matches_non_ascii_scalar(scalar))
-			{
-				return { pos, size };
-			}
+			return { pos, 1 };
 		}
 
 		if (pos == 0)
@@ -854,23 +880,23 @@ inline constexpr utf16_predicate_match rfind_utf16_predicate_match(
 	}
 }
 
-inline constexpr utf16_predicate_match find_utf16_non_ascii_span_match(
-	std::u16string_view base,
+inline constexpr utf32_predicate_match find_utf32_non_ascii_span_match(
+	std::u32string_view base,
 	std::size_t pos,
-	const utf16_char_span_matcher& matcher) noexcept
+	const utf32_char_span_matcher& matcher) noexcept
 {
-	utf16_predicate_match result{};
-	for (utf16_char ch : matcher.chars)
+	utf32_predicate_match result{};
+	for (utf32_char ch : matcher.chars)
 	{
 		if (ch.is_ascii())
 		{
 			continue;
 		}
 
-		const auto needle = details::utf16_char_view(ch);
-		const auto match = details::find_utf16_exact(base, needle, pos);
-		if (match != std::u16string_view::npos
-			&& (result.pos == std::u16string_view::npos || match < result.pos))
+		const auto needle = details::utf32_char_view(ch);
+		const auto match = details::find_utf32_exact(base, needle, pos);
+		if (match != std::u32string_view::npos
+			&& (result.pos == std::u32string_view::npos || match < result.pos))
 		{
 			result = { match, static_cast<std::uint8_t>(needle.size()) };
 			if (match == pos)
@@ -883,31 +909,31 @@ inline constexpr utf16_predicate_match find_utf16_non_ascii_span_match(
 	return result;
 }
 
-inline constexpr utf16_predicate_match rfind_utf16_non_ascii_span_match(
-	std::u16string_view base,
+inline constexpr utf32_predicate_match rfind_utf32_non_ascii_span_match(
+	std::u32string_view base,
 	std::size_t pos,
-	const utf16_char_span_matcher& matcher) noexcept
+	const utf32_char_span_matcher& matcher) noexcept
 {
-	utf16_predicate_match result{};
-	for (utf16_char ch : matcher.chars)
+	utf32_predicate_match result{};
+	for (utf32_char ch : matcher.chars)
 	{
 		if (ch.is_ascii())
 		{
 			continue;
 		}
 
-		const auto needle = details::utf16_char_view(ch);
+		const auto needle = details::utf32_char_view(ch);
 		if (needle.size() > base.size())
 		{
 			continue;
 		}
 
-		const auto max_start = pos == std::u16string_view::npos
+		const auto max_start = pos == std::u32string_view::npos
 			? base.size() - needle.size()
 			: (std::min)(pos, base.size() - needle.size());
-		const auto match = details::rfind_utf16_exact(base, needle, max_start);
-		if (match != std::u16string_view::npos
-			&& (result.pos == std::u16string_view::npos || match > result.pos))
+		const auto match = details::rfind_utf32_exact(base, needle, max_start);
+		if (match != std::u32string_view::npos
+			&& (result.pos == std::u32string_view::npos || match > result.pos))
 		{
 			result = { match, static_cast<std::uint8_t>(needle.size()) };
 		}
@@ -916,15 +942,15 @@ inline constexpr utf16_predicate_match rfind_utf16_non_ascii_span_match(
 	return result;
 }
 
-template <utf16_char_predicate Pred>
-inline constexpr utf16_predicate_match find_utf16_predicate_match(
-	std::u16string_view base,
+template <utf32_char_predicate Pred>
+inline constexpr utf32_predicate_match find_utf32_predicate_match(
+	std::u32string_view base,
 	std::size_t pos,
 	const Pred& pred) noexcept
 {
 	while (pos < base.size())
 	{
-		const auto ch = details::utf16_char_from_code_units_at(base, pos);
+		const auto ch = details::utf32_char_from_code_points_at(base, pos);
 		const auto size = static_cast<std::uint8_t>(ch.code_unit_count());
 		if (std::invoke(pred, ch))
 		{
@@ -937,9 +963,9 @@ inline constexpr utf16_predicate_match find_utf16_predicate_match(
 	return {};
 }
 
-template <utf16_char_predicate Pred>
-inline constexpr utf16_predicate_match rfind_utf16_predicate_match(
-	std::u16string_view base,
+template <utf32_char_predicate Pred>
+inline constexpr utf32_predicate_match rfind_utf32_predicate_match(
+	std::u32string_view base,
 	std::size_t end_exclusive,
 	const Pred& pred) noexcept
 {
@@ -948,9 +974,9 @@ inline constexpr utf16_predicate_match rfind_utf16_predicate_match(
 		return {};
 	}
 
-	for (std::size_t pos = details::previous_utf16_scalar_boundary(base, end_exclusive);; pos = details::previous_utf16_scalar_boundary(base, pos))
+	for (std::size_t pos = details::previous_utf32_scalar_boundary(base, end_exclusive);; pos = details::previous_utf32_scalar_boundary(base, pos))
 	{
-		const auto ch = details::utf16_char_from_code_units_at(base, pos);
+		const auto ch = details::utf32_char_from_code_points_at(base, pos);
 		const auto size = static_cast<std::uint8_t>(ch.code_unit_count());
 		if (std::invoke(pred, ch))
 		{
@@ -965,15 +991,15 @@ inline constexpr utf16_predicate_match rfind_utf16_predicate_match(
 }
 
 template <typename View, bool DropTrailingEmpty, typename DelimiterStorage>
-class basic_utf16_split_view
-	: public std::ranges::view_interface<basic_utf16_split_view<View, DropTrailingEmpty, DelimiterStorage>>
+class basic_utf32_split_view
+	: public std::ranges::view_interface<basic_utf32_split_view<View, DropTrailingEmpty, DelimiterStorage>>
 {
 public:
-	static constexpr basic_utf16_split_view from_delimiter_storage(
-		std::u16string_view base,
+	static constexpr basic_utf32_split_view from_delimiter_storage(
+		std::u32string_view base,
 		DelimiterStorage delimiter_storage) noexcept
 	{
-		return basic_utf16_split_view{ base, delimiter_storage };
+		return basic_utf32_split_view{ base, delimiter_storage };
 	}
 
 	class iterator
@@ -989,8 +1015,8 @@ public:
 		iterator() = default;
 
 		constexpr iterator(
-			std::u16string_view base,
-			std::u16string_view delimiter,
+			std::u32string_view base,
+			std::u32string_view delimiter,
 			std::size_t current,
 			std::size_t next_delimiter) noexcept
 			: base_(base),
@@ -1001,17 +1027,17 @@ public:
 
 		constexpr reference operator*() const noexcept
 		{
-			const auto segment_end = next_delimiter_ == std::u16string_view::npos
+			const auto segment_end = next_delimiter_ == std::u32string_view::npos
 				? base_.size()
 				: next_delimiter_;
-			return View::from_code_units_unchecked(base_.substr(current_, segment_end - current_));
+			return View::from_code_points_unchecked(base_.substr(current_, segment_end - current_));
 		}
 
 		constexpr iterator& operator++() noexcept
 		{
-			if (next_delimiter_ == std::u16string_view::npos)
+			if (next_delimiter_ == std::u32string_view::npos)
 			{
-				current_ = std::u16string_view::npos;
+				current_ = std::u32string_view::npos;
 				return *this;
 			}
 
@@ -1020,14 +1046,14 @@ public:
 			{
 				if (next_current == base_.size())
 				{
-					current_ = std::u16string_view::npos;
-					next_delimiter_ = std::u16string_view::npos;
+					current_ = std::u32string_view::npos;
+					next_delimiter_ = std::u32string_view::npos;
 					return *this;
 				}
 			}
 
 			current_ = next_current;
-			next_delimiter_ = details::find_utf16_split_delimiter(base_, delimiter_, current_);
+			next_delimiter_ = details::find_utf32_split_delimiter(base_, delimiter_, current_);
 			return *this;
 		}
 
@@ -1044,8 +1070,8 @@ public:
 			const auto current_for_search = [&]() constexpr noexcept {
 				if constexpr (DropTrailingEmpty)
 				{
-					if (old_current == std::u16string_view::npos
-						&& details::utf16_split_input_ends_with_delimiter(base_, delimiter_))
+					if (old_current == std::u32string_view::npos
+						&& details::utf32_split_input_ends_with_delimiter(base_, delimiter_))
 					{
 						return base_.size();
 					}
@@ -1053,9 +1079,9 @@ public:
 
 				return old_current;
 			}();
-			current_ = basic_utf16_split_view::find_previous_segment_start(base_, delimiter_, current_for_search);
-			next_delimiter_ = old_current == std::u16string_view::npos
-				? details::find_utf16_split_delimiter(base_, delimiter_, current_)
+			current_ = basic_utf32_split_view::find_previous_segment_start(base_, delimiter_, current_for_search);
+			next_delimiter_ = old_current == std::u32string_view::npos
+				? details::find_utf32_split_delimiter(base_, delimiter_, current_)
 				: old_current - delimiter_.size();
 			return *this;
 		}
@@ -1069,12 +1095,12 @@ public:
 
 		friend constexpr bool operator==(const iterator& it, std::default_sentinel_t) noexcept
 		{
-			return it.current_ == std::u16string_view::npos;
+			return it.current_ == std::u32string_view::npos;
 		}
 
 		friend constexpr bool operator==(std::default_sentinel_t, const iterator& it) noexcept
 		{
-			return it.current_ == std::u16string_view::npos;
+			return it.current_ == std::u32string_view::npos;
 		}
 
 		friend constexpr bool operator==(const iterator& lhs, const iterator& rhs) noexcept
@@ -1088,10 +1114,10 @@ public:
 		}
 
 	private:
-		std::u16string_view base_{};
-		std::u16string_view delimiter_{};
+		std::u32string_view base_{};
+		std::u32string_view delimiter_{};
 		std::size_t current_ = 0;
-		std::size_t next_delimiter_ = std::u16string_view::npos;
+		std::size_t next_delimiter_ = std::u32string_view::npos;
 	};
 
 	constexpr iterator begin() const noexcept
@@ -1101,7 +1127,7 @@ public:
 			base_,
 			delimiter,
 			0,
-			details::find_utf16_split_delimiter(base_, delimiter, 0)
+			details::find_utf32_split_delimiter(base_, delimiter, 0)
 		};
 	}
 
@@ -1111,67 +1137,67 @@ public:
 		return iterator{
 			base_,
 			delimiter,
-			std::u16string_view::npos,
-			std::u16string_view::npos
+			std::u32string_view::npos,
+			std::u32string_view::npos
 		};
 	}
 
 private:
-	constexpr explicit basic_utf16_split_view(
-		std::u16string_view base,
+	constexpr explicit basic_utf32_split_view(
+		std::u32string_view base,
 		DelimiterStorage delimiter_storage) noexcept
 		: base_(base), delimiter_storage_(delimiter_storage)
 	{}
 
-	constexpr std::u16string_view delimiter_view() const noexcept
+	constexpr std::u32string_view delimiter_view() const noexcept
 	{
 		return delimiter_storage_.view();
 	}
 
 	static constexpr std::size_t find_previous_segment_start(
-		std::u16string_view base,
-		std::u16string_view delimiter,
+		std::u32string_view base,
+		std::u32string_view delimiter,
 		std::size_t current) noexcept
 	{
 		std::size_t previous_start = 0;
-		std::size_t next = details::find_utf16_split_delimiter(base, delimiter, 0);
-		while (next != std::u16string_view::npos
+		std::size_t next = details::find_utf32_split_delimiter(base, delimiter, 0);
+		while (next != std::u32string_view::npos
 			&& next + delimiter.size() < current)
 		{
 			previous_start = next + delimiter.size();
-			next = details::find_utf16_split_delimiter(base, delimiter, previous_start);
+			next = details::find_utf32_split_delimiter(base, delimiter, previous_start);
 		}
 
-		if (current == std::u16string_view::npos)
+		if (current == std::u32string_view::npos)
 		{
-			while (next != std::u16string_view::npos)
+			while (next != std::u32string_view::npos)
 			{
 				previous_start = next + delimiter.size();
-				next = details::find_utf16_split_delimiter(base, delimiter, previous_start);
+				next = details::find_utf32_split_delimiter(base, delimiter, previous_start);
 			}
 		}
 
 		return previous_start;
 	}
 
-	std::u16string_view base_{};
+	std::u32string_view base_{};
 	DelimiterStorage delimiter_storage_{};
 };
 
 template <typename View, bool DropTrailingEmpty>
-using utf16_split_view = basic_utf16_split_view<View, DropTrailingEmpty, borrowed_utf16_split_delimiter>;
+using utf32_split_view = basic_utf32_split_view<View, DropTrailingEmpty, borrowed_utf32_split_delimiter>;
 
 template <typename View, bool DropTrailingEmpty>
-using utf16_split_char_view = basic_utf16_split_view<View, DropTrailingEmpty, owned_utf16_split_char_delimiter>;
+using utf32_split_char_view = basic_utf32_split_view<View, DropTrailingEmpty, owned_utf32_split_char_delimiter>;
 
-inline constexpr std::size_t find_utf16_non_delimiter_boundary(
-	std::u16string_view base,
-	std::u16string_view delimiter,
+inline constexpr std::size_t find_utf32_non_delimiter_boundary(
+	std::u32string_view base,
+	std::u32string_view delimiter,
 	std::size_t pos) noexcept
 {
 	if (pos >= base.size())
 	{
-		return std::u16string_view::npos;
+		return std::u32string_view::npos;
 	}
 
 	if (delimiter.empty())
@@ -1180,24 +1206,24 @@ inline constexpr std::size_t find_utf16_non_delimiter_boundary(
 	}
 
 	while (pos < base.size()
-		&& details::find_utf16_split_delimiter(base, delimiter, pos) == pos)
+		&& details::find_utf32_split_delimiter(base, delimiter, pos) == pos)
 	{
 		pos += delimiter.size();
 	}
 
-	return pos == base.size() ? std::u16string_view::npos : pos;
+	return pos == base.size() ? std::u32string_view::npos : pos;
 }
 
 template <typename View, typename DelimiterStorage>
-class basic_utf16_split_trimmed_view
-	: public std::ranges::view_interface<basic_utf16_split_trimmed_view<View, DelimiterStorage>>
+class basic_utf32_split_trimmed_view
+	: public std::ranges::view_interface<basic_utf32_split_trimmed_view<View, DelimiterStorage>>
 {
 public:
-	static constexpr basic_utf16_split_trimmed_view from_delimiter_storage(
-		std::u16string_view base,
+	static constexpr basic_utf32_split_trimmed_view from_delimiter_storage(
+		std::u32string_view base,
 		DelimiterStorage delimiter_storage) noexcept
 	{
-		return basic_utf16_split_trimmed_view{ base, delimiter_storage };
+		return basic_utf32_split_trimmed_view{ base, delimiter_storage };
 	}
 
 	class iterator
@@ -1213,8 +1239,8 @@ public:
 		iterator() = default;
 
 		constexpr iterator(
-			std::u16string_view base,
-			std::u16string_view delimiter,
+			std::u32string_view base,
+			std::u32string_view delimiter,
 			std::size_t current,
 			std::size_t next_delimiter) noexcept
 			: base_(base),
@@ -1226,30 +1252,30 @@ public:
 
 		constexpr reference operator*() const noexcept
 		{
-			const auto end = next_delimiter_ == std::u16string_view::npos
+			const auto end = next_delimiter_ == std::u32string_view::npos
 				? base_.size()
 				: next_delimiter_;
-			return View::from_code_units_unchecked(base_.substr(current_, end - current_));
+			return View::from_code_points_unchecked(base_.substr(current_, end - current_));
 		}
 
 		constexpr iterator& operator++() noexcept
 		{
-			if (next_delimiter_ == std::u16string_view::npos)
+			if (next_delimiter_ == std::u32string_view::npos)
 			{
-				current_ = std::u16string_view::npos;
+				current_ = std::u32string_view::npos;
 				return *this;
 			}
 
-			current_ = details::find_utf16_non_delimiter_boundary(base_, delimiter_, next_delimiter_ + delimiter_.size());
-			if (current_ == std::u16string_view::npos)
+			current_ = details::find_utf32_non_delimiter_boundary(base_, delimiter_, next_delimiter_ + delimiter_.size());
+			if (current_ == std::u32string_view::npos)
 			{
-				next_delimiter_ = std::u16string_view::npos;
+				next_delimiter_ = std::u32string_view::npos;
 				return *this;
 			}
 
 			next_delimiter_ = delimiter_.empty()
-				? std::u16string_view::npos
-				: details::find_utf16_split_delimiter(base_, delimiter_, current_);
+				? std::u32string_view::npos
+				: details::find_utf32_split_delimiter(base_, delimiter_, current_);
 			return *this;
 		}
 
@@ -1262,26 +1288,26 @@ public:
 
 		friend constexpr bool operator==(const iterator& it, std::default_sentinel_t) noexcept
 		{
-			return it.current_ == std::u16string_view::npos;
+			return it.current_ == std::u32string_view::npos;
 		}
 
 		friend constexpr bool operator==(std::default_sentinel_t, const iterator& it) noexcept
 		{
-			return it.current_ == std::u16string_view::npos;
+			return it.current_ == std::u32string_view::npos;
 		}
 
 	private:
-		std::u16string_view base_{};
-		std::u16string_view delimiter_{};
-		std::size_t current_ = std::u16string_view::npos;
-		std::size_t next_delimiter_ = std::u16string_view::npos;
+		std::u32string_view base_{};
+		std::u32string_view delimiter_{};
+		std::size_t current_ = std::u32string_view::npos;
+		std::size_t next_delimiter_ = std::u32string_view::npos;
 	};
 
 	constexpr iterator begin() const noexcept
 	{
 		const auto delimiter = delimiter_view();
-		const auto current = details::find_utf16_non_delimiter_boundary(base_, delimiter, 0);
-		if (current == std::u16string_view::npos)
+		const auto current = details::find_utf32_non_delimiter_boundary(base_, delimiter, 0);
+		if (current == std::u32string_view::npos)
 		{
 			return iterator{};
 		}
@@ -1291,8 +1317,8 @@ public:
 			delimiter,
 			current,
 			delimiter.empty()
-				? std::u16string_view::npos
-				: details::find_utf16_split_delimiter(base_, delimiter, current)
+				? std::u32string_view::npos
+				: details::find_utf32_split_delimiter(base_, delimiter, current)
 		};
 	}
 
@@ -1302,39 +1328,39 @@ public:
 	}
 
 private:
-	constexpr explicit basic_utf16_split_trimmed_view(
-		std::u16string_view base,
+	constexpr explicit basic_utf32_split_trimmed_view(
+		std::u32string_view base,
 		DelimiterStorage delimiter_storage) noexcept
 		: base_(base), delimiter_storage_(delimiter_storage)
 	{
 	}
 
-	constexpr std::u16string_view delimiter_view() const noexcept
+	constexpr std::u32string_view delimiter_view() const noexcept
 	{
 		return delimiter_storage_.view();
 	}
 
-	std::u16string_view base_{};
+	std::u32string_view base_{};
 	DelimiterStorage delimiter_storage_{};
 };
 
 template <typename View>
-using utf16_split_trimmed_view = basic_utf16_split_trimmed_view<View, borrowed_utf16_split_delimiter>;
+using utf32_split_trimmed_view = basic_utf32_split_trimmed_view<View, borrowed_utf32_split_delimiter>;
 
 template <typename View>
-using utf16_split_trimmed_char_view = basic_utf16_split_trimmed_view<View, owned_utf16_split_char_delimiter>;
+using utf32_split_trimmed_char_view = basic_utf32_split_trimmed_view<View, owned_utf32_split_char_delimiter>;
 
 template <typename View, bool Reverse, typename DelimiterStorage>
-class basic_utf16_splitn_view
-	: public std::ranges::view_interface<basic_utf16_splitn_view<View, Reverse, DelimiterStorage>>
+class basic_utf32_splitn_view
+	: public std::ranges::view_interface<basic_utf32_splitn_view<View, Reverse, DelimiterStorage>>
 {
 public:
-	static constexpr basic_utf16_splitn_view from_delimiter_storage(
-		std::u16string_view base,
+	static constexpr basic_utf32_splitn_view from_delimiter_storage(
+		std::u32string_view base,
 		DelimiterStorage delimiter_storage,
 		std::size_t count) noexcept
 	{
-		return basic_utf16_splitn_view{ base, delimiter_storage, count };
+		return basic_utf32_splitn_view{ base, delimiter_storage, count };
 	}
 
 	class iterator
@@ -1350,8 +1376,8 @@ public:
 		iterator() = default;
 
 		constexpr iterator(
-			std::u16string_view base,
-			std::u16string_view delimiter,
+			std::u32string_view base,
+			std::u32string_view delimiter,
 			std::size_t current,
 			std::size_t delimiter_pos,
 			std::size_t remaining) noexcept
@@ -1366,31 +1392,31 @@ public:
 		{
 			if constexpr (Reverse)
 			{
-				if (remaining_ == 1 || delimiter_pos_ == std::u16string_view::npos)
+				if (remaining_ == 1 || delimiter_pos_ == std::u32string_view::npos)
 				{
-					return View::from_code_units_unchecked(base_.substr(0, current_));
+					return View::from_code_points_unchecked(base_.substr(0, current_));
 				}
 
 				const auto segment_start = delimiter_pos_ + delimiter_.size();
-				return View::from_code_units_unchecked(base_.substr(segment_start, current_ - segment_start));
+				return View::from_code_points_unchecked(base_.substr(segment_start, current_ - segment_start));
 			}
 			else
 			{
-				if (remaining_ == 1 || delimiter_pos_ == std::u16string_view::npos)
+				if (remaining_ == 1 || delimiter_pos_ == std::u32string_view::npos)
 				{
-					return View::from_code_units_unchecked(base_.substr(current_));
+					return View::from_code_points_unchecked(base_.substr(current_));
 				}
 
-				return View::from_code_units_unchecked(base_.substr(current_, delimiter_pos_ - current_));
+				return View::from_code_points_unchecked(base_.substr(current_, delimiter_pos_ - current_));
 			}
 		}
 
 		constexpr iterator& operator++() noexcept
 		{
-			if (remaining_ == 1 || delimiter_pos_ == std::u16string_view::npos)
+			if (remaining_ == 1 || delimiter_pos_ == std::u32string_view::npos)
 			{
-				current_ = std::u16string_view::npos;
-				delimiter_pos_ = std::u16string_view::npos;
+				current_ = std::u32string_view::npos;
+				delimiter_pos_ = std::u32string_view::npos;
 				remaining_ = 0;
 				return *this;
 			}
@@ -1399,12 +1425,12 @@ public:
 			if constexpr (Reverse)
 			{
 				current_ = delimiter_pos_;
-				delimiter_pos_ = details::rfind_utf16_split_delimiter(base_, delimiter_, current_);
+				delimiter_pos_ = details::rfind_utf32_split_delimiter(base_, delimiter_, current_);
 			}
 			else
 			{
 				current_ = delimiter_pos_ + delimiter_.size();
-				delimiter_pos_ = details::find_utf16_split_delimiter(base_, delimiter_, current_);
+				delimiter_pos_ = details::find_utf32_split_delimiter(base_, delimiter_, current_);
 			}
 			return *this;
 		}
@@ -1427,10 +1453,10 @@ public:
 		}
 
 	private:
-		std::u16string_view base_{};
-		std::u16string_view delimiter_{};
-		std::size_t current_ = std::u16string_view::npos;
-		std::size_t delimiter_pos_ = std::u16string_view::npos;
+		std::u32string_view base_{};
+		std::u32string_view delimiter_{};
+		std::size_t current_ = std::u32string_view::npos;
+		std::size_t delimiter_pos_ = std::u32string_view::npos;
 		std::size_t remaining_ = 0;
 	};
 
@@ -1448,7 +1474,7 @@ public:
 				base_,
 				delimiter,
 				base_.size(),
-				details::rfind_utf16_split_delimiter(base_, delimiter, base_.size()),
+				details::rfind_utf32_split_delimiter(base_, delimiter, base_.size()),
 				count_
 			};
 		}
@@ -1458,7 +1484,7 @@ public:
 				base_,
 				delimiter,
 				0,
-				details::find_utf16_split_delimiter(base_, delimiter, 0),
+				details::find_utf32_split_delimiter(base_, delimiter, 0),
 				count_
 			};
 		}
@@ -1470,40 +1496,40 @@ public:
 	}
 
 private:
-	constexpr explicit basic_utf16_splitn_view(
-		std::u16string_view base,
+	constexpr explicit basic_utf32_splitn_view(
+		std::u32string_view base,
 		DelimiterStorage delimiter_storage,
 		std::size_t count) noexcept
 		: base_(base), delimiter_storage_(delimiter_storage), count_(count)
 	{}
 
-	constexpr std::u16string_view delimiter_view() const noexcept
+	constexpr std::u32string_view delimiter_view() const noexcept
 	{
 		return delimiter_storage_.view();
 	}
 
-	std::u16string_view base_{};
+	std::u32string_view base_{};
 	DelimiterStorage delimiter_storage_{};
 	std::size_t count_ = 0;
 };
 
 template <typename View, bool Reverse>
-using utf16_splitn_view = basic_utf16_splitn_view<View, Reverse, borrowed_utf16_split_delimiter>;
+using utf32_splitn_view = basic_utf32_splitn_view<View, Reverse, borrowed_utf32_split_delimiter>;
 
 template <typename View, bool Reverse>
-using utf16_splitn_char_view = basic_utf16_splitn_view<View, Reverse, owned_utf16_split_char_delimiter>;
+using utf32_splitn_char_view = basic_utf32_splitn_view<View, Reverse, owned_utf32_split_char_delimiter>;
 
 template <typename Allocator>
-inline constexpr std::basic_string<char16_t, std::char_traits<char16_t>, Allocator> replace_utf16_code_units_copy(
-	std::u16string_view source,
-	std::u16string_view needle,
-	std::u16string_view replacement,
+inline constexpr std::basic_string<char32_t, std::char_traits<char32_t>, Allocator> replace_utf32_code_points_copy(
+	std::u32string_view source,
+	std::u32string_view needle,
+	std::u32string_view replacement,
 	std::size_t count,
 	const Allocator& alloc)
 {
 	if (needle.empty() || count == 0)
 	{
-		return std::basic_string<char16_t, std::char_traits<char16_t>, Allocator>{ source, alloc };
+		return std::basic_string<char32_t, std::char_traits<char32_t>, Allocator>{ source, alloc };
 	}
 
 	if consteval
@@ -1511,8 +1537,8 @@ inline constexpr std::basic_string<char16_t, std::char_traits<char16_t>, Allocat
 		std::size_t replacements = 0;
 		for (std::size_t cursor = 0; replacements != count;)
 		{
-			const auto match = details::find_utf16_exact(source, needle, cursor);
-			if (match == std::u16string_view::npos)
+			const auto match = details::find_utf32_exact(source, needle, cursor);
+			if (match == std::u32string_view::npos)
 			{
 				break;
 			}
@@ -1523,7 +1549,7 @@ inline constexpr std::basic_string<char16_t, std::char_traits<char16_t>, Allocat
 
 		if (replacements == 0)
 		{
-			return std::basic_string<char16_t, std::char_traits<char16_t>, Allocator>{ source, alloc };
+			return std::basic_string<char32_t, std::char_traits<char32_t>, Allocator>{ source, alloc };
 		}
 
 		std::size_t output_size = source.size();
@@ -1536,16 +1562,16 @@ inline constexpr std::basic_string<char16_t, std::char_traits<char16_t>, Allocat
 			output_size -= replacements * (needle.size() - replacement.size());
 		}
 
-		std::basic_string<char16_t, std::char_traits<char16_t>, Allocator> result{ alloc };
+		std::basic_string<char32_t, std::char_traits<char32_t>, Allocator> result{ alloc };
 		result.resize_and_overwrite(output_size,
-			[&](char16_t* buffer, std::size_t) noexcept
+			[&](char32_t* buffer, std::size_t) noexcept
 			{
 				std::size_t cursor = 0;
 				std::size_t write_index = 0;
 				std::size_t replacements_done = 0;
 				while (replacements_done != replacements)
 				{
-					const auto match = details::find_utf16_exact(source, needle, cursor);
+					const auto match = details::find_utf32_exact(source, needle, cursor);
 					const auto prefix_size = match - cursor;
 					std::ranges::copy_n(source.data() + cursor, prefix_size, buffer + write_index);
 					write_index += prefix_size;
@@ -1562,12 +1588,12 @@ inline constexpr std::basic_string<char16_t, std::char_traits<char16_t>, Allocat
 		return result;
 	}
 
-	const details::utf16_runtime_exact_searcher searcher{ needle };
+	const details::utf32_runtime_exact_searcher searcher{ needle };
 	std::size_t replacements = 0;
 	for (std::size_t cursor = 0; replacements != count;)
 	{
 		const auto match = searcher.find(source, cursor);
-		if (match == std::u16string_view::npos)
+		if (match == std::u32string_view::npos)
 		{
 			break;
 		}
@@ -1578,7 +1604,7 @@ inline constexpr std::basic_string<char16_t, std::char_traits<char16_t>, Allocat
 
 	if (replacements == 0)
 	{
-		return std::basic_string<char16_t, std::char_traits<char16_t>, Allocator>{ source, alloc };
+		return std::basic_string<char32_t, std::char_traits<char32_t>, Allocator>{ source, alloc };
 	}
 
 	std::size_t output_size = source.size();
@@ -1591,9 +1617,9 @@ inline constexpr std::basic_string<char16_t, std::char_traits<char16_t>, Allocat
 		output_size -= replacements * (needle.size() - replacement.size());
 	}
 
-	std::basic_string<char16_t, std::char_traits<char16_t>, Allocator> result{ alloc };
+	std::basic_string<char32_t, std::char_traits<char32_t>, Allocator> result{ alloc };
 	result.resize_and_overwrite(output_size,
-		[&](char16_t* buffer, std::size_t) noexcept
+		[&](char32_t* buffer, std::size_t) noexcept
 		{
 			std::size_t cursor = 0;
 			std::size_t write_index = 0;
@@ -1617,24 +1643,24 @@ inline constexpr std::basic_string<char16_t, std::char_traits<char16_t>, Allocat
 	return result;
 }
 
-template <typename Allocator, utf16_char_predicate Pred>
-inline constexpr std::basic_string<char16_t, std::char_traits<char16_t>, Allocator> replace_utf16_chars_if_copy(
-	std::u16string_view source,
+template <typename Allocator, utf32_char_predicate Pred>
+inline constexpr std::basic_string<char32_t, std::char_traits<char32_t>, Allocator> replace_utf32_chars_if_copy(
+	std::u32string_view source,
 	const Pred& pred,
-	std::u16string_view replacement,
+	std::u32string_view replacement,
 	std::size_t count,
 	const Allocator& alloc)
 {
 	if (count == 0)
 	{
-		return std::basic_string<char16_t, std::char_traits<char16_t>, Allocator>{ source, alloc };
+		return std::basic_string<char32_t, std::char_traits<char32_t>, Allocator>{ source, alloc };
 	}
 
 	std::size_t replacements = 0;
 	std::size_t removed_size = 0;
 	for (std::size_t pos = 0; pos < source.size();)
 	{
-		const auto ch = details::utf16_char_from_code_units_at(source, pos);
+		const auto ch = details::utf32_char_from_code_points_at(source, pos);
 		const auto size = static_cast<std::size_t>(ch.code_unit_count());
 		if (replacements != count && std::invoke(pred, ch))
 		{
@@ -1647,19 +1673,19 @@ inline constexpr std::basic_string<char16_t, std::char_traits<char16_t>, Allocat
 
 	if (replacements == 0)
 	{
-		return std::basic_string<char16_t, std::char_traits<char16_t>, Allocator>{ source, alloc };
+		return std::basic_string<char32_t, std::char_traits<char32_t>, Allocator>{ source, alloc };
 	}
 
 	const auto output_size = source.size() - removed_size + (replacements * replacement.size());
-	std::basic_string<char16_t, std::char_traits<char16_t>, Allocator> result{ alloc };
+	std::basic_string<char32_t, std::char_traits<char32_t>, Allocator> result{ alloc };
 	result.resize_and_overwrite(output_size,
-		[&](char16_t* buffer, std::size_t) noexcept
+		[&](char32_t* buffer, std::size_t) noexcept
 		{
 			std::size_t write_index = 0;
 			std::size_t replacements_done = 0;
 			for (std::size_t pos = 0; pos < source.size();)
 			{
-				const auto ch = details::utf16_char_from_code_units_at(source, pos);
+				const auto ch = details::utf32_char_from_code_points_at(source, pos);
 				const auto size = static_cast<std::size_t>(ch.code_unit_count());
 				if (replacements_done != replacements && std::invoke(pred, ch))
 				{
@@ -1683,19 +1709,19 @@ inline constexpr std::basic_string<char16_t, std::char_traits<char16_t>, Allocat
 }
 
 template <typename View, typename DelimiterStorage>
-class basic_utf16_split_inclusive_view
-	: public std::ranges::view_interface<basic_utf16_split_inclusive_view<View, DelimiterStorage>>
+class basic_utf32_split_inclusive_view
+	: public std::ranges::view_interface<basic_utf32_split_inclusive_view<View, DelimiterStorage>>
 {
 private:
-	static constexpr basic_utf16_split_inclusive_view from_delimiter_storage(
-		std::u16string_view base,
+	static constexpr basic_utf32_split_inclusive_view from_delimiter_storage(
+		std::u32string_view base,
 		DelimiterStorage delimiter_storage) noexcept
 	{
-		return basic_utf16_split_inclusive_view{ base, delimiter_storage };
+		return basic_utf32_split_inclusive_view{ base, delimiter_storage };
 	}
 
 	template <typename, typename>
-	friend class utf16_string_crtp;
+	friend class utf32_string_crtp;
 
 public:
 	class iterator
@@ -1711,8 +1737,8 @@ public:
 		iterator() = default;
 
 		constexpr iterator(
-			std::u16string_view base,
-			std::u16string_view delimiter,
+			std::u32string_view base,
+			std::u32string_view delimiter,
 			std::size_t current,
 			std::size_t next_delimiter) noexcept
 			: base_(base),
@@ -1724,29 +1750,29 @@ public:
 
 		constexpr reference operator*() const noexcept
 		{
-			const auto end = next_delimiter_ == std::u16string_view::npos
+			const auto end = next_delimiter_ == std::u32string_view::npos
 				? base_.size()
 				: next_delimiter_ + delimiter_.size();
-			return View::from_code_units_unchecked(base_.substr(current_, end - current_));
+			return View::from_code_points_unchecked(base_.substr(current_, end - current_));
 		}
 
 		constexpr iterator& operator++() noexcept
 		{
-			if (next_delimiter_ == std::u16string_view::npos)
+			if (next_delimiter_ == std::u32string_view::npos)
 			{
-				current_ = std::u16string_view::npos;
+				current_ = std::u32string_view::npos;
 				return *this;
 			}
 
 			current_ = next_delimiter_ + delimiter_.size();
 			if (current_ == base_.size())
 			{
-				current_ = std::u16string_view::npos;
-				next_delimiter_ = std::u16string_view::npos;
+				current_ = std::u32string_view::npos;
+				next_delimiter_ = std::u32string_view::npos;
 				return *this;
 			}
 
-			next_delimiter_ = details::find_utf16_split_delimiter(base_, delimiter_, current_);
+			next_delimiter_ = details::find_utf32_split_delimiter(base_, delimiter_, current_);
 			return *this;
 		}
 
@@ -1759,19 +1785,19 @@ public:
 
 		friend constexpr bool operator==(const iterator& it, std::default_sentinel_t) noexcept
 		{
-			return it.current_ == std::u16string_view::npos;
+			return it.current_ == std::u32string_view::npos;
 		}
 
 		friend constexpr bool operator==(std::default_sentinel_t, const iterator& it) noexcept
 		{
-			return it.current_ == std::u16string_view::npos;
+			return it.current_ == std::u32string_view::npos;
 		}
 
 	private:
-		std::u16string_view base_{};
-		std::u16string_view delimiter_{};
-		std::size_t current_ = std::u16string_view::npos;
-		std::size_t next_delimiter_ = std::u16string_view::npos;
+		std::u32string_view base_{};
+		std::u32string_view delimiter_{};
+		std::size_t current_ = std::u32string_view::npos;
+		std::size_t next_delimiter_ = std::u32string_view::npos;
 	};
 
 	constexpr iterator begin() const noexcept
@@ -1780,7 +1806,7 @@ public:
 			base_,
 			delimiter_view(),
 			0,
-			details::find_utf16_split_delimiter(base_, delimiter_view(), 0)
+			details::find_utf32_split_delimiter(base_, delimiter_view(), 0)
 		};
 	}
 
@@ -1790,42 +1816,42 @@ public:
 	}
 
 private:
-	constexpr explicit basic_utf16_split_inclusive_view(
-		std::u16string_view base,
+	constexpr explicit basic_utf32_split_inclusive_view(
+		std::u32string_view base,
 		DelimiterStorage delimiter_storage) noexcept
 		: base_(base), delimiter_storage_(delimiter_storage)
 	{
 	}
 
-	constexpr std::u16string_view delimiter_view() const noexcept
+	constexpr std::u32string_view delimiter_view() const noexcept
 	{
 		return delimiter_storage_.view();
 	}
 
-	std::u16string_view base_{};
+	std::u32string_view base_{};
 	DelimiterStorage delimiter_storage_{};
 };
 
 template <typename View>
-using utf16_split_inclusive_view = basic_utf16_split_inclusive_view<View, borrowed_utf16_split_delimiter>;
+using utf32_split_inclusive_view = basic_utf32_split_inclusive_view<View, borrowed_utf32_split_delimiter>;
 
 template <typename View>
-using utf16_split_inclusive_char_view = basic_utf16_split_inclusive_view<View, owned_utf16_split_char_delimiter>;
+using utf32_split_inclusive_char_view = basic_utf32_split_inclusive_view<View, owned_utf32_split_char_delimiter>;
 
 template <typename View, bool Reverse, typename DelimiterStorage>
-class basic_utf16_match_indices_view
-	: public std::ranges::view_interface<basic_utf16_match_indices_view<View, Reverse, DelimiterStorage>>
+class basic_utf32_match_indices_view
+	: public std::ranges::view_interface<basic_utf32_match_indices_view<View, Reverse, DelimiterStorage>>
 {
 private:
-	static constexpr basic_utf16_match_indices_view from_delimiter_storage(
-		std::u16string_view base,
+	static constexpr basic_utf32_match_indices_view from_delimiter_storage(
+		std::u32string_view base,
 		DelimiterStorage delimiter_storage) noexcept
 	{
-		return basic_utf16_match_indices_view{ base, delimiter_storage };
+		return basic_utf32_match_indices_view{ base, delimiter_storage };
 	}
 
 	template <typename, typename>
-	friend class utf16_string_crtp;
+	friend class utf32_string_crtp;
 
 public:
 	class iterator
@@ -1841,8 +1867,8 @@ public:
 		iterator() = default;
 
 		constexpr iterator(
-			std::u16string_view base,
-			std::u16string_view delimiter,
+			std::u32string_view base,
+			std::u32string_view delimiter,
 			std::size_t current) noexcept
 			: base_(base), delimiter_(delimiter), current_(current)
 		{
@@ -1852,7 +1878,7 @@ public:
 		{
 			return {
 				current_,
-				View::from_code_units_unchecked(base_.substr(current_, delimiter_.size()))
+				View::from_code_points_unchecked(base_.substr(current_, delimiter_.size()))
 			};
 		}
 
@@ -1860,11 +1886,11 @@ public:
 		{
 			if constexpr (Reverse)
 			{
-				current_ = details::rfind_utf16_split_delimiter(base_, delimiter_, current_);
+				current_ = details::rfind_utf32_split_delimiter(base_, delimiter_, current_);
 			}
 			else
 			{
-				current_ = details::find_utf16_split_delimiter(base_, delimiter_, current_ + delimiter_.size());
+				current_ = details::find_utf32_split_delimiter(base_, delimiter_, current_ + delimiter_.size());
 			}
 
 			return *this;
@@ -1879,18 +1905,18 @@ public:
 
 		friend constexpr bool operator==(const iterator& it, std::default_sentinel_t) noexcept
 		{
-			return it.current_ == std::u16string_view::npos;
+			return it.current_ == std::u32string_view::npos;
 		}
 
 		friend constexpr bool operator==(std::default_sentinel_t, const iterator& it) noexcept
 		{
-			return it.current_ == std::u16string_view::npos;
+			return it.current_ == std::u32string_view::npos;
 		}
 
 	private:
-		std::u16string_view base_{};
-		std::u16string_view delimiter_{};
-		std::size_t current_ = std::u16string_view::npos;
+		std::u32string_view base_{};
+		std::u32string_view delimiter_{};
+		std::size_t current_ = std::u32string_view::npos;
 	};
 
 	constexpr iterator begin() const noexcept
@@ -1906,7 +1932,7 @@ public:
 			return iterator{
 				base_,
 				delimiter,
-				details::rfind_utf16_split_delimiter(base_, delimiter, base_.size())
+				details::rfind_utf32_split_delimiter(base_, delimiter, base_.size())
 			};
 		}
 		else
@@ -1914,7 +1940,7 @@ public:
 			return iterator{
 				base_,
 				delimiter,
-				details::find_utf16_split_delimiter(base_, delimiter, 0)
+				details::find_utf32_split_delimiter(base_, delimiter, 0)
 			};
 		}
 	}
@@ -1925,42 +1951,42 @@ public:
 	}
 
 private:
-	constexpr explicit basic_utf16_match_indices_view(
-		std::u16string_view base,
+	constexpr explicit basic_utf32_match_indices_view(
+		std::u32string_view base,
 		DelimiterStorage delimiter_storage) noexcept
 		: base_(base), delimiter_storage_(delimiter_storage)
 	{
 	}
 
-	constexpr std::u16string_view delimiter_view() const noexcept
+	constexpr std::u32string_view delimiter_view() const noexcept
 	{
 		return delimiter_storage_.view();
 	}
 
-	std::u16string_view base_{};
+	std::u32string_view base_{};
 	DelimiterStorage delimiter_storage_{};
 };
 
 template <typename View, bool Reverse>
-using utf16_match_indices_view = basic_utf16_match_indices_view<View, Reverse, borrowed_utf16_split_delimiter>;
+using utf32_match_indices_view = basic_utf32_match_indices_view<View, Reverse, borrowed_utf32_split_delimiter>;
 
 template <typename View, bool Reverse>
-using utf16_match_indices_char_view = basic_utf16_match_indices_view<View, Reverse, owned_utf16_split_char_delimiter>;
+using utf32_match_indices_char_view = basic_utf32_match_indices_view<View, Reverse, owned_utf32_split_char_delimiter>;
 
-template <typename View, bool DropTrailingEmpty, utf16_char_predicate Pred>
-class basic_utf16_predicate_split_view
-	: public std::ranges::view_interface<basic_utf16_predicate_split_view<View, DropTrailingEmpty, Pred>>
+template <typename View, bool DropTrailingEmpty, utf32_char_predicate Pred>
+class basic_utf32_predicate_split_view
+	: public std::ranges::view_interface<basic_utf32_predicate_split_view<View, DropTrailingEmpty, Pred>>
 {
 private:
-	static constexpr basic_utf16_predicate_split_view from_predicate(
-		std::u16string_view base,
+	static constexpr basic_utf32_predicate_split_view from_predicate(
+		std::u32string_view base,
 		Pred pred) noexcept
 	{
-		return basic_utf16_predicate_split_view{ base, pred };
+		return basic_utf32_predicate_split_view{ base, pred };
 	}
 
 	template <typename, typename>
-	friend class utf16_string_crtp;
+	friend class utf32_string_crtp;
 
 public:
 	class iterator
@@ -1976,10 +2002,10 @@ public:
 		iterator() = default;
 
 		constexpr iterator(
-			std::u16string_view base,
+			std::u32string_view base,
 			const Pred* pred,
 			std::size_t current,
-			utf16_predicate_match next_delimiter) noexcept
+			utf32_predicate_match next_delimiter) noexcept
 			: base_(base),
 			  pred_(pred),
 			  current_(current),
@@ -1989,17 +2015,17 @@ public:
 
 		constexpr reference operator*() const noexcept
 		{
-			const auto segment_end = next_delimiter_.pos == std::u16string_view::npos
+			const auto segment_end = next_delimiter_.pos == std::u32string_view::npos
 				? base_.size()
 				: next_delimiter_.pos;
-			return View::from_code_units_unchecked(base_.substr(current_, segment_end - current_));
+			return View::from_code_points_unchecked(base_.substr(current_, segment_end - current_));
 		}
 
 		constexpr iterator& operator++() noexcept
 		{
-			if (next_delimiter_.pos == std::u16string_view::npos)
+			if (next_delimiter_.pos == std::u32string_view::npos)
 			{
-				current_ = std::u16string_view::npos;
+				current_ = std::u32string_view::npos;
 				return *this;
 			}
 
@@ -2008,14 +2034,14 @@ public:
 			{
 				if (next_current == base_.size())
 				{
-					current_ = std::u16string_view::npos;
+					current_ = std::u32string_view::npos;
 					next_delimiter_ = {};
 					return *this;
 				}
 			}
 
 			current_ = next_current;
-			next_delimiter_ = details::find_utf16_predicate_match(base_, current_, *pred_);
+			next_delimiter_ = details::find_utf32_predicate_match(base_, current_, *pred_);
 			return *this;
 		}
 
@@ -2031,10 +2057,10 @@ public:
 			const auto current_for_search = [&]() constexpr noexcept {
 				if constexpr (DropTrailingEmpty)
 				{
-					if (current_ == std::u16string_view::npos)
+					if (current_ == std::u32string_view::npos)
 					{
-						const auto trailing = details::rfind_utf16_predicate_match(base_, base_.size(), *pred_);
-						if (trailing.pos != std::u16string_view::npos
+						const auto trailing = details::rfind_utf32_predicate_match(base_, base_.size(), *pred_);
+						if (trailing.pos != std::u32string_view::npos
 							&& trailing.pos + trailing.size == base_.size())
 						{
 							return base_.size();
@@ -2044,8 +2070,8 @@ public:
 
 				return current_;
 			}();
-			current_ = basic_utf16_predicate_split_view::find_previous_segment_start(base_, *pred_, current_for_search);
-			next_delimiter_ = details::find_utf16_predicate_match(base_, current_, *pred_);
+			current_ = basic_utf32_predicate_split_view::find_previous_segment_start(base_, *pred_, current_for_search);
+			next_delimiter_ = details::find_utf32_predicate_match(base_, current_, *pred_);
 			return *this;
 		}
 
@@ -2058,12 +2084,12 @@ public:
 
 		friend constexpr bool operator==(const iterator& it, std::default_sentinel_t) noexcept
 		{
-			return it.current_ == std::u16string_view::npos;
+			return it.current_ == std::u32string_view::npos;
 		}
 
 		friend constexpr bool operator==(std::default_sentinel_t, const iterator& it) noexcept
 		{
-			return it.current_ == std::u16string_view::npos;
+			return it.current_ == std::u32string_view::npos;
 		}
 
 		friend constexpr bool operator==(const iterator& lhs, const iterator& rhs) noexcept
@@ -2077,10 +2103,10 @@ public:
 		}
 
 	private:
-		std::u16string_view base_{};
+		std::u32string_view base_{};
 		const Pred* pred_ = nullptr;
 		std::size_t current_ = 0;
-		utf16_predicate_match next_delimiter_{};
+		utf32_predicate_match next_delimiter_{};
 	};
 
 	constexpr iterator begin() const noexcept
@@ -2089,7 +2115,7 @@ public:
 			base_,
 			&pred_,
 			0,
-			details::find_utf16_predicate_match(base_, 0, pred_)
+			details::find_utf32_predicate_match(base_, 0, pred_)
 		};
 	}
 
@@ -2098,37 +2124,37 @@ public:
 		return iterator{
 			base_,
 			&pred_,
-			std::u16string_view::npos,
+			std::u32string_view::npos,
 			{}
 		};
 	}
 
 private:
-	constexpr explicit basic_utf16_predicate_split_view(
-		std::u16string_view base,
+	constexpr explicit basic_utf32_predicate_split_view(
+		std::u32string_view base,
 		Pred pred) noexcept
 		: base_(base), pred_(pred)
 	{
 	}
 
 	static constexpr std::size_t find_previous_segment_start(
-		std::u16string_view base,
+		std::u32string_view base,
 		const Pred& pred,
 		std::size_t current) noexcept
 	{
 		std::size_t previous_start = 0;
-		for (auto next = details::find_utf16_predicate_match(base, 0, pred);
-			next.pos != std::u16string_view::npos && next.pos + next.size < current;
-			next = details::find_utf16_predicate_match(base, previous_start, pred))
+		for (auto next = details::find_utf32_predicate_match(base, 0, pred);
+			next.pos != std::u32string_view::npos && next.pos + next.size < current;
+			next = details::find_utf32_predicate_match(base, previous_start, pred))
 		{
 			previous_start = next.pos + next.size;
 		}
 
-		if (current == std::u16string_view::npos)
+		if (current == std::u32string_view::npos)
 		{
-			for (auto next = details::find_utf16_predicate_match(base, 0, pred);
-				next.pos != std::u16string_view::npos;
-				next = details::find_utf16_predicate_match(base, previous_start, pred))
+			for (auto next = details::find_utf32_predicate_match(base, 0, pred);
+				next.pos != std::u32string_view::npos;
+				next = details::find_utf32_predicate_match(base, previous_start, pred))
 			{
 				previous_start = next.pos + next.size;
 			}
@@ -2137,19 +2163,19 @@ private:
 		return previous_start;
 	}
 
-	std::u16string_view base_{};
+	std::u32string_view base_{};
 	Pred pred_;
 };
 
-template <utf16_char_predicate Pred>
-inline constexpr std::size_t find_utf16_non_predicate_boundary(
-	std::u16string_view base,
+template <utf32_char_predicate Pred>
+inline constexpr std::size_t find_utf32_non_predicate_boundary(
+	std::u32string_view base,
 	std::size_t pos,
 	const Pred& pred) noexcept
 {
 	while (pos < base.size())
 	{
-		const auto ch = details::utf16_char_from_code_units_at(base, pos);
+		const auto ch = details::utf32_char_from_code_points_at(base, pos);
 		if (!std::invoke(pred, ch))
 		{
 			return pos;
@@ -2158,23 +2184,23 @@ inline constexpr std::size_t find_utf16_non_predicate_boundary(
 		pos += ch.code_unit_count();
 	}
 
-	return std::u16string_view::npos;
+	return std::u32string_view::npos;
 }
 
-template <typename View, utf16_char_predicate Pred>
-class basic_utf16_predicate_split_trimmed_view
-	: public std::ranges::view_interface<basic_utf16_predicate_split_trimmed_view<View, Pred>>
+template <typename View, utf32_char_predicate Pred>
+class basic_utf32_predicate_split_trimmed_view
+	: public std::ranges::view_interface<basic_utf32_predicate_split_trimmed_view<View, Pred>>
 {
 private:
-	static constexpr basic_utf16_predicate_split_trimmed_view from_predicate(
-		std::u16string_view base,
+	static constexpr basic_utf32_predicate_split_trimmed_view from_predicate(
+		std::u32string_view base,
 		Pred pred) noexcept
 	{
-		return basic_utf16_predicate_split_trimmed_view{ base, pred };
+		return basic_utf32_predicate_split_trimmed_view{ base, pred };
 	}
 
 	template <typename, typename>
-	friend class utf16_string_crtp;
+	friend class utf32_string_crtp;
 
 public:
 	class iterator
@@ -2190,10 +2216,10 @@ public:
 		iterator() = default;
 
 		constexpr iterator(
-			std::u16string_view base,
+			std::u32string_view base,
 			const Pred* pred,
 			std::size_t current,
-			utf16_predicate_match next_delimiter) noexcept
+			utf32_predicate_match next_delimiter) noexcept
 			: base_(base),
 			  pred_(pred),
 			  current_(current),
@@ -2203,28 +2229,28 @@ public:
 
 		constexpr reference operator*() const noexcept
 		{
-			const auto end = next_delimiter_.pos == std::u16string_view::npos
+			const auto end = next_delimiter_.pos == std::u32string_view::npos
 				? base_.size()
 				: next_delimiter_.pos;
-			return View::from_code_units_unchecked(base_.substr(current_, end - current_));
+			return View::from_code_points_unchecked(base_.substr(current_, end - current_));
 		}
 
 		constexpr iterator& operator++() noexcept
 		{
-			if (next_delimiter_.pos == std::u16string_view::npos)
+			if (next_delimiter_.pos == std::u32string_view::npos)
 			{
-				current_ = std::u16string_view::npos;
+				current_ = std::u32string_view::npos;
 				return *this;
 			}
 
-			current_ = details::find_utf16_non_predicate_boundary(base_, next_delimiter_.pos + next_delimiter_.size, *pred_);
-			if (current_ == std::u16string_view::npos)
+			current_ = details::find_utf32_non_predicate_boundary(base_, next_delimiter_.pos + next_delimiter_.size, *pred_);
+			if (current_ == std::u32string_view::npos)
 			{
 				next_delimiter_ = {};
 				return *this;
 			}
 
-			next_delimiter_ = details::find_utf16_predicate_match(base_, current_, *pred_);
+			next_delimiter_ = details::find_utf32_predicate_match(base_, current_, *pred_);
 			return *this;
 		}
 
@@ -2237,25 +2263,25 @@ public:
 
 		friend constexpr bool operator==(const iterator& it, std::default_sentinel_t) noexcept
 		{
-			return it.current_ == std::u16string_view::npos;
+			return it.current_ == std::u32string_view::npos;
 		}
 
 		friend constexpr bool operator==(std::default_sentinel_t, const iterator& it) noexcept
 		{
-			return it.current_ == std::u16string_view::npos;
+			return it.current_ == std::u32string_view::npos;
 		}
 
 	private:
-		std::u16string_view base_{};
+		std::u32string_view base_{};
 		const Pred* pred_ = nullptr;
-		std::size_t current_ = std::u16string_view::npos;
-		utf16_predicate_match next_delimiter_{};
+		std::size_t current_ = std::u32string_view::npos;
+		utf32_predicate_match next_delimiter_{};
 	};
 
 	constexpr iterator begin() const noexcept
 	{
-		const auto current = details::find_utf16_non_predicate_boundary(base_, 0, pred_);
-		if (current == std::u16string_view::npos)
+		const auto current = details::find_utf32_non_predicate_boundary(base_, 0, pred_);
+		if (current == std::u32string_view::npos)
 		{
 			return iterator{};
 		}
@@ -2264,7 +2290,7 @@ public:
 			base_,
 			&pred_,
 			current,
-			details::find_utf16_predicate_match(base_, current, pred_)
+			details::find_utf32_predicate_match(base_, current, pred_)
 		};
 	}
 
@@ -2274,32 +2300,32 @@ public:
 	}
 
 private:
-	constexpr explicit basic_utf16_predicate_split_trimmed_view(
-		std::u16string_view base,
+	constexpr explicit basic_utf32_predicate_split_trimmed_view(
+		std::u32string_view base,
 		Pred pred) noexcept
 		: base_(base), pred_(pred)
 	{
 	}
 
-	std::u16string_view base_{};
+	std::u32string_view base_{};
 	Pred pred_;
 };
 
-template <typename View, bool Reverse, utf16_char_predicate Pred>
-class basic_utf16_predicate_splitn_view
-	: public std::ranges::view_interface<basic_utf16_predicate_splitn_view<View, Reverse, Pred>>
+template <typename View, bool Reverse, utf32_char_predicate Pred>
+class basic_utf32_predicate_splitn_view
+	: public std::ranges::view_interface<basic_utf32_predicate_splitn_view<View, Reverse, Pred>>
 {
 private:
-	static constexpr basic_utf16_predicate_splitn_view from_predicate(
-		std::u16string_view base,
+	static constexpr basic_utf32_predicate_splitn_view from_predicate(
+		std::u32string_view base,
 		Pred pred,
 		std::size_t count) noexcept
 	{
-		return basic_utf16_predicate_splitn_view{ base, pred, count };
+		return basic_utf32_predicate_splitn_view{ base, pred, count };
 	}
 
 	template <typename, typename>
-	friend class utf16_string_crtp;
+	friend class utf32_string_crtp;
 
 public:
 	class iterator
@@ -2315,10 +2341,10 @@ public:
 		iterator() = default;
 
 		constexpr iterator(
-			std::u16string_view base,
+			std::u32string_view base,
 			const Pred* pred,
 			std::size_t current,
-			utf16_predicate_match delimiter,
+			utf32_predicate_match delimiter,
 			std::size_t remaining) noexcept
 			: base_(base),
 			  pred_(pred),
@@ -2332,30 +2358,30 @@ public:
 		{
 			if constexpr (Reverse)
 			{
-				if (remaining_ == 1 || delimiter_.pos == std::u16string_view::npos)
+				if (remaining_ == 1 || delimiter_.pos == std::u32string_view::npos)
 				{
-					return View::from_code_units_unchecked(base_.substr(0, current_));
+					return View::from_code_points_unchecked(base_.substr(0, current_));
 				}
 
 				const auto segment_start = delimiter_.pos + delimiter_.size;
-				return View::from_code_units_unchecked(base_.substr(segment_start, current_ - segment_start));
+				return View::from_code_points_unchecked(base_.substr(segment_start, current_ - segment_start));
 			}
 			else
 			{
-				if (remaining_ == 1 || delimiter_.pos == std::u16string_view::npos)
+				if (remaining_ == 1 || delimiter_.pos == std::u32string_view::npos)
 				{
-					return View::from_code_units_unchecked(base_.substr(current_));
+					return View::from_code_points_unchecked(base_.substr(current_));
 				}
 
-				return View::from_code_units_unchecked(base_.substr(current_, delimiter_.pos - current_));
+				return View::from_code_points_unchecked(base_.substr(current_, delimiter_.pos - current_));
 			}
 		}
 
 		constexpr iterator& operator++() noexcept
 		{
-			if (remaining_ == 1 || delimiter_.pos == std::u16string_view::npos)
+			if (remaining_ == 1 || delimiter_.pos == std::u32string_view::npos)
 			{
-				current_ = std::u16string_view::npos;
+				current_ = std::u32string_view::npos;
 				delimiter_ = {};
 				remaining_ = 0;
 				return *this;
@@ -2365,12 +2391,12 @@ public:
 			if constexpr (Reverse)
 			{
 				current_ = delimiter_.pos;
-				delimiter_ = details::rfind_utf16_predicate_match(base_, current_, *pred_);
+				delimiter_ = details::rfind_utf32_predicate_match(base_, current_, *pred_);
 			}
 			else
 			{
 				current_ = delimiter_.pos + delimiter_.size;
-				delimiter_ = details::find_utf16_predicate_match(base_, current_, *pred_);
+				delimiter_ = details::find_utf32_predicate_match(base_, current_, *pred_);
 			}
 			return *this;
 		}
@@ -2393,10 +2419,10 @@ public:
 		}
 
 	private:
-		std::u16string_view base_{};
+		std::u32string_view base_{};
 		const Pred* pred_ = nullptr;
-		std::size_t current_ = std::u16string_view::npos;
-		utf16_predicate_match delimiter_{};
+		std::size_t current_ = std::u32string_view::npos;
+		utf32_predicate_match delimiter_{};
 		std::size_t remaining_ = 0;
 	};
 
@@ -2413,7 +2439,7 @@ public:
 				base_,
 				&pred_,
 				base_.size(),
-				details::rfind_utf16_predicate_match(base_, base_.size(), pred_),
+				details::rfind_utf32_predicate_match(base_, base_.size(), pred_),
 				count_
 			};
 		}
@@ -2423,7 +2449,7 @@ public:
 				base_,
 				&pred_,
 				0,
-				details::find_utf16_predicate_match(base_, 0, pred_),
+				details::find_utf32_predicate_match(base_, 0, pred_),
 				count_
 			};
 		}
@@ -2435,33 +2461,33 @@ public:
 	}
 
 private:
-	constexpr explicit basic_utf16_predicate_splitn_view(
-		std::u16string_view base,
+	constexpr explicit basic_utf32_predicate_splitn_view(
+		std::u32string_view base,
 		Pred pred,
 		std::size_t count) noexcept
 		: base_(base), pred_(pred), count_(count)
 	{
 	}
 
-	std::u16string_view base_{};
+	std::u32string_view base_{};
 	Pred pred_;
 	std::size_t count_ = 0;
 };
 
-template <typename View, utf16_char_predicate Pred>
-class basic_utf16_predicate_split_inclusive_view
-	: public std::ranges::view_interface<basic_utf16_predicate_split_inclusive_view<View, Pred>>
+template <typename View, utf32_char_predicate Pred>
+class basic_utf32_predicate_split_inclusive_view
+	: public std::ranges::view_interface<basic_utf32_predicate_split_inclusive_view<View, Pred>>
 {
 private:
-	static constexpr basic_utf16_predicate_split_inclusive_view from_predicate(
-		std::u16string_view base,
+	static constexpr basic_utf32_predicate_split_inclusive_view from_predicate(
+		std::u32string_view base,
 		Pred pred) noexcept
 	{
-		return basic_utf16_predicate_split_inclusive_view{ base, pred };
+		return basic_utf32_predicate_split_inclusive_view{ base, pred };
 	}
 
 	template <typename, typename>
-	friend class utf16_string_crtp;
+	friend class utf32_string_crtp;
 
 public:
 	class iterator
@@ -2477,10 +2503,10 @@ public:
 		iterator() = default;
 
 		constexpr iterator(
-			std::u16string_view base,
+			std::u32string_view base,
 			const Pred* pred,
 			std::size_t current,
-			utf16_predicate_match next_delimiter) noexcept
+			utf32_predicate_match next_delimiter) noexcept
 			: base_(base),
 			  pred_(pred),
 			  current_(current),
@@ -2490,29 +2516,29 @@ public:
 
 		constexpr reference operator*() const noexcept
 		{
-			const auto end = next_delimiter_.pos == std::u16string_view::npos
+			const auto end = next_delimiter_.pos == std::u32string_view::npos
 				? base_.size()
 				: next_delimiter_.pos + next_delimiter_.size;
-			return View::from_code_units_unchecked(base_.substr(current_, end - current_));
+			return View::from_code_points_unchecked(base_.substr(current_, end - current_));
 		}
 
 		constexpr iterator& operator++() noexcept
 		{
-			if (next_delimiter_.pos == std::u16string_view::npos)
+			if (next_delimiter_.pos == std::u32string_view::npos)
 			{
-				current_ = std::u16string_view::npos;
+				current_ = std::u32string_view::npos;
 				return *this;
 			}
 
 			current_ = next_delimiter_.pos + next_delimiter_.size;
 			if (current_ == base_.size())
 			{
-				current_ = std::u16string_view::npos;
+				current_ = std::u32string_view::npos;
 				next_delimiter_ = {};
 				return *this;
 			}
 
-			next_delimiter_ = details::find_utf16_predicate_match(base_, current_, *pred_);
+			next_delimiter_ = details::find_utf32_predicate_match(base_, current_, *pred_);
 			return *this;
 		}
 
@@ -2525,19 +2551,19 @@ public:
 
 		friend constexpr bool operator==(const iterator& it, std::default_sentinel_t) noexcept
 		{
-			return it.current_ == std::u16string_view::npos;
+			return it.current_ == std::u32string_view::npos;
 		}
 
 		friend constexpr bool operator==(std::default_sentinel_t, const iterator& it) noexcept
 		{
-			return it.current_ == std::u16string_view::npos;
+			return it.current_ == std::u32string_view::npos;
 		}
 
 	private:
-		std::u16string_view base_{};
+		std::u32string_view base_{};
 		const Pred* pred_ = nullptr;
-		std::size_t current_ = std::u16string_view::npos;
-		utf16_predicate_match next_delimiter_{};
+		std::size_t current_ = std::u32string_view::npos;
+		utf32_predicate_match next_delimiter_{};
 	};
 
 	constexpr iterator begin() const noexcept
@@ -2546,7 +2572,7 @@ public:
 			base_,
 			&pred_,
 			0,
-			details::find_utf16_predicate_match(base_, 0, pred_)
+			details::find_utf32_predicate_match(base_, 0, pred_)
 		};
 	}
 
@@ -2556,31 +2582,31 @@ public:
 	}
 
 private:
-	constexpr explicit basic_utf16_predicate_split_inclusive_view(
-		std::u16string_view base,
+	constexpr explicit basic_utf32_predicate_split_inclusive_view(
+		std::u32string_view base,
 		Pred pred) noexcept
 		: base_(base), pred_(pred)
 	{
 	}
 
-	std::u16string_view base_{};
+	std::u32string_view base_{};
 	Pred pred_;
 };
 
-template <typename View, bool Reverse, utf16_char_predicate Pred>
-class basic_utf16_predicate_match_indices_view
-	: public std::ranges::view_interface<basic_utf16_predicate_match_indices_view<View, Reverse, Pred>>
+template <typename View, bool Reverse, utf32_char_predicate Pred>
+class basic_utf32_predicate_match_indices_view
+	: public std::ranges::view_interface<basic_utf32_predicate_match_indices_view<View, Reverse, Pred>>
 {
 private:
-	static constexpr basic_utf16_predicate_match_indices_view from_predicate(
-		std::u16string_view base,
+	static constexpr basic_utf32_predicate_match_indices_view from_predicate(
+		std::u32string_view base,
 		Pred pred) noexcept
 	{
-		return basic_utf16_predicate_match_indices_view{ base, pred };
+		return basic_utf32_predicate_match_indices_view{ base, pred };
 	}
 
 	template <typename, typename>
-	friend class utf16_string_crtp;
+	friend class utf32_string_crtp;
 
 public:
 	class iterator
@@ -2596,9 +2622,9 @@ public:
 		iterator() = default;
 
 		constexpr iterator(
-			std::u16string_view base,
+			std::u32string_view base,
 			const Pred* pred,
-			utf16_predicate_match current) noexcept
+			utf32_predicate_match current) noexcept
 			: base_(base), pred_(pred), current_(current)
 		{
 		}
@@ -2607,7 +2633,7 @@ public:
 		{
 			return {
 				current_.pos,
-				View::from_code_units_unchecked(base_.substr(current_.pos, current_.size))
+				View::from_code_points_unchecked(base_.substr(current_.pos, current_.size))
 			};
 		}
 
@@ -2615,11 +2641,11 @@ public:
 		{
 			if constexpr (Reverse)
 			{
-				current_ = details::rfind_utf16_predicate_match(base_, current_.pos, *pred_);
+				current_ = details::rfind_utf32_predicate_match(base_, current_.pos, *pred_);
 			}
 			else
 			{
-				current_ = details::find_utf16_predicate_match(base_, current_.pos + current_.size, *pred_);
+				current_ = details::find_utf32_predicate_match(base_, current_.pos + current_.size, *pred_);
 			}
 
 			return *this;
@@ -2634,18 +2660,18 @@ public:
 
 		friend constexpr bool operator==(const iterator& it, std::default_sentinel_t) noexcept
 		{
-			return it.current_.pos == std::u16string_view::npos;
+			return it.current_.pos == std::u32string_view::npos;
 		}
 
 		friend constexpr bool operator==(std::default_sentinel_t, const iterator& it) noexcept
 		{
-			return it.current_.pos == std::u16string_view::npos;
+			return it.current_.pos == std::u32string_view::npos;
 		}
 
 	private:
-		std::u16string_view base_{};
+		std::u32string_view base_{};
 		const Pred* pred_ = nullptr;
-		utf16_predicate_match current_{};
+		utf32_predicate_match current_{};
 	};
 
 	constexpr iterator begin() const noexcept
@@ -2655,7 +2681,7 @@ public:
 			return iterator{
 				base_,
 				&pred_,
-				details::rfind_utf16_predicate_match(base_, base_.size(), pred_)
+				details::rfind_utf32_predicate_match(base_, base_.size(), pred_)
 			};
 		}
 		else
@@ -2663,7 +2689,7 @@ public:
 			return iterator{
 				base_,
 				&pred_,
-				details::find_utf16_predicate_match(base_, 0, pred_)
+				details::find_utf32_predicate_match(base_, 0, pred_)
 			};
 		}
 	}
@@ -2674,80 +2700,79 @@ public:
 	}
 
 private:
-	constexpr explicit basic_utf16_predicate_match_indices_view(
-		std::u16string_view base,
+	constexpr explicit basic_utf32_predicate_match_indices_view(
+		std::u32string_view base,
 		Pred pred) noexcept
 		: base_(base), pred_(pred)
 	{
 	}
 
-	std::u16string_view base_{};
+	std::u32string_view base_{};
 	Pred pred_;
 };
 
-inline constexpr bool utf16_char_is_whitespace_at(
-	std::u16string_view base,
+inline constexpr bool utf32_char_is_whitespace_at(
+	std::u32string_view base,
 	std::size_t pos,
 	bool ascii_only) noexcept
 {
-	const auto first = static_cast<std::uint16_t>(base[pos]);
-	const auto len = details::is_utf16_high_surrogate(first) ? 2u : 1u;
-	const auto ch = utf16_char::from_utf16_code_units_unchecked(base.data() + pos, len);
+	const auto ch = utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(base[pos]));
 	return ascii_only ? ch.is_ascii_whitespace() : ch.is_whitespace();
 }
 
-inline constexpr std::size_t next_utf16_scalar_boundary(
-	std::u16string_view base,
+inline constexpr std::size_t next_utf32_scalar_boundary(
+	std::u32string_view base,
 	std::size_t pos) noexcept
 {
-	return pos + (details::is_utf16_high_surrogate(static_cast<std::uint16_t>(base[pos])) ? 2u : 1u);
+	(void)base;
+	return pos + 1u;
 }
 
-inline constexpr std::size_t find_utf16_non_whitespace_boundary(
-	std::u16string_view base,
+inline constexpr std::size_t find_utf32_non_whitespace_boundary(
+	std::u32string_view base,
 	std::size_t pos,
 	bool ascii_only) noexcept
 {
 	while (pos < base.size())
 	{
-		if (!details::utf16_char_is_whitespace_at(base, pos, ascii_only))
+		if (!details::utf32_char_is_whitespace_at(base, pos, ascii_only))
 		{
 			return pos;
 		}
 
-		pos = details::next_utf16_scalar_boundary(base, pos);
+		pos = details::next_utf32_scalar_boundary(base, pos);
 	}
 
-	return std::u16string_view::npos;
+	return std::u32string_view::npos;
 }
 
-inline constexpr std::size_t find_utf16_whitespace_boundary(
-	std::u16string_view base,
+inline constexpr std::size_t find_utf32_whitespace_boundary(
+	std::u32string_view base,
 	std::size_t pos,
 	bool ascii_only) noexcept
 {
 	while (pos < base.size())
 	{
-		if (details::utf16_char_is_whitespace_at(base, pos, ascii_only))
+		if (details::utf32_char_is_whitespace_at(base, pos, ascii_only))
 		{
 			return pos;
 		}
 
-		pos = details::next_utf16_scalar_boundary(base, pos);
+		pos = details::next_utf32_scalar_boundary(base, pos);
 	}
 
-	return std::u16string_view::npos;
+	return std::u32string_view::npos;
 }
 
-inline constexpr std::size_t utf16_trim_end_boundary(
-	std::u16string_view base,
+inline constexpr std::size_t utf32_trim_end_boundary(
+	std::u32string_view base,
 	bool ascii_only) noexcept
 {
 	std::size_t end = 0;
 	for (std::size_t pos = 0; pos < base.size();)
 	{
-		const auto next = details::next_utf16_scalar_boundary(base, pos);
-		if (!details::utf16_char_is_whitespace_at(base, pos, ascii_only))
+		const auto next = details::next_utf32_scalar_boundary(base, pos);
+		if (!details::utf32_char_is_whitespace_at(base, pos, ascii_only))
 		{
 			end = next;
 		}
@@ -2759,17 +2784,17 @@ inline constexpr std::size_t utf16_trim_end_boundary(
 }
 
 template <typename View, bool AsciiOnly>
-class utf16_whitespace_split_view : public std::ranges::view_interface<utf16_whitespace_split_view<View, AsciiOnly>>
+class utf32_whitespace_split_view : public std::ranges::view_interface<utf32_whitespace_split_view<View, AsciiOnly>>
 {
 private:
-	static constexpr utf16_whitespace_split_view from_code_units_unchecked(std::u16string_view base) noexcept
+	static constexpr utf32_whitespace_split_view from_code_points_unchecked(std::u32string_view base) noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf16(base).has_value());
-		return utf16_whitespace_split_view{ base };
+		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf32(base).has_value());
+		return utf32_whitespace_split_view{ base };
 	}
 
 	template <typename, typename>
-	friend class utf16_string_crtp;
+	friend class utf32_string_crtp;
 
 public:
 
@@ -2786,7 +2811,7 @@ public:
 		iterator() = default;
 
 		constexpr iterator(
-			std::u16string_view base,
+			std::u32string_view base,
 			std::size_t current,
 			std::size_t next_whitespace) noexcept
 			: base_(base), current_(current), next_whitespace_(next_whitespace)
@@ -2794,25 +2819,25 @@ public:
 
 		constexpr reference operator*() const noexcept
 		{
-			const auto end = next_whitespace_ == std::u16string_view::npos
+			const auto end = next_whitespace_ == std::u32string_view::npos
 				? base_.size()
 				: next_whitespace_;
-			return View::from_code_units_unchecked(base_.substr(current_, end - current_));
+			return View::from_code_points_unchecked(base_.substr(current_, end - current_));
 		}
 
 		constexpr iterator& operator++() noexcept
 		{
-			current_ = details::find_utf16_non_whitespace_boundary(
+			current_ = details::find_utf32_non_whitespace_boundary(
 				base_,
-				next_whitespace_ == std::u16string_view::npos ? base_.size() : next_whitespace_,
+				next_whitespace_ == std::u32string_view::npos ? base_.size() : next_whitespace_,
 				AsciiOnly);
-			if (current_ == std::u16string_view::npos)
+			if (current_ == std::u32string_view::npos)
 			{
-				next_whitespace_ = std::u16string_view::npos;
+				next_whitespace_ = std::u32string_view::npos;
 				return *this;
 			}
 
-			next_whitespace_ = details::find_utf16_whitespace_boundary(base_, current_, AsciiOnly);
+			next_whitespace_ = details::find_utf32_whitespace_boundary(base_, current_, AsciiOnly);
 			return *this;
 		}
 
@@ -2825,24 +2850,24 @@ public:
 
 		friend constexpr bool operator==(const iterator& it, std::default_sentinel_t) noexcept
 		{
-			return it.current_ == std::u16string_view::npos;
+			return it.current_ == std::u32string_view::npos;
 		}
 
 		friend constexpr bool operator==(std::default_sentinel_t, const iterator& it) noexcept
 		{
-			return it.current_ == std::u16string_view::npos;
+			return it.current_ == std::u32string_view::npos;
 		}
 
 	private:
-		std::u16string_view base_{};
-		std::size_t current_ = std::u16string_view::npos;
-		std::size_t next_whitespace_ = std::u16string_view::npos;
+		std::u32string_view base_{};
+		std::size_t current_ = std::u32string_view::npos;
+		std::size_t next_whitespace_ = std::u32string_view::npos;
 	};
 
 	constexpr iterator begin() const noexcept
 	{
-		const auto current = details::find_utf16_non_whitespace_boundary(base_, 0, AsciiOnly);
-		if (current == std::u16string_view::npos)
+		const auto current = details::find_utf32_non_whitespace_boundary(base_, 0, AsciiOnly);
+		if (current == std::u32string_view::npos)
 		{
 			return iterator{};
 		}
@@ -2850,7 +2875,7 @@ public:
 		return iterator{
 			base_,
 			current,
-			details::find_utf16_whitespace_boundary(base_, current, AsciiOnly)
+			details::find_utf32_whitespace_boundary(base_, current, AsciiOnly)
 		};
 	}
 
@@ -2860,15 +2885,15 @@ public:
 	}
 
 private:
-	constexpr explicit utf16_whitespace_split_view(std::u16string_view base) noexcept
+	constexpr explicit utf32_whitespace_split_view(std::u32string_view base) noexcept
 		: base_(base)
 	{}
 
-	std::u16string_view base_{};
+	std::u32string_view base_{};
 };
 
 template <typename Derived, typename View>
-class utf16_string_crtp
+class utf32_string_crtp
 {
 public:
 	using size_type = std::size_t;
@@ -2877,89 +2902,89 @@ public:
 
 	constexpr auto chars() const noexcept
 	{
-		return views::utf16_view::from_code_units_unchecked(code_unit_view());
+		return views::utf32_view::from_code_points_unchecked(code_unit_view());
 	}
 
 	constexpr auto reversed_chars() const noexcept
 	{
-		return views::reversed_utf16_view::from_code_units_unchecked(code_unit_view());
+		return views::reversed_utf32_view{ chars() };
 	}
 
-	constexpr auto graphemes() const noexcept -> views::grapheme_cluster_view<char16_t>;
-	template <typename Allocator = std::allocator<char16_t>>
-	constexpr basic_utf16_string<Allocator> to_utf16_owned(const Allocator& alloc = Allocator()) const;
-	template <typename Allocator = std::allocator<char16_t>>
-	constexpr basic_utf16_string<Allocator> to_ascii_lowercase(const Allocator& alloc = Allocator()) const;
-	template <typename Allocator = std::allocator<char16_t>>
-	constexpr basic_utf16_string<Allocator> to_ascii_lowercase(
+	constexpr auto graphemes() const noexcept -> views::grapheme_cluster_view<char32_t>;
+	template <typename Allocator = std::allocator<char32_t>>
+	constexpr basic_utf32_string<Allocator> to_utf32_owned(const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char32_t>>
+	constexpr basic_utf32_string<Allocator> to_ascii_lowercase(const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char32_t>>
+	constexpr basic_utf32_string<Allocator> to_ascii_lowercase(
 		size_type pos,
 		size_type count,
 		const Allocator& alloc = Allocator()) const;
-	template <typename Allocator = std::allocator<char16_t>>
-	constexpr basic_utf16_string<Allocator> to_ascii_uppercase(const Allocator& alloc = Allocator()) const;
-	template <typename Allocator = std::allocator<char16_t>>
-	constexpr basic_utf16_string<Allocator> to_ascii_uppercase(
+	template <typename Allocator = std::allocator<char32_t>>
+	constexpr basic_utf32_string<Allocator> to_ascii_uppercase(const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char32_t>>
+	constexpr basic_utf32_string<Allocator> to_ascii_uppercase(
 		size_type pos,
 		size_type count,
 		const Allocator& alloc = Allocator()) const;
-	template <typename Allocator = std::allocator<char16_t>>
-	constexpr basic_utf16_string<Allocator> to_lowercase(const Allocator& alloc = Allocator()) const;
-	template <typename Allocator = std::allocator<char16_t>>
-	constexpr basic_utf16_string<Allocator> to_lowercase(
+	template <typename Allocator = std::allocator<char32_t>>
+	constexpr basic_utf32_string<Allocator> to_lowercase(const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char32_t>>
+	constexpr basic_utf32_string<Allocator> to_lowercase(
 		size_type pos,
 		size_type count,
 		const Allocator& alloc = Allocator()) const;
 #if UTF8_RANGES_HAS_ICU
-	template <typename Allocator = std::allocator<char16_t>>
-	basic_utf16_string<Allocator> to_lowercase(locale_id locale, const Allocator& alloc = Allocator()) const;
-	template <typename Allocator = std::allocator<char16_t>>
-	basic_utf16_string<Allocator> to_lowercase(
+	template <typename Allocator = std::allocator<char32_t>>
+	basic_utf32_string<Allocator> to_lowercase(locale_id locale, const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char32_t>>
+	basic_utf32_string<Allocator> to_lowercase(
 		size_type pos,
 		size_type count,
 		locale_id locale,
 		const Allocator& alloc = Allocator()) const;
-	template <typename Allocator = std::allocator<char16_t>>
-	basic_utf16_string<Allocator> to_uppercase(locale_id locale, const Allocator& alloc = Allocator()) const;
-	template <typename Allocator = std::allocator<char16_t>>
-	basic_utf16_string<Allocator> to_uppercase(
+	template <typename Allocator = std::allocator<char32_t>>
+	basic_utf32_string<Allocator> to_uppercase(locale_id locale, const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char32_t>>
+	basic_utf32_string<Allocator> to_uppercase(
 		size_type pos,
 		size_type count,
 		locale_id locale,
 		const Allocator& alloc = Allocator()) const;
-	template <typename Allocator = std::allocator<char16_t>>
-	basic_utf16_string<Allocator> to_titlecase(locale_id locale, const Allocator& alloc = Allocator()) const;
-	template <typename Allocator = std::allocator<char16_t>>
-	basic_utf16_string<Allocator> case_fold(locale_id locale, const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char32_t>>
+	basic_utf32_string<Allocator> to_titlecase(locale_id locale, const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char32_t>>
+	basic_utf32_string<Allocator> case_fold(locale_id locale, const Allocator& alloc = Allocator()) const;
 	bool eq_ignore_case(View sv, locale_id locale) const;
 	bool starts_with_ignore_case(View sv, locale_id locale) const;
 	bool ends_with_ignore_case(View sv, locale_id locale) const;
 	std::weak_ordering compare_ignore_case(View sv, locale_id locale) const;
 #endif
-	template <typename Allocator = std::allocator<char16_t>>
-	constexpr basic_utf16_string<Allocator> to_uppercase(const Allocator& alloc = Allocator()) const;
-	template <typename Allocator = std::allocator<char16_t>>
-	constexpr basic_utf16_string<Allocator> to_uppercase(
+	template <typename Allocator = std::allocator<char32_t>>
+	constexpr basic_utf32_string<Allocator> to_uppercase(const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char32_t>>
+	constexpr basic_utf32_string<Allocator> to_uppercase(
 		size_type pos,
 		size_type count,
 		const Allocator& alloc = Allocator()) const;
-	template <typename Allocator = std::allocator<char16_t>>
-	constexpr basic_utf16_string<Allocator> normalize(
+	template <typename Allocator = std::allocator<char32_t>>
+	constexpr basic_utf32_string<Allocator> normalize(
 		normalization_form form,
 		const Allocator& alloc = Allocator()) const;
-	template <typename Allocator = std::allocator<char16_t>>
-	constexpr basic_utf16_string<Allocator> to_nfc(const Allocator& alloc = Allocator()) const;
-	template <typename Allocator = std::allocator<char16_t>>
-	constexpr basic_utf16_string<Allocator> to_nfd(const Allocator& alloc = Allocator()) const;
-	template <typename Allocator = std::allocator<char16_t>>
-	constexpr basic_utf16_string<Allocator> to_nfkc(const Allocator& alloc = Allocator()) const;
-	template <typename Allocator = std::allocator<char16_t>>
-	constexpr basic_utf16_string<Allocator> to_nfkd(const Allocator& alloc = Allocator()) const;
-	template <typename Allocator = std::allocator<char16_t>>
-	constexpr basic_utf16_string<Allocator> case_fold(const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char32_t>>
+	constexpr basic_utf32_string<Allocator> to_nfc(const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char32_t>>
+	constexpr basic_utf32_string<Allocator> to_nfd(const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char32_t>>
+	constexpr basic_utf32_string<Allocator> to_nfkc(const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char32_t>>
+	constexpr basic_utf32_string<Allocator> to_nfkd(const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char32_t>>
+	constexpr basic_utf32_string<Allocator> case_fold(const Allocator& alloc = Allocator()) const;
 	template <typename Allocator = std::allocator<char8_t>>
 	constexpr basic_utf8_string<Allocator> to_utf8(const Allocator& alloc = Allocator()) const;
-	template <typename Allocator = std::allocator<char32_t>>
-	constexpr basic_utf32_string<Allocator> to_utf32(const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char16_t>>
+	constexpr basic_utf16_string<Allocator> to_utf16(const Allocator& alloc = Allocator()) const;
 	constexpr bool eq_ignore_case(View sv) const noexcept;
 	constexpr bool starts_with_ignore_case(View sv) const noexcept;
 	constexpr bool ends_with_ignore_case(View sv) const noexcept;
@@ -2978,7 +3003,7 @@ public:
 	constexpr bool is_ascii() const noexcept
 	{
 		return std::ranges::all_of(code_unit_view(),
-			[](char16_t code_unit) noexcept
+			[](char32_t code_unit) noexcept
 			{
 				return static_cast<std::uint16_t>(code_unit) <= details::encoding_constants::ascii_scalar_max;
 			});
@@ -2986,12 +3011,12 @@ public:
 
 	constexpr auto char_indices() const noexcept
 	{
-		return utf16_char_indices_view::from_code_units_unchecked(code_unit_view());
+		return utf32_char_indices_view::from_code_points_unchecked(code_unit_view());
 	}
 
 	constexpr auto grapheme_indices() const noexcept
 	{
-		return utf16_grapheme_indices_view<View>::from_code_units_unchecked(code_unit_view());
+		return utf32_grapheme_indices_view<View>::from_code_points_unchecked(code_unit_view());
 	}
 
 	constexpr bool is_grapheme_boundary(size_type index) const noexcept
@@ -3001,7 +3026,7 @@ public:
 
 	constexpr bool is_normalized(normalization_form form) const
 	{
-		return normalize(form) == View::from_code_units_unchecked(code_unit_view());
+		return normalize(form) == View::from_code_points_unchecked(code_unit_view());
 	}
 
 	constexpr bool is_nfc() const
@@ -3024,7 +3049,7 @@ public:
 		return is_normalized(normalization_form::nfkd);
 	}
 
-	constexpr bool contains(utf16_char ch) const noexcept
+	constexpr bool contains(utf32_char ch) const noexcept
 	{
 		return find(ch) != npos;
 	}
@@ -3034,7 +3059,7 @@ public:
 		return find(sv) != npos;
 	}
 
-	constexpr bool contains(std::span<const utf16_char> chars) const noexcept
+	constexpr bool contains(std::span<const utf32_char> chars) const noexcept
 	{
 		if (chars.empty())
 		{
@@ -3046,16 +3071,16 @@ public:
 			return contains(chars.front());
 		}
 
-		return find(details::utf16_char_span_matcher{ chars }) != npos;
+		return find(details::utf32_char_span_matcher{ chars }) != npos;
 	}
 
-	template <details::utf16_char_predicate Pred>
+	template <details::utf32_char_predicate Pred>
 	constexpr bool contains(Pred pred) const noexcept
 	{
 		return find(pred) != npos;
 	}
 
-	constexpr bool contains_grapheme(utf16_char ch) const noexcept
+	constexpr bool contains_grapheme(utf32_char ch) const noexcept
 	{
 		return find_grapheme(ch) != npos;
 	}
@@ -3065,7 +3090,7 @@ public:
 		return find_grapheme(sv) != npos;
 	}
 
-	constexpr size_type find(char16_t ch, size_type pos = 0) const noexcept
+	constexpr size_type find(char32_t ch, size_type pos = 0) const noexcept
 	{
 		pos = (std::min)(size(), pos);
 		if consteval
@@ -3086,21 +3111,21 @@ public:
 		}
 	}
 
-	constexpr size_type find(utf16_char ch, size_type pos = 0) const noexcept
+	constexpr size_type find(utf32_char ch, size_type pos = 0) const noexcept
 	{
 		pos = ceil_char_boundary((std::min)(size(), pos));
-		const auto needle = details::utf16_char_view(ch);
-		return details::find_utf16_exact(code_unit_view(), needle, pos);
+		const auto needle = details::utf32_char_view(ch);
+		return details::find_utf32_exact(code_unit_view(), needle, pos);
 	}
 
 	constexpr size_type find(View sv, size_type pos = 0) const noexcept
 	{
 		pos = ceil_char_boundary((std::min)(size(), pos));
 		const auto needle = sv.base();
-		return details::find_utf16_exact(code_unit_view(), needle, pos);
+		return details::find_utf32_exact(code_unit_view(), needle, pos);
 	}
 
-	constexpr size_type find(std::span<const utf16_char> chars, size_type pos = 0) const noexcept
+	constexpr size_type find(std::span<const utf32_char> chars, size_type pos = 0) const noexcept
 	{
 		if (chars.empty())
 		{
@@ -3113,20 +3138,20 @@ public:
 		}
 
 		pos = ceil_char_boundary((std::min)(size(), pos));
-		const details::utf16_char_span_matcher matcher{ chars };
-		return details::find_utf16_predicate_match(code_unit_view(), pos, matcher).pos;
+		const details::utf32_char_span_matcher matcher{ chars };
+		return details::find_utf32_predicate_match(code_unit_view(), pos, matcher).pos;
 	}
 
-	template <details::utf16_char_predicate Pred>
+	template <details::utf32_char_predicate Pred>
 	constexpr size_type find(Pred pred, size_type pos = 0) const noexcept
 	{
 		pos = ceil_char_boundary((std::min)(size(), pos));
-		return details::find_utf16_predicate_match(code_unit_view(), pos, pred).pos;
+		return details::find_utf32_predicate_match(code_unit_view(), pos, pred).pos;
 	}
 
-	constexpr size_type find_grapheme(utf16_char ch, size_type pos = 0) const noexcept
+	constexpr size_type find_grapheme(utf32_char ch, size_type pos = 0) const noexcept
 	{
-		return details::find_grapheme(code_unit_view(), details::utf16_char_view(ch), pos);
+		return details::find_grapheme(code_unit_view(), details::utf32_char_view(ch), pos);
 	}
 
 	constexpr size_type find_grapheme(View sv, size_type pos = 0) const noexcept
@@ -3134,12 +3159,12 @@ public:
 		return details::find_grapheme(code_unit_view(), sv.base(), pos);
 	}
 
-	constexpr size_type find_first_of(char16_t ch, size_type pos = 0) const noexcept
+	constexpr size_type find_first_of(char32_t ch, size_type pos = 0) const noexcept
 	{
 		return find(ch, pos);
 	}
 
-	constexpr size_type find_first_of(utf16_char ch, size_type pos = 0) const noexcept
+	constexpr size_type find_first_of(utf32_char ch, size_type pos = 0) const noexcept
 	{
 		return find(ch, pos);
 	}
@@ -3152,17 +3177,19 @@ public:
 		}
 
 		pos = ceil_char_boundary((std::min)(size(), pos));
-		auto indices = char_indices();
-		const auto it = std::ranges::find_if(indices, [&](const auto& entry)
+		const auto code_points = code_unit_view();
+		for (size_type index = pos; index != code_points.size(); ++index)
 		{
-			const auto [index, current] = entry;
-			return index >= pos && sv.contains(current);
-		});
+			if (sv.contains(utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(code_points[index]))))
+			{
+				return index;
+			}
+		}
 
-		return it == indices.end() ? npos : (*it).first;
+		return npos;
 	}
 
-	constexpr size_type find_first_not_of(char16_t ch, size_type pos = 0) const noexcept
+	constexpr size_type find_first_not_of(char32_t ch, size_type pos = 0) const noexcept
 	{
 		pos = (std::min)(size(), pos);
 		for (size_type index = pos; index != size(); ++index)
@@ -3176,33 +3203,37 @@ public:
 		return npos;
 	}
 
-	constexpr size_type find_first_not_of(utf16_char ch, size_type pos = 0) const noexcept
+	constexpr size_type find_first_not_of(utf32_char ch, size_type pos = 0) const noexcept
 	{
 		pos = ceil_char_boundary((std::min)(size(), pos));
-		auto indices = char_indices();
-		const auto it = std::ranges::find_if(indices, [&](const auto& entry)
+		const auto code_points = code_unit_view();
+		for (size_type index = pos; index != code_points.size(); ++index)
 		{
-			const auto [index, current] = entry;
-			return index >= pos && current != ch;
-		});
+			if (code_points[index] != ch.as_scalar())
+			{
+				return index;
+			}
+		}
 
-		return it == indices.end() ? npos : (*it).first;
+		return npos;
 	}
 
 	constexpr size_type find_first_not_of(View sv, size_type pos = 0) const noexcept
 	{
 		pos = ceil_char_boundary((std::min)(size(), pos));
-		auto indices = char_indices();
-		const auto it = std::ranges::find_if(indices, [&](const auto& entry)
+		const auto code_points = code_unit_view();
+		for (size_type index = pos; index != code_points.size(); ++index)
 		{
-			const auto [index, current] = entry;
-			return index >= pos && !sv.contains(current);
-		});
+			if (!sv.contains(utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(code_points[index]))))
+			{
+				return index;
+			}
+		}
 
-		return it == indices.end() ? npos : (*it).first;
+		return npos;
 	}
 
-	constexpr size_type rfind(char16_t ch, size_type pos = npos) const noexcept
+	constexpr size_type rfind(char32_t ch, size_type pos = npos) const noexcept
 	{
 		if (empty())
 		{
@@ -3229,9 +3260,9 @@ public:
 		}
 	}
 
-	constexpr size_type rfind(utf16_char ch, size_type pos = npos) const noexcept
+	constexpr size_type rfind(utf32_char ch, size_type pos = npos) const noexcept
 	{
-		const auto needle = details::utf16_char_view(ch);
+		const auto needle = details::utf32_char_view(ch);
 		if (needle.size() > size())
 		{
 			return npos;
@@ -3239,7 +3270,7 @@ public:
 
 		pos = floor_char_boundary((std::min)(size(), pos));
 		pos = floor_char_boundary((std::min)(pos, size() - needle.size()));
-		return details::rfind_utf16_exact(code_unit_view(), needle, pos);
+		return details::rfind_utf32_exact(code_unit_view(), needle, pos);
 	}
 
 	constexpr size_type rfind(View sv, size_type pos = npos) const noexcept
@@ -3252,10 +3283,10 @@ public:
 		}
 
 		pos = floor_char_boundary((std::min)(pos, size() - needle.size()));
-		return details::rfind_utf16_exact(code_unit_view(), needle, pos);
+		return details::rfind_utf32_exact(code_unit_view(), needle, pos);
 	}
 
-	constexpr size_type rfind(std::span<const utf16_char> chars, size_type pos = npos) const noexcept
+	constexpr size_type rfind(std::span<const utf32_char> chars, size_type pos = npos) const noexcept
 	{
 		if (chars.empty())
 		{
@@ -3268,16 +3299,16 @@ public:
 		}
 
 		pos = floor_char_boundary((std::min)(size(), pos));
-		const details::utf16_char_span_matcher matcher{ chars };
+		const details::utf32_char_span_matcher matcher{ chars };
 		const auto end_exclusive = pos == npos
 			? size()
 			: pos == size()
 				? size()
-				: pos + details::utf16_char_from_code_units_at(code_unit_view(), pos).code_unit_count();
-		return details::rfind_utf16_predicate_match(code_unit_view(), end_exclusive, matcher).pos;
+				: pos + details::utf32_char_from_code_points_at(code_unit_view(), pos).code_unit_count();
+		return details::rfind_utf32_predicate_match(code_unit_view(), end_exclusive, matcher).pos;
 	}
 
-	template <details::utf16_char_predicate Pred>
+	template <details::utf32_char_predicate Pred>
 	constexpr size_type rfind(Pred pred, size_type pos = npos) const noexcept
 	{
 		pos = floor_char_boundary((std::min)(size(), pos));
@@ -3285,13 +3316,13 @@ public:
 			? size()
 			: pos == size()
 				? size()
-				: pos + details::utf16_char_from_code_units_at(code_unit_view(), pos).code_unit_count();
-		return details::rfind_utf16_predicate_match(code_unit_view(), end_exclusive, pred).pos;
+				: pos + details::utf32_char_from_code_points_at(code_unit_view(), pos).code_unit_count();
+		return details::rfind_utf32_predicate_match(code_unit_view(), end_exclusive, pred).pos;
 	}
 
-	constexpr size_type rfind_grapheme(utf16_char ch, size_type pos = npos) const noexcept
+	constexpr size_type rfind_grapheme(utf32_char ch, size_type pos = npos) const noexcept
 	{
-		return details::rfind_grapheme(code_unit_view(), details::utf16_char_view(ch), pos);
+		return details::rfind_grapheme(code_unit_view(), details::utf32_char_view(ch), pos);
 	}
 
 	constexpr size_type rfind_grapheme(View sv, size_type pos = npos) const noexcept
@@ -3299,12 +3330,12 @@ public:
 		return details::rfind_grapheme(code_unit_view(), sv.base(), pos);
 	}
 
-	constexpr size_type find_last_of(char16_t ch, size_type pos = npos) const noexcept
+	constexpr size_type find_last_of(char32_t ch, size_type pos = npos) const noexcept
 	{
 		return rfind(ch, pos);
 	}
 
-	constexpr size_type find_last_of(utf16_char ch, size_type pos = npos) const noexcept
+	constexpr size_type find_last_of(utf32_char ch, size_type pos = npos) const noexcept
 	{
 		return rfind(ch, pos);
 	}
@@ -3321,9 +3352,10 @@ public:
 		{
 			pos = floor_char_boundary(size() - 1);
 		}
+		const auto code_points = code_unit_view();
 		for (size_type index = pos;;)
 		{
-			if (sv.contains(char_at_unchecked(index)))
+			if (sv.contains(utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(code_points[index]))))
 			{
 				return index;
 			}
@@ -3337,7 +3369,7 @@ public:
 		}
 	}
 
-	constexpr size_type find_last_not_of(char16_t ch, size_type pos = npos) const noexcept
+	constexpr size_type find_last_not_of(char32_t ch, size_type pos = npos) const noexcept
 	{
 		if (empty())
 		{
@@ -3357,7 +3389,7 @@ public:
 		return npos;
 	}
 
-	constexpr size_type find_last_not_of(utf16_char ch, size_type pos = npos) const noexcept
+	constexpr size_type find_last_not_of(utf32_char ch, size_type pos = npos) const noexcept
 	{
 		if (empty())
 		{
@@ -3365,21 +3397,21 @@ public:
 		}
 
 		pos = floor_char_boundary((std::min)(size(), pos));
-		size_type result = npos;
-		for (const auto [index, current] : char_indices())
+		if (pos == size())
 		{
-			if (index > pos)
+			pos = floor_char_boundary(size() - 1);
+		}
+		const auto code_points = code_unit_view();
+		for (size_type index = pos + 1; index != 0;)
+		{
+			--index;
+			if (code_points[index] != ch.as_scalar())
 			{
-				break;
-			}
-
-			if (current != ch)
-			{
-				result = index;
+				return index;
 			}
 		}
 
-		return result;
+		return npos;
 	}
 
 	constexpr size_type find_last_not_of(View sv, size_type pos = npos) const noexcept
@@ -3394,9 +3426,10 @@ public:
 		{
 			pos = floor_char_boundary(size() - 1);
 		}
+		const auto code_points = code_unit_view();
 		for (size_type index = pos;;)
 		{
-			if (!sv.contains(char_at_unchecked(index)))
+			if (!sv.contains(utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(code_points[index]))))
 			{
 				return index;
 			}
@@ -3412,22 +3445,12 @@ public:
 
 	constexpr bool is_char_boundary(size_type index) const noexcept
 	{
-		if (index > size()) [[unlikely]]
-		{
-			return false;
-		}
-
-		if (index == 0 || index == size()) [[unlikely]]
-		{
-			return true;
-		}
-
-		return !details::is_utf16_low_surrogate(static_cast<std::uint16_t>(code_unit_view()[index]));
+		return index <= size();
 	}
 
 	constexpr size_type char_count() const noexcept
 	{
-		return static_cast<size_type>(details::char_count(code_unit_view()));
+		return size();
 	}
 
 	constexpr size_type grapheme_count() const noexcept
@@ -3435,61 +3458,61 @@ public:
 		return details::grapheme_count(code_unit_view());
 	}
 
-	constexpr auto split(utf16_char ch) const noexcept
+	constexpr auto split(utf32_char ch) const noexcept
 	{
-		return utf16_split_char_view<View, false>::from_delimiter_storage(
+		return utf32_split_char_view<View, false>::from_delimiter_storage(
 			code_unit_view(),
-			details::owned_utf16_split_char_delimiter{ ch });
+			details::owned_utf32_split_char_delimiter{ ch });
 	}
 
 	constexpr auto split(View sv) const noexcept
 	{
-		return utf16_split_view<View, false>::from_delimiter_storage(
+		return utf32_split_view<View, false>::from_delimiter_storage(
 			code_unit_view(),
-			details::borrowed_utf16_split_delimiter{ sv.base() });
+			details::borrowed_utf32_split_delimiter{ sv.base() });
 	}
 
-	template <details::utf16_char_predicate Pred>
+	template <details::utf32_char_predicate Pred>
 	constexpr auto split(Pred pred) const noexcept
 	{
-		return details::basic_utf16_predicate_split_view<View, false, std::remove_cvref_t<Pred>>::from_predicate(
+		return details::basic_utf32_predicate_split_view<View, false, std::remove_cvref_t<Pred>>::from_predicate(
 			code_unit_view(),
 			std::move(pred));
 	}
 
-	constexpr auto split_trimmed(utf16_char ch) const noexcept
+	constexpr auto split_trimmed(utf32_char ch) const noexcept
 	{
-		return details::utf16_split_trimmed_char_view<View>::from_delimiter_storage(
+		return details::utf32_split_trimmed_char_view<View>::from_delimiter_storage(
 			code_unit_view(),
-			details::owned_utf16_split_char_delimiter{ ch });
+			details::owned_utf32_split_char_delimiter{ ch });
 	}
 
 	constexpr auto split_trimmed(View sv) const noexcept
 	{
-		return details::utf16_split_trimmed_view<View>::from_delimiter_storage(
+		return details::utf32_split_trimmed_view<View>::from_delimiter_storage(
 			code_unit_view(),
-			details::borrowed_utf16_split_delimiter{ sv.base() });
+			details::borrowed_utf32_split_delimiter{ sv.base() });
 	}
 
-	template <details::utf16_char_predicate Pred>
+	template <details::utf32_char_predicate Pred>
 	constexpr auto split_trimmed(Pred pred) const noexcept
 	{
-		return details::basic_utf16_predicate_split_trimmed_view<View, std::remove_cvref_t<Pred>>::from_predicate(
+		return details::basic_utf32_predicate_split_trimmed_view<View, std::remove_cvref_t<Pred>>::from_predicate(
 			code_unit_view(),
 			std::move(pred));
 	}
 
 	constexpr auto split_whitespace() const noexcept
 	{
-		return utf16_whitespace_split_view<View, false>::from_code_units_unchecked(code_unit_view());
+		return utf32_whitespace_split_view<View, false>::from_code_points_unchecked(code_unit_view());
 	}
 
 	constexpr auto split_ascii_whitespace() const noexcept
 	{
-		return utf16_whitespace_split_view<View, true>::from_code_units_unchecked(code_unit_view());
+		return utf32_whitespace_split_view<View, true>::from_code_points_unchecked(code_unit_view());
 	}
 
-	constexpr auto rsplit(utf16_char ch) const noexcept
+	constexpr auto rsplit(utf32_char ch) const noexcept
 	{
 		return std::views::reverse(split(ch));
 	}
@@ -3499,35 +3522,35 @@ public:
 		return std::views::reverse(split(sv));
 	}
 
-	template <details::utf16_char_predicate Pred>
+	template <details::utf32_char_predicate Pred>
 	constexpr auto rsplit(Pred pred) const noexcept
 	{
 		return std::views::reverse(split(std::move(pred)));
 	}
 
-	constexpr auto split_terminator(utf16_char ch) const noexcept
+	constexpr auto split_terminator(utf32_char ch) const noexcept
 	{
-		return utf16_split_char_view<View, true>::from_delimiter_storage(
+		return utf32_split_char_view<View, true>::from_delimiter_storage(
 			code_unit_view(),
-			details::owned_utf16_split_char_delimiter{ ch });
+			details::owned_utf32_split_char_delimiter{ ch });
 	}
 
 	constexpr auto split_terminator(View sv) const noexcept
 	{
-		return utf16_split_view<View, true>::from_delimiter_storage(
+		return utf32_split_view<View, true>::from_delimiter_storage(
 			code_unit_view(),
-			details::borrowed_utf16_split_delimiter{ sv.base() });
+			details::borrowed_utf32_split_delimiter{ sv.base() });
 	}
 
-	template <details::utf16_char_predicate Pred>
+	template <details::utf32_char_predicate Pred>
 	constexpr auto split_terminator(Pred pred) const noexcept
 	{
-		return details::basic_utf16_predicate_split_view<View, true, std::remove_cvref_t<Pred>>::from_predicate(
+		return details::basic_utf32_predicate_split_view<View, true, std::remove_cvref_t<Pred>>::from_predicate(
 			code_unit_view(),
 			std::move(pred));
 	}
 
-	constexpr auto rsplit_terminator(utf16_char ch) const noexcept
+	constexpr auto rsplit_terminator(utf32_char ch) const noexcept
 	{
 		return std::views::reverse(split_terminator(ch));
 	}
@@ -3537,110 +3560,110 @@ public:
 		return std::views::reverse(split_terminator(sv));
 	}
 
-	template <details::utf16_char_predicate Pred>
+	template <details::utf32_char_predicate Pred>
 	constexpr auto rsplit_terminator(Pred pred) const noexcept
 	{
 		return std::views::reverse(split_terminator(std::move(pred)));
 	}
 
-	constexpr auto splitn(size_type count, utf16_char ch) const noexcept
+	constexpr auto splitn(size_type count, utf32_char ch) const noexcept
 	{
-		return utf16_splitn_char_view<View, false>::from_delimiter_storage(
+		return utf32_splitn_char_view<View, false>::from_delimiter_storage(
 			code_unit_view(),
-			details::owned_utf16_split_char_delimiter{ ch },
+			details::owned_utf32_split_char_delimiter{ ch },
 			count);
 	}
 
 	constexpr auto splitn(size_type count, View sv) const noexcept
 	{
-		return utf16_splitn_view<View, false>::from_delimiter_storage(
+		return utf32_splitn_view<View, false>::from_delimiter_storage(
 			code_unit_view(),
-			details::borrowed_utf16_split_delimiter{ sv.base() },
+			details::borrowed_utf32_split_delimiter{ sv.base() },
 			count);
 	}
 
-	template <details::utf16_char_predicate Pred>
+	template <details::utf32_char_predicate Pred>
 	constexpr auto splitn(size_type count, Pred pred) const noexcept
 	{
-		return details::basic_utf16_predicate_splitn_view<View, false, std::remove_cvref_t<Pred>>::from_predicate(
+		return details::basic_utf32_predicate_splitn_view<View, false, std::remove_cvref_t<Pred>>::from_predicate(
 			code_unit_view(),
 			std::move(pred),
 			count);
 	}
 
-	constexpr auto split_inclusive(utf16_char ch) const noexcept
+	constexpr auto split_inclusive(utf32_char ch) const noexcept
 	{
-		return utf16_split_inclusive_char_view<View>::from_delimiter_storage(
+		return utf32_split_inclusive_char_view<View>::from_delimiter_storage(
 			code_unit_view(),
-			details::owned_utf16_split_char_delimiter{ ch });
+			details::owned_utf32_split_char_delimiter{ ch });
 	}
 
 	constexpr auto split_inclusive(View sv) const noexcept
 	{
-		return utf16_split_inclusive_view<View>::from_delimiter_storage(
+		return utf32_split_inclusive_view<View>::from_delimiter_storage(
 			code_unit_view(),
-			details::borrowed_utf16_split_delimiter{ sv.base() });
+			details::borrowed_utf32_split_delimiter{ sv.base() });
 	}
 
-	template <details::utf16_char_predicate Pred>
+	template <details::utf32_char_predicate Pred>
 	constexpr auto split_inclusive(Pred pred) const noexcept
 	{
-		return details::basic_utf16_predicate_split_inclusive_view<View, std::remove_cvref_t<Pred>>::from_predicate(
+		return details::basic_utf32_predicate_split_inclusive_view<View, std::remove_cvref_t<Pred>>::from_predicate(
 			code_unit_view(),
 			std::move(pred));
 	}
 
-	constexpr auto rsplitn(size_type count, utf16_char ch) const noexcept
+	constexpr auto rsplitn(size_type count, utf32_char ch) const noexcept
 	{
-		return utf16_splitn_char_view<View, true>::from_delimiter_storage(
+		return utf32_splitn_char_view<View, true>::from_delimiter_storage(
 			code_unit_view(),
-			details::owned_utf16_split_char_delimiter{ ch },
+			details::owned_utf32_split_char_delimiter{ ch },
 			count);
 	}
 
 	constexpr auto rsplitn(size_type count, View sv) const noexcept
 	{
-		return utf16_splitn_view<View, true>::from_delimiter_storage(
+		return utf32_splitn_view<View, true>::from_delimiter_storage(
 			code_unit_view(),
-			details::borrowed_utf16_split_delimiter{ sv.base() },
+			details::borrowed_utf32_split_delimiter{ sv.base() },
 			count);
 	}
 
-	template <details::utf16_char_predicate Pred>
+	template <details::utf32_char_predicate Pred>
 	constexpr auto rsplitn(size_type count, Pred pred) const noexcept
 	{
-		return details::basic_utf16_predicate_splitn_view<View, true, std::remove_cvref_t<Pred>>::from_predicate(
+		return details::basic_utf32_predicate_splitn_view<View, true, std::remove_cvref_t<Pred>>::from_predicate(
 			code_unit_view(),
 			std::move(pred),
 			count);
 	}
 
-	constexpr auto matches(utf16_char ch) const noexcept
+	constexpr auto matches(utf32_char ch) const noexcept
 	{
-		return utf16_match_indices_char_view<View, false>::from_delimiter_storage(
+		return utf32_match_indices_char_view<View, false>::from_delimiter_storage(
 			code_unit_view(),
-			details::owned_utf16_split_char_delimiter{ ch })
+			details::owned_utf32_split_char_delimiter{ ch })
 			| std::views::values;
 	}
 
 	constexpr auto matches(View sv) const noexcept
 	{
-		return utf16_match_indices_view<View, false>::from_delimiter_storage(
+		return utf32_match_indices_view<View, false>::from_delimiter_storage(
 			code_unit_view(),
-			details::borrowed_utf16_split_delimiter{ sv.base() })
+			details::borrowed_utf32_split_delimiter{ sv.base() })
 			| std::views::values;
 	}
 
-	template <details::utf16_char_predicate Pred>
+	template <details::utf32_char_predicate Pred>
 	constexpr auto matches(Pred pred) const noexcept
 	{
-		return details::basic_utf16_predicate_match_indices_view<View, false, std::remove_cvref_t<Pred>>::from_predicate(
+		return details::basic_utf32_predicate_match_indices_view<View, false, std::remove_cvref_t<Pred>>::from_predicate(
 			code_unit_view(),
 			std::move(pred))
 			| std::views::values;
 	}
 
-	constexpr auto rmatches(utf16_char ch) const noexcept
+	constexpr auto rmatches(utf32_char ch) const noexcept
 	{
 		return rmatch_indices(ch) | std::views::values;
 	}
@@ -3650,59 +3673,59 @@ public:
 		return rmatch_indices(sv) | std::views::values;
 	}
 
-	template <details::utf16_char_predicate Pred>
+	template <details::utf32_char_predicate Pred>
 	constexpr auto rmatches(Pred pred) const noexcept
 	{
-		return details::basic_utf16_predicate_match_indices_view<View, true, std::remove_cvref_t<Pred>>::from_predicate(
+		return details::basic_utf32_predicate_match_indices_view<View, true, std::remove_cvref_t<Pred>>::from_predicate(
 			code_unit_view(),
 			std::move(pred))
 			| std::views::values;
 	}
 
-	constexpr auto rmatch_indices(utf16_char ch) const noexcept
+	constexpr auto rmatch_indices(utf32_char ch) const noexcept
 	{
-		return utf16_match_indices_char_view<View, true>::from_delimiter_storage(
+		return utf32_match_indices_char_view<View, true>::from_delimiter_storage(
 			code_unit_view(),
-			details::owned_utf16_split_char_delimiter{ ch });
+			details::owned_utf32_split_char_delimiter{ ch });
 	}
 
 	constexpr auto rmatch_indices(View sv) const noexcept
 	{
-		return utf16_match_indices_view<View, true>::from_delimiter_storage(
+		return utf32_match_indices_view<View, true>::from_delimiter_storage(
 			code_unit_view(),
-			details::borrowed_utf16_split_delimiter{ sv.base() });
+			details::borrowed_utf32_split_delimiter{ sv.base() });
 	}
 
-	template <details::utf16_char_predicate Pred>
+	template <details::utf32_char_predicate Pred>
 	constexpr auto rmatch_indices(Pred pred) const noexcept
 	{
-		return details::basic_utf16_predicate_match_indices_view<View, true, std::remove_cvref_t<Pred>>::from_predicate(
+		return details::basic_utf32_predicate_match_indices_view<View, true, std::remove_cvref_t<Pred>>::from_predicate(
 			code_unit_view(),
 			std::move(pred));
 	}
 
-	constexpr std::optional<std::pair<View, View>> split_once(utf16_char ch) const noexcept
+	constexpr std::optional<std::pair<View, View>> split_once(utf32_char ch) const noexcept
 	{
-		return split_once(View::from_code_units_unchecked(details::utf16_char_view(ch)));
+		return split_once(View::from_code_points_unchecked(details::utf32_char_view(ch)));
 	}
 
 	constexpr std::optional<std::pair<View, View>> split_once(View sv) const noexcept
 	{
 		const auto delimiter = sv.base();
-		const auto pos = details::find_utf16_split_delimiter(code_unit_view(), delimiter, 0);
+		const auto pos = details::find_utf32_split_delimiter(code_unit_view(), delimiter, 0);
 		if (pos == npos)
 		{
 			return std::nullopt;
 		}
 
-		const auto code_units = code_unit_view();
+		const auto code_points = code_unit_view();
 		return std::pair{
-			View::from_code_units_unchecked(code_units.substr(0, pos)),
-			View::from_code_units_unchecked(code_units.substr(pos + delimiter.size()))
+			View::from_code_points_unchecked(code_points.substr(0, pos)),
+			View::from_code_points_unchecked(code_points.substr(pos + delimiter.size()))
 		};
 	}
 
-	constexpr std::optional<std::pair<View, View>> split_once(std::span<const utf16_char> chars) const noexcept
+	constexpr std::optional<std::pair<View, View>> split_once(std::span<const utf32_char> chars) const noexcept
 	{
 		if (chars.empty())
 		{
@@ -3714,47 +3737,47 @@ public:
 			return split_once(chars.front());
 		}
 
-		return split_once(details::utf16_char_span_matcher{ chars });
+		return split_once(details::utf32_char_span_matcher{ chars });
 	}
 
-	template <details::utf16_char_predicate Pred>
+	template <details::utf32_char_predicate Pred>
 	constexpr std::optional<std::pair<View, View>> split_once(Pred pred) const noexcept
 	{
-		const auto match = details::find_utf16_predicate_match(code_unit_view(), 0, pred);
+		const auto match = details::find_utf32_predicate_match(code_unit_view(), 0, pred);
 		if (match.pos == npos)
 		{
 			return std::nullopt;
 		}
 
-		const auto code_units = code_unit_view();
+		const auto code_points = code_unit_view();
 		return std::pair{
-			View::from_code_units_unchecked(code_units.substr(0, match.pos)),
-			View::from_code_units_unchecked(code_units.substr(match.pos + match.size))
+			View::from_code_points_unchecked(code_points.substr(0, match.pos)),
+			View::from_code_points_unchecked(code_points.substr(match.pos + match.size))
 		};
 	}
 
-	constexpr std::optional<std::pair<View, View>> rsplit_once(utf16_char ch) const noexcept
+	constexpr std::optional<std::pair<View, View>> rsplit_once(utf32_char ch) const noexcept
 	{
-		return rsplit_once(View::from_code_units_unchecked(details::utf16_char_view(ch)));
+		return rsplit_once(View::from_code_points_unchecked(details::utf32_char_view(ch)));
 	}
 
 	constexpr std::optional<std::pair<View, View>> rsplit_once(View sv) const noexcept
 	{
 		const auto delimiter = sv.base();
-		const auto pos = details::rfind_utf16_split_delimiter(code_unit_view(), delimiter, code_unit_view().size());
+		const auto pos = details::rfind_utf32_split_delimiter(code_unit_view(), delimiter, code_unit_view().size());
 		if (pos == npos)
 		{
 			return std::nullopt;
 		}
 
-		const auto code_units = code_unit_view();
+		const auto code_points = code_unit_view();
 		return std::pair{
-			View::from_code_units_unchecked(code_units.substr(0, pos)),
-			View::from_code_units_unchecked(code_units.substr(pos + delimiter.size()))
+			View::from_code_points_unchecked(code_points.substr(0, pos)),
+			View::from_code_points_unchecked(code_points.substr(pos + delimiter.size()))
 		};
 	}
 
-	constexpr std::optional<std::pair<View, View>> rsplit_once(std::span<const utf16_char> chars) const noexcept
+	constexpr std::optional<std::pair<View, View>> rsplit_once(std::span<const utf32_char> chars) const noexcept
 	{
 		if (chars.empty())
 		{
@@ -3766,22 +3789,22 @@ public:
 			return rsplit_once(chars.front());
 		}
 
-		return rsplit_once(details::utf16_char_span_matcher{ chars });
+		return rsplit_once(details::utf32_char_span_matcher{ chars });
 	}
 
-	template <details::utf16_char_predicate Pred>
+	template <details::utf32_char_predicate Pred>
 	constexpr std::optional<std::pair<View, View>> rsplit_once(Pred pred) const noexcept
 	{
-		const auto match = details::rfind_utf16_predicate_match(code_unit_view(), code_unit_view().size(), pred);
+		const auto match = details::rfind_utf32_predicate_match(code_unit_view(), code_unit_view().size(), pred);
 		if (match.pos == npos)
 		{
 			return std::nullopt;
 		}
 
-		const auto code_units = code_unit_view();
+		const auto code_points = code_unit_view();
 		return std::pair{
-			View::from_code_units_unchecked(code_units.substr(0, match.pos)),
-			View::from_code_units_unchecked(code_units.substr(match.pos + match.size))
+			View::from_code_points_unchecked(code_points.substr(0, match.pos)),
+			View::from_code_points_unchecked(code_points.substr(match.pos + match.size))
 		};
 	}
 
@@ -3799,90 +3822,90 @@ public:
 	{
 		UTF8_RANGES_DEBUG_ASSERT(is_char_boundary(delim));
 
-		const auto code_units = code_unit_view();
+		const auto code_points = code_unit_view();
 		return {
-			View::from_code_units_unchecked(code_units.substr(0, delim)),
-			View::from_code_units_unchecked(code_units.substr(delim))
+			View::from_code_points_unchecked(code_points.substr(0, delim)),
+			View::from_code_points_unchecked(code_points.substr(delim))
 		};
 	}
 
-	constexpr basic_utf16_string<> replace_all(utf16_char from, utf16_char to) const;
-	constexpr basic_utf16_string<> replace_all(utf16_char from, View to) const;
-	constexpr basic_utf16_string<> replace_all(View from, utf16_char to) const;
-	constexpr basic_utf16_string<> replace_all(View from, View to) const;
-	constexpr basic_utf16_string<> replace_all(std::span<const utf16_char> from, utf16_char to) const;
-	constexpr basic_utf16_string<> replace_all(std::span<const utf16_char> from, View to) const;
+	constexpr basic_utf32_string<> replace_all(utf32_char from, utf32_char to) const;
+	constexpr basic_utf32_string<> replace_all(utf32_char from, View to) const;
+	constexpr basic_utf32_string<> replace_all(View from, utf32_char to) const;
+	constexpr basic_utf32_string<> replace_all(View from, View to) const;
+	constexpr basic_utf32_string<> replace_all(std::span<const utf32_char> from, utf32_char to) const;
+	constexpr basic_utf32_string<> replace_all(std::span<const utf32_char> from, View to) const;
 
 	template <typename Allocator>
-	constexpr basic_utf16_string<Allocator> replace_all(utf16_char from, utf16_char to, const Allocator& alloc) const;
+	constexpr basic_utf32_string<Allocator> replace_all(utf32_char from, utf32_char to, const Allocator& alloc) const;
 
 	template <typename Allocator>
-	constexpr basic_utf16_string<Allocator> replace_all(utf16_char from, View to, const Allocator& alloc) const;
+	constexpr basic_utf32_string<Allocator> replace_all(utf32_char from, View to, const Allocator& alloc) const;
 
 	template <typename Allocator>
-	constexpr basic_utf16_string<Allocator> replace_all(View from, utf16_char to, const Allocator& alloc) const;
+	constexpr basic_utf32_string<Allocator> replace_all(View from, utf32_char to, const Allocator& alloc) const;
 
 	template <typename Allocator>
-	constexpr basic_utf16_string<Allocator> replace_all(View from, View to, const Allocator& alloc) const;
+	constexpr basic_utf32_string<Allocator> replace_all(View from, View to, const Allocator& alloc) const;
 
 	template <typename Allocator>
-	constexpr basic_utf16_string<Allocator> replace_all(std::span<const utf16_char> from, utf16_char to, const Allocator& alloc) const;
+	constexpr basic_utf32_string<Allocator> replace_all(std::span<const utf32_char> from, utf32_char to, const Allocator& alloc) const;
 
 	template <typename Allocator>
-	constexpr basic_utf16_string<Allocator> replace_all(std::span<const utf16_char> from, View to, const Allocator& alloc) const;
+	constexpr basic_utf32_string<Allocator> replace_all(std::span<const utf32_char> from, View to, const Allocator& alloc) const;
 
-	template <details::utf16_char_predicate Pred>
-	constexpr basic_utf16_string<> replace_all(Pred pred, utf16_char to) const;
+	template <details::utf32_char_predicate Pred>
+	constexpr basic_utf32_string<> replace_all(Pred pred, utf32_char to) const;
 
-	template <details::utf16_char_predicate Pred>
-	constexpr basic_utf16_string<> replace_all(Pred pred, View to) const;
+	template <details::utf32_char_predicate Pred>
+	constexpr basic_utf32_string<> replace_all(Pred pred, View to) const;
 
-	template <details::utf16_char_predicate Pred, typename Allocator>
-	constexpr basic_utf16_string<Allocator> replace_all(Pred pred, utf16_char to, const Allocator& alloc) const;
+	template <details::utf32_char_predicate Pred, typename Allocator>
+	constexpr basic_utf32_string<Allocator> replace_all(Pred pred, utf32_char to, const Allocator& alloc) const;
 
-	template <details::utf16_char_predicate Pred, typename Allocator>
-	constexpr basic_utf16_string<Allocator> replace_all(Pred pred, View to, const Allocator& alloc) const;
+	template <details::utf32_char_predicate Pred, typename Allocator>
+	constexpr basic_utf32_string<Allocator> replace_all(Pred pred, View to, const Allocator& alloc) const;
 
-	constexpr basic_utf16_string<> replace_n(size_type count, utf16_char from, utf16_char to) const;
-	constexpr basic_utf16_string<> replace_n(size_type count, utf16_char from, View to) const;
-	constexpr basic_utf16_string<> replace_n(size_type count, View from, utf16_char to) const;
-	constexpr basic_utf16_string<> replace_n(size_type count, View from, View to) const;
-	constexpr basic_utf16_string<> replace_n(size_type count, std::span<const utf16_char> from, utf16_char to) const;
-	constexpr basic_utf16_string<> replace_n(size_type count, std::span<const utf16_char> from, View to) const;
-
-	template <typename Allocator>
-	constexpr basic_utf16_string<Allocator> replace_n(size_type count, utf16_char from, utf16_char to, const Allocator& alloc) const;
+	constexpr basic_utf32_string<> replace_n(size_type count, utf32_char from, utf32_char to) const;
+	constexpr basic_utf32_string<> replace_n(size_type count, utf32_char from, View to) const;
+	constexpr basic_utf32_string<> replace_n(size_type count, View from, utf32_char to) const;
+	constexpr basic_utf32_string<> replace_n(size_type count, View from, View to) const;
+	constexpr basic_utf32_string<> replace_n(size_type count, std::span<const utf32_char> from, utf32_char to) const;
+	constexpr basic_utf32_string<> replace_n(size_type count, std::span<const utf32_char> from, View to) const;
 
 	template <typename Allocator>
-	constexpr basic_utf16_string<Allocator> replace_n(size_type count, utf16_char from, View to, const Allocator& alloc) const;
+	constexpr basic_utf32_string<Allocator> replace_n(size_type count, utf32_char from, utf32_char to, const Allocator& alloc) const;
 
 	template <typename Allocator>
-	constexpr basic_utf16_string<Allocator> replace_n(size_type count, View from, utf16_char to, const Allocator& alloc) const;
+	constexpr basic_utf32_string<Allocator> replace_n(size_type count, utf32_char from, View to, const Allocator& alloc) const;
 
 	template <typename Allocator>
-	constexpr basic_utf16_string<Allocator> replace_n(size_type count, View from, View to, const Allocator& alloc) const;
+	constexpr basic_utf32_string<Allocator> replace_n(size_type count, View from, utf32_char to, const Allocator& alloc) const;
 
 	template <typename Allocator>
-	constexpr basic_utf16_string<Allocator> replace_n(size_type count, std::span<const utf16_char> from, utf16_char to, const Allocator& alloc) const;
+	constexpr basic_utf32_string<Allocator> replace_n(size_type count, View from, View to, const Allocator& alloc) const;
 
 	template <typename Allocator>
-	constexpr basic_utf16_string<Allocator> replace_n(size_type count, std::span<const utf16_char> from, View to, const Allocator& alloc) const;
+	constexpr basic_utf32_string<Allocator> replace_n(size_type count, std::span<const utf32_char> from, utf32_char to, const Allocator& alloc) const;
 
-	template <details::utf16_char_predicate Pred>
-	constexpr basic_utf16_string<> replace_n(size_type count, Pred pred, utf16_char to) const;
+	template <typename Allocator>
+	constexpr basic_utf32_string<Allocator> replace_n(size_type count, std::span<const utf32_char> from, View to, const Allocator& alloc) const;
 
-	template <details::utf16_char_predicate Pred>
-	constexpr basic_utf16_string<> replace_n(size_type count, Pred pred, View to) const;
+	template <details::utf32_char_predicate Pred>
+	constexpr basic_utf32_string<> replace_n(size_type count, Pred pred, utf32_char to) const;
 
-	template <details::utf16_char_predicate Pred, typename Allocator>
-	constexpr basic_utf16_string<Allocator> replace_n(size_type count, Pred pred, utf16_char to, const Allocator& alloc) const;
+	template <details::utf32_char_predicate Pred>
+	constexpr basic_utf32_string<> replace_n(size_type count, Pred pred, View to) const;
 
-	template <details::utf16_char_predicate Pred, typename Allocator>
-	constexpr basic_utf16_string<Allocator> replace_n(size_type count, Pred pred, View to, const Allocator& alloc) const;
+	template <details::utf32_char_predicate Pred, typename Allocator>
+	constexpr basic_utf32_string<Allocator> replace_n(size_type count, Pred pred, utf32_char to, const Allocator& alloc) const;
 
-	constexpr std::optional<View> strip_prefix(utf16_char ch) const noexcept
+	template <details::utf32_char_predicate Pred, typename Allocator>
+	constexpr basic_utf32_string<Allocator> replace_n(size_type count, Pred pred, View to, const Allocator& alloc) const;
+
+	constexpr std::optional<View> strip_prefix(utf32_char ch) const noexcept
 	{
-		return strip_prefix(View::from_code_units_unchecked(details::utf16_char_view(ch)));
+		return strip_prefix(View::from_code_points_unchecked(details::utf32_char_view(ch)));
 	}
 
 	constexpr std::optional<View> strip_prefix(View sv) const noexcept
@@ -3892,12 +3915,12 @@ public:
 			return std::nullopt;
 		}
 
-		return View::from_code_units_unchecked(code_unit_view().substr(sv.base().size()));
+		return View::from_code_points_unchecked(code_unit_view().substr(sv.base().size()));
 	}
 
-	constexpr std::optional<View> strip_suffix(utf16_char ch) const noexcept
+	constexpr std::optional<View> strip_suffix(utf32_char ch) const noexcept
 	{
-		return strip_suffix(View::from_code_units_unchecked(details::utf16_char_view(ch)));
+		return strip_suffix(View::from_code_points_unchecked(details::utf32_char_view(ch)));
 	}
 
 	constexpr std::optional<View> strip_suffix(View sv) const noexcept
@@ -3907,14 +3930,14 @@ public:
 			return std::nullopt;
 		}
 
-		return View::from_code_units_unchecked(code_unit_view().substr(0, size() - sv.base().size()));
+		return View::from_code_points_unchecked(code_unit_view().substr(0, size() - sv.base().size()));
 	}
 
-	constexpr std::optional<View> strip_circumfix(utf16_char prefix, utf16_char suffix) const noexcept
+	constexpr std::optional<View> strip_circumfix(utf32_char prefix, utf32_char suffix) const noexcept
 	{
 		return strip_circumfix(
-			View::from_code_units_unchecked(details::utf16_char_view(prefix)),
-			View::from_code_units_unchecked(details::utf16_char_view(suffix)));
+			View::from_code_points_unchecked(details::utf32_char_view(prefix)),
+			View::from_code_points_unchecked(details::utf32_char_view(suffix)));
 	}
 
 	constexpr std::optional<View> strip_circumfix(View prefix, View suffix) const noexcept
@@ -3928,9 +3951,9 @@ public:
 		return stripped->strip_suffix(suffix);
 	}
 
-	constexpr View trim_prefix(utf16_char ch) const noexcept
+	constexpr View trim_prefix(utf32_char ch) const noexcept
 	{
-		return trim_prefix(View::from_code_units_unchecked(details::utf16_char_view(ch)));
+		return trim_prefix(View::from_code_points_unchecked(details::utf32_char_view(ch)));
 	}
 
 	constexpr View trim_prefix(View sv) const noexcept
@@ -3938,9 +3961,9 @@ public:
 		return strip_prefix(sv).value_or(view_from_whole_string());
 	}
 
-	constexpr View trim_suffix(utf16_char ch) const noexcept
+	constexpr View trim_suffix(utf32_char ch) const noexcept
 	{
-		return trim_suffix(View::from_code_units_unchecked(details::utf16_char_view(ch)));
+		return trim_suffix(View::from_code_points_unchecked(details::utf32_char_view(ch)));
 	}
 
 	constexpr View trim_suffix(View sv) const noexcept
@@ -3948,12 +3971,12 @@ public:
 		return strip_suffix(sv).value_or(view_from_whole_string());
 	}
 
-	constexpr View trim_start_matches(utf16_char ch) const noexcept
+	constexpr View trim_start_matches(utf32_char ch) const noexcept
 	{
 		const auto pos = find_first_not_of(ch);
 		return pos == npos
 			? empty_view()
-			: View::from_code_units_unchecked(code_unit_view().substr(pos));
+			: View::from_code_points_unchecked(code_unit_view().substr(pos));
 	}
 
 	constexpr View trim_start_matches(View sv) const noexcept
@@ -3970,10 +3993,10 @@ public:
 			result.remove_prefix(needle.size());
 		}
 
-		return View::from_code_units_unchecked(result);
+		return View::from_code_points_unchecked(result);
 	}
 
-	constexpr View trim_start_matches(std::span<const utf16_char> chars) const noexcept
+	constexpr View trim_start_matches(std::span<const utf32_char> chars) const noexcept
 	{
 		if (chars.empty())
 		{
@@ -3985,16 +4008,16 @@ public:
 			return trim_start_matches(chars.front());
 		}
 
-		return trim_start_matches(details::utf16_char_span_matcher{ chars });
+		return trim_start_matches(details::utf32_char_span_matcher{ chars });
 	}
 
-	template <details::utf16_char_predicate Pred>
+	template <details::utf32_char_predicate Pred>
 	constexpr View trim_start_matches(Pred pred) const noexcept
 	{
 		std::size_t pos = 0;
 		while (pos < code_unit_view().size())
 		{
-			const auto ch = details::utf16_char_from_code_units_at(code_unit_view(), pos);
+			const auto ch = details::utf32_char_from_code_points_at(code_unit_view(), pos);
 			const auto count = ch.code_unit_count();
 			if (!std::invoke(pred, ch))
 			{
@@ -4004,10 +4027,10 @@ public:
 			pos += count;
 		}
 
-		return View::from_code_units_unchecked(code_unit_view().substr(pos));
+		return View::from_code_points_unchecked(code_unit_view().substr(pos));
 	}
 
-	constexpr View trim_end_matches(utf16_char ch) const noexcept
+	constexpr View trim_end_matches(utf32_char ch) const noexcept
 	{
 		const auto pos = find_last_not_of(ch);
 		if (pos == npos)
@@ -4015,7 +4038,7 @@ public:
 			return empty_view();
 		}
 
-		return View::from_code_units_unchecked(code_unit_view().substr(0, pos + char_at_unchecked(pos).code_unit_count()));
+		return View::from_code_points_unchecked(code_unit_view().substr(0, pos + char_at_unchecked(pos).code_unit_count()));
 	}
 
 	constexpr View trim_end_matches(View sv) const noexcept
@@ -4032,10 +4055,10 @@ public:
 			result.remove_suffix(needle.size());
 		}
 
-		return View::from_code_units_unchecked(result);
+		return View::from_code_points_unchecked(result);
 	}
 
-	constexpr View trim_end_matches(std::span<const utf16_char> chars) const noexcept
+	constexpr View trim_end_matches(std::span<const utf32_char> chars) const noexcept
 	{
 		if (chars.empty())
 		{
@@ -4047,17 +4070,17 @@ public:
 			return trim_end_matches(chars.front());
 		}
 
-		return trim_end_matches(details::utf16_char_span_matcher{ chars });
+		return trim_end_matches(details::utf32_char_span_matcher{ chars });
 	}
 
-	template <details::utf16_char_predicate Pred>
+	template <details::utf32_char_predicate Pred>
 	constexpr View trim_end_matches(Pred pred) const noexcept
 	{
 		std::size_t end = code_unit_view().size();
 		while (end != 0)
 		{
-			const auto pos = details::previous_utf16_scalar_boundary(code_unit_view(), end);
-			const auto ch = details::utf16_char_from_code_units_at(code_unit_view(), pos);
+			const auto pos = details::previous_utf32_scalar_boundary(code_unit_view(), end);
+			const auto ch = details::utf32_char_from_code_points_at(code_unit_view(), pos);
 			if (!std::invoke(pred, ch))
 			{
 				break;
@@ -4066,10 +4089,10 @@ public:
 			end = pos;
 		}
 
-		return View::from_code_units_unchecked(code_unit_view().substr(0, end));
+		return View::from_code_points_unchecked(code_unit_view().substr(0, end));
 	}
 
-	constexpr View trim_matches(utf16_char ch) const noexcept
+	constexpr View trim_matches(utf32_char ch) const noexcept
 	{
 		return trim_start_matches(ch).trim_end_matches(ch);
 	}
@@ -4079,12 +4102,12 @@ public:
 		return trim_start_matches(sv).trim_end_matches(sv);
 	}
 
-	constexpr View trim_matches(std::span<const utf16_char> chars) const noexcept
+	constexpr View trim_matches(std::span<const utf32_char> chars) const noexcept
 	{
 		return trim_start_matches(chars).trim_end_matches(chars);
 	}
 
-	template <details::utf16_char_predicate Pred>
+	template <details::utf32_char_predicate Pred>
 	constexpr View trim_matches(Pred pred) const noexcept
 	{
 		return trim_start_matches(pred).trim_end_matches(pred);
@@ -4092,15 +4115,15 @@ public:
 
 	constexpr View trim_start() const noexcept
 	{
-		const auto pos = details::find_utf16_non_whitespace_boundary(code_unit_view(), 0, false);
+		const auto pos = details::find_utf32_non_whitespace_boundary(code_unit_view(), 0, false);
 		return pos == npos
 			? empty_view()
-			: View::from_code_units_unchecked(code_unit_view().substr(pos));
+			: View::from_code_points_unchecked(code_unit_view().substr(pos));
 	}
 
 	constexpr View trim_end() const noexcept
 	{
-		return View::from_code_units_unchecked(code_unit_view().substr(0, details::utf16_trim_end_boundary(code_unit_view(), false)));
+		return View::from_code_points_unchecked(code_unit_view().substr(0, details::utf32_trim_end_boundary(code_unit_view(), false)));
 	}
 
 	constexpr View trim() const noexcept
@@ -4110,15 +4133,15 @@ public:
 
 	constexpr View trim_ascii_start() const noexcept
 	{
-		const auto pos = details::find_utf16_non_whitespace_boundary(code_unit_view(), 0, true);
+		const auto pos = details::find_utf32_non_whitespace_boundary(code_unit_view(), 0, true);
 		return pos == npos
 			? empty_view()
-			: View::from_code_units_unchecked(code_unit_view().substr(pos));
+			: View::from_code_points_unchecked(code_unit_view().substr(pos));
 	}
 
 	constexpr View trim_ascii_end() const noexcept
 	{
-		return View::from_code_units_unchecked(code_unit_view().substr(0, details::utf16_trim_end_boundary(code_unit_view(), true)));
+		return View::from_code_points_unchecked(code_unit_view().substr(0, details::utf32_trim_end_boundary(code_unit_view(), true)));
 	}
 
 	constexpr View trim_ascii() const noexcept
@@ -4126,7 +4149,7 @@ public:
 		return trim_ascii_start().trim_ascii_end();
 	}
 
-	constexpr std::optional<utf16_char> char_at(size_type index) const noexcept
+	constexpr std::optional<utf32_char> char_at(size_type index) const noexcept
 	{
 		if (index >= size() || !is_char_boundary(index)) [[unlikely]]
 		{
@@ -4136,77 +4159,61 @@ public:
 		return char_at_unchecked(index);
 	}
 
-	constexpr utf16_char char_at_unchecked(size_type index) const noexcept
+	constexpr utf32_char char_at_unchecked(size_type index) const noexcept
 	{
 		UTF8_RANGES_DEBUG_ASSERT(index < size());
 		UTF8_RANGES_DEBUG_ASSERT(is_char_boundary(index));
-
-		const auto code_units = code_unit_view();
-		const auto first = static_cast<std::uint16_t>(code_units[index]);
-		const auto len = details::is_utf16_high_surrogate(first) ? 2u : 1u;
-		return utf16_char::from_utf16_code_units_unchecked(code_units.data() + index, len);
+		return utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(code_unit_view()[index]));
 	}
 
 	constexpr std::optional<View> grapheme_at(size_type index) const noexcept
 	{
-		const auto code_units = code_unit_view();
-		if (index >= code_units.size() || !details::is_grapheme_boundary(code_units, index)) [[unlikely]]
+		const auto code_points = code_unit_view();
+		if (index >= code_points.size() || !details::is_grapheme_boundary(code_points, index)) [[unlikely]]
 		{
 			return std::nullopt;
 		}
 
-		const auto end = details::next_grapheme_boundary(code_units, index);
-		return View::from_code_units_unchecked(std::u16string_view{ code_units.data() + index, end - index });
+		const auto end = details::next_grapheme_boundary(code_points, index);
+		return View::from_code_points_unchecked(std::u32string_view{ code_points.data() + index, end - index });
 	}
 
 	constexpr std::optional<View> substr(size_type pos, size_type count = npos) const noexcept
 	{
-		const auto code_units = code_unit_view();
-		if (pos > code_units.size()) [[unlikely]]
+		const auto code_points = code_unit_view();
+		if (pos > code_points.size()) [[unlikely]]
 		{
 			return std::nullopt;
 		}
 
-		if (pos != 0 && pos != code_units.size()
-			&& details::is_utf16_low_surrogate(static_cast<std::uint16_t>(code_units[pos]))) [[unlikely]]
-		{
-			return std::nullopt;
-		}
-
-		const auto remaining = code_units.size() - pos;
+		const auto remaining = code_points.size() - pos;
 		const auto length = (count == npos || count > remaining) ? remaining : count;
 		const auto end = pos + length;
 
-		if (end != 0 && end != code_units.size()
-			&& details::is_utf16_low_surrogate(static_cast<std::uint16_t>(code_units[end]))) [[unlikely]]
-		{
-			return std::nullopt;
-		}
-
-		return View::from_code_units_unchecked(std::u16string_view{ code_units.data() + pos, end - pos });
+		return View::from_code_points_unchecked(std::u32string_view{ code_points.data() + pos, end - pos });
 	}
 
 	constexpr std::optional<View> grapheme_substr(size_type pos, size_type count = npos) const noexcept
 	{
-		const auto code_units = code_unit_view();
-		if (!details::is_grapheme_boundary(code_units, pos)) [[unlikely]]
+		const auto code_points = code_unit_view();
+		if (!details::is_grapheme_boundary(code_points, pos)) [[unlikely]]
 		{
 			return std::nullopt;
 		}
 
-		const auto remaining = code_units.size() - pos;
+		const auto remaining = code_points.size() - pos;
 		const auto length = (count == npos || count > remaining) ? remaining : count;
 		const auto end = pos + length;
 
-		if (!details::is_grapheme_boundary(code_units, end)) [[unlikely]]
+		if (!details::is_grapheme_boundary(code_points, end)) [[unlikely]]
 		{
 			return std::nullopt;
 		}
 
-		return View::from_code_units_unchecked(std::u16string_view{ code_units.data() + pos, end - pos });
+		return View::from_code_points_unchecked(std::u32string_view{ code_points.data() + pos, end - pos });
 	}
 
-	constexpr std::optional<utf16_char> front() const noexcept
+	constexpr std::optional<utf32_char> front() const noexcept
 	{
 		if (empty()) [[unlikely]]
 		{
@@ -4216,13 +4223,13 @@ public:
 		return front_unchecked();
 	}
 
-	constexpr utf16_char front_unchecked() const noexcept
+	constexpr utf32_char front_unchecked() const noexcept
 	{
 		UTF8_RANGES_DEBUG_ASSERT(!empty());
-		return *chars().begin();
+		return utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(code_unit_view().front()));
 	}
 
-	constexpr std::optional<utf16_char> back() const noexcept
+	constexpr std::optional<utf32_char> back() const noexcept
 	{
 		if (empty()) [[unlikely]]
 		{
@@ -4232,18 +4239,18 @@ public:
 		return back_unchecked();
 	}
 
-	constexpr utf16_char back_unchecked() const noexcept
+	constexpr utf32_char back_unchecked() const noexcept
 	{
 		UTF8_RANGES_DEBUG_ASSERT(!empty());
-		return *reversed_chars().begin();
+		return utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(code_unit_view().back()));
 	}
 
-	constexpr bool starts_with(char16_t ch) const noexcept
+	constexpr bool starts_with(char32_t ch) const noexcept
 	{
 		return !empty() && (front_unchecked() == ch);
 	}
 
-	constexpr bool starts_with(utf16_char ch) const noexcept
+	constexpr bool starts_with(utf32_char ch) const noexcept
 	{
 		return !empty() && (front_unchecked() == ch);
 	}
@@ -4253,7 +4260,7 @@ public:
 		return code_unit_view().starts_with(sv.base());
 	}
 
-	constexpr bool starts_with(std::span<const utf16_char> chars) const noexcept
+	constexpr bool starts_with(std::span<const utf32_char> chars) const noexcept
 	{
 		if (chars.empty())
 		{
@@ -4265,22 +4272,22 @@ public:
 			return starts_with(chars.front());
 		}
 
-		return starts_with(details::utf16_char_span_matcher{ chars });
+		return starts_with(details::utf32_char_span_matcher{ chars });
 	}
 
-	template <details::utf16_char_predicate Pred>
+	template <details::utf32_char_predicate Pred>
 	constexpr bool starts_with(Pred pred) const
-		noexcept(noexcept(std::invoke(std::declval<const std::remove_cvref_t<Pred>&>(), std::declval<utf16_char>())))
+		noexcept(noexcept(std::invoke(std::declval<const std::remove_cvref_t<Pred>&>(), std::declval<utf32_char>())))
 	{
 		return !empty() && static_cast<bool>(std::invoke(pred, front_unchecked()));
 	}
 
-	constexpr bool ends_with(char16_t ch) const noexcept
+	constexpr bool ends_with(char32_t ch) const noexcept
 	{
 		return !empty() && (back_unchecked() == ch);
 	}
 
-	constexpr bool ends_with(utf16_char ch) const noexcept
+	constexpr bool ends_with(utf32_char ch) const noexcept
 	{
 		return !empty() && (back_unchecked() == ch);
 	}
@@ -4290,7 +4297,7 @@ public:
 		return code_unit_view().ends_with(sv.base());
 	}
 
-	constexpr bool ends_with(std::span<const utf16_char> chars) const noexcept
+	constexpr bool ends_with(std::span<const utf32_char> chars) const noexcept
 	{
 		if (chars.empty())
 		{
@@ -4302,7 +4309,7 @@ public:
 			return ends_with(chars.front());
 		}
 
-		return !empty() && details::utf16_char_span_matcher{ chars }(back_unchecked());
+		return !empty() && details::utf32_char_span_matcher{ chars }(back_unchecked());
 	}
 
 	constexpr size_type ceil_char_boundary(size_type pos) const noexcept
@@ -4345,17 +4352,17 @@ protected:
 
 	constexpr View view_from_whole_string() const noexcept
 	{
-		return View::from_code_units_unchecked(code_unit_view());
+		return View::from_code_points_unchecked(code_unit_view());
 	}
 
 	constexpr View empty_view() const noexcept
 	{
-		return View::from_code_units_unchecked(code_unit_view().substr(0, 0));
+		return View::from_code_points_unchecked(code_unit_view().substr(0, 0));
 	}
 
-	constexpr std::u16string_view code_unit_view() const noexcept
+	constexpr std::u32string_view code_unit_view() const noexcept
 	{
-		return std::u16string_view{ self().base() };
+		return std::u32string_view{ self().base() };
 	}
 };
 
@@ -4366,46 +4373,46 @@ protected:
 namespace std::ranges
 {
 	template <>
-	inline constexpr bool enable_borrowed_range<unicode_ranges::details::utf16_char_indices_view> = true;
+	inline constexpr bool enable_borrowed_range<unicode_ranges::details::utf32_char_indices_view> = true;
 
 	template <typename View>
-	inline constexpr bool enable_borrowed_range<unicode_ranges::details::utf16_grapheme_indices_view<View>> = true;
+	inline constexpr bool enable_borrowed_range<unicode_ranges::details::utf32_grapheme_indices_view<View>> = true;
 
 	template <typename View, bool DropTrailingEmpty>
 	inline constexpr bool enable_borrowed_range<
-		unicode_ranges::details::basic_utf16_split_view<
+		unicode_ranges::details::basic_utf32_split_view<
 			View,
 			DropTrailingEmpty,
-			unicode_ranges::details::borrowed_utf16_split_delimiter>> = true;
+			unicode_ranges::details::borrowed_utf32_split_delimiter>> = true;
 
 	template <typename View, bool Reverse>
 	inline constexpr bool enable_borrowed_range<
-		unicode_ranges::details::basic_utf16_splitn_view<
+		unicode_ranges::details::basic_utf32_splitn_view<
 			View,
 			Reverse,
-			unicode_ranges::details::borrowed_utf16_split_delimiter>> = true;
+			unicode_ranges::details::borrowed_utf32_split_delimiter>> = true;
 
 	template <typename View>
 	inline constexpr bool enable_borrowed_range<
-		unicode_ranges::details::basic_utf16_split_inclusive_view<
+		unicode_ranges::details::basic_utf32_split_inclusive_view<
 			View,
-			unicode_ranges::details::borrowed_utf16_split_delimiter>> = true;
+			unicode_ranges::details::borrowed_utf32_split_delimiter>> = true;
 
 	template <typename View, bool Reverse>
 	inline constexpr bool enable_borrowed_range<
-		unicode_ranges::details::basic_utf16_match_indices_view<
+		unicode_ranges::details::basic_utf32_match_indices_view<
 			View,
 			Reverse,
-			unicode_ranges::details::borrowed_utf16_split_delimiter>> = true;
+			unicode_ranges::details::borrowed_utf32_split_delimiter>> = true;
 
 	template <typename View>
 	inline constexpr bool enable_borrowed_range<
-		unicode_ranges::details::basic_utf16_split_trimmed_view<
+		unicode_ranges::details::basic_utf32_split_trimmed_view<
 			View,
-			unicode_ranges::details::borrowed_utf16_split_delimiter>> = true;
+			unicode_ranges::details::borrowed_utf32_split_delimiter>> = true;
 
 	template <typename View, bool AsciiOnly>
-	inline constexpr bool enable_borrowed_range<unicode_ranges::details::utf16_whitespace_split_view<View, AsciiOnly>> = true;
+	inline constexpr bool enable_borrowed_range<unicode_ranges::details::utf32_whitespace_split_view<View, AsciiOnly>> = true;
 }
 
-#endif // UTF8_RANGES_UTF16_STRING_CRTP_HPP
+#endif // UTF8_RANGES_UTF32_STRING_CRTP_HPP

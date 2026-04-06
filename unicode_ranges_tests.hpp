@@ -15,6 +15,10 @@
 using namespace unicode_ranges;
 using namespace unicode_ranges::literals;
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 6262) // monolithic test aggregator; /analyze stack estimate is not actionable here
+#endif
 inline void run_unicode_ranges_tests()
 {
 	// Shared test helpers used by both the UTF-8 and UTF-16 sections.
@@ -65,6 +69,12 @@ inline void run_unicode_ranges_tests()
 		assert(result.has_value());
 		return result.value();
 	};
+	const auto unwrap_utf32_view = [](std::u32string_view code_points)
+	{
+		const auto result = utf32_string_view::from_code_points(code_points);
+		assert(result.has_value());
+		return result.value();
+	};
 
 	static_assert(std::same_as<
 		pmr::utf8_string,
@@ -72,20 +82,34 @@ inline void run_unicode_ranges_tests()
 	static_assert(std::same_as<
 		pmr::utf16_string,
 		basic_utf16_string<std::pmr::polymorphic_allocator<char16_t>>>);
+	static_assert(std::same_as<
+		pmr::utf32_string,
+		basic_utf32_string<std::pmr::polymorphic_allocator<char32_t>>>);
 	constexpr utf8_char latin1_ch = "é"_u8c;
 	constexpr auto utf8_text = "Aé€"_utf8_sv;
 	constexpr auto utf16_text = u"Aé😀"_utf16_sv;
+	constexpr auto utf32_text = U"A\u00E9\U0001F600"_utf32_sv;
 
 	static_assert(unicode_character<utf8_char>);
 	static_assert(std::same_as<decltype("A"_u8c.to_utf8_owned()), utf8_string>);
 	static_assert(std::same_as<decltype(u"A"_u16c.to_utf16_owned()), utf16_string>);
+	static_assert(std::same_as<decltype(U"A"_u32c.to_utf32_owned()), utf32_string>);
 	static_assert(unicode_character<const utf8_char&>);
 	static_assert(unicode_character<utf16_char>);
 	static_assert(unicode_character<utf16_char&&>);
+	static_assert(unicode_character<utf32_char>);
+	static_assert(unicode_character<utf32_char&&>);
 	static_assert(!unicode_character<char8_t>);
 	static_assert(!unicode_character<char16_t>);
+	static_assert(!unicode_character<char32_t>);
 	static_assert(std::same_as<decltype(characters::utf8::emojis::clown_face), const utf8_char>);
 	static_assert(std::same_as<decltype(characters::utf16::emojis::clown_face), const utf16_char>);
+	static_assert(std::same_as<decltype(characters::utf32::emojis::clown_face), const utf32_char>);
+	static_assert(characters::utf32::punctuation::ellipsis == U"\u2026"_u32c);
+	static_assert(characters::utf32::currency::euro_sign == U"\u20AC"_u32c);
+	static_assert(characters::utf32::arrows::right_arrow == U"\u2192"_u32c);
+	static_assert(characters::utf32::emojis::clown_face == U"\U0001F921"_u32c);
+	static_assert(characters::utf32::emojis::red_heart == U"\u2764"_u32c);
 	static_assert(characters::utf8::punctuation::ellipsis == "…"_u8c);
 	static_assert(characters::utf16::punctuation::ellipsis == u"…"_u16c);
 	static_assert(characters::utf8::currency::euro_sign == "€"_u8c);
@@ -106,10 +130,24 @@ inline void run_unicode_ranges_tests()
 	static_assert(std::ranges::range<views::utf16_view>);
 	static_assert(std::ranges::view<views::reversed_utf16_view>);
 	static_assert(std::ranges::range<views::reversed_utf16_view>);
+	static_assert(std::ranges::view<views::utf32_view>);
+	static_assert(std::ranges::range<views::utf32_view>);
+	static_assert(std::ranges::sized_range<views::utf32_view>);
+	static_assert(std::ranges::common_range<views::utf32_view>);
+	static_assert(std::ranges::bidirectional_range<views::utf32_view>);
+	static_assert(std::ranges::random_access_range<views::utf32_view>);
+	static_assert(std::ranges::view<views::reversed_utf32_view>);
+	static_assert(std::ranges::range<views::reversed_utf32_view>);
+	static_assert(std::ranges::sized_range<views::reversed_utf32_view>);
+	static_assert(std::ranges::common_range<views::reversed_utf32_view>);
+	static_assert(std::ranges::bidirectional_range<views::reversed_utf32_view>);
+	static_assert(std::ranges::random_access_range<views::reversed_utf32_view>);
 	static_assert(std::ranges::view<views::grapheme_cluster_view<char8_t>>);
 	static_assert(std::ranges::range<views::grapheme_cluster_view<char8_t>>);
 	static_assert(std::ranges::view<views::grapheme_cluster_view<char16_t>>);
 	static_assert(std::ranges::range<views::grapheme_cluster_view<char16_t>>);
+	static_assert(std::ranges::view<views::grapheme_cluster_view<char32_t>>);
+	static_assert(std::ranges::range<views::grapheme_cluster_view<char32_t>>);
 	static_assert(std::ranges::view<views::lossy_utf8_view<char>>);
 	static_assert(std::ranges::range<views::lossy_utf8_view<char>>);
 	static_assert(std::ranges::view<views::lossy_utf8_view<char8_t>>);
@@ -118,6 +156,91 @@ inline void run_unicode_ranges_tests()
 	static_assert(std::ranges::range<views::lossy_utf16_view<char16_t>>);
 	static_assert(std::ranges::view<views::lossy_utf16_view<wchar_t>>);
 	static_assert(std::ranges::range<views::lossy_utf16_view<wchar_t>>);
+	static_assert(std::ranges::view<views::lossy_utf32_view<char32_t>>);
+	static_assert(std::ranges::range<views::lossy_utf32_view<char32_t>>);
+	static_assert(std::ranges::sized_range<views::lossy_utf32_view<char32_t>>);
+	static_assert(std::ranges::common_range<views::lossy_utf32_view<char32_t>>);
+	static_assert(std::ranges::bidirectional_range<views::lossy_utf32_view<char32_t>>);
+	static_assert(std::ranges::random_access_range<views::lossy_utf32_view<char32_t>>);
+	static_assert(std::ranges::view<decltype(utf32_text.chars())>);
+	static_assert(std::ranges::range<decltype(utf32_text.chars())>);
+	static_assert(std::ranges::sized_range<decltype(utf32_text.chars())>);
+	static_assert(std::ranges::common_range<decltype(utf32_text.chars())>);
+	static_assert(std::ranges::bidirectional_range<decltype(utf32_text.chars())>);
+	static_assert(std::ranges::random_access_range<decltype(utf32_text.chars())>);
+	static_assert(std::ranges::view<decltype(utf32_text.reversed_chars())>);
+	static_assert(std::ranges::range<decltype(utf32_text.reversed_chars())>);
+	static_assert(std::ranges::sized_range<decltype(utf32_text.reversed_chars())>);
+	static_assert(std::ranges::common_range<decltype(utf32_text.reversed_chars())>);
+	static_assert(std::ranges::bidirectional_range<decltype(utf32_text.reversed_chars())>);
+	static_assert(std::ranges::random_access_range<decltype(utf32_text.reversed_chars())>);
+	static_assert(std::ranges::view<decltype(utf32_text.char_indices())>);
+	static_assert(std::ranges::range<decltype(utf32_text.char_indices())>);
+	static_assert(std::ranges::sized_range<decltype(utf32_text.char_indices())>);
+	static_assert(std::ranges::common_range<decltype(utf32_text.char_indices())>);
+	static_assert(std::ranges::bidirectional_range<decltype(utf32_text.char_indices())>);
+	static_assert(std::ranges::random_access_range<decltype(utf32_text.char_indices())>);
+	static_assert(std::ranges::view<decltype(utf32_text.graphemes())>);
+	static_assert(std::ranges::range<decltype(utf32_text.graphemes())>);
+	static_assert(std::ranges::view<decltype(utf32_text.grapheme_indices())>);
+	static_assert(std::ranges::range<decltype(utf32_text.grapheme_indices())>);
+	static_assert(utf32_text.size() == 3);
+	static_assert(utf32_text.char_count() == 3);
+	static_assert(utf32_text.grapheme_count() == 3);
+	static_assert(utf32_text.char_at(1).has_value());
+	static_assert(utf32_text.char_at(1).value() == U"\u00E9"_u32c);
+	static_assert(utf32_text.chars().size() == utf32_text.size());
+	static_assert(utf32_text.reversed_chars().size() == utf32_text.size());
+	static_assert(utf32_text.char_indices().size() == utf32_text.size());
+	static_assert(utf32_text.chars().begin()[1] == U"\u00E9"_u32c);
+	static_assert(utf32_text.reversed_chars().begin()[0] == U"\U0001F600"_u32c);
+	static_assert(utf32_text.char_indices().begin()[2].first == 2);
+	static_assert(utf32_text.char_indices().begin()[2].second == U"\U0001F600"_u32c);
+	static_assert(utf32_text.substr(1, 1).value() == U"\u00E9"_utf32_sv);
+	static_assert(utf32_text.starts_with(U"A"_u32c));
+	static_assert(utf32_text.ends_with(U"\U0001F600"_u32c));
+	static_assert(utf32_text.contains(U"\u00E9"_u32c));
+	static_assert(utf32_text.find(U"\u00E9"_u32c) == 1);
+	static_assert(utf32_text.rfind(U"\U0001F600"_u32c) == 2);
+	static_assert(utf32_text.replace_all(U"\u00E9"_u32c, U"!"_u32c) == U"A!\U0001F600"_utf32_sv);
+	static_assert(utf32_text.to_utf32_owned() == utf32_text);
+	static_assert(utf32_text.to_utf8() == u8"A\u00E9\U0001F600"_utf8_sv);
+	static_assert(utf32_text.to_utf16() == u"A\u00E9\U0001F600"_utf16_sv);
+	static_assert(std::same_as<decltype(utf32_text.to_utf32_owned()), utf32_string>);
+	static_assert(std::same_as<decltype(utf32_text.to_utf8()), utf8_string>);
+	static_assert(std::same_as<decltype(utf32_text.to_utf16()), utf16_string>);
+	static_assert(std::same_as<decltype(utf32_text.to_lowercase()), utf32_string>);
+	static_assert(std::same_as<decltype(utf32_text.to_uppercase()), utf32_string>);
+	static_assert(std::same_as<decltype(utf32_text.case_fold()), utf32_string>);
+	static_assert(std::same_as<decltype(utf32_text.normalize(normalization_form::nfc)), utf32_string>);
+	static_assert(std::same_as<decltype(utf32_text.replace_all(U"\u00E9"_u32c, U"!"_u32c)), utf32_string>);
+	static_assert(std::same_as<decltype(utf32_text.replace_n(1, U"\u00E9"_u32c, U"!"_u32c)), utf32_string>);
+	static_assert([] {
+		constexpr std::array any_of{ U"a"_u32c, U"b"_u32c };
+		return std::same_as<
+			decltype(utf32_text.replace_all(std::span{ any_of }, U"!"_u32c)),
+			utf32_string>
+			&& std::same_as<
+				decltype(utf32_text.replace_all(std::span{ any_of }, U"!"_u32c, std::pmr::polymorphic_allocator<char32_t>{})),
+				pmr::utf32_string>
+			&& std::same_as<
+				decltype(utf32_text.replace_n(2, std::span{ any_of }, U"!"_u32c)),
+				utf32_string>
+			&& std::same_as<
+				decltype(utf32_text.replace_n(2, std::span{ any_of }, U"!"_u32c, std::pmr::polymorphic_allocator<char32_t>{})),
+				pmr::utf32_string>
+			&& std::same_as<
+				decltype(utf32_string{}.replace_all(std::span{ any_of }, U"!"_u32c)),
+				utf32_string>
+			&& std::same_as<
+				decltype(utf32_string{}.replace_n(2, std::span{ any_of }, U"!"_u32c)),
+				utf32_string>;
+	}());
+	static_assert(U"Stra\u00DFe"_utf32_sv.eq_ignore_case(U"STRASSE"_utf32_sv));
+	static_assert(U"Stra\u00DFe"_utf32_sv.starts_with_ignore_case(U"str"_utf32_sv));
+	static_assert(U"Stra\u00DFe"_utf32_sv.ends_with_ignore_case(U"SSE"_utf32_sv));
+	static_assert(U"Stra\u00DFe"_utf32_sv.compare_ignore_case(U"STRASSE"_utf32_sv) == std::weak_ordering::equivalent);
+	static_assert(!U"\u00E9"_utf32_sv.eq_ignore_case(U"e\u0301"_utf32_sv));
 
 	static_assert(std::ranges::view<decltype(utf8_text.chars())>);
 	static_assert(std::ranges::range<decltype(utf8_text.chars())>);
@@ -1721,12 +1844,18 @@ inline void run_unicode_ranges_tests()
 	assert((std::same_as<
 		pmr::utf16_string,
 		basic_utf16_string<std::pmr::polymorphic_allocator<char16_t>>>));
+	assert((std::same_as<
+		pmr::utf32_string,
+		basic_utf32_string<std::pmr::polymorphic_allocator<char32_t>>>));
 	assert((unicode_character<utf8_char>));
 	assert((unicode_character<const utf8_char&>));
 	assert((unicode_character<utf16_char>));
 	assert((unicode_character<utf16_char&&>));
+	assert((unicode_character<utf32_char>));
+	assert((unicode_character<utf32_char&&>));
 	assert((!unicode_character<char8_t>));
 	assert((!unicode_character<char16_t>));
+	assert((!unicode_character<char32_t>));
 
 	assert((std::ranges::view<views::utf8_view>));
 	assert((std::ranges::range<views::utf8_view>));
@@ -1736,10 +1865,24 @@ inline void run_unicode_ranges_tests()
 	assert((std::ranges::range<views::utf16_view>));
 	assert((std::ranges::view<views::reversed_utf16_view>));
 	assert((std::ranges::range<views::reversed_utf16_view>));
+	assert((std::ranges::view<views::utf32_view>));
+	assert((std::ranges::range<views::utf32_view>));
+	assert((std::ranges::sized_range<views::utf32_view>));
+	assert((std::ranges::common_range<views::utf32_view>));
+	assert((std::ranges::bidirectional_range<views::utf32_view>));
+	assert((std::ranges::random_access_range<views::utf32_view>));
+	assert((std::ranges::view<views::reversed_utf32_view>));
+	assert((std::ranges::range<views::reversed_utf32_view>));
+	assert((std::ranges::sized_range<views::reversed_utf32_view>));
+	assert((std::ranges::common_range<views::reversed_utf32_view>));
+	assert((std::ranges::bidirectional_range<views::reversed_utf32_view>));
+	assert((std::ranges::random_access_range<views::reversed_utf32_view>));
 	assert((std::ranges::view<views::grapheme_cluster_view<char8_t>>));
 	assert((std::ranges::range<views::grapheme_cluster_view<char8_t>>));
 	assert((std::ranges::view<views::grapheme_cluster_view<char16_t>>));
 	assert((std::ranges::range<views::grapheme_cluster_view<char16_t>>));
+	assert((std::ranges::view<views::grapheme_cluster_view<char32_t>>));
+	assert((std::ranges::range<views::grapheme_cluster_view<char32_t>>));
 	assert((std::ranges::view<views::lossy_utf8_view<char>>));
 	assert((std::ranges::range<views::lossy_utf8_view<char>>));
 	assert((std::ranges::view<views::lossy_utf8_view<char8_t>>));
@@ -1748,6 +1891,12 @@ inline void run_unicode_ranges_tests()
 	assert((std::ranges::range<views::lossy_utf16_view<char16_t>>));
 	assert((std::ranges::view<views::lossy_utf16_view<wchar_t>>));
 	assert((std::ranges::range<views::lossy_utf16_view<wchar_t>>));
+	assert((std::ranges::view<views::lossy_utf32_view<char32_t>>));
+	assert((std::ranges::range<views::lossy_utf32_view<char32_t>>));
+	assert((std::ranges::sized_range<views::lossy_utf32_view<char32_t>>));
+	assert((std::ranges::common_range<views::lossy_utf32_view<char32_t>>));
+	assert((std::ranges::bidirectional_range<views::lossy_utf32_view<char32_t>>));
+	assert((std::ranges::random_access_range<views::lossy_utf32_view<char32_t>>));
 
 	{
 		[[maybe_unused]] const auto runtime_latin1_ch = utf8_char::from_scalar_unchecked(0x00E9u);
@@ -1755,6 +1904,8 @@ inline void run_unicode_ranges_tests()
 		const auto runtime_utf8_text = unwrap_utf8_view(runtime_utf8_storage);
 		const std::u16string runtime_utf16_storage = u"A\u00E9\U0001F600";
 		const auto runtime_utf16_text = unwrap_utf16_view(runtime_utf16_storage);
+		const std::u32string runtime_utf32_storage = U"A\u00E9\U0001F600";
+		const auto runtime_utf32_text = unwrap_utf32_view(runtime_utf32_storage);
 
 		assert((std::ranges::view<decltype(runtime_utf8_text.chars())>));
 		assert((std::ranges::range<decltype(runtime_utf8_text.chars())>));
@@ -1777,6 +1928,36 @@ inline void run_unicode_ranges_tests()
 		assert((std::ranges::range<decltype(runtime_utf16_text.graphemes())>));
 		assert((std::ranges::view<decltype(runtime_utf16_text.grapheme_indices())>));
 		assert((std::ranges::range<decltype(runtime_utf16_text.grapheme_indices())>));
+
+		assert((std::ranges::view<decltype(runtime_utf32_text.chars())>));
+		assert((std::ranges::range<decltype(runtime_utf32_text.chars())>));
+		assert((std::ranges::sized_range<decltype(runtime_utf32_text.chars())>));
+		assert((std::ranges::common_range<decltype(runtime_utf32_text.chars())>));
+		assert((std::ranges::bidirectional_range<decltype(runtime_utf32_text.chars())>));
+		assert((std::ranges::random_access_range<decltype(runtime_utf32_text.chars())>));
+		assert((std::ranges::view<decltype(runtime_utf32_text.reversed_chars())>));
+		assert((std::ranges::range<decltype(runtime_utf32_text.reversed_chars())>));
+		assert((std::ranges::sized_range<decltype(runtime_utf32_text.reversed_chars())>));
+		assert((std::ranges::common_range<decltype(runtime_utf32_text.reversed_chars())>));
+		assert((std::ranges::bidirectional_range<decltype(runtime_utf32_text.reversed_chars())>));
+		assert((std::ranges::random_access_range<decltype(runtime_utf32_text.reversed_chars())>));
+		assert((std::ranges::view<decltype(runtime_utf32_text.char_indices())>));
+		assert((std::ranges::range<decltype(runtime_utf32_text.char_indices())>));
+		assert((std::ranges::sized_range<decltype(runtime_utf32_text.char_indices())>));
+		assert((std::ranges::common_range<decltype(runtime_utf32_text.char_indices())>));
+		assert((std::ranges::bidirectional_range<decltype(runtime_utf32_text.char_indices())>));
+		assert((std::ranges::random_access_range<decltype(runtime_utf32_text.char_indices())>));
+		assert((std::ranges::view<decltype(runtime_utf32_text.graphemes())>));
+		assert((std::ranges::range<decltype(runtime_utf32_text.graphemes())>));
+		assert((std::ranges::view<decltype(runtime_utf32_text.grapheme_indices())>));
+		assert((std::ranges::range<decltype(runtime_utf32_text.grapheme_indices())>));
+		assert(runtime_utf32_text.chars().size() == runtime_utf32_text.size());
+		assert(runtime_utf32_text.reversed_chars().size() == runtime_utf32_text.size());
+		assert(runtime_utf32_text.char_indices().size() == runtime_utf32_text.size());
+		assert(runtime_utf32_text.chars().begin()[1] == U"\u00E9"_u32c);
+		assert(runtime_utf32_text.reversed_chars().begin()[0] == U"\U0001F600"_u32c);
+		assert(runtime_utf32_text.char_indices().begin()[2].first == 2);
+		assert(runtime_utf32_text.char_indices().begin()[2].second == U"\U0001F600"_u32c);
 
 		assert(u8"A"_u8c.ascii_lowercase() == u8"a"_u8c);
 		assert(u8"z"_u8c.ascii_uppercase() == u8"Z"_u8c);
@@ -1838,6 +2019,32 @@ inline void run_unicode_ranges_tests()
 		assert(u8"A"_u8c.is_ascii_graphic());
 		assert(!u8" "_u8c.is_ascii_graphic());
 		assert(u8"\n"_u8c.is_ascii_control());
+
+		assert(U"A"_u32c.ascii_lowercase() == U"a"_u32c);
+		assert(U"z"_u32c.ascii_uppercase() == U"Z"_u32c);
+		assert(U"A"_u32c.eq_ignore_ascii_case(U"a"_u32c));
+		assert(U"\u03A9"_u32c.is_alphabetic());
+		assert(U"\u03A9"_u32c.is_uppercase());
+		assert(U"\u03C9"_u32c.is_lowercase());
+		assert(U"5"_u32c.is_digit());
+		assert(U"\u2167"_u32c.is_numeric());
+		assert(U"\u2003"_u32c.is_whitespace());
+		assert(U"A"_u32c.general_category() == unicode_general_category::uppercase_letter);
+		assert(U"\u0301"_u32c.canonical_combining_class() == 230u);
+		assert(U"\u0301"_u32c.grapheme_break_property() == unicode_grapheme_break_property::extend);
+		assert(U"\u03A9"_u32c.script() == unicode_script::greek);
+		assert(U"A"_u32c.east_asian_width() == unicode_east_asian_width::narrow);
+		assert(U"\u754C"_u32c.east_asian_width() == unicode_east_asian_width::wide);
+		assert(U"A"_u32c.line_break_class() == unicode_line_break_class::alphabetic);
+		assert(U"A"_u32c.bidi_class() == unicode_bidi_class::left_to_right);
+		assert(U"\u0634"_u32c.bidi_class() == unicode_bidi_class::arabic_letter);
+		assert(U"A"_u32c.word_break_property() == unicode_word_break_property::a_letter);
+		assert(U"."_u32c.sentence_break_property() == unicode_sentence_break_property::a_term);
+		assert(U"\U0001F600"_u32c.is_emoji());
+		assert(U"\U0001F600"_u32c.is_emoji_presentation());
+		assert(U"\U0001F600"_u32c.is_extended_pictographic());
+		assert(U"F"_u32c.is_ascii_hexdigit());
+		assert(U"\n"_u32c.is_ascii_control());
 
 		assert(std::get<0>(unicode_version) == 17);
 		assert(std::get<1>(unicode_version) == 0);
@@ -2669,6 +2876,285 @@ inline void run_unicode_ranges_tests()
 		assert(utf16_string_view::from_code_units(runtime_utf16_text.as_view()).has_value());
 		assert(runtime_utf16_text == u"A\u00E9\U0001F600"_utf16_sv);
 		assert(runtime_utf16_text < u"Z"_utf16_sv);
+
+		assert(runtime_utf32_text.size() == 3);
+		assert(runtime_utf32_text.char_count() == 3);
+		assert(runtime_utf32_text == U"A\u00E9\U0001F600"_utf32_sv);
+		assert(runtime_utf32_text.is_char_boundary(0));
+		assert(runtime_utf32_text.is_char_boundary(1));
+		assert(runtime_utf32_text.is_char_boundary(2));
+		assert(runtime_utf32_text.is_char_boundary(3));
+		assert(runtime_utf32_text.char_at(1).has_value());
+		assert(runtime_utf32_text.char_at(1).value() == U"\u00E9"_u32c);
+		assert(!runtime_utf32_text.char_at(runtime_utf32_text.size()).has_value());
+		assert(runtime_utf32_text.char_at_unchecked(2) == U"\U0001F600"_u32c);
+		assert(runtime_utf32_text.front().value() == U"A"_u32c);
+		assert(runtime_utf32_text.back().value() == U"\U0001F600"_u32c);
+		assert(runtime_utf32_text.find(U"\u00E9"_u32c) == 1);
+		assert(runtime_utf32_text.rfind(U"\U0001F600"_u32c) == 2);
+		assert(runtime_utf32_text.substr(1).value() == U"\u00E9\U0001F600"_utf32_sv);
+		assert(runtime_utf32_text.substr(2, 1).value() == U"\U0001F600"_utf32_sv);
+		assert(runtime_utf32_text.starts_with(U"A"_u32c));
+		assert(runtime_utf32_text.ends_with(U"\U0001F600"_u32c));
+		assert(runtime_utf32_text.to_utf8() == u8"A\u00E9\U0001F600"_utf8_sv);
+		assert(runtime_utf32_text.to_utf16() == u"A\u00E9\U0001F600"_utf16_sv);
+		assert(runtime_utf32_text.to_utf32_owned() == runtime_utf32_text);
+		assert(runtime_utf32_text.replace_all(U"\u00E9"_u32c, U"!"_u32c) == U"A!\U0001F600"_utf32_sv);
+		assert(U"Stra\u00DFe"_utf32_sv.eq_ignore_case(U"STRASSE"_utf32_sv));
+		assert(U"Stra\u00DFe"_utf32_sv.starts_with_ignore_case(U"str"_utf32_sv));
+		assert(U"Stra\u00DFe"_utf32_sv.ends_with_ignore_case(U"SSE"_utf32_sv));
+		assert(U"Stra\u00DFe"_utf32_sv.compare_ignore_case(U"STRASSE"_utf32_sv) == std::weak_ordering::equivalent);
+		assert(!U"\u00E9"_utf32_sv.eq_ignore_case(U"e\u0301"_utf32_sv));
+#if UTF8_RANGES_HAS_ICU
+		assert(U"I"_utf32_sv.to_lowercase("tr"_locale) == U"\u0131"_utf32_sv);
+		assert(U"istanbul"_utf32_sv.to_titlecase("tr"_locale) == U"İstanbul"_utf32_sv);
+#endif
+		{
+			const std::u32string text_storage = U"e\u0301X";
+			[[maybe_unused]] const auto text = unwrap_utf32_view(text_storage);
+			assert(std::ranges::equal(text.graphemes(), std::array{
+				U"e\u0301"_grapheme_utf32,
+				U"X"_grapheme_utf32
+			}));
+		}
+		{
+			const std::u32string text_storage = U"\r\nX";
+			[[maybe_unused]] const auto text = unwrap_utf32_view(text_storage);
+			assert(std::ranges::equal(text.graphemes(), std::array{
+				U"\r\n"_grapheme_utf32,
+				U"X"_grapheme_utf32
+			}));
+		}
+		{
+			const std::u32string text_storage = U"\U0001F1F7\U0001F1F4!";
+			[[maybe_unused]] const auto text = unwrap_utf32_view(text_storage);
+			assert(std::ranges::equal(text.graphemes(), std::array{
+				U"\U0001F1F7\U0001F1F4"_grapheme_utf32,
+				U"!"_grapheme_utf32
+			}));
+		}
+		{
+			const std::u32string text_storage = U"\U0001F469\u200D\U0001F4BB!";
+			[[maybe_unused]] const auto text = unwrap_utf32_view(text_storage);
+			assert(std::ranges::equal(text.graphemes(), std::array{
+				U"\U0001F469\u200D\U0001F4BB"_grapheme_utf32,
+				U"!"_grapheme_utf32
+			}));
+		}
+		{
+			const std::u32string grapheme_storage = U"e\u0301\U0001F1F7\U0001F1F4!";
+			[[maybe_unused]] const auto grapheme_text = unwrap_utf32_view(grapheme_storage);
+
+			assert(grapheme_text.find_grapheme(U"e\u0301"_grapheme_utf32) == 0);
+			assert(grapheme_text.find_grapheme(U"\U0001F1F7\U0001F1F4"_grapheme_utf32, 1) == 2);
+			assert(grapheme_text.find_grapheme(U"\u0301"_u32c) == utf32_string_view::npos);
+			assert(grapheme_text.contains_grapheme(U"\U0001F1F7\U0001F1F4"_grapheme_utf32));
+			assert(!grapheme_text.contains_grapheme(U"\u0301"_u32c));
+			assert(grapheme_text.rfind_grapheme(U"!"_grapheme_utf32) == 4);
+			assert(grapheme_text.rfind_grapheme(U"\U0001F1F7\U0001F1F4"_grapheme_utf32, 3) == 2);
+		}
+		assert(U"e\u0301"_grapheme_utf32 == U"e\u0301"_utf32_sv);
+		{
+			assert(U"AbC-\u00E9\u00DF"_utf32_sv.to_ascii_lowercase() == U"abc-\u00E9\u00DF"_utf32_sv);
+			assert(U"AbC-\u00E9\u00DF"_utf32_sv.to_ascii_lowercase(0, 3) == U"abc-\u00E9\u00DF"_utf32_sv);
+			assert(U"aBc-\u00E9\u00DF"_utf32_sv.to_ascii_uppercase() == U"ABC-\u00E9\u00DF"_utf32_sv);
+			assert(U"aBc-\u00E9\u00DF"_utf32_sv.to_ascii_uppercase(0, 3) == U"ABC-\u00E9\u00DF"_utf32_sv);
+			assert(U"\u00C4\u03A9\u0130"_utf32_sv.to_lowercase() == U"\u00E4\u03C9i\u0307"_utf32_sv);
+			assert(U"XX\u00C4\u03A9YY"_utf32_sv.to_lowercase(2, 2) == U"XX\u00E4\u03C9YY"_utf32_sv);
+			assert(U"\u00E4\u00DF\u03C9"_utf32_sv.to_uppercase() == U"\u00C4SS\u03A9"_utf32_sv);
+			assert(U"ab\u00E4\u00DFcd"_utf32_sv.to_uppercase(2, 2) == U"ab\u00C4SScd"_utf32_sv);
+			assert(U"\u00E9"_utf32_sv.to_nfd() == U"e\u0301"_utf32_sv);
+			assert(U"e\u0301"_utf32_sv.to_nfc() == U"\u00E9"_utf32_sv);
+			assert(U"\uFF21"_utf32_sv.to_nfkc() == U"A"_utf32_sv);
+			assert(U"A"_utf32_sv.to_nfkd() == U"A"_utf32_sv);
+			assert(U"\u00E9"_utf32_sv.is_nfc());
+			assert(!U"\u00E9"_utf32_sv.is_nfd());
+			assert(U"e\u0301"_utf32_sv.is_nfd());
+			assert(U"Stra\u00DFe"_utf32_sv.case_fold() == U"strasse"_utf32_sv);
+			assert(U"Stra\u00DFe"_utf32_sv.eq_ignore_case(U"STRASSE"_utf32_sv));
+			assert(U"Stra\u00DFe"_utf32_sv.starts_with_ignore_case(U"stras"_utf32_sv));
+			assert(U"Stra\u00DFe"_utf32_sv.ends_with_ignore_case(U"SSE"_utf32_sv));
+			assert(U"Stra\u00DFe"_utf32_sv.compare_ignore_case(U"strasse"_utf32_sv) == std::weak_ordering::equivalent);
+			assert(U"Cafe"_utf32_sv.compare_ignore_case(U"cafg"_utf32_sv) == std::weak_ordering::less);
+			assert(!U"\u00E9"_utf32_sv.eq_ignore_case(U"e\u0301"_utf32_sv));
+			[[maybe_unused]] auto ascii_lowered_owned = utf32_string{ U"AbC-\u00E9\u00DF"_utf32_sv }.to_ascii_lowercase();
+			assert(ascii_lowered_owned == U"abc-\u00E9\u00DF"_utf32_sv);
+			auto partial_ascii_lower_owned = U"AbCdEfGhIjKlMnOpQrStUvWxYz0123456789-\u00E9\u00DF"_utf32_s;
+			[[maybe_unused]] auto partial_ascii_lowered = std::move(partial_ascii_lower_owned).to_ascii_lowercase(0, 26);
+			assert(partial_ascii_lowered == U"abcdefghijklmnopqrstuvwxyz0123456789-\u00E9\u00DF"_utf32_sv);
+			auto ascii_lower_owned = U"AbCdEfGhIjKlMnOpQrStUvWxYz0123456789AbCdEfGhIjKlMnOpQrSt"_utf32_s;
+			[[maybe_unused]] const auto* ascii_lower_original = ascii_lower_owned.base().data();
+			[[maybe_unused]] auto lowered_in_place = std::move(ascii_lower_owned).to_lowercase();
+			assert(lowered_in_place == U"abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrst"_utf32_sv);
+			assert(lowered_in_place.base().data() == ascii_lower_original);
+			auto partial_lower_owned = U"XX\u00C4\u03A9YY"_utf32_s;
+			[[maybe_unused]] auto partial_lowered = std::move(partial_lower_owned).to_lowercase(2, 2);
+			assert(partial_lowered == U"XX\u00E4\u03C9YY"_utf32_sv);
+			auto ascii_upper_owned = U"aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789aBcDeFgHiJkLmNoPqRsT"_utf32_s;
+			[[maybe_unused]] const auto* ascii_upper_original = ascii_upper_owned.base().data();
+			[[maybe_unused]] auto uppered_in_place = std::move(ascii_upper_owned).to_uppercase();
+			assert(uppered_in_place == U"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEFGHIJKLMNOPQRST"_utf32_sv);
+			assert(uppered_in_place.base().data() == ascii_upper_original);
+			auto partial_upper_owned = U"ab\u00E4\u00DFcd"_utf32_s;
+			[[maybe_unused]] auto partial_uppered = std::move(partial_upper_owned).to_uppercase(2, 2);
+			assert(partial_uppered == U"ab\u00C4SScd"_utf32_sv);
+			std::pmr::monotonic_buffer_resource resource;
+			const auto alloc = std::pmr::polymorphic_allocator<char32_t>{ &resource };
+			[[maybe_unused]] const auto lowered_alloc = U"\u00C4\u03A9\u0130"_utf32_sv.to_lowercase(alloc);
+			assert(lowered_alloc == U"\u00E4\u03C9i\u0307"_utf32_sv);
+			assert(lowered_alloc.get_allocator().resource() == &resource);
+			[[maybe_unused]] const auto partial_uppered_alloc = U"ab\u00E4\u00DFcd"_utf32_sv.to_uppercase(2, 2, alloc);
+			assert(partial_uppered_alloc == U"ab\u00C4SScd"_utf32_sv);
+			assert(partial_uppered_alloc.get_allocator().resource() == &resource);
+#if UTF8_RANGES_HAS_ICU
+			assert(U"I\u0130"_utf32_sv.to_lowercase("tr"_locale) == U"\u0131i"_utf32_sv);
+			assert(U"XXI\u0130YY"_utf32_sv.to_lowercase(2, 2, "tr"_locale) == U"XX\u0131iYY"_utf32_sv);
+			[[maybe_unused]] const auto lowered_locale_alloc = U"I\u0130"_utf32_sv.to_lowercase("tr"_locale, alloc);
+			assert(lowered_locale_alloc == U"\u0131i"_utf32_sv);
+			assert(lowered_locale_alloc.get_allocator().resource() == &resource);
+			assert(U"i\u0131"_utf32_sv.to_uppercase("tr"_locale) == U"\u0130I"_utf32_sv);
+			assert(U"XXi\u0131YY"_utf32_sv.to_uppercase(2, 2, "tr"_locale) == U"XX\u0130IYY"_utf32_sv);
+			[[maybe_unused]] const auto uppered_locale_alloc = U"i\u0131"_utf32_sv.to_uppercase("tr"_locale, alloc);
+			assert(uppered_locale_alloc == U"\u0130I"_utf32_sv);
+			assert(uppered_locale_alloc.get_allocator().resource() == &resource);
+			assert(U"istanbul izmir"_utf32_sv.to_titlecase("tr"_locale) == U"\u0130stanbul \u0130zmir"_utf32_sv);
+			[[maybe_unused]] const auto titled_locale_alloc = U"istanbul izmir"_utf32_sv.to_titlecase("tr"_locale, alloc);
+			assert(titled_locale_alloc == U"\u0130stanbul \u0130zmir"_utf32_sv);
+			assert(titled_locale_alloc.get_allocator().resource() == &resource);
+			assert(U"I\u0130"_utf32_sv.case_fold("tr"_locale) == U"\u0131i"_utf32_sv);
+			[[maybe_unused]] const auto folded_locale_alloc = U"I\u0130"_utf32_sv.case_fold("tr"_locale, alloc);
+			assert(folded_locale_alloc == U"\u0131i"_utf32_sv);
+			assert(folded_locale_alloc.get_allocator().resource() == &resource);
+			assert(U"I"_utf32_sv.eq_ignore_case(U"\u0131"_utf32_sv, "tr"_locale));
+			assert(U"i"_utf32_sv.eq_ignore_case(U"\u0130"_utf32_sv, "tr"_locale));
+			assert(U"Istanbul"_utf32_sv.starts_with_ignore_case(U"\u0131s"_utf32_sv, "tr"_locale));
+			assert(U"kap\u0131I"_utf32_sv.ends_with_ignore_case(U"\u0131"_utf32_sv, "tr"_locale));
+			assert(U"I"_utf32_sv.compare_ignore_case(U"\u0131"_utf32_sv, "tr"_locale) == std::weak_ordering::equivalent);
+			assert(!U"I"_utf32_sv.eq_ignore_case(U"\u0131"_utf32_sv));
+#endif
+			[[maybe_unused]] const auto normalized_alloc = U"e\u0301"_utf32_sv.to_nfc(alloc);
+			assert(normalized_alloc == U"\u00E9"_utf32_sv);
+			assert(normalized_alloc.get_allocator().resource() == &resource);
+			[[maybe_unused]] const auto folded_alloc = U"Stra\u00DFe"_utf32_sv.case_fold(alloc);
+			assert(folded_alloc == U"strasse"_utf32_sv);
+			assert(folded_alloc.get_allocator().resource() == &resource);
+			[[maybe_unused]] const auto pmr_ascii_lowered = pmr::utf32_string{ U"AbC-\u00E9\u00DF"_utf32_sv, alloc }.to_ascii_lowercase();
+			assert(pmr_ascii_lowered == U"abc-\u00E9\u00DF"_utf32_sv);
+			assert(pmr_ascii_lowered.get_allocator().resource() == &resource);
+		}
+		{
+			auto it = runtime_utf32_text.char_indices().begin();
+			assert(it != runtime_utf32_text.char_indices().end());
+			[[maybe_unused]] const auto [i0, c0] = *it++;
+			assert(i0 == 0);
+			assert(c0 == U"A"_u32c);
+			[[maybe_unused]] const auto [i1, c1] = *it++;
+			assert(i1 == 1);
+			assert(c1 == U"\u00E9"_u32c);
+			[[maybe_unused]] const auto [i2, c2] = *it++;
+			assert(i2 == 2);
+			assert(c2 == U"\U0001F600"_u32c);
+			assert(it == runtime_utf32_text.char_indices().end());
+		}
+		{
+			const std::u32string text_storage = U"e\u0301\U0001F1F7\U0001F1F4!";
+			[[maybe_unused]] const auto text = unwrap_utf32_view(text_storage);
+			auto it = text.grapheme_indices().begin();
+			assert(it != text.grapheme_indices().end());
+			[[maybe_unused]] const auto [i0, g0] = *it++;
+			assert(i0 == 0);
+			assert(g0 == U"e\u0301"_grapheme_utf32);
+			[[maybe_unused]] const auto [i1, g1] = *it++;
+			assert(i1 == 2);
+			assert(g1 == U"\U0001F1F7\U0001F1F4"_grapheme_utf32);
+			[[maybe_unused]] const auto [i2, g2] = *it++;
+			assert(i2 == 4);
+			assert(g2 == U"!"_grapheme_utf32);
+			assert(it == text.grapheme_indices().end());
+		}
+		{
+			const auto text = U"abra--cadabra--!"_utf32_sv;
+			assert(std::ranges::equal(text.splitn(0, U"--"_utf32_sv), std::array<utf32_string_view, 0>{}));
+			assert(std::ranges::equal(text.splitn(1, U"--"_utf32_sv), std::array{
+				U"abra--cadabra--!"_utf32_sv
+			}));
+			assert(std::ranges::equal(text.splitn(2, U"--"_utf32_sv), std::array{
+				U"abra"_utf32_sv,
+				U"cadabra--!"_utf32_sv
+			}));
+			assert(std::ranges::equal(text.rsplitn(2, U"--"_utf32_sv), std::array{
+				U"!"_utf32_sv,
+				U"abra--cadabra"_utf32_sv
+			}));
+			[[maybe_unused]] const auto first = text.split_once(U"--"_utf32_sv);
+			assert(first.has_value());
+			assert(first->first == U"abra"_utf32_sv);
+			assert(first->second == U"cadabra--!"_utf32_sv);
+			[[maybe_unused]] const auto last = text.rsplit_once(U"--"_utf32_sv);
+			assert(last.has_value());
+			assert(last->first == U"abra--cadabra"_utf32_sv);
+			assert(last->second == U"!"_utf32_sv);
+			assert(!text.split_once(U""_utf32_sv).has_value());
+			assert(!text.rsplit_once(U""_utf32_sv).has_value());
+		}
+		{
+			const auto text = U"<<<\u00E9A>>>"_utf32_sv;
+			[[maybe_unused]] const auto stripped_prefix = text.strip_prefix(U"<<<"_utf32_sv);
+			assert(stripped_prefix.has_value());
+			assert(stripped_prefix.value() == U"\u00E9A>>>"_utf32_sv);
+			[[maybe_unused]] const auto stripped_suffix = text.strip_suffix(U">>>"_utf32_sv);
+			assert(stripped_suffix.has_value());
+			assert(stripped_suffix.value() == U"<<<\u00E9A"_utf32_sv);
+			[[maybe_unused]] const auto stripped_circ = text.strip_circumfix(U"<<<"_utf32_sv, U">>>"_utf32_sv);
+			assert(stripped_circ.has_value());
+			assert(stripped_circ.value() == U"\u00E9A"_utf32_sv);
+			assert(text.trim_prefix(U">>>"_utf32_sv) == text);
+			assert(text.trim_prefix(U"<<<"_utf32_sv) == U"\u00E9A>>>"_utf32_sv);
+			assert(text.trim_suffix(U">>>"_utf32_sv) == U"<<<\u00E9A"_utf32_sv);
+			assert(U"\u00E9A\u00E9"_utf32_sv.trim_prefix(U"\u00E9"_u32c) == U"A\u00E9"_utf32_sv);
+			assert(U"\u00E9A\u00E9"_utf32_sv.trim_suffix(U"\u00E9"_u32c) == U"\u00E9A"_utf32_sv);
+		}
+		{
+			[[maybe_unused]] const auto repeated = U"----abra----"_utf32_sv;
+			[[maybe_unused]] const auto accented = U"\u00E9\u00E9A\u00E9"_utf32_sv;
+			assert(repeated.trim_start_matches(U"--"_utf32_sv) == U"abra----"_utf32_sv);
+			assert(repeated.trim_end_matches(U"--"_utf32_sv) == U"----abra"_utf32_sv);
+			assert(repeated.trim_matches(U"--"_utf32_sv) == U"abra"_utf32_sv);
+			assert(repeated.trim_matches(U""_utf32_sv) == repeated);
+			assert(U"***abra***"_utf32_sv.trim_matches(U"*"_u32c) == U"abra"_utf32_sv);
+			assert(accented.trim_start_matches(U"\u00E9"_u32c) == U"A\u00E9"_utf32_sv);
+			assert(accented.trim_end_matches(U"\u00E9"_u32c) == U"\u00E9\u00E9A"_utf32_sv);
+			assert(accented.trim_matches(U"\u00E9"_u32c) == U"A"_utf32_sv);
+		}
+		{
+			[[maybe_unused]] const auto unicode_trimmed = U"\u00A0\tA\u00A0 "_utf32_sv;
+			[[maybe_unused]] const auto unicode_split = U"\u00A0A\u2003B C"_utf32_sv;
+			assert(unicode_trimmed.trim() == U"A"_utf32_sv);
+			assert(unicode_trimmed.trim_start() == U"A\u00A0 "_utf32_sv);
+			assert(unicode_trimmed.trim_end() == U"\u00A0\tA"_utf32_sv);
+			assert(unicode_trimmed.trim_ascii() == U"\u00A0\tA\u00A0"_utf32_sv);
+			assert(unicode_trimmed.trim_ascii_start() == unicode_trimmed);
+			assert(unicode_trimmed.trim_ascii_end() == U"\u00A0\tA\u00A0"_utf32_sv);
+			assert(std::ranges::equal(U""_utf32_sv.split_whitespace(), std::array<utf32_string_view, 0>{}));
+			assert(std::ranges::equal(U" \t\r\n"_utf32_sv.split_ascii_whitespace(), std::array<utf32_string_view, 0>{}));
+			assert(std::ranges::equal(U" \tA  B\n"_utf32_sv.split_whitespace(), std::array{
+				U"A"_utf32_sv,
+				U"B"_utf32_sv
+			}));
+			assert(std::ranges::equal(U" \tA  B\n"_utf32_sv.split_ascii_whitespace(), std::array{
+				U"A"_utf32_sv,
+				U"B"_utf32_sv
+			}));
+			assert(std::ranges::equal(unicode_split.split_whitespace(), std::array{
+				U"A"_utf32_sv,
+				U"B"_utf32_sv,
+				U"C"_utf32_sv
+			}));
+			assert(std::ranges::equal(unicode_split.split_ascii_whitespace(), std::array{
+				U"\u00A0A\u2003B"_utf32_sv,
+				U"C"_utf32_sv
+			}));
+		}
 		{
 			const std::u16string text_storage = u"e\u0301X";
 			[[maybe_unused]] const auto text = unwrap_utf16_view(text_storage);
@@ -4527,5 +5013,8 @@ static_assert([] {
 		}
 	}
 }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 #endif // UTF8_RANGES_TESTS_HPP
