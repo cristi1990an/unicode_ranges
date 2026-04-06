@@ -459,3 +459,55 @@ Because these are `consteval` literals, invalid input is rejected during compila
 ```cpp
 --8<-- "examples/reference/character-literals.cpp"
 ```
+
+## Curated Character Namespaces
+
+### Synopsis
+
+```cpp
+namespace unicode_ranges::characters::utf8
+{
+    namespace punctuation { inline constexpr utf8_char ...; }
+    namespace symbols { inline constexpr utf8_char ...; }
+    namespace currency { inline constexpr utf8_char ...; }
+    namespace math { inline constexpr utf8_char ...; }
+    namespace arrows { inline constexpr utf8_char ...; }
+    namespace emojis { inline constexpr utf8_char ...; }
+}
+
+namespace unicode_ranges::characters::utf16
+{
+    namespace punctuation { inline constexpr utf16_char ...; }
+    namespace symbols { inline constexpr utf16_char ...; }
+    namespace currency { inline constexpr utf16_char ...; }
+    namespace math { inline constexpr utf16_char ...; }
+    namespace arrows { inline constexpr utf16_char ...; }
+    namespace emojis { inline constexpr utf16_char ...; }
+}
+```
+
+### Behavior
+
+- These namespaces provide a curated convenience set of commonly used punctuation, symbols, currency signs, arrows, math symbols, and emoji.
+- `characters::utf8::...` constants are `utf8_char`.
+- `characters::utf16::...` constants are `utf16_char`.
+- Both trees expose the same names so you can choose the encoding that matches the surrounding API.
+- This is intentionally not a complete Unicode catalog.
+
+### Complexity
+
+Constant.
+
+### Exceptions
+
+None.
+
+### `noexcept`
+
+Accessing the constants is non-throwing.
+
+### Example
+
+```cpp
+--8<-- "examples/reference/character-namespaces.cpp"
+```

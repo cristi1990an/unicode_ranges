@@ -278,7 +278,7 @@
 	X(tent, "⛺", u"⛺")
 
 #define UTF8_RANGES_DEFINE_UTF8_CHARACTER(name, utf8_literal, utf16_literal) inline constexpr auto name = utf8_literal##_u8c;
-#define UTF8_RANGES_DEFINE_UTF16_CHARACTER(name, utf8_literal, utf16_literal) inline constexpr auto name = utf16_literal##_u16c;
+#define UTF8_RANGES_DEFINE_UTF16_CHARACTER(name, utf8_literal, utf16_literal) inline constexpr auto name = static_cast<utf16_char>(utf8_literal##_u8c);
 
 namespace unicode_ranges::characters
 {
