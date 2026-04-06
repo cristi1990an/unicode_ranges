@@ -501,6 +501,11 @@ basic_utf8_string<OtherAllocator> to_uppercase(locale_id locale, const OtherAllo
 template <typename OtherAllocator>
 basic_utf8_string<OtherAllocator> to_uppercase(size_type pos, size_type count, locale_id locale, const OtherAllocator& alloc) const;
 
+basic_utf8_string to_titlecase(locale_id locale) const&;
+basic_utf8_string to_titlecase(locale_id locale) &&;
+template <typename OtherAllocator>
+basic_utf8_string<OtherAllocator> to_titlecase(locale_id locale, const OtherAllocator& alloc) const;
+
 basic_utf8_string case_fold(locale_id locale) const&;
 basic_utf8_string case_fold(locale_id locale) &&;
 template <typename OtherAllocator>
@@ -511,6 +516,8 @@ basic_utf8_string<OtherAllocator> case_fold(locale_id locale, const OtherAllocat
 
 - These overloads exist only when ICU support is enabled.
 - `const&`, `&&`, and allocator-taking locale overloads follow the same ownership rules as the default casing members.
+- `to_titlecase(locale)` delegates to ICU titlecasing and lowercases the rest of each titlecased span according to ICU's rules.
+- `to_titlecase(locale)` is whole-string only. The library intentionally does not expose partial `pos, count` titlecasing overloads because titlecasing depends on break-iterator context.
 - `case_fold(locale)` uses ICU fold options derived from the locale. In practice, the meaningful difference is the Turkic special-I fold; other locales normally produce the same result as `case_fold()`.
 - `locale_id` is a non-owning null-terminated token, so raw `locale_id{ ... }` values must outlive the call.
 - The locale-aware overloads reject `locale_id{nullptr}` with `std::invalid_argument`.

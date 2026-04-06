@@ -1224,6 +1224,125 @@ namespace unicode_ranges
 	}
 
 	template <typename Allocator>
+	basic_utf8_string<Allocator> icu_titlecase_utf8_copy(
+		std::u8string_view bytes,
+		locale_id locale,
+		const Allocator& alloc)
+	{
+		using base_type = typename basic_utf8_string<Allocator>::base_type;
+
+		if (bytes.empty())
+		{
+			return basic_utf8_string<Allocator>::from_bytes_unchecked(base_type{ alloc });
+		}
+
+		auto case_map = make_icu_case_map(locale);
+		const auto input_size = checked_icu_length(bytes.size(), "UTF-8 input");
+		base_type result{ alloc };
+		result.resize(bytes.size());
+
+		UErrorCode error = U_ZERO_ERROR;
+		const auto written = ucasemap_utf8ToTitle(
+			case_map.get(),
+			reinterpret_cast<char*>(result.data()),
+			input_size,
+			reinterpret_cast<const char*>(bytes.data()),
+			input_size,
+			&error);
+
+		if (error == U_BUFFER_OVERFLOW_ERROR)
+		{
+			result.resize(static_cast<std::size_t>(written));
+			error = U_ZERO_ERROR;
+			const auto rerun_written = ucasemap_utf8ToTitle(
+				case_map.get(),
+				reinterpret_cast<char*>(result.data()),
+				written,
+				reinterpret_cast<const char*>(bytes.data()),
+				input_size,
+				&error);
+			if (U_FAILURE(error))
+			{
+				throw_icu_error("ucasemap_utf8ToTitle", error);
+			}
+
+			result.resize(static_cast<std::size_t>(rerun_written));
+		}
+		else if (U_FAILURE(error))
+		{
+			throw_icu_error("ucasemap_utf8ToTitle", error);
+		}
+		else
+		{
+			result.resize(static_cast<std::size_t>(written));
+		}
+
+		return basic_utf8_string<Allocator>::from_bytes_unchecked(std::move(result));
+	}
+
+	template <typename Allocator>
+	basic_utf16_string<Allocator> icu_titlecase_utf16_copy(
+		std::u16string_view code_units,
+		locale_id locale,
+		const Allocator& alloc)
+	{
+		static_assert(sizeof(UChar) == sizeof(char16_t));
+
+		using base_type = typename basic_utf16_string<Allocator>::base_type;
+
+		if (code_units.empty())
+		{
+			return basic_utf16_string<Allocator>::from_code_units_unchecked(base_type{ alloc });
+		}
+
+		const auto locale_name = checked_icu_locale_name(locale);
+		const auto input_size = checked_icu_length(code_units.size(), "UTF-16 input");
+		const auto* source = reinterpret_cast<const UChar*>(code_units.data());
+		base_type result{ alloc };
+		result.resize(code_units.size());
+
+		UErrorCode error = U_ZERO_ERROR;
+		const auto written = u_strToTitle(
+			reinterpret_cast<UChar*>(result.data()),
+			input_size,
+			source,
+			input_size,
+			nullptr,
+			locale_name,
+			&error);
+
+		if (error == U_BUFFER_OVERFLOW_ERROR)
+		{
+			result.resize(static_cast<std::size_t>(written));
+			error = U_ZERO_ERROR;
+			const auto rerun_written = u_strToTitle(
+				reinterpret_cast<UChar*>(result.data()),
+				written,
+				source,
+				input_size,
+				nullptr,
+				locale_name,
+				&error);
+			if (U_FAILURE(error))
+			{
+				throw_icu_error("u_strToTitle", error);
+			}
+
+			result.resize(static_cast<std::size_t>(rerun_written));
+		}
+		else if (U_FAILURE(error))
+		{
+			throw_icu_error("u_strToTitle", error);
+		}
+		else
+		{
+			result.resize(static_cast<std::size_t>(written));
+		}
+
+		return basic_utf16_string<Allocator>::from_code_units_unchecked(std::move(result));
+	}
+
+	template <typename Allocator>
 	basic_utf8_string<Allocator> icu_case_fold_utf8_copy(
 		std::u8string_view bytes,
 		locale_id locale,
@@ -2743,6 +2862,13 @@ namespace unicode_ranges
 
 		return basic_utf8_string<Allocator>::from_bytes_unchecked(std::move(result));
 	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	basic_utf8_string<Allocator> utf8_string_crtp<Derived, View>::to_titlecase(locale_id locale, const Allocator& alloc) const
+	{
+		return details::icu_titlecase_utf8_copy(byte_view(), locale, alloc);
+	}
 #endif
 
 	template <typename Derived, typename View>
@@ -3293,6 +3419,13 @@ namespace unicode_ranges
 			});
 
 		return basic_utf16_string<Allocator>::from_code_units_unchecked(std::move(result));
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::to_titlecase(locale_id locale, const Allocator& alloc) const
+	{
+		return details::icu_titlecase_utf16_copy(code_unit_view(), locale, alloc);
 	}
 #endif
 

@@ -2927,6 +2927,8 @@ public:
 		locale_id locale,
 		const Allocator& alloc = Allocator()) const;
 	template <typename Allocator = std::allocator<char16_t>>
+	basic_utf16_string<Allocator> to_titlecase(locale_id locale, const Allocator& alloc = Allocator()) const;
+	template <typename Allocator = std::allocator<char16_t>>
 	basic_utf16_string<Allocator> case_fold(locale_id locale, const Allocator& alloc = Allocator()) const;
 	bool eq_ignore_case(View sv, locale_id locale) const;
 	bool starts_with_ignore_case(View sv, locale_id locale) const;

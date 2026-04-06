@@ -50,6 +50,7 @@
 #endif
 #endif
 #include <unicode/ucasemap.h>
+#include <unicode/ustring.h>
 #include <unicode/uloc.h>
 #define UTF8_RANGES_HAS_ICU 1
 #else

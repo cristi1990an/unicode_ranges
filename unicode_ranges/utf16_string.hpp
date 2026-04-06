@@ -1251,6 +1251,25 @@ public:
 	}
 
 	[[nodiscard]]
+	basic_utf16_string to_titlecase(locale_id locale) const&
+	{
+		return static_cast<const crtp&>(*this).template to_titlecase<Allocator>(locale, base_.get_allocator());
+	}
+
+	[[nodiscard]]
+	basic_utf16_string to_titlecase(locale_id locale) &&
+	{
+		return static_cast<const crtp&>(*this).template to_titlecase<Allocator>(locale, base_.get_allocator());
+	}
+
+	template <typename OtherAllocator>
+	[[nodiscard]]
+	basic_utf16_string<OtherAllocator> to_titlecase(locale_id locale, const OtherAllocator& alloc) const
+	{
+		return static_cast<const crtp&>(*this).template to_titlecase<OtherAllocator>(locale, alloc);
+	}
+
+	[[nodiscard]]
 	basic_utf16_string case_fold(locale_id locale) const&
 	{
 		return static_cast<const crtp&>(*this).template case_fold<Allocator>(locale, base_.get_allocator());

@@ -2085,6 +2085,10 @@ inline void run_unicode_ranges_tests()
 			[[maybe_unused]] const auto uppered_locale_alloc = u8"i\u0131"_utf8_sv.to_uppercase("tr"_locale, alloc);
 			assert(uppered_locale_alloc == u8"\u0130I"_utf8_sv);
 			assert(uppered_locale_alloc.get_allocator().resource() == &resource);
+			assert(u8"istanbul izmir"_utf8_sv.to_titlecase("tr"_locale) == u8"\u0130stanbul \u0130zmir"_utf8_sv);
+			[[maybe_unused]] const auto titled_locale_alloc = u8"istanbul izmir"_utf8_sv.to_titlecase("tr"_locale, alloc);
+			assert(titled_locale_alloc == u8"\u0130stanbul \u0130zmir"_utf8_sv);
+			assert(titled_locale_alloc.get_allocator().resource() == &resource);
 			assert(u8"I\u0130"_utf8_sv.case_fold("tr"_locale) == u8"\u0131i"_utf8_sv);
 			[[maybe_unused]] const auto folded_locale_alloc = u8"I\u0130"_utf8_sv.case_fold("tr"_locale, alloc);
 			assert(folded_locale_alloc == u8"\u0131i"_utf8_sv);
@@ -2800,6 +2804,10 @@ inline void run_unicode_ranges_tests()
 			[[maybe_unused]] const auto uppered_locale_alloc = u"i\u0131"_utf16_sv.to_uppercase("tr"_locale, alloc);
 			assert(uppered_locale_alloc == u"\u0130I"_utf16_sv);
 			assert(uppered_locale_alloc.get_allocator().resource() == &resource);
+			assert(u"istanbul izmir"_utf16_sv.to_titlecase("tr"_locale) == u"\u0130stanbul \u0130zmir"_utf16_sv);
+			[[maybe_unused]] const auto titled_locale_alloc = u"istanbul izmir"_utf16_sv.to_titlecase("tr"_locale, alloc);
+			assert(titled_locale_alloc == u"\u0130stanbul \u0130zmir"_utf16_sv);
+			assert(titled_locale_alloc.get_allocator().resource() == &resource);
 			assert(u"I\u0130"_utf16_sv.case_fold("tr"_locale) == u"\u0131i"_utf16_sv);
 			[[maybe_unused]] const auto folded_locale_alloc = u"I\u0130"_utf16_sv.case_fold("tr"_locale, alloc);
 			assert(folded_locale_alloc == u"\u0131i"_utf16_sv);

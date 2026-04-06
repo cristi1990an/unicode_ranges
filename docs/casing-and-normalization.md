@@ -20,7 +20,7 @@ The Unicode-aware APIs are locale-independent. They follow generated Unicode tab
 --8<-- "examples/casing/unicode-case.cpp"
 ```
 
-If the library is built with `UTF8_RANGES_ENABLE_ICU=1`, additional ICU-backed locale overloads are available for lowercasing, uppercasing, and case folding:
+If the library is built with `UTF8_RANGES_ENABLE_ICU=1`, additional ICU-backed locale overloads are available for lowercasing, uppercasing, titlecasing, and case folding:
 
 ```cpp
 --8<-- "examples/casing/locale-case.cpp"
@@ -40,10 +40,12 @@ Behavior note:
 - `_locale` rejects embedded NULs in string literals at compile time.
 - Raw `locale_id{ ... }` values do not own storage; the pointed-to locale name must stay alive for the duration of the call.
 - The locale-aware overloads reject obviously unusable tokens such as `locale_id{ nullptr }`.
-- Otherwise, locale-aware `to_lowercase(...)`, `to_uppercase(...)`, and `case_fold(...)` forward the locale name to ICU.
+- Otherwise, locale-aware `to_lowercase(...)`, `to_uppercase(...)`, `to_titlecase(...)`, and `case_fold(...)` forward the locale name to ICU.
 - If the locale is not explicitly available in the current ICU data set, ICU may canonicalize the locale or fall back to a more general locale instead of failing the call.
 - If ICU rejects the locale name or another ICU operation fails, the locale-aware overload throws `std::runtime_error`.
 - If you need an exact availability check before calling a locale-aware casing overload, use `is_available_locale(...)`.
+
+`to_titlecase(locale)` is whole-string only. That is intentional: titlecasing depends on ICU break-iterator context, so partial `pos, count` overloads would have less predictable semantics than lowercasing or uppercasing a checked slice.
 
 Those overloads do not exist in the dependency-free default build.
 
