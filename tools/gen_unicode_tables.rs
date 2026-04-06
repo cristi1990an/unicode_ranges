@@ -69,6 +69,7 @@ struct SimpleCaseMappingRecord {
 
 struct UnicodeDataRecord {
     scalar: u32,
+    general_category: String,
     canonical_combining_class: u8,
     decomposition_mapping: Option<DecompositionMappingRecord>,
 }
@@ -107,6 +108,12 @@ struct GraphemePropertiesRangeRecord {
     first: u32,
     last: u32,
     value: GraphemePropertiesValue,
+}
+
+struct PropertyValueRangeRecord {
+    first: u32,
+    last: u32,
+    value: String,
 }
 
 fn collect_ranges<F: Fn(char) -> bool>(pred: F) -> Vec<Range> {
@@ -224,6 +231,7 @@ fn parse_unicode_data(path: &Path) -> io::Result<Vec<UnicodeDataRecord>> {
         }
 
         let scalar = parse_unicode_scalar(fields[0])?;
+        let general_category = fields[2].trim().to_owned();
         let canonical_combining_class = fields[3].parse::<u8>().map_err(|err| {
             io::Error::new(
                 io::ErrorKind::InvalidData,
@@ -235,7 +243,6 @@ fn parse_unicode_data(path: &Path) -> io::Result<Vec<UnicodeDataRecord>> {
                 ),
             )
         })?;
-
         let decomposition_mapping = if fields[5].trim().is_empty() {
             None
         } else {
@@ -262,6 +269,7 @@ fn parse_unicode_data(path: &Path) -> io::Result<Vec<UnicodeDataRecord>> {
 
         records.push(UnicodeDataRecord {
             scalar,
+            general_category,
             canonical_combining_class,
             decomposition_mapping,
         });
@@ -295,6 +303,199 @@ fn collect_canonical_combining_class_ranges(records: &[UnicodeDataRecord]) -> Ve
     }
 
     ranges
+}
+
+fn to_snake_case_identifier(value: &str) -> String {
+    let mut result = String::new();
+    let mut previous_was_separator = false;
+    let mut previous_was_alphanumeric = false;
+    let mut previous_was_lower_or_digit = false;
+    let chars: Vec<char> = value.chars().collect();
+
+    for (index, ch) in chars.iter().copied().enumerate() {
+        if ch.is_ascii_alphanumeric() {
+            let next_is_lowercase = chars
+                .get(index + 1)
+                .is_some_and(|next| next.is_ascii_lowercase());
+
+            if ch.is_ascii_uppercase()
+                && !result.is_empty()
+                && !previous_was_separator
+                && (previous_was_lower_or_digit || (previous_was_alphanumeric && next_is_lowercase))
+            {
+                result.push('_');
+            }
+            result.push(ch.to_ascii_lowercase());
+            previous_was_separator = false;
+            previous_was_alphanumeric = true;
+            previous_was_lower_or_digit = ch.is_ascii_lowercase() || ch.is_ascii_digit();
+        } else {
+            if !result.is_empty() && !previous_was_separator {
+                result.push('_');
+            }
+            previous_was_separator = true;
+            previous_was_alphanumeric = false;
+            previous_was_lower_or_digit = false;
+        }
+    }
+
+    while result.ends_with('_') {
+        result.pop();
+    }
+
+    result
+}
+
+fn general_category_enum_variant(value: &str) -> &'static str {
+    match value {
+        "Lu" => "uppercase_letter",
+        "Ll" => "lowercase_letter",
+        "Lt" => "titlecase_letter",
+        "Lm" => "modifier_letter",
+        "Lo" => "other_letter",
+        "Mn" => "nonspacing_mark",
+        "Mc" => "spacing_mark",
+        "Me" => "enclosing_mark",
+        "Nd" => "decimal_number",
+        "Nl" => "letter_number",
+        "No" => "other_number",
+        "Pc" => "connector_punctuation",
+        "Pd" => "dash_punctuation",
+        "Ps" => "open_punctuation",
+        "Pe" => "close_punctuation",
+        "Pi" => "initial_punctuation",
+        "Pf" => "final_punctuation",
+        "Po" => "other_punctuation",
+        "Sm" => "math_symbol",
+        "Sc" => "currency_symbol",
+        "Sk" => "modifier_symbol",
+        "So" => "other_symbol",
+        "Zs" => "space_separator",
+        "Zl" => "line_separator",
+        "Zp" => "paragraph_separator",
+        "Cc" => "control",
+        "Cf" => "format",
+        "Cs" => "surrogate",
+        "Co" => "private_use",
+        "Cn" => "unassigned",
+        _ => panic!("unsupported general category `{}`", value),
+    }
+}
+
+fn east_asian_width_enum_variant(value: &str) -> &'static str {
+    match value {
+        "F" => "fullwidth",
+        "H" => "halfwidth",
+        "W" => "wide",
+        "Na" => "narrow",
+        "A" => "ambiguous",
+        "N" => "neutral",
+        _ => panic!("unsupported East Asian Width `{}`", value),
+    }
+}
+
+fn bidi_class_enum_variant(value: &str) -> &'static str {
+    match value {
+        "L" => "left_to_right",
+        "R" => "right_to_left",
+        "AL" => "arabic_letter",
+        "EN" => "european_number",
+        "ES" => "european_separator",
+        "ET" => "european_terminator",
+        "AN" => "arabic_number",
+        "CS" => "common_separator",
+        "NSM" => "nonspacing_mark",
+        "BN" => "boundary_neutral",
+        "B" => "paragraph_separator",
+        "S" => "segment_separator",
+        "WS" => "whitespace",
+        "ON" => "other_neutral",
+        "LRE" => "left_to_right_embedding",
+        "LRO" => "left_to_right_override",
+        "RLE" => "right_to_left_embedding",
+        "RLO" => "right_to_left_override",
+        "PDF" => "pop_directional_format",
+        "LRI" => "left_to_right_isolate",
+        "RLI" => "right_to_left_isolate",
+        "FSI" => "first_strong_isolate",
+        "PDI" => "pop_directional_isolate",
+        _ => panic!("unsupported bidi class `{}`", value),
+    }
+}
+
+fn line_break_enum_variant(value: &str) -> &'static str {
+    match value {
+        "AI" => "ambiguous",
+        "AK" => "aksara",
+        "AL" => "alphabetic",
+        "AP" => "aksara_prebase",
+        "AS" => "aksara_start",
+        "B2" => "break_both",
+        "BA" => "break_after",
+        "BB" => "break_before",
+        "BK" => "mandatory_break",
+        "CB" => "contingent_break",
+        "CJ" => "conditional_japanese_starter",
+        "CL" => "close_punctuation",
+        "CM" => "combining_mark",
+        "CP" => "close_parenthesis",
+        "CR" => "carriage_return",
+        "EB" => "emoji_base",
+        "EM" => "emoji_modifier",
+        "EX" => "exclamation",
+        "GL" => "glue",
+        "H2" => "hangul_lv_syllable",
+        "H3" => "hangul_lvt_syllable",
+        "HH" => "hebrew_hyphen",
+        "HL" => "hebrew_letter",
+        "HY" => "hyphen",
+        "ID" => "ideographic",
+        "IN" => "inseparable",
+        "IS" => "infix_numeric_separator",
+        "JL" => "hangul_l_jamo",
+        "JT" => "hangul_t_jamo",
+        "JV" => "hangul_v_jamo",
+        "LF" => "line_feed",
+        "NL" => "next_line",
+        "NS" => "nonstarter",
+        "NU" => "numeric",
+        "OP" => "open_punctuation",
+        "PO" => "postfix_numeric",
+        "PR" => "prefix_numeric",
+        "QU" => "quotation",
+        "RI" => "regional_indicator",
+        "SA" => "complex_context",
+        "SG" => "surrogate",
+        "SP" => "space",
+        "SY" => "symbols_allowing_break_after",
+        "VF" => "virama_final",
+        "VI" => "virama",
+        "WJ" => "word_joiner",
+        "XX" => "unknown",
+        "ZW" => "zero_width_space",
+        "ZWJ" => "zero_width_joiner",
+        _ => panic!("unsupported line break class `{}`", value),
+    }
+}
+
+fn grapheme_break_enum_variant(value: &str) -> &'static str {
+    match value {
+        "Other" => "other",
+        "CR" => "cr",
+        "LF" => "lf",
+        "Control" => "control",
+        "Extend" => "extend",
+        "ZWJ" => "zwj",
+        "Regional_Indicator" => "regional_indicator",
+        "Prepend" => "prepend",
+        "SpacingMark" => "spacing_mark",
+        "L" => "l",
+        "V" => "v",
+        "T" => "t",
+        "LV" => "lv",
+        "LVT" => "lvt",
+        _ => panic!("unsupported grapheme break property `{}`", value),
+    }
 }
 
 fn collect_decomposition_records(records: &[UnicodeDataRecord]) -> Vec<DecompositionRecord> {
@@ -652,6 +853,35 @@ fn emit_case_mapping_support(max_length: usize) {
     println!("    return nullptr;");
     println!("}}");
     println!();
+    println!("template <typename Mapping, std::size_t N, std::size_t P>");
+    println!("constexpr std::size_t find_source_mapping_paged_index(");
+    println!("    std::uint32_t scalar,");
+    println!("    const std::array<Mapping, N>& mappings,");
+    println!("    const std::array<std::uint16_t, P>& page_index) noexcept");
+    println!("{{");
+    println!("    const auto page = static_cast<std::size_t>(scalar >> unicode_mapping_page_shift);");
+    println!("    std::size_t left = page_index[page];");
+    println!("    std::size_t right = page_index[page + 1u];");
+    println!("    while (left < right)");
+    println!("    {{");
+    println!("        const std::size_t mid = left + (right - left) / 2;");
+    println!("        const Mapping& mapping = mappings[mid];");
+    println!("        if (scalar < mapping.source)");
+    println!("        {{");
+    println!("            right = mid;");
+    println!("        }}");
+    println!("        else if (scalar > mapping.source)");
+    println!("        {{");
+    println!("            left = mid + 1;");
+    println!("        }}");
+    println!("        else");
+    println!("        {{");
+    println!("            return mid;");
+    println!("        }}");
+    println!("    }}");
+    println!("    return N;");
+    println!("}}");
+    println!();
     println!("template <typename Range, std::size_t N>");
     println!("constexpr auto make_overlapping_range_page_slices(");
     println!("    const std::array<Range, N>& ranges,");
@@ -932,6 +1162,36 @@ fn emit_decomposition_support(max_length: usize) {
     println!("    return nullptr;");
     println!("}}");
     println!();
+    println!("template <std::size_t N, std::size_t P>");
+    println!("constexpr std::size_t find_composition_mapping_paged_index(");
+    println!("    std::uint32_t first,");
+    println!("    std::uint32_t second,");
+    println!("    const std::array<unicode_composition_mapping, N>& mappings,");
+    println!("    const std::array<std::uint16_t, P>& page_index) noexcept");
+    println!("{{");
+    println!("    const auto page = static_cast<std::size_t>(first >> unicode_mapping_page_shift);");
+    println!("    std::size_t left = page_index[page];");
+    println!("    std::size_t right = page_index[page + 1u];");
+    println!("    while (left < right)");
+    println!("    {{");
+    println!("        const std::size_t mid = left + (right - left) / 2;");
+    println!("        const auto& mapping = mappings[mid];");
+    println!("        if (first < mapping.first || (first == mapping.first && second < mapping.second))");
+    println!("        {{");
+    println!("            right = mid;");
+    println!("        }}");
+    println!("        else if (first > mapping.first || (first == mapping.first && second > mapping.second))");
+    println!("        {{");
+    println!("            left = mid + 1;");
+    println!("        }}");
+    println!("        else");
+    println!("        {{");
+    println!("            return mid;");
+    println!("        }}");
+    println!("    }}");
+    println!("    return N;");
+    println!("}}");
+    println!();
 }
 
 fn emit_decomposition_mappings(name: &str, mappings: &[DecompositionRecord], max_length: usize) {
@@ -990,6 +1250,20 @@ fn emit_source_mapping_lookup_without_page_index(
     mapping_type: &str,
     mappings_name: &str,
 ) {
+    println!();
+    println!(
+        "constexpr std::size_t {fn_name}_index(std::uint32_t scalar) noexcept"
+    );
+    println!("{{");
+    println!(
+        "    return find_source_mapping_paged_index(scalar, {mappings_name}, {mappings_name}_page_index);"
+    );
+    println!("}}");
+    println!();
+    println!("constexpr const {mapping_type}& {fn_name}_at(std::size_t index) noexcept");
+    println!("{{");
+    println!("    return {mappings_name}[index];");
+    println!("}}");
     println!();
     println!(
         "constexpr const {mapping_type}* {fn_name}(std::uint32_t scalar) noexcept"
@@ -1124,6 +1398,16 @@ fn emit_grapheme_property_lookup(fn_name: &str, ranges_name: &str) {
 fn emit_composition_mapping_lookup(fn_name: &str, mappings_name: &str) {
     println!("inline constexpr auto {mappings_name}_page_index = make_first_mapping_page_index({mappings_name});");
     println!();
+    println!("constexpr std::size_t {fn_name}_index(std::uint32_t first, std::uint32_t second) noexcept");
+    println!("{{");
+    println!("    return find_composition_mapping_paged_index(first, second, {mappings_name}, {mappings_name}_page_index);");
+    println!("}}");
+    println!();
+    println!("constexpr const unicode_composition_mapping& {fn_name}_at(std::size_t index) noexcept");
+    println!("{{");
+    println!("    return {mappings_name}[index];");
+    println!("}}");
+    println!();
     println!("constexpr const unicode_composition_mapping* {fn_name}(std::uint32_t first, std::uint32_t second) noexcept");
     println!("{{");
     println!("    return find_composition_mapping_paged(first, second, {mappings_name}, {mappings_name}_page_index);");
@@ -1149,21 +1433,70 @@ fn emit_enum(name: &str, variants: &[&str]) {
     println!();
 }
 
-fn emit_property_lookup(
+fn emit_public_enum(name: &str, underlying_type: &str, variants: &[String]) {
+    println!("enum class {name} : {underlying_type}");
+    println!("{{");
+    for variant in variants {
+        println!("    {variant},");
+    }
+    println!("}};");
+    println!();
+}
+
+fn emit_property_value_range_support() {
+    println!("template <typename Property>");
+    println!("struct unicode_property_value_range");
+    println!("{{");
+    println!("    std::uint32_t first;");
+    println!("    std::uint32_t last;");
+    println!("    Property value;");
+    println!("}};");
+    println!();
+}
+
+fn emit_property_value_ranges(
+    name: &str,
+    enum_name: &str,
+    records: &[PropertyValueRangeRecord],
+    variant_for_value: impl Fn(&str) -> String,
+) {
+    println!(
+        "inline constexpr std::array<unicode_property_value_range<{enum_name}>, {}> {name}{{{{",
+        records.len()
+    );
+    for record in records {
+        println!(
+            "    {{ 0x{:04X}u, 0x{:04X}u, {enum_name}::{} }},",
+            record.first,
+            record.last,
+            variant_for_value(&record.value)
+        );
+    }
+    println!("}}}};");
+    println!();
+}
+
+fn emit_property_value_lookup(
     fn_name: &str,
     enum_name: &str,
     default_variant: &str,
-    properties: &[(&str, &str, &str)],
+    ranges_name: &str,
 ) {
+    println!("inline constexpr auto {ranges_name}_page_slices =");
+    println!("    make_overlapping_range_page_slices({ranges_name});");
+    println!();
     println!("constexpr {enum_name} {fn_name}(std::uint32_t scalar) noexcept");
     println!("{{");
-    for &(_, ranges_name, enum_variant) in properties {
-        println!("    if (in_ranges(scalar, {ranges_name}))");
-        println!("    {{");
-        println!("        return {enum_variant};");
-        println!("    }}");
-    }
-    println!("    return {enum_name}::{default_variant};");
+    println!("    const auto index = find_overlapping_range_index_paged(");
+    println!("        scalar,");
+    println!("        {ranges_name},");
+    println!("        {ranges_name}.size(),");
+    println!("        {ranges_name}_page_slices);");
+    println!("    if (index == {ranges_name}.size())");
+    println!("    {{");
+    println!("        return {enum_name}::{default_variant};");
+    println!("    }}");
+    println!("    return {ranges_name}[index].value;");
     println!("}}");
     println!();
 }
@@ -1266,6 +1599,79 @@ fn collect_named_ranges(records: &[PropertyRecord], names: &[&str]) -> BTreeMap<
     ranges
 }
 
+fn merge_property_value_ranges(
+    records: impl IntoIterator<Item = PropertyValueRangeRecord>,
+) -> Vec<PropertyValueRangeRecord> {
+    let mut sorted: Vec<PropertyValueRangeRecord> = records.into_iter().collect();
+    sorted.sort_unstable_by_key(|record| (record.first, record.last));
+
+    let mut merged = Vec::<PropertyValueRangeRecord>::new();
+
+    for record in sorted {
+        if let Some(previous) = merged.last_mut() {
+            if previous.last + 1 == record.first && previous.value == record.value {
+                previous.last = record.last;
+                continue;
+            }
+        }
+
+        merged.push(record);
+    }
+
+    merged
+}
+
+fn collect_unicode_data_property_ranges<F>(
+    records: &[UnicodeDataRecord],
+    selector: F,
+) -> Vec<PropertyValueRangeRecord>
+where
+    F: Fn(&UnicodeDataRecord) -> &str,
+{
+    merge_property_value_ranges(records.iter().map(|record| PropertyValueRangeRecord {
+        first: record.scalar,
+        last: record.scalar,
+        value: selector(record).to_owned(),
+    }))
+}
+
+fn collect_property_value_ranges(path: &Path) -> io::Result<Vec<PropertyValueRangeRecord>> {
+    let records = parse_property_file(path)?;
+    Ok(merge_property_value_ranges(records.into_iter().map(|record| {
+        let value = match record.fields.as_slice() {
+            [value] => value.clone(),
+            [_, value] => value.clone(),
+            _ => panic!("unsupported property field layout in {}", path.display()),
+        };
+
+        PropertyValueRangeRecord {
+            first: record.first,
+            last: record.last,
+            value,
+        }
+    })))
+}
+
+fn collect_enum_variants(
+    records: &[PropertyValueRangeRecord],
+    variant_for_value: impl Fn(&str) -> String,
+    default_variant: Option<&str>,
+) -> Vec<String> {
+    let mut variants = Vec::<String>::new();
+    if let Some(default_variant) = default_variant {
+        variants.push(default_variant.to_owned());
+    }
+
+    for record in records {
+        let variant = variant_for_value(&record.value);
+        if !variants.iter().any(|existing| existing == &variant) {
+            variants.push(variant);
+        }
+    }
+
+    variants
+}
+
 fn collect_grapheme_break_ranges(path: &Path) -> io::Result<BTreeMap<String, Vec<Range>>> {
     let records = parse_property_file(path)?;
     let names: Vec<&str> = GRAPHEME_BREAK_VALUES
@@ -1275,17 +1681,21 @@ fn collect_grapheme_break_ranges(path: &Path) -> io::Result<BTreeMap<String, Vec
     Ok(collect_named_ranges(&records, &names))
 }
 
-fn collect_extended_pictographic_ranges(path: &Path) -> io::Result<Vec<Range>> {
+fn collect_emoji_property_ranges(path: &Path, property_name: &str) -> io::Result<Vec<Range>> {
     let records = parse_property_file(path)?;
     let mut ranges = Vec::new();
 
     for record in records {
-        if record.fields.iter().any(|field| field == "Extended_Pictographic") {
+        if record.fields.iter().any(|field| field == property_name) {
             ranges.push((record.first, record.last));
         }
     }
 
     Ok(ranges)
+}
+
+fn collect_extended_pictographic_ranges(path: &Path) -> io::Result<Vec<Range>> {
+    collect_emoji_property_ranges(path, "Extended_Pictographic")
 }
 
 fn collect_indic_conjunct_break_ranges(path: &Path) -> io::Result<BTreeMap<String, Vec<Range>>> {
@@ -1334,12 +1744,17 @@ fn main() -> io::Result<()> {
     }
 
     let data_root = configured_data_root();
-    let grapheme_break_ranges = collect_grapheme_break_ranges(
-        &data_root.join("ucd").join("auxiliary").join("GraphemeBreakProperty.txt"),
-    )?;
-    let extended_pictographic_ranges = collect_extended_pictographic_ranges(
-        &data_root.join("ucd").join("emoji").join("emoji-data.txt"),
-    )?;
+    let grapheme_break_path = data_root
+        .join("ucd")
+        .join("auxiliary")
+        .join("GraphemeBreakProperty.txt");
+    let grapheme_break_ranges = collect_grapheme_break_ranges(&grapheme_break_path)?;
+    let grapheme_break_property_ranges = collect_property_value_ranges(&grapheme_break_path)?;
+    let emoji_data_path = data_root.join("ucd").join("emoji").join("emoji-data.txt");
+    let emoji_ranges = collect_emoji_property_ranges(&emoji_data_path, "Emoji")?;
+    let emoji_presentation_ranges =
+        collect_emoji_property_ranges(&emoji_data_path, "Emoji_Presentation")?;
+    let extended_pictographic_ranges = collect_extended_pictographic_ranges(&emoji_data_path)?;
     let indic_conjunct_break_ranges =
         collect_indic_conjunct_break_ranges(&data_root.join("ucd").join("DerivedCoreProperties.txt"))?;
     let grapheme_properties_ranges = collect_grapheme_properties_ranges(
@@ -1348,8 +1763,32 @@ fn main() -> io::Result<()> {
         &indic_conjunct_break_ranges,
     );
     let unicode_data = parse_unicode_data(&data_root.join("ucd").join("UnicodeData.txt"))?;
+    let general_category_ranges =
+        collect_unicode_data_property_ranges(&unicode_data, |record| &record.general_category);
     let canonical_combining_class_ranges =
         collect_canonical_combining_class_ranges(&unicode_data);
+    let script_ranges = collect_property_value_ranges(&data_root.join("ucd").join("Scripts.txt"))?;
+    let east_asian_width_ranges =
+        collect_property_value_ranges(&data_root.join("ucd").join("EastAsianWidth.txt"))?;
+    let line_break_ranges = collect_property_value_ranges(&data_root.join("ucd").join("LineBreak.txt"))?;
+    let bidi_class_ranges = collect_property_value_ranges(
+        &data_root
+            .join("ucd")
+            .join("extracted")
+            .join("DerivedBidiClass.txt"),
+    )?;
+    let word_break_ranges = collect_property_value_ranges(
+        &data_root
+            .join("ucd")
+            .join("auxiliary")
+            .join("WordBreakProperty.txt"),
+    )?;
+    let sentence_break_ranges = collect_property_value_ranges(
+        &data_root
+            .join("ucd")
+            .join("auxiliary")
+            .join("SentenceBreakProperty.txt"),
+    )?;
     let decomposition_mappings = collect_decomposition_records(&unicode_data);
     let composition_exclusions =
         collect_composition_exclusions(&data_root.join("ucd").join("CompositionExclusions.txt"))?;
@@ -1371,11 +1810,77 @@ fn main() -> io::Result<()> {
         .max(case_mapping_max_length(&case_fold_special_mappings));
     let unicode_decomposition_max_length =
         decomposition_mapping_max_length(&decomposition_mappings);
+    let general_category_variants = collect_enum_variants(
+        &general_category_ranges,
+        |value| general_category_enum_variant(value).to_owned(),
+        Some("unassigned"),
+    );
+    let grapheme_break_variants = collect_enum_variants(
+        &grapheme_break_property_ranges,
+        |value| grapheme_break_enum_variant(value).to_owned(),
+        Some("other"),
+    );
+    let script_variants =
+        collect_enum_variants(&script_ranges, to_snake_case_identifier, Some("unknown"));
+    let east_asian_width_variants = collect_enum_variants(
+        &east_asian_width_ranges,
+        |value| east_asian_width_enum_variant(value).to_owned(),
+        Some("neutral"),
+    );
+    let line_break_variants = collect_enum_variants(
+        &line_break_ranges,
+        |value| line_break_enum_variant(value).to_owned(),
+        Some("unknown"),
+    );
+    let bidi_class_variants = collect_enum_variants(
+        &bidi_class_ranges,
+        |value| bidi_class_enum_variant(value).to_owned(),
+        Some("left_to_right"),
+    );
+    let word_break_variants =
+        collect_enum_variants(&word_break_ranges, to_snake_case_identifier, Some("other"));
+    let sentence_break_variants = collect_enum_variants(
+        &sentence_break_ranges,
+        to_snake_case_identifier,
+        Some("other"),
+    );
     println!("#ifndef UTF8_RANGES_UNICODE_TABLES_HPP");
     println!("#define UTF8_RANGES_UNICODE_TABLES_HPP");
     println!();
     println!("namespace unicode_ranges");
     println!("{{");
+    emit_public_enum(
+        "unicode_general_category",
+        "std::uint8_t",
+        &general_category_variants,
+    );
+    emit_public_enum(
+        "unicode_grapheme_break_property",
+        "std::uint8_t",
+        &grapheme_break_variants,
+    );
+    emit_public_enum("unicode_script", "std::uint16_t", &script_variants);
+    emit_public_enum(
+        "unicode_east_asian_width",
+        "std::uint8_t",
+        &east_asian_width_variants,
+    );
+    emit_public_enum(
+        "unicode_line_break_class",
+        "std::uint8_t",
+        &line_break_variants,
+    );
+    emit_public_enum("unicode_bidi_class", "std::uint8_t", &bidi_class_variants);
+    emit_public_enum(
+        "unicode_word_break_property",
+        "std::uint8_t",
+        &word_break_variants,
+    );
+    emit_public_enum(
+        "unicode_sentence_break_property",
+        "std::uint8_t",
+        &sentence_break_variants,
+    );
     println!("namespace details::unicode");
     println!("{{");
     println!("struct unicode_range");
@@ -1392,6 +1897,7 @@ fn main() -> io::Result<()> {
     emit_case_mapping_support(unicode_case_mapping_max_length);
     emit_decomposition_support(unicode_decomposition_max_length);
     emit_canonical_combining_class_support();
+    emit_property_value_range_support();
     println!("template <std::size_t N>");
     println!("constexpr bool in_ranges(std::uint32_t scalar, const std::array<unicode_range, N>& ranges) noexcept");
     println!("{{");
@@ -1418,25 +1924,8 @@ fn main() -> io::Result<()> {
     println!("}}");
     println!();
 
-    emit_enum(
-        "grapheme_cluster_break_property",
-        &[
-            "other",
-            "cr",
-            "lf",
-            "control",
-            "extend",
-            "zwj",
-            "regional_indicator",
-            "prepend",
-            "spacing_mark",
-            "l",
-            "v",
-            "t",
-            "lv",
-            "lvt",
-        ],
-    );
+    println!("using grapheme_cluster_break_property = ::unicode_ranges::unicode_grapheme_break_property;");
+    println!();
 
     emit_enum(
         "indic_conjunct_break_property",
@@ -1451,6 +1940,56 @@ fn main() -> io::Result<()> {
     emit_ranges("control_ranges", &collect_ranges(|ch| ch.is_control()));
     emit_ranges("numeric_ranges", &collect_ranges(|ch| ch.is_numeric()));
     emit_ranges("digit_ranges", &collect_ranges(|ch| ch.is_digit(10)));
+    emit_ranges("emoji_ranges", &emoji_ranges);
+    emit_ranges("emoji_presentation_ranges", &emoji_presentation_ranges);
+    emit_property_value_ranges(
+        "general_category_ranges",
+        "unicode_general_category",
+        &general_category_ranges,
+        |value| general_category_enum_variant(value).to_owned(),
+    );
+    emit_property_value_ranges(
+        "grapheme_break_property_ranges",
+        "unicode_grapheme_break_property",
+        &grapheme_break_property_ranges,
+        |value| grapheme_break_enum_variant(value).to_owned(),
+    );
+    emit_property_value_ranges(
+        "script_ranges",
+        "unicode_script",
+        &script_ranges,
+        to_snake_case_identifier,
+    );
+    emit_property_value_ranges(
+        "east_asian_width_ranges",
+        "unicode_east_asian_width",
+        &east_asian_width_ranges,
+        |value| east_asian_width_enum_variant(value).to_owned(),
+    );
+    emit_property_value_ranges(
+        "line_break_ranges",
+        "unicode_line_break_class",
+        &line_break_ranges,
+        |value| line_break_enum_variant(value).to_owned(),
+    );
+    emit_property_value_ranges(
+        "bidi_class_ranges",
+        "unicode_bidi_class",
+        &bidi_class_ranges,
+        |value| bidi_class_enum_variant(value).to_owned(),
+    );
+    emit_property_value_ranges(
+        "word_break_ranges",
+        "unicode_word_break_property",
+        &word_break_ranges,
+        to_snake_case_identifier,
+    );
+    emit_property_value_ranges(
+        "sentence_break_ranges",
+        "unicode_sentence_break_property",
+        &sentence_break_ranges,
+        to_snake_case_identifier,
+    );
     emit_simple_case_mappings("lowercase_simple_mappings", &lowercase_simple_mappings);
     emit_simple_case_mappings("case_fold_simple_mappings", &case_fold_simple_mappings);
     emit_special_case_mappings(
@@ -1488,6 +2027,56 @@ fn main() -> io::Result<()> {
     emit_bool_lookup("is_control", "control_ranges");
     emit_bool_lookup("is_numeric", "numeric_ranges");
     emit_bool_lookup("is_digit", "digit_ranges");
+    emit_bool_lookup("is_emoji", "emoji_ranges");
+    emit_bool_lookup("is_emoji_presentation", "emoji_presentation_ranges");
+    emit_property_value_lookup(
+        "general_category",
+        "unicode_general_category",
+        "unassigned",
+        "general_category_ranges",
+    );
+    emit_property_value_lookup(
+        "grapheme_break_property",
+        "unicode_grapheme_break_property",
+        "other",
+        "grapheme_break_property_ranges",
+    );
+    emit_property_value_lookup(
+        "script",
+        "unicode_script",
+        "unknown",
+        "script_ranges",
+    );
+    emit_property_value_lookup(
+        "east_asian_width",
+        "unicode_east_asian_width",
+        "neutral",
+        "east_asian_width_ranges",
+    );
+    emit_property_value_lookup(
+        "line_break_class",
+        "unicode_line_break_class",
+        "unknown",
+        "line_break_ranges",
+    );
+    emit_property_value_lookup(
+        "bidi_class",
+        "unicode_bidi_class",
+        "left_to_right",
+        "bidi_class_ranges",
+    );
+    emit_property_value_lookup(
+        "word_break_property",
+        "unicode_word_break_property",
+        "other",
+        "word_break_ranges",
+    );
+    emit_property_value_lookup(
+        "sentence_break_property",
+        "unicode_sentence_break_property",
+        "other",
+        "sentence_break_ranges",
+    );
     emit_simple_case_delta_lookup(
         "lowercase_simple_delta_range",
         "lowercase_simple_mappings",

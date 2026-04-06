@@ -12,6 +12,7 @@ int main()
 	std::println("{}", "Iİ"_utf8_sv.case_fold("tr"_locale));   // ıi
 	std::println("{}", "Iİ"_utf8_sv.to_lowercase("tr"_locale)); // ıi
 	std::println("{}", "iı"_utf8_sv.to_uppercase("tr"_locale)); // İI
+	std::println("{}", "I"_utf8_sv.eq_ignore_case("ı"_utf8_sv, "tr"_locale)); // true
 	std::println("{}", is_available_locale("tr"_locale));       // true
 #else
 	std::println("Enable ICU-backed locale casing to use _locale.");

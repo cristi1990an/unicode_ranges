@@ -286,6 +286,63 @@ All listed overloads are `noexcept`.
 --8<-- "examples/reference/character-unicode-predicates.cpp"
 ```
 
+## Unicode Property Queries
+
+### Synopsis
+
+```cpp
+constexpr unicode_general_category general_category() const noexcept;
+constexpr std::uint8_t canonical_combining_class() const noexcept;
+constexpr unicode_grapheme_break_property grapheme_break_property() const noexcept;
+constexpr unicode_script script() const noexcept;
+constexpr unicode_east_asian_width east_asian_width() const noexcept;
+constexpr unicode_line_break_class line_break_class() const noexcept;
+constexpr unicode_bidi_class bidi_class() const noexcept;
+constexpr unicode_word_break_property word_break_property() const noexcept;
+constexpr unicode_sentence_break_property sentence_break_property() const noexcept;
+constexpr bool is_emoji() const noexcept;
+constexpr bool is_emoji_presentation() const noexcept;
+constexpr bool is_extended_pictographic() const noexcept;
+```
+
+### Behavior
+
+- All of these methods are locale-independent scalar-property queries.
+- `general_category()` returns the Unicode General_Category bucket for the scalar.
+- `canonical_combining_class()` returns the canonical combining class used by normalization and canonical reordering.
+- `grapheme_break_property()`, `line_break_class()`, `word_break_property()`, and `sentence_break_property()` expose the default Unicode segmentation and line-breaking properties for the scalar.
+- `script()` returns the Unicode Script property. Punctuation and separators often come back as `common`, while combining marks are often `inherited`.
+- `east_asian_width()` returns the Unicode East Asian Width class used by terminal and grid-width heuristics.
+- `bidi_class()` returns the scalar's Unicode bidirectional class. This is a property lookup, not full bidi reordering.
+- `is_emoji()` tests the Unicode `Emoji` property.
+- `is_emoji_presentation()` tests the Unicode `Emoji_Presentation` property.
+- `is_extended_pictographic()` tests the Unicode `Extended_Pictographic` property used by segmentation algorithms.
+- These are scalar properties only. They do not inspect grapheme clusters or emoji ZWJ sequences.
+
+### Return value
+
+- The enum-returning methods return the property value for the current scalar.
+- `canonical_combining_class()` returns the canonical combining class number.
+- The boolean methods return `true` when the scalar has the queried property.
+
+### Complexity
+
+Constant, with table lookups.
+
+### Exceptions
+
+None.
+
+### `noexcept`
+
+All listed overloads are `noexcept`.
+
+### Example
+
+```cpp
+--8<-- "examples/reference/character-unicode-properties.cpp"
+```
+
 ## ASCII Classification Predicates
 
 ### Synopsis

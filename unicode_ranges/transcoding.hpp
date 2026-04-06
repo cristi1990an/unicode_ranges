@@ -960,18 +960,18 @@ namespace unicode_ranges
 		return map;
 	}
 
-	inline uint32_t icu_case_fold_options(locale_id locale)
+	inline bool icu_locale_uses_turkic_case_behavior(locale_id locale)
 	{
-		const auto normalized = normalized_icu_locale_name(locale);
-		if (normalized.empty())
+		const auto locale_name = checked_icu_locale_name(locale);
+		if (*locale_name == '\0')
 		{
-			return U_FOLD_CASE_DEFAULT;
+			return false;
 		}
 
 		std::array<char, 32> language{};
 		UErrorCode error = U_ZERO_ERROR;
 		const auto written = uloc_getLanguage(
-			normalized.c_str(),
+			locale_name,
 			language.data(),
 			static_cast<int32_t>(language.size()),
 			&error);
@@ -981,12 +981,12 @@ namespace unicode_ranges
 		}
 
 		const auto language_name = std::string_view{ language.data(), static_cast<std::size_t>(written) };
-		if (language_name == "tr" || language_name == "az")
-		{
-			return U_FOLD_CASE_EXCLUDE_SPECIAL_I;
-		}
+		return language_name == "tr" || language_name == "az";
+	}
 
-		return U_FOLD_CASE_DEFAULT;
+	inline uint32_t icu_case_fold_options(locale_id locale)
+	{
+		return icu_locale_uses_turkic_case_behavior(locale) ? U_FOLD_CASE_EXCLUDE_SPECIAL_I : U_FOLD_CASE_DEFAULT;
 	}
 
 	template <typename Allocator>
@@ -1947,6 +1947,453 @@ namespace unicode_ranges
 		return basic_utf16_string<Allocator>::from_code_units_unchecked(std::move(result));
 	}
 
+	struct case_fold_scalar_buffer
+	{
+		std::array<std::uint32_t, unicode::unicode_case_mapping_max_length> inline_storage{};
+		const std::uint32_t* data = inline_storage.data();
+		std::uint8_t count = 0;
+
+		constexpr void load(std::uint32_t scalar, bool turkic = false) noexcept
+		{
+			if (turkic)
+			{
+				if (scalar == 0x0049u)
+				{
+					inline_storage[0] = 0x0131u;
+					data = inline_storage.data();
+					count = 1;
+					return;
+				}
+
+				if (scalar == 0x0130u)
+				{
+					inline_storage[0] = 0x0069u;
+					data = inline_storage.data();
+					count = 1;
+					return;
+				}
+			}
+
+			if (scalar <= encoding_constants::ascii_scalar_max)
+			{
+				inline_storage[0] = lowercase_ascii_scalar(scalar);
+				data = inline_storage.data();
+				count = 1;
+				return;
+			}
+
+			const auto mapping = lookup_case_fold_mapping(scalar);
+			if (mapping.has_simple)
+			{
+				inline_storage[0] = mapping.simple_mapped;
+				data = inline_storage.data();
+				count = 1;
+				return;
+			}
+
+			if (mapping.has_special())
+			{
+				const auto& special = case_fold_special_mapping_from_index(mapping.special_index);
+				data = special.mapped.data();
+				count = static_cast<std::uint8_t>(special.count);
+				return;
+			}
+
+			inline_storage[0] = scalar;
+			data = inline_storage.data();
+			count = 1;
+		}
+	};
+
+	class utf8_case_fold_reader
+	{
+	public:
+		constexpr explicit utf8_case_fold_reader(std::u8string_view bytes, bool turkic = false) noexcept
+			: bytes_(bytes), turkic_(turkic)
+		{
+		}
+
+		constexpr bool next(std::uint32_t& scalar) noexcept
+		{
+			if (mapping_index_ < mapping_.count)
+			{
+				scalar = mapping_.data[mapping_index_++];
+				return true;
+			}
+
+			if (cursor_ == bytes_.size())
+			{
+				return false;
+			}
+
+			const auto lead = static_cast<std::uint8_t>(bytes_[cursor_]);
+			if (lead <= encoding_constants::ascii_scalar_max && !turkic_)
+			{
+				++cursor_;
+				scalar = lowercase_ascii_scalar(lead);
+				return true;
+			}
+
+			if (lead <= encoding_constants::ascii_scalar_max)
+			{
+				++cursor_;
+				mapping_.load(lead, true);
+			}
+			else
+			{
+				const auto decoded = decode_next_scalar(bytes_, cursor_);
+				cursor_ = decoded.next_index;
+				mapping_.load(decoded.scalar, turkic_);
+			}
+			mapping_index_ = 1;
+			scalar = mapping_.data[0];
+			return true;
+		}
+
+	private:
+		std::u8string_view bytes_{};
+		std::size_t cursor_ = 0;
+		case_fold_scalar_buffer mapping_{};
+		std::uint8_t mapping_index_ = 0;
+		bool turkic_ = false;
+	};
+
+	class utf8_reverse_case_fold_reader
+	{
+	public:
+		constexpr explicit utf8_reverse_case_fold_reader(std::u8string_view bytes, bool turkic = false) noexcept
+			: bytes_(bytes), cursor_(bytes.size()), turkic_(turkic)
+		{
+		}
+
+		constexpr bool next(std::uint32_t& scalar) noexcept
+		{
+			if (mapping_index_ != 0)
+			{
+				scalar = mapping_.data[--mapping_index_];
+				return true;
+			}
+
+			if (cursor_ == 0)
+			{
+				return false;
+			}
+
+			const auto pos = previous_utf8_scalar_boundary(bytes_, cursor_);
+			const auto lead = static_cast<std::uint8_t>(bytes_[pos]);
+			cursor_ = pos;
+			if (lead <= encoding_constants::ascii_scalar_max && !turkic_)
+			{
+				scalar = lowercase_ascii_scalar(lead);
+				return true;
+			}
+
+			if (lead <= encoding_constants::ascii_scalar_max)
+			{
+				mapping_.load(lead, true);
+			}
+			else
+			{
+				const auto decoded = decode_next_scalar(bytes_, pos);
+				mapping_.load(decoded.scalar, turkic_);
+			}
+			mapping_index_ = mapping_.count;
+			scalar = mapping_.data[--mapping_index_];
+			return true;
+		}
+
+	private:
+		std::u8string_view bytes_{};
+		std::size_t cursor_ = 0;
+		case_fold_scalar_buffer mapping_{};
+		std::uint8_t mapping_index_ = 0;
+		bool turkic_ = false;
+	};
+
+	class utf16_case_fold_reader
+	{
+	public:
+		constexpr explicit utf16_case_fold_reader(std::u16string_view code_units, bool turkic = false) noexcept
+			: code_units_(code_units), turkic_(turkic)
+		{
+		}
+
+		constexpr bool next(std::uint32_t& scalar) noexcept
+		{
+			if (mapping_index_ < mapping_.count)
+			{
+				scalar = mapping_.data[mapping_index_++];
+				return true;
+			}
+
+			if (cursor_ == code_units_.size())
+			{
+				return false;
+			}
+
+			const auto first = static_cast<std::uint16_t>(code_units_[cursor_]);
+			if (first <= encoding_constants::ascii_scalar_max && !turkic_)
+			{
+				++cursor_;
+				scalar = lowercase_ascii_scalar(first);
+				return true;
+			}
+
+			if (first <= encoding_constants::ascii_scalar_max)
+			{
+				++cursor_;
+				mapping_.load(first, true);
+			}
+			else
+			{
+				const auto decoded = decode_next_scalar(code_units_, cursor_);
+				cursor_ = decoded.next_index;
+				mapping_.load(decoded.scalar, turkic_);
+			}
+			mapping_index_ = 1;
+			scalar = mapping_.data[0];
+			return true;
+		}
+
+	private:
+		std::u16string_view code_units_{};
+		std::size_t cursor_ = 0;
+		case_fold_scalar_buffer mapping_{};
+		std::uint8_t mapping_index_ = 0;
+		bool turkic_ = false;
+	};
+
+	class utf16_reverse_case_fold_reader
+	{
+	public:
+		constexpr explicit utf16_reverse_case_fold_reader(std::u16string_view code_units, bool turkic = false) noexcept
+			: code_units_(code_units), cursor_(code_units.size()), turkic_(turkic)
+		{
+		}
+
+		constexpr bool next(std::uint32_t& scalar) noexcept
+		{
+			if (mapping_index_ != 0)
+			{
+				scalar = mapping_.data[--mapping_index_];
+				return true;
+			}
+
+			if (cursor_ == 0)
+			{
+				return false;
+			}
+
+			const auto pos = previous_utf16_scalar_boundary(code_units_, cursor_);
+			const auto first = static_cast<std::uint16_t>(code_units_[pos]);
+			cursor_ = pos;
+			if (first <= encoding_constants::ascii_scalar_max && !turkic_)
+			{
+				scalar = lowercase_ascii_scalar(first);
+				return true;
+			}
+
+			if (first <= encoding_constants::ascii_scalar_max)
+			{
+				mapping_.load(first, true);
+			}
+			else
+			{
+				const auto decoded = decode_next_scalar(code_units_, pos);
+				mapping_.load(decoded.scalar, turkic_);
+			}
+			mapping_index_ = mapping_.count;
+			scalar = mapping_.data[--mapping_index_];
+			return true;
+		}
+
+	private:
+		std::u16string_view code_units_{};
+		std::size_t cursor_ = 0;
+		case_fold_scalar_buffer mapping_{};
+		std::uint8_t mapping_index_ = 0;
+		bool turkic_ = false;
+	};
+
+	template <typename Reader>
+	constexpr std::weak_ordering compare_case_folded_sequences(Reader lhs, Reader rhs) noexcept
+	{
+		std::uint32_t lhs_scalar = 0;
+		std::uint32_t rhs_scalar = 0;
+		while (true)
+		{
+			const auto lhs_has_scalar = lhs.next(lhs_scalar);
+			const auto rhs_has_scalar = rhs.next(rhs_scalar);
+			if (!lhs_has_scalar || !rhs_has_scalar)
+			{
+				if (lhs_has_scalar)
+				{
+					return std::weak_ordering::greater;
+				}
+
+				if (rhs_has_scalar)
+				{
+					return std::weak_ordering::less;
+				}
+
+				return std::weak_ordering::equivalent;
+			}
+
+			if (lhs_scalar < rhs_scalar)
+			{
+				return std::weak_ordering::less;
+			}
+
+			if (lhs_scalar > rhs_scalar)
+			{
+				return std::weak_ordering::greater;
+			}
+		}
+	}
+
+	template <typename Reader>
+	constexpr bool folded_sequence_starts_with(Reader text, Reader prefix) noexcept
+	{
+		std::uint32_t text_scalar = 0;
+		std::uint32_t prefix_scalar = 0;
+		while (prefix.next(prefix_scalar))
+		{
+			if (!text.next(text_scalar) || text_scalar != prefix_scalar)
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	inline constexpr std::weak_ordering compare_case_folded_utf8(
+		std::u8string_view lhs,
+		std::u8string_view rhs) noexcept
+	{
+		return compare_case_folded_sequences(
+			utf8_case_fold_reader{ lhs },
+			utf8_case_fold_reader{ rhs });
+	}
+
+	inline constexpr bool starts_with_case_folded_utf8(
+		std::u8string_view text,
+		std::u8string_view prefix) noexcept
+	{
+		return folded_sequence_starts_with(
+			utf8_case_fold_reader{ text },
+			utf8_case_fold_reader{ prefix });
+	}
+
+	inline constexpr bool ends_with_case_folded_utf8(
+		std::u8string_view text,
+		std::u8string_view suffix) noexcept
+	{
+		return folded_sequence_starts_with(
+			utf8_reverse_case_fold_reader{ text },
+			utf8_reverse_case_fold_reader{ suffix });
+	}
+
+	inline constexpr std::weak_ordering compare_case_folded_utf16(
+		std::u16string_view lhs,
+		std::u16string_view rhs) noexcept
+	{
+		return compare_case_folded_sequences(
+			utf16_case_fold_reader{ lhs },
+			utf16_case_fold_reader{ rhs });
+	}
+
+	inline constexpr bool starts_with_case_folded_utf16(
+		std::u16string_view text,
+		std::u16string_view prefix) noexcept
+	{
+		return folded_sequence_starts_with(
+			utf16_case_fold_reader{ text },
+			utf16_case_fold_reader{ prefix });
+	}
+
+	inline constexpr bool ends_with_case_folded_utf16(
+		std::u16string_view text,
+		std::u16string_view suffix) noexcept
+	{
+		return folded_sequence_starts_with(
+			utf16_reverse_case_fold_reader{ text },
+			utf16_reverse_case_fold_reader{ suffix });
+	}
+
+#if UTF8_RANGES_HAS_ICU
+	inline bool icu_case_fold_is_turkic(locale_id locale)
+	{
+		return icu_locale_uses_turkic_case_behavior(locale);
+	}
+
+	inline std::weak_ordering compare_case_folded_utf8(
+		std::u8string_view lhs,
+		std::u8string_view rhs,
+		locale_id locale)
+	{
+		const auto turkic = icu_case_fold_is_turkic(locale);
+		return compare_case_folded_sequences(
+			utf8_case_fold_reader{ lhs, turkic },
+			utf8_case_fold_reader{ rhs, turkic });
+	}
+
+	inline bool starts_with_case_folded_utf8(
+		std::u8string_view text,
+		std::u8string_view prefix,
+		locale_id locale)
+	{
+		const auto turkic = icu_case_fold_is_turkic(locale);
+		return folded_sequence_starts_with(
+			utf8_case_fold_reader{ text, turkic },
+			utf8_case_fold_reader{ prefix, turkic });
+	}
+
+	inline bool ends_with_case_folded_utf8(
+		std::u8string_view text,
+		std::u8string_view suffix,
+		locale_id locale)
+	{
+		const auto turkic = icu_case_fold_is_turkic(locale);
+		return folded_sequence_starts_with(
+			utf8_reverse_case_fold_reader{ text, turkic },
+			utf8_reverse_case_fold_reader{ suffix, turkic });
+	}
+
+	inline std::weak_ordering compare_case_folded_utf16(
+		std::u16string_view lhs,
+		std::u16string_view rhs,
+		locale_id locale)
+	{
+		const auto turkic = icu_case_fold_is_turkic(locale);
+		return compare_case_folded_sequences(
+			utf16_case_fold_reader{ lhs, turkic },
+			utf16_case_fold_reader{ rhs, turkic });
+	}
+
+	inline bool starts_with_case_folded_utf16(
+		std::u16string_view text,
+		std::u16string_view prefix,
+		locale_id locale)
+	{
+		const auto turkic = icu_case_fold_is_turkic(locale);
+		return folded_sequence_starts_with(
+			utf16_case_fold_reader{ text, turkic },
+			utf16_case_fold_reader{ prefix, turkic });
+	}
+
+	inline bool ends_with_case_folded_utf16(
+		std::u16string_view text,
+		std::u16string_view suffix,
+		locale_id locale)
+	{
+		const auto turkic = icu_case_fold_is_turkic(locale);
+		return folded_sequence_starts_with(
+			utf16_reverse_case_fold_reader{ text, turkic },
+			utf16_reverse_case_fold_reader{ suffix, turkic });
+	}
+#endif
+
 	template <typename Allocator>
 	constexpr basic_utf8_string<Allocator> normalize_utf8_copy(
 		std::u8string_view bytes,
@@ -2349,6 +2796,30 @@ namespace unicode_ranges
 	{
 		return icu_case_fold_utf8_copy(byte_view(), locale, alloc);
 	}
+
+	template <typename Derived, typename View>
+	bool utf8_string_crtp<Derived, View>::eq_ignore_case(View sv, locale_id locale) const
+	{
+		return compare_ignore_case(sv, locale) == std::weak_ordering::equivalent;
+	}
+
+	template <typename Derived, typename View>
+	bool utf8_string_crtp<Derived, View>::starts_with_ignore_case(View sv, locale_id locale) const
+	{
+		return details::starts_with_case_folded_utf8(byte_view(), sv.base(), locale);
+	}
+
+	template <typename Derived, typename View>
+	bool utf8_string_crtp<Derived, View>::ends_with_ignore_case(View sv, locale_id locale) const
+	{
+		return details::ends_with_case_folded_utf8(byte_view(), sv.base(), locale);
+	}
+
+	template <typename Derived, typename View>
+	std::weak_ordering utf8_string_crtp<Derived, View>::compare_ignore_case(View sv, locale_id locale) const
+	{
+		return details::compare_case_folded_utf8(byte_view(), sv.base(), locale);
+	}
 #endif
 
 	template <typename Derived, typename View>
@@ -2358,6 +2829,30 @@ namespace unicode_ranges
 		basic_utf16_string<Allocator> result{ alloc };
 		result.append_range(chars());
 		return result;
+	}
+
+	template <typename Derived, typename View>
+	constexpr bool utf8_string_crtp<Derived, View>::eq_ignore_case(View sv) const noexcept
+	{
+		return compare_ignore_case(sv) == std::weak_ordering::equivalent;
+	}
+
+	template <typename Derived, typename View>
+	constexpr bool utf8_string_crtp<Derived, View>::starts_with_ignore_case(View sv) const noexcept
+	{
+		return details::starts_with_case_folded_utf8(byte_view(), sv.base());
+	}
+
+	template <typename Derived, typename View>
+	constexpr bool utf8_string_crtp<Derived, View>::ends_with_ignore_case(View sv) const noexcept
+	{
+		return details::ends_with_case_folded_utf8(byte_view(), sv.base());
+	}
+
+	template <typename Derived, typename View>
+	constexpr std::weak_ordering utf8_string_crtp<Derived, View>::compare_ignore_case(View sv) const noexcept
+	{
+		return details::compare_case_folded_utf8(byte_view(), sv.base());
 	}
 
 	template <typename Derived, typename View>
@@ -3055,6 +3550,30 @@ namespace unicode_ranges
 	{
 		return icu_case_fold_utf16_copy(code_unit_view(), locale, alloc);
 	}
+
+	template <typename Derived, typename View>
+	bool utf16_string_crtp<Derived, View>::eq_ignore_case(View sv, locale_id locale) const
+	{
+		return compare_ignore_case(sv, locale) == std::weak_ordering::equivalent;
+	}
+
+	template <typename Derived, typename View>
+	bool utf16_string_crtp<Derived, View>::starts_with_ignore_case(View sv, locale_id locale) const
+	{
+		return details::starts_with_case_folded_utf16(code_unit_view(), sv.base(), locale);
+	}
+
+	template <typename Derived, typename View>
+	bool utf16_string_crtp<Derived, View>::ends_with_ignore_case(View sv, locale_id locale) const
+	{
+		return details::ends_with_case_folded_utf16(code_unit_view(), sv.base(), locale);
+	}
+
+	template <typename Derived, typename View>
+	std::weak_ordering utf16_string_crtp<Derived, View>::compare_ignore_case(View sv, locale_id locale) const
+	{
+		return details::compare_case_folded_utf16(code_unit_view(), sv.base(), locale);
+	}
 #endif
 
 	template <typename Derived, typename View>
@@ -3064,6 +3583,30 @@ namespace unicode_ranges
 		basic_utf8_string<Allocator> result{ alloc };
 		result.append_range(chars());
 		return result;
+	}
+
+	template <typename Derived, typename View>
+	constexpr bool utf16_string_crtp<Derived, View>::eq_ignore_case(View sv) const noexcept
+	{
+		return compare_ignore_case(sv) == std::weak_ordering::equivalent;
+	}
+
+	template <typename Derived, typename View>
+	constexpr bool utf16_string_crtp<Derived, View>::starts_with_ignore_case(View sv) const noexcept
+	{
+		return details::starts_with_case_folded_utf16(code_unit_view(), sv.base());
+	}
+
+	template <typename Derived, typename View>
+	constexpr bool utf16_string_crtp<Derived, View>::ends_with_ignore_case(View sv) const noexcept
+	{
+		return details::ends_with_case_folded_utf16(code_unit_view(), sv.base());
+	}
+
+	template <typename Derived, typename View>
+	constexpr std::weak_ordering utf16_string_crtp<Derived, View>::compare_ignore_case(View sv) const noexcept
+	{
+		return details::compare_case_folded_utf16(code_unit_view(), sv.base());
 	}
 
 	template <typename Derived, typename View>

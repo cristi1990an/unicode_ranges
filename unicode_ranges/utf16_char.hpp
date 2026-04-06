@@ -199,6 +199,78 @@ public:
 	}
 
 	[[nodiscard]]
+	constexpr unicode_general_category general_category() const noexcept
+	{
+		return details::unicode::general_category(as_scalar());
+	}
+
+	[[nodiscard]]
+	constexpr std::uint8_t canonical_combining_class() const noexcept
+	{
+		return details::unicode::canonical_combining_class(as_scalar());
+	}
+
+	[[nodiscard]]
+	constexpr unicode_grapheme_break_property grapheme_break_property() const noexcept
+	{
+		return details::unicode::grapheme_break_property(as_scalar());
+	}
+
+	[[nodiscard]]
+	constexpr unicode_script script() const noexcept
+	{
+		return details::unicode::script(as_scalar());
+	}
+
+	[[nodiscard]]
+	constexpr unicode_east_asian_width east_asian_width() const noexcept
+	{
+		return details::unicode::east_asian_width(as_scalar());
+	}
+
+	[[nodiscard]]
+	constexpr unicode_line_break_class line_break_class() const noexcept
+	{
+		return details::unicode::line_break_class(as_scalar());
+	}
+
+	[[nodiscard]]
+	constexpr unicode_bidi_class bidi_class() const noexcept
+	{
+		return details::unicode::bidi_class(as_scalar());
+	}
+
+	[[nodiscard]]
+	constexpr unicode_word_break_property word_break_property() const noexcept
+	{
+		return details::unicode::word_break_property(as_scalar());
+	}
+
+	[[nodiscard]]
+	constexpr unicode_sentence_break_property sentence_break_property() const noexcept
+	{
+		return details::unicode::sentence_break_property(as_scalar());
+	}
+
+	[[nodiscard]]
+	constexpr bool is_emoji() const noexcept
+	{
+		return details::unicode::is_emoji(as_scalar());
+	}
+
+	[[nodiscard]]
+	constexpr bool is_emoji_presentation() const noexcept
+	{
+		return details::unicode::is_emoji_presentation(as_scalar());
+	}
+
+	[[nodiscard]]
+	constexpr bool is_extended_pictographic() const noexcept
+	{
+		return details::unicode::is_extended_pictographic(as_scalar());
+	}
+
+	[[nodiscard]]
 	constexpr bool is_ascii_alphabetic() const noexcept
 	{
 		if (!is_ascii())

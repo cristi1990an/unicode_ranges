@@ -2881,6 +2881,10 @@ public:
 		const Allocator& alloc = Allocator()) const;
 	template <typename Allocator = std::allocator<char8_t>>
 	basic_utf8_string<Allocator> case_fold(locale_id locale, const Allocator& alloc = Allocator()) const;
+	bool eq_ignore_case(View sv, locale_id locale) const;
+	bool starts_with_ignore_case(View sv, locale_id locale) const;
+	bool ends_with_ignore_case(View sv, locale_id locale) const;
+	std::weak_ordering compare_ignore_case(View sv, locale_id locale) const;
 #endif
 	template <typename Allocator = std::allocator<char8_t>>
 	constexpr basic_utf8_string<Allocator> to_uppercase(const Allocator& alloc = Allocator()) const;
@@ -2905,6 +2909,10 @@ public:
 	constexpr basic_utf8_string<Allocator> case_fold(const Allocator& alloc = Allocator()) const;
 	template <typename Allocator = std::allocator<char16_t>>
 	constexpr basic_utf16_string<Allocator> to_utf16(const Allocator& alloc = Allocator()) const;
+	constexpr bool eq_ignore_case(View sv) const noexcept;
+	constexpr bool starts_with_ignore_case(View sv) const noexcept;
+	constexpr bool ends_with_ignore_case(View sv) const noexcept;
+	constexpr std::weak_ordering compare_ignore_case(View sv) const noexcept;
 
 	constexpr size_type size() const noexcept
 	{

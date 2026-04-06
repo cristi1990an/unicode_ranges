@@ -5,7 +5,13 @@ Expected layout for version `17.0.0`:
 - `tools/unicode_data/17.0.0/ucd/UnicodeData.txt`
 - `tools/unicode_data/17.0.0/ucd/CompositionExclusions.txt`
 - `tools/unicode_data/17.0.0/ucd/CaseFolding.txt`
+- `tools/unicode_data/17.0.0/ucd/Scripts.txt`
+- `tools/unicode_data/17.0.0/ucd/EastAsianWidth.txt`
+- `tools/unicode_data/17.0.0/ucd/LineBreak.txt`
+- `tools/unicode_data/17.0.0/ucd/extracted/DerivedBidiClass.txt`
 - `tools/unicode_data/17.0.0/ucd/auxiliary/GraphemeBreakProperty.txt`
+- `tools/unicode_data/17.0.0/ucd/auxiliary/WordBreakProperty.txt`
+- `tools/unicode_data/17.0.0/ucd/auxiliary/SentenceBreakProperty.txt`
 - `tools/unicode_data/17.0.0/ucd/auxiliary/GraphemeBreakTest.txt`
 - `tools/unicode_data/17.0.0/ucd/emoji/emoji-data.txt`
 - `tools/unicode_data/17.0.0/ucd/DerivedCoreProperties.txt`

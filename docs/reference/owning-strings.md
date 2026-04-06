@@ -521,6 +521,73 @@ basic_utf8_string<OtherAllocator> case_fold(locale_id locale, const OtherAllocat
 --8<-- "examples/casing/locale-case.cpp"
 ```
 
+## Case-Insensitive Comparison Helpers
+
+### Synopsis
+
+```cpp
+constexpr bool eq_ignore_case(utf8_string_view sv) const noexcept;
+constexpr bool starts_with_ignore_case(utf8_string_view sv) const noexcept;
+constexpr bool ends_with_ignore_case(utf8_string_view sv) const noexcept;
+constexpr std::weak_ordering compare_ignore_case(utf8_string_view sv) const noexcept;
+
+constexpr bool eq_ignore_case(utf16_string_view sv) const noexcept;
+constexpr bool starts_with_ignore_case(utf16_string_view sv) const noexcept;
+constexpr bool ends_with_ignore_case(utf16_string_view sv) const noexcept;
+constexpr std::weak_ordering compare_ignore_case(utf16_string_view sv) const noexcept;
+```
+
+### Behavior
+
+- These helpers operate on the owning string's current contents without allocating.
+- They compare Unicode case-folded scalar sequences.
+- They do not normalize. Canonically equivalent representations still compare different unless the caller normalizes first.
+- This is deliberate: normalization remains an explicit caller choice rather than hidden work inside the case-insensitive comparison helpers.
+- `compare_ignore_case(...)` is lexicographic comparison of the folded scalar stream, not locale collation.
+
+### Return value
+
+- The boolean helpers report whether the folded comparison succeeds.
+- `compare_ignore_case(...)` returns [`std::weak_ordering`](https://en.cppreference.com/w/cpp/utility/compare/weak_ordering).
+
+### Complexity
+
+Linear in the amount of text read from both operands.
+
+### Exceptions
+
+Do not throw.
+
+### `noexcept`
+
+`noexcept`
+
+### Example
+
+```cpp
+--8<-- "examples/casing/ignore-case.cpp"
+```
+
+### Optional ICU Locale-Aware Overloads
+
+When the library is built with `UTF8_RANGES_ENABLE_ICU=1`, the owning-string types also expose:
+
+```cpp
+bool eq_ignore_case(utf8_string_view sv, locale_id locale) const;
+bool starts_with_ignore_case(utf8_string_view sv, locale_id locale) const;
+bool ends_with_ignore_case(utf8_string_view sv, locale_id locale) const;
+std::weak_ordering compare_ignore_case(utf8_string_view sv, locale_id locale) const;
+
+bool eq_ignore_case(utf16_string_view sv, locale_id locale) const;
+bool starts_with_ignore_case(utf16_string_view sv, locale_id locale) const;
+bool ends_with_ignore_case(utf16_string_view sv, locale_id locale) const;
+std::weak_ordering compare_ignore_case(utf16_string_view sv, locale_id locale) const;
+```
+
+- These overloads still stream the current contents instead of allocating a temporary folded string.
+- They keep the same explicit non-normalizing semantics as the default helpers.
+- They are not `noexcept` because locale handling follows the same ICU-backed rules as the other locale-aware casing members.
+
 ## Copying Replacement Families
 
 ### Synopsis

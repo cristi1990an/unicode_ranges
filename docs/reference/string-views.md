@@ -1048,6 +1048,77 @@ basic_utf16_string<Allocator> case_fold(locale_id locale, const Allocator& alloc
 --8<-- "examples/casing/locale-case.cpp"
 ```
 
+## Case-Insensitive Comparison
+
+### Synopsis
+
+```cpp
+constexpr bool eq_ignore_case(utf8_string_view sv) const noexcept;
+constexpr bool starts_with_ignore_case(utf8_string_view sv) const noexcept;
+constexpr bool ends_with_ignore_case(utf8_string_view sv) const noexcept;
+constexpr std::weak_ordering compare_ignore_case(utf8_string_view sv) const noexcept;
+
+constexpr bool eq_ignore_case(utf16_string_view sv) const noexcept;
+constexpr bool starts_with_ignore_case(utf16_string_view sv) const noexcept;
+constexpr bool ends_with_ignore_case(utf16_string_view sv) const noexcept;
+constexpr std::weak_ordering compare_ignore_case(utf16_string_view sv) const noexcept;
+```
+
+### Behavior
+
+- These members compare Unicode case-folded scalar sequences.
+- They do not allocate.
+- They do not normalize. Canonically equivalent text such as `"\u00E9"` and `"e\u0301"` still compares different unless the caller normalizes first.
+- This is deliberate: the library keeps normalization explicit instead of folding canonical equivalence into the default case-insensitive comparison path.
+- `starts_with_ignore_case(...)` and `ends_with_ignore_case(...)` operate on the folded sequences, so expansions such as `ß -> ss` are handled correctly.
+- `compare_ignore_case(...)` is lexicographic comparison of the folded scalar sequence. It is not locale collation.
+
+### Return value
+
+- `eq_ignore_case(...)`, `starts_with_ignore_case(...)`, and `ends_with_ignore_case(...)` return `true` when the folded comparison succeeds.
+- `compare_ignore_case(...)` returns [`std::weak_ordering`](https://en.cppreference.com/w/cpp/utility/compare/weak_ordering):
+  - `equivalent` when the folded sequences compare equal
+  - `less` / `greater` for lexicographic ordering on the folded scalar stream
+
+### Complexity
+
+Linear in the number of code units read from both operands.
+
+### Exceptions
+
+Do not throw.
+
+### `noexcept`
+
+`noexcept`
+
+### Example
+
+```cpp
+--8<-- "examples/casing/ignore-case.cpp"
+```
+
+### Optional ICU Locale-Aware Overloads
+
+When the library is built with `UTF8_RANGES_ENABLE_ICU=1`, the string-view types also expose:
+
+```cpp
+bool eq_ignore_case(utf8_string_view sv, locale_id locale) const;
+bool starts_with_ignore_case(utf8_string_view sv, locale_id locale) const;
+bool ends_with_ignore_case(utf8_string_view sv, locale_id locale) const;
+std::weak_ordering compare_ignore_case(utf8_string_view sv, locale_id locale) const;
+
+bool eq_ignore_case(utf16_string_view sv, locale_id locale) const;
+bool starts_with_ignore_case(utf16_string_view sv, locale_id locale) const;
+bool ends_with_ignore_case(utf16_string_view sv, locale_id locale) const;
+std::weak_ordering compare_ignore_case(utf16_string_view sv, locale_id locale) const;
+```
+
+- These overloads keep the same fold-only, non-normalizing semantics.
+- They do not materialize a temporary folded string.
+- The locale only affects ICU fold options. In practice, the meaningful difference is the Turkic special-I mode.
+- They are not `noexcept`: `locale_id{nullptr}` is rejected with `std::invalid_argument`, and ICU locale-handling failures surface as `std::runtime_error`.
+
 ## View-Based Replacement Families
 
 ### Synopsis

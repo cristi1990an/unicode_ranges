@@ -67,6 +67,30 @@ If ICU is enabled, `case_fold(locale)` is also available. In practice, the local
 
 That is different from simply lowercasing text. Case folding handles mappings such as German `ß` in a way intended for case-insensitive comparison behavior.
 
+The string-view types also expose allocation-free helpers built on top of default Unicode case folding:
+
+- `eq_ignore_case(...)`
+- `starts_with_ignore_case(...)`
+- `ends_with_ignore_case(...)`
+- `compare_ignore_case(...)`
+
+Those helpers do not normalize. That is intentional:
+
+- case folding and normalization stay separate operations in this library
+- caseless comparison should not silently add normalization work or broaden equivalence
+- callers who need canonical-equivalence-aware caseless matching should say so explicitly
+
+So the default rule is: case-fold only. If you want canonical-equivalence-aware caseless matching, normalize explicitly first and then compare.
+
+If ICU is enabled, locale-aware overloads of those helpers are also available:
+
+- `eq_ignore_case(..., locale)`
+- `starts_with_ignore_case(..., locale)`
+- `ends_with_ignore_case(..., locale)`
+- `compare_ignore_case(..., locale)`
+
+They still compare folded scalar sequences without materializing a temporary folded string, but they are not `noexcept` because locale handling follows the same ICU-backed rules as `case_fold(locale)`.
+
 ## Normalization
 
 Supported normalization forms:
