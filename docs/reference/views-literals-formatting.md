@@ -27,7 +27,8 @@ class utf32_view : public std::ranges::view_interface<utf32_view> {
 public:
     constexpr std::u32string_view base() const noexcept;
     constexpr iterator begin() const noexcept;
-    constexpr std::default_sentinel_t end() const noexcept;
+    constexpr iterator end() const noexcept;
+    constexpr std::size_t size() const noexcept;
     constexpr std::size_t reserve_hint() const noexcept;
 };
 ```
@@ -39,6 +40,7 @@ public:
 - They are normally obtained from validated text via `chars()`, for example `"😄🇷🇴✨"_utf8_sv.chars()`, `u"😄🇷🇴✨"_utf16_sv.chars()`, or `U"😄🇷🇴✨"_utf32_sv.chars()`.
 - The views are cheap to copy.
 - `reserve_hint()` reports the number of source code units, which is a safe upper bound for the number of yielded characters.
+- `views::utf32_view` is a borrowed sized common random-access view because UTF-32 is fixed-width.
 
 ### Return value
 
@@ -82,12 +84,7 @@ public:
     constexpr std::size_t reserve_hint() const noexcept;
 };
 
-class reversed_utf32_view : public std::ranges::view_interface<reversed_utf32_view> {
-public:
-    constexpr iterator begin() const noexcept;
-    constexpr std::default_sentinel_t end() const noexcept;
-    constexpr std::size_t reserve_hint() const noexcept;
-};
+using reversed_utf32_view = std::ranges::reverse_view<utf32_view>;
 ```
 
 ### Behavior
@@ -96,6 +93,7 @@ public:
 - They are lazy borrowed forward views over the same underlying storage.
 - They are normally obtained from validated text via `reversed_chars()`.
 - They iterate validated characters from the end without first materializing a reversed string.
+- `views::reversed_utf32_view` is just `std::ranges::reverse_view<views::utf32_view>`, so it is also sized, common, and random-access.
 
 ### Complexity
 
@@ -188,7 +186,8 @@ public:
     lossy_utf32_view() = default;
     constexpr lossy_utf32_view(std::basic_string_view<CharT> base) noexcept;
     constexpr iterator begin() const noexcept;
-    constexpr std::default_sentinel_t end() const noexcept;
+    constexpr iterator end() const noexcept;
+    constexpr std::size_t size() const noexcept;
     constexpr std::size_t reserve_hint() const noexcept;
 };
 
@@ -214,6 +213,7 @@ inline constexpr lossy_utf32_fn lossy_utf32{};
 - Valid subsequences are yielded unchanged.
 - The view types inherit [`std::ranges::view_interface`](https://en.cppreference.com/w/cpp/ranges/view_interface) and behave as lazy borrowed forward views.
 - The closure objects are [`std::ranges::range_adaptor_closure`](https://en.cppreference.com/w/cpp/ranges/range_adaptor_closure)-style adapters, which makes the lossy views pipe-friendly.
+- `lossy_utf32_view<CharT>` is a borrowed sized common random-access view because each input element yields exactly one output scalar.
 
 ### Complexity
 

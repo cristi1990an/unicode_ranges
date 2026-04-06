@@ -15,6 +15,10 @@
 using namespace unicode_ranges;
 using namespace unicode_ranges::literals;
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 6262) // monolithic test aggregator; /analyze stack estimate is not actionable here
+#endif
 inline void run_unicode_ranges_tests()
 {
 	// Shared test helpers used by both the UTF-8 and UTF-16 sections.
@@ -128,8 +132,16 @@ inline void run_unicode_ranges_tests()
 	static_assert(std::ranges::range<views::reversed_utf16_view>);
 	static_assert(std::ranges::view<views::utf32_view>);
 	static_assert(std::ranges::range<views::utf32_view>);
+	static_assert(std::ranges::sized_range<views::utf32_view>);
+	static_assert(std::ranges::common_range<views::utf32_view>);
+	static_assert(std::ranges::bidirectional_range<views::utf32_view>);
+	static_assert(std::ranges::random_access_range<views::utf32_view>);
 	static_assert(std::ranges::view<views::reversed_utf32_view>);
 	static_assert(std::ranges::range<views::reversed_utf32_view>);
+	static_assert(std::ranges::sized_range<views::reversed_utf32_view>);
+	static_assert(std::ranges::common_range<views::reversed_utf32_view>);
+	static_assert(std::ranges::bidirectional_range<views::reversed_utf32_view>);
+	static_assert(std::ranges::random_access_range<views::reversed_utf32_view>);
 	static_assert(std::ranges::view<views::grapheme_cluster_view<char8_t>>);
 	static_assert(std::ranges::range<views::grapheme_cluster_view<char8_t>>);
 	static_assert(std::ranges::view<views::grapheme_cluster_view<char16_t>>);
@@ -146,12 +158,28 @@ inline void run_unicode_ranges_tests()
 	static_assert(std::ranges::range<views::lossy_utf16_view<wchar_t>>);
 	static_assert(std::ranges::view<views::lossy_utf32_view<char32_t>>);
 	static_assert(std::ranges::range<views::lossy_utf32_view<char32_t>>);
+	static_assert(std::ranges::sized_range<views::lossy_utf32_view<char32_t>>);
+	static_assert(std::ranges::common_range<views::lossy_utf32_view<char32_t>>);
+	static_assert(std::ranges::bidirectional_range<views::lossy_utf32_view<char32_t>>);
+	static_assert(std::ranges::random_access_range<views::lossy_utf32_view<char32_t>>);
 	static_assert(std::ranges::view<decltype(utf32_text.chars())>);
 	static_assert(std::ranges::range<decltype(utf32_text.chars())>);
+	static_assert(std::ranges::sized_range<decltype(utf32_text.chars())>);
+	static_assert(std::ranges::common_range<decltype(utf32_text.chars())>);
+	static_assert(std::ranges::bidirectional_range<decltype(utf32_text.chars())>);
+	static_assert(std::ranges::random_access_range<decltype(utf32_text.chars())>);
 	static_assert(std::ranges::view<decltype(utf32_text.reversed_chars())>);
 	static_assert(std::ranges::range<decltype(utf32_text.reversed_chars())>);
+	static_assert(std::ranges::sized_range<decltype(utf32_text.reversed_chars())>);
+	static_assert(std::ranges::common_range<decltype(utf32_text.reversed_chars())>);
+	static_assert(std::ranges::bidirectional_range<decltype(utf32_text.reversed_chars())>);
+	static_assert(std::ranges::random_access_range<decltype(utf32_text.reversed_chars())>);
 	static_assert(std::ranges::view<decltype(utf32_text.char_indices())>);
 	static_assert(std::ranges::range<decltype(utf32_text.char_indices())>);
+	static_assert(std::ranges::sized_range<decltype(utf32_text.char_indices())>);
+	static_assert(std::ranges::common_range<decltype(utf32_text.char_indices())>);
+	static_assert(std::ranges::bidirectional_range<decltype(utf32_text.char_indices())>);
+	static_assert(std::ranges::random_access_range<decltype(utf32_text.char_indices())>);
 	static_assert(std::ranges::view<decltype(utf32_text.graphemes())>);
 	static_assert(std::ranges::range<decltype(utf32_text.graphemes())>);
 	static_assert(std::ranges::view<decltype(utf32_text.grapheme_indices())>);
@@ -161,6 +189,13 @@ inline void run_unicode_ranges_tests()
 	static_assert(utf32_text.grapheme_count() == 3);
 	static_assert(utf32_text.char_at(1).has_value());
 	static_assert(utf32_text.char_at(1).value() == U"\u00E9"_u32c);
+	static_assert(utf32_text.chars().size() == utf32_text.size());
+	static_assert(utf32_text.reversed_chars().size() == utf32_text.size());
+	static_assert(utf32_text.char_indices().size() == utf32_text.size());
+	static_assert(utf32_text.chars().begin()[1] == U"\u00E9"_u32c);
+	static_assert(utf32_text.reversed_chars().begin()[0] == U"\U0001F600"_u32c);
+	static_assert(utf32_text.char_indices().begin()[2].first == 2);
+	static_assert(utf32_text.char_indices().begin()[2].second == U"\U0001F600"_u32c);
 	static_assert(utf32_text.substr(1, 1).value() == U"\u00E9"_utf32_sv);
 	static_assert(utf32_text.starts_with(U"A"_u32c));
 	static_assert(utf32_text.ends_with(U"\U0001F600"_u32c));
@@ -1832,8 +1867,16 @@ inline void run_unicode_ranges_tests()
 	assert((std::ranges::range<views::reversed_utf16_view>));
 	assert((std::ranges::view<views::utf32_view>));
 	assert((std::ranges::range<views::utf32_view>));
+	assert((std::ranges::sized_range<views::utf32_view>));
+	assert((std::ranges::common_range<views::utf32_view>));
+	assert((std::ranges::bidirectional_range<views::utf32_view>));
+	assert((std::ranges::random_access_range<views::utf32_view>));
 	assert((std::ranges::view<views::reversed_utf32_view>));
 	assert((std::ranges::range<views::reversed_utf32_view>));
+	assert((std::ranges::sized_range<views::reversed_utf32_view>));
+	assert((std::ranges::common_range<views::reversed_utf32_view>));
+	assert((std::ranges::bidirectional_range<views::reversed_utf32_view>));
+	assert((std::ranges::random_access_range<views::reversed_utf32_view>));
 	assert((std::ranges::view<views::grapheme_cluster_view<char8_t>>));
 	assert((std::ranges::range<views::grapheme_cluster_view<char8_t>>));
 	assert((std::ranges::view<views::grapheme_cluster_view<char16_t>>));
@@ -1850,6 +1893,10 @@ inline void run_unicode_ranges_tests()
 	assert((std::ranges::range<views::lossy_utf16_view<wchar_t>>));
 	assert((std::ranges::view<views::lossy_utf32_view<char32_t>>));
 	assert((std::ranges::range<views::lossy_utf32_view<char32_t>>));
+	assert((std::ranges::sized_range<views::lossy_utf32_view<char32_t>>));
+	assert((std::ranges::common_range<views::lossy_utf32_view<char32_t>>));
+	assert((std::ranges::bidirectional_range<views::lossy_utf32_view<char32_t>>));
+	assert((std::ranges::random_access_range<views::lossy_utf32_view<char32_t>>));
 
 	{
 		[[maybe_unused]] const auto runtime_latin1_ch = utf8_char::from_scalar_unchecked(0x00E9u);
@@ -1884,14 +1931,33 @@ inline void run_unicode_ranges_tests()
 
 		assert((std::ranges::view<decltype(runtime_utf32_text.chars())>));
 		assert((std::ranges::range<decltype(runtime_utf32_text.chars())>));
+		assert((std::ranges::sized_range<decltype(runtime_utf32_text.chars())>));
+		assert((std::ranges::common_range<decltype(runtime_utf32_text.chars())>));
+		assert((std::ranges::bidirectional_range<decltype(runtime_utf32_text.chars())>));
+		assert((std::ranges::random_access_range<decltype(runtime_utf32_text.chars())>));
 		assert((std::ranges::view<decltype(runtime_utf32_text.reversed_chars())>));
 		assert((std::ranges::range<decltype(runtime_utf32_text.reversed_chars())>));
+		assert((std::ranges::sized_range<decltype(runtime_utf32_text.reversed_chars())>));
+		assert((std::ranges::common_range<decltype(runtime_utf32_text.reversed_chars())>));
+		assert((std::ranges::bidirectional_range<decltype(runtime_utf32_text.reversed_chars())>));
+		assert((std::ranges::random_access_range<decltype(runtime_utf32_text.reversed_chars())>));
 		assert((std::ranges::view<decltype(runtime_utf32_text.char_indices())>));
 		assert((std::ranges::range<decltype(runtime_utf32_text.char_indices())>));
+		assert((std::ranges::sized_range<decltype(runtime_utf32_text.char_indices())>));
+		assert((std::ranges::common_range<decltype(runtime_utf32_text.char_indices())>));
+		assert((std::ranges::bidirectional_range<decltype(runtime_utf32_text.char_indices())>));
+		assert((std::ranges::random_access_range<decltype(runtime_utf32_text.char_indices())>));
 		assert((std::ranges::view<decltype(runtime_utf32_text.graphemes())>));
 		assert((std::ranges::range<decltype(runtime_utf32_text.graphemes())>));
 		assert((std::ranges::view<decltype(runtime_utf32_text.grapheme_indices())>));
 		assert((std::ranges::range<decltype(runtime_utf32_text.grapheme_indices())>));
+		assert(runtime_utf32_text.chars().size() == runtime_utf32_text.size());
+		assert(runtime_utf32_text.reversed_chars().size() == runtime_utf32_text.size());
+		assert(runtime_utf32_text.char_indices().size() == runtime_utf32_text.size());
+		assert(runtime_utf32_text.chars().begin()[1] == U"\u00E9"_u32c);
+		assert(runtime_utf32_text.reversed_chars().begin()[0] == U"\U0001F600"_u32c);
+		assert(runtime_utf32_text.char_indices().begin()[2].first == 2);
+		assert(runtime_utf32_text.char_indices().begin()[2].second == U"\U0001F600"_u32c);
 
 		assert(u8"A"_u8c.ascii_lowercase() == u8"a"_u8c);
 		assert(u8"z"_u8c.ascii_uppercase() == u8"Z"_u8c);
@@ -4947,5 +5013,8 @@ static_assert([] {
 		}
 	}
 }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 #endif // UTF8_RANGES_TESTS_HPP

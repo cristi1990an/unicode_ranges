@@ -24,6 +24,92 @@ namespace unicode_ranges
 	{
 		return append_range(sv.chars());
 	}
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator>& basic_utf8_string<Allocator>::append_range(views::utf32_view rg)
+	{
+		const auto code_points = rg.base();
+		const auto appended_size = details::scalar_sequence_utf8_size(code_points);
+		const auto original_size = base_.size();
+		base_.resize_and_overwrite(original_size + appended_size,
+			[&](char8_t* buffer, std::size_t) noexcept
+			{
+				std::size_t write_index = original_size;
+				for (char32_t code_point : code_points)
+				{
+					write_index += details::encode_unicode_scalar_utf8_unchecked(
+						static_cast<std::uint32_t>(code_point),
+						buffer + write_index);
+				}
+
+				return write_index;
+			});
+
+		return *this;
+	}
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator>& basic_utf8_string<Allocator>::assign_range(views::utf32_view rg)
+	{
+		base_type replacement{ base_.get_allocator() };
+		const auto code_points = rg.base();
+		replacement.resize_and_overwrite(details::scalar_sequence_utf8_size(code_points),
+			[&](char8_t* buffer, std::size_t) noexcept
+			{
+				std::size_t write_index = 0;
+				for (char32_t code_point : code_points)
+				{
+					write_index += details::encode_unicode_scalar_utf8_unchecked(
+						static_cast<std::uint32_t>(code_point),
+						buffer + write_index);
+				}
+
+				return write_index;
+			});
+		base_ = std::move(replacement);
+		return *this;
+	}
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator>& basic_utf16_string<Allocator>::append_range(views::utf32_view rg)
+	{
+		const auto code_points = rg.base();
+		const auto appended_size = details::scalar_sequence_utf16_size(code_points);
+		const auto original_size = base_.size();
+		base_.resize_and_overwrite(original_size + appended_size,
+			[&](char16_t* buffer, std::size_t) noexcept
+			{
+				std::size_t write_index = original_size;
+				for (char32_t code_point : code_points)
+				{
+					write_index += details::encode_unicode_scalar_utf16_unchecked(
+						static_cast<std::uint32_t>(code_point),
+						buffer + write_index);
+				}
+
+				return write_index;
+			});
+
+		return *this;
+	}
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator>& basic_utf16_string<Allocator>::assign_range(views::utf32_view rg)
+	{
+		base_type replacement{ base_.get_allocator() };
+		const auto code_points = rg.base();
+		replacement.resize_and_overwrite(details::scalar_sequence_utf16_size(code_points),
+			[&](char16_t* buffer, std::size_t) noexcept
+			{
+				std::size_t write_index = 0;
+				for (char32_t code_point : code_points)
+				{
+					write_index += details::encode_unicode_scalar_utf16_unchecked(
+						static_cast<std::uint32_t>(code_point),
+						buffer + write_index);
+				}
+
+				return write_index;
+			});
+		base_ = std::move(replacement);
+		return *this;
+	}
 	namespace details
 	{
 		inline constexpr std::size_t unicode_scalar_utf32_size(std::uint32_t) noexcept

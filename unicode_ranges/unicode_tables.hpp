@@ -496,6 +496,10 @@ constexpr std::size_t find_source_mapping_paged_index(
     return N;
 }
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 6262) // constexpr table builder; /analyze stack estimate is not meaningful here
+#endif
 template <typename Range, std::size_t N>
 constexpr auto make_overlapping_range_page_slices(
     const std::array<Range, N>& ranges,
@@ -527,6 +531,9 @@ constexpr auto make_overlapping_range_page_slices(
     }
     return page_slices;
 }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 template <typename Range, std::size_t N, std::size_t P>
 constexpr std::size_t find_overlapping_range_index_paged(
@@ -558,6 +565,10 @@ constexpr std::size_t find_overlapping_range_index_paged(
     return count;
 }
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 6262) // constexpr table builder; /analyze stack estimate is not meaningful here
+#endif
 template <std::size_t N>
 constexpr auto make_simple_case_delta_ranges(const std::array<unicode_simple_case_mapping, N>& mappings) noexcept
 {
@@ -606,6 +617,9 @@ constexpr auto make_simple_case_delta_ranges(const std::array<unicode_simple_cas
     }
     return result;
 }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 inline constexpr std::size_t unicode_decomposition_max_length = 18;
 

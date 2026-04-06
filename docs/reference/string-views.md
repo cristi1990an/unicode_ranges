@@ -140,6 +140,7 @@ template<> struct std::formatter<utf32_string_view, char>;
 - Comparison and hashing do not throw.
 - Streaming may report stream errors through the stream state.
 - UTF-16 formatting may allocate internally while transcoding.
+- UTF-32 formatting may allocate internally while transcoding.
 
 ### `noexcept`
 
@@ -168,6 +169,7 @@ constexpr auto grapheme_indices() const noexcept;
 - All returned ranges borrow from the underlying view.
 - All five returned range types are lazy views derived from [`std::ranges::view_interface`](https://en.cppreference.com/w/cpp/ranges/view_interface).
 - These five core iteration families expose forward iterators, so they are multi-pass and may be traversed more than once as long as the underlying source view remains alive.
+- For UTF-32, `chars()`, `reversed_chars()`, and `char_indices()` are stronger: they are sized common random-access views because UTF-32 stores one scalar per code unit.
 
 ### Return value
 
@@ -211,11 +213,13 @@ constexpr size_type grapheme_count() const noexcept;
 - `is_ascii()` returns `true` only if all code units are ASCII.
 - `char_count()` counts Unicode scalar values.
 - `grapheme_count()` counts default Unicode grapheme clusters.
+- For UTF-32, `size()` and `char_count()` are the same value.
 
 ### Complexity
 
 - `size()` and `empty()` are constant.
-- `is_ascii()`, `char_count()`, and `grapheme_count()` are linear in the view length.
+- `is_ascii()` and `grapheme_count()` are linear in the view length.
+- `char_count()` is constant for UTF-32 and linear for UTF-8/UTF-16.
 
 ### Exceptions
 

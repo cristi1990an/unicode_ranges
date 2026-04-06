@@ -191,8 +191,6 @@ namespace views
 
 	class utf32_view;
 
-	class reversed_utf32_view;
-
 	template <typename CharT>
 	class lossy_utf8_view;
 

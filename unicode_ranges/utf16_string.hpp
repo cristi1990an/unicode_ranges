@@ -496,6 +496,8 @@ public:
 
 	constexpr basic_utf16_string& append_range(views::utf8_view rg);
 
+	constexpr basic_utf16_string& append_range(views::utf32_view rg);
+
 	template <details::container_compatible_range<utf16_char> R>
 	constexpr basic_utf16_string& append_range(R&& rg)
 	{
@@ -556,6 +558,8 @@ public:
 	constexpr basic_utf16_string& assign_range(views::utf16_view rg);
 
 	constexpr basic_utf16_string& assign_range(views::utf8_view rg);
+
+	constexpr basic_utf16_string& assign_range(views::utf32_view rg);
 
 	template <details::container_compatible_range<utf16_char> R>
 	constexpr basic_utf16_string& assign_range(R&& rg)

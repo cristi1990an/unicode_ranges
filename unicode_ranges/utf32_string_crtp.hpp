@@ -23,8 +23,8 @@ public:
 	class iterator
 	{
 	public:
-		using iterator_category = std::forward_iterator_tag;
-		using iterator_concept = std::forward_iterator_tag;
+		using iterator_category = std::random_access_iterator_tag;
+		using iterator_concept = std::random_access_iterator_tag;
 		using value_type = std::pair<std::size_t, utf32_char>;
 		using difference_type = std::ptrdiff_t;
 		using reference = value_type;
@@ -34,7 +34,13 @@ public:
 
 		constexpr reference operator*() const noexcept
 		{
-			return { current_, utf32_char::from_utf32_code_points_unchecked(base_.data() + current_, 1u) };
+			return { current_, utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(base_[current_])) };
+		}
+
+		constexpr reference operator[](difference_type offset) const noexcept
+		{
+			const auto index = static_cast<std::size_t>(static_cast<difference_type>(current_) + offset);
+			return { index, utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(base_[index])) };
 		}
 
 		constexpr iterator& operator++() noexcept
@@ -50,15 +56,56 @@ public:
 			return old;
 		}
 
-		friend constexpr bool operator==(const iterator& it, std::default_sentinel_t) noexcept
+		constexpr iterator& operator--() noexcept
 		{
-			return it.current_ == it.base_.size();
+			--current_;
+			return *this;
 		}
 
-		friend constexpr bool operator==(std::default_sentinel_t, const iterator& it) noexcept
+		constexpr iterator operator--(int) noexcept
 		{
-			return it.current_ == it.base_.size();
+			iterator old = *this;
+			--(*this);
+			return old;
 		}
+
+		constexpr iterator& operator+=(difference_type offset) noexcept
+		{
+			current_ = static_cast<std::size_t>(static_cast<difference_type>(current_) + offset);
+			return *this;
+		}
+
+		constexpr iterator& operator-=(difference_type offset) noexcept
+		{
+			current_ = static_cast<std::size_t>(static_cast<difference_type>(current_) - offset);
+			return *this;
+		}
+
+		friend constexpr iterator operator+(iterator it, difference_type offset) noexcept
+		{
+			it += offset;
+			return it;
+		}
+
+		friend constexpr iterator operator+(difference_type offset, iterator it) noexcept
+		{
+			it += offset;
+			return it;
+		}
+
+		friend constexpr iterator operator-(iterator it, difference_type offset) noexcept
+		{
+			it -= offset;
+			return it;
+		}
+
+		friend constexpr difference_type operator-(const iterator& lhs, const iterator& rhs) noexcept
+		{
+			return static_cast<difference_type>(lhs.current_) - static_cast<difference_type>(rhs.current_);
+		}
+
+		friend constexpr bool operator==(const iterator&, const iterator&) noexcept = default;
+		friend constexpr auto operator<=>(const iterator&, const iterator&) noexcept = default;
 
 	private:
 		friend class utf32_char_indices_view;
@@ -76,9 +123,14 @@ public:
 		return iterator{ base_, 0 };
 	}
 
-	constexpr std::default_sentinel_t end() const noexcept
+	constexpr iterator end() const noexcept
 	{
-		return std::default_sentinel;
+		return iterator{ base_, base_.size() };
+	}
+
+	constexpr std::size_t size() const noexcept
+	{
+		return base_.size();
 	}
 
 	constexpr std::size_t reserve_hint() const noexcept
@@ -2855,7 +2907,7 @@ public:
 
 	constexpr auto reversed_chars() const noexcept
 	{
-		return views::reversed_utf32_view::from_code_points_unchecked(code_unit_view());
+		return views::reversed_utf32_view{ chars() };
 	}
 
 	constexpr auto graphemes() const noexcept -> views::grapheme_cluster_view<char32_t>;
@@ -3125,14 +3177,16 @@ public:
 		}
 
 		pos = ceil_char_boundary((std::min)(size(), pos));
-		auto indices = char_indices();
-		const auto it = std::ranges::find_if(indices, [&](const auto& entry)
+		const auto code_points = code_unit_view();
+		for (size_type index = pos; index != code_points.size(); ++index)
 		{
-			const auto [index, current] = entry;
-			return index >= pos && sv.contains(current);
-		});
+			if (sv.contains(utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(code_points[index]))))
+			{
+				return index;
+			}
+		}
 
-		return it == indices.end() ? npos : (*it).first;
+		return npos;
 	}
 
 	constexpr size_type find_first_not_of(char32_t ch, size_type pos = 0) const noexcept
@@ -3152,27 +3206,31 @@ public:
 	constexpr size_type find_first_not_of(utf32_char ch, size_type pos = 0) const noexcept
 	{
 		pos = ceil_char_boundary((std::min)(size(), pos));
-		auto indices = char_indices();
-		const auto it = std::ranges::find_if(indices, [&](const auto& entry)
+		const auto code_points = code_unit_view();
+		for (size_type index = pos; index != code_points.size(); ++index)
 		{
-			const auto [index, current] = entry;
-			return index >= pos && current != ch;
-		});
+			if (code_points[index] != ch.as_scalar())
+			{
+				return index;
+			}
+		}
 
-		return it == indices.end() ? npos : (*it).first;
+		return npos;
 	}
 
 	constexpr size_type find_first_not_of(View sv, size_type pos = 0) const noexcept
 	{
 		pos = ceil_char_boundary((std::min)(size(), pos));
-		auto indices = char_indices();
-		const auto it = std::ranges::find_if(indices, [&](const auto& entry)
+		const auto code_points = code_unit_view();
+		for (size_type index = pos; index != code_points.size(); ++index)
 		{
-			const auto [index, current] = entry;
-			return index >= pos && !sv.contains(current);
-		});
+			if (!sv.contains(utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(code_points[index]))))
+			{
+				return index;
+			}
+		}
 
-		return it == indices.end() ? npos : (*it).first;
+		return npos;
 	}
 
 	constexpr size_type rfind(char32_t ch, size_type pos = npos) const noexcept
@@ -3294,9 +3352,10 @@ public:
 		{
 			pos = floor_char_boundary(size() - 1);
 		}
+		const auto code_points = code_unit_view();
 		for (size_type index = pos;;)
 		{
-			if (sv.contains(char_at_unchecked(index)))
+			if (sv.contains(utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(code_points[index]))))
 			{
 				return index;
 			}
@@ -3338,21 +3397,21 @@ public:
 		}
 
 		pos = floor_char_boundary((std::min)(size(), pos));
-		size_type result = npos;
-		for (const auto [index, current] : char_indices())
+		if (pos == size())
 		{
-			if (index > pos)
+			pos = floor_char_boundary(size() - 1);
+		}
+		const auto code_points = code_unit_view();
+		for (size_type index = pos + 1; index != 0;)
+		{
+			--index;
+			if (code_points[index] != ch.as_scalar())
 			{
-				break;
-			}
-
-			if (current != ch)
-			{
-				result = index;
+				return index;
 			}
 		}
 
-		return result;
+		return npos;
 	}
 
 	constexpr size_type find_last_not_of(View sv, size_type pos = npos) const noexcept
@@ -3367,9 +3426,10 @@ public:
 		{
 			pos = floor_char_boundary(size() - 1);
 		}
+		const auto code_points = code_unit_view();
 		for (size_type index = pos;;)
 		{
-			if (!sv.contains(char_at_unchecked(index)))
+			if (!sv.contains(utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(code_points[index]))))
 			{
 				return index;
 			}
@@ -3390,7 +3450,7 @@ public:
 
 	constexpr size_type char_count() const noexcept
 	{
-		return static_cast<size_type>(details::char_count(code_unit_view()));
+		return size();
 	}
 
 	constexpr size_type grapheme_count() const noexcept
@@ -4103,9 +4163,7 @@ public:
 	{
 		UTF8_RANGES_DEBUG_ASSERT(index < size());
 		UTF8_RANGES_DEBUG_ASSERT(is_char_boundary(index));
-
-		const auto code_points = code_unit_view();
-		return utf32_char::from_utf32_code_points_unchecked(code_points.data() + index, 1u);
+		return utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(code_unit_view()[index]));
 	}
 
 	constexpr std::optional<View> grapheme_at(size_type index) const noexcept
@@ -4168,7 +4226,7 @@ public:
 	constexpr utf32_char front_unchecked() const noexcept
 	{
 		UTF8_RANGES_DEBUG_ASSERT(!empty());
-		return *chars().begin();
+		return utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(code_unit_view().front()));
 	}
 
 	constexpr std::optional<utf32_char> back() const noexcept
@@ -4184,7 +4242,7 @@ public:
 	constexpr utf32_char back_unchecked() const noexcept
 	{
 		UTF8_RANGES_DEBUG_ASSERT(!empty());
-		return *reversed_chars().begin();
+		return utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(code_unit_view().back()));
 	}
 
 	constexpr bool starts_with(char32_t ch) const noexcept

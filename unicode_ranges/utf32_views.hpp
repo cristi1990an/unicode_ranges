@@ -31,8 +31,8 @@ namespace views
 		class iterator
 		{
 		public:
-			using iterator_category = std::forward_iterator_tag;
-			using iterator_concept = std::forward_iterator_tag;
+			using iterator_category = std::random_access_iterator_tag;
+			using iterator_concept = std::random_access_iterator_tag;
 			using value_type = utf32_char;
 			using difference_type = std::ptrdiff_t;
 			using reference = utf32_char;
@@ -42,7 +42,13 @@ namespace views
 
 			constexpr reference operator*() const noexcept
 			{
-				return utf32_char::from_utf32_code_points_unchecked(current_, 1);
+				return utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(base_[current_]));
+			}
+
+			constexpr reference operator[](difference_type offset) const noexcept
+			{
+				const auto index = static_cast<std::size_t>(static_cast<difference_type>(current_) + offset);
+				return utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(base_[index]));
 			}
 
 			constexpr iterator& operator++() noexcept
@@ -58,40 +64,81 @@ namespace views
 				return old;
 			}
 
-			friend constexpr bool operator==(const iterator& it, std::default_sentinel_t) noexcept
+			constexpr iterator& operator--() noexcept
 			{
-				return it.current_ == it.end_;
+				--current_;
+				return *this;
 			}
 
-			friend constexpr bool operator==(const iterator& lhs, const iterator& rhs) noexcept
+			constexpr iterator operator--(int) noexcept
 			{
-				return lhs.current_ == rhs.current_;
+				iterator old = *this;
+				--(*this);
+				return old;
 			}
 
-			friend constexpr bool operator==(std::default_sentinel_t, const iterator& it) noexcept
+			constexpr iterator& operator+=(difference_type offset) noexcept
 			{
-				return it.current_ == it.end_;
+				current_ = static_cast<std::size_t>(static_cast<difference_type>(current_) + offset);
+				return *this;
 			}
+
+			constexpr iterator& operator-=(difference_type offset) noexcept
+			{
+				current_ = static_cast<std::size_t>(static_cast<difference_type>(current_) - offset);
+				return *this;
+			}
+
+			friend constexpr iterator operator+(iterator it, difference_type offset) noexcept
+			{
+				it += offset;
+				return it;
+			}
+
+			friend constexpr iterator operator+(difference_type offset, iterator it) noexcept
+			{
+				it += offset;
+				return it;
+			}
+
+			friend constexpr iterator operator-(iterator it, difference_type offset) noexcept
+			{
+				it -= offset;
+				return it;
+			}
+
+			friend constexpr difference_type operator-(const iterator& lhs, const iterator& rhs) noexcept
+			{
+				return static_cast<difference_type>(lhs.current_) - static_cast<difference_type>(rhs.current_);
+			}
+
+			friend constexpr bool operator==(const iterator&, const iterator&) noexcept = default;
+			friend constexpr auto operator<=>(const iterator&, const iterator&) noexcept = default;
 
 		private:
 			friend class utf32_view;
 
-			constexpr iterator(const char32_t* current, const char32_t* end) noexcept
-				: current_(current), end_(end)
+			constexpr iterator(const char32_t* base, std::size_t current) noexcept
+				: base_(base), current_(current)
 			{}
 
-			const char32_t* current_ = nullptr;
-			const char32_t* end_ = nullptr;
+			const char32_t* base_ = nullptr;
+			std::size_t current_ = 0;
 		};
 
 		constexpr iterator begin() const noexcept
 		{
-			return iterator{ base_.data(), base_.data() + base_.size() };
+			return iterator{ base_.data(), 0 };
 		}
 
-		constexpr std::default_sentinel_t end() const noexcept
+		constexpr iterator end() const noexcept
 		{
-			return std::default_sentinel;
+			return iterator{ base_.data(), base_.size() };
+		}
+
+		constexpr std::size_t size() const noexcept
+		{
+			return base_.size();
 		}
 
 		constexpr std::size_t reserve_hint() const noexcept
@@ -116,115 +163,7 @@ namespace views
 		std::u32string_view base_{};
 	};
 
-	class reversed_utf32_view : public std::ranges::view_interface<reversed_utf32_view>
-	{
-	public:
-		class iterator
-		{
-		public:
-			using iterator_category = std::forward_iterator_tag;
-			using iterator_concept = std::forward_iterator_tag;
-			using value_type = utf32_char;
-			using difference_type = std::ptrdiff_t;
-			using reference = utf32_char;
-			using pointer = void;
-
-			iterator() = default;
-
-			constexpr reference operator*() const noexcept
-			{
-				return utf32_char::from_utf32_code_points_unchecked(current_, 1);
-			}
-
-			constexpr iterator& operator++() noexcept
-			{
-				if (current_ == nullptr) [[unlikely]]
-				{
-					return *this;
-				}
-
-				if (current_ == begin_)
-				{
-					current_ = nullptr;
-					return *this;
-				}
-
-				--current_;
-				return *this;
-			}
-
-			constexpr iterator operator++(int) noexcept
-			{
-				iterator old = *this;
-				++(*this);
-				return old;
-			}
-
-			friend constexpr bool operator==(const iterator& it, std::default_sentinel_t) noexcept
-			{
-				return it.current_ == nullptr;
-			}
-
-			friend constexpr bool operator==(const iterator& lhs, const iterator& rhs) noexcept
-			{
-				return lhs.current_ == rhs.current_;
-			}
-
-			friend constexpr bool operator==(std::default_sentinel_t, const iterator& it) noexcept
-			{
-				return it.current_ == nullptr;
-			}
-
-		private:
-			friend class reversed_utf32_view;
-
-			constexpr iterator(const char32_t* begin, const char32_t* current) noexcept
-				: begin_(begin), current_(current)
-			{}
-
-			const char32_t* begin_ = nullptr;
-			const char32_t* current_ = nullptr;
-		};
-
-		constexpr iterator begin() const noexcept
-		{
-			const char32_t* begin = base_.data();
-			const char32_t* current = begin + base_.size();
-			if (current == begin)
-			{
-				return iterator{ begin, nullptr };
-			}
-
-			--current;
-			return iterator{ begin, current };
-		}
-
-		constexpr std::default_sentinel_t end() const noexcept
-		{
-			return std::default_sentinel;
-		}
-
-		constexpr std::size_t reserve_hint() const noexcept
-		{
-			return base_.size();
-		}
-
-	private:
-		template <typename Derived, typename View>
-		friend class details::utf32_string_crtp;
-
-		static constexpr reversed_utf32_view from_code_points_unchecked(std::u32string_view base) noexcept
-		{
-			UTF8_RANGES_DEBUG_ASSERT(details::validate_utf32(base).has_value());
-			return reversed_utf32_view{ base };
-		}
-
-		constexpr explicit reversed_utf32_view(std::u32string_view base) noexcept
-			: base_(base)
-		{}
-
-		std::u32string_view base_{};
-	};
+	using reversed_utf32_view = std::ranges::reverse_view<utf32_view>;
 
 	template <typename CharT>
 	class lossy_utf32_view : public std::ranges::view_interface<lossy_utf32_view<CharT>>
@@ -236,8 +175,8 @@ namespace views
 		class iterator
 		{
 		public:
-			using iterator_category = std::forward_iterator_tag;
-			using iterator_concept = std::forward_iterator_tag;
+			using iterator_category = std::random_access_iterator_tag;
+			using iterator_concept = std::random_access_iterator_tag;
 			using value_type = utf32_char;
 			using difference_type = std::ptrdiff_t;
 			using reference = utf32_char;
@@ -247,13 +186,18 @@ namespace views
 
 			constexpr reference operator*() const noexcept
 			{
-				return current_valid_ ? current_char_ : utf32_char::replacement_character;
+				return decode(base_, current_);
+			}
+
+			constexpr reference operator[](difference_type offset) const noexcept
+			{
+				const auto index = static_cast<std::size_t>(static_cast<difference_type>(current_) + offset);
+				return decode(base_, index);
 			}
 
 			constexpr iterator& operator++() noexcept
 			{
-				current_ += static_cast<difference_type>(current_width_);
-				load_current();
+				++current_;
 				return *this;
 			}
 
@@ -264,64 +208,93 @@ namespace views
 				return old;
 			}
 
-			friend constexpr bool operator==(const iterator& it, std::default_sentinel_t) noexcept
+			constexpr iterator& operator--() noexcept
 			{
-				return it.current_ == it.end_;
+				--current_;
+				return *this;
 			}
 
-			friend constexpr bool operator==(const iterator& lhs, const iterator& rhs) noexcept
+			constexpr iterator operator--(int) noexcept
 			{
-				return lhs.current_ == rhs.current_;
+				iterator old = *this;
+				--(*this);
+				return old;
 			}
 
-			friend constexpr bool operator==(std::default_sentinel_t, const iterator& it) noexcept
+			constexpr iterator& operator+=(difference_type offset) noexcept
 			{
-				return it.current_ == it.end_;
+				current_ = static_cast<std::size_t>(static_cast<difference_type>(current_) + offset);
+				return *this;
 			}
+
+			constexpr iterator& operator-=(difference_type offset) noexcept
+			{
+				current_ = static_cast<std::size_t>(static_cast<difference_type>(current_) - offset);
+				return *this;
+			}
+
+			friend constexpr iterator operator+(iterator it, difference_type offset) noexcept
+			{
+				it += offset;
+				return it;
+			}
+
+			friend constexpr iterator operator+(difference_type offset, iterator it) noexcept
+			{
+				it += offset;
+				return it;
+			}
+
+			friend constexpr iterator operator-(iterator it, difference_type offset) noexcept
+			{
+				it -= offset;
+				return it;
+			}
+
+			friend constexpr difference_type operator-(const iterator& lhs, const iterator& rhs) noexcept
+			{
+				return static_cast<difference_type>(lhs.current_) - static_cast<difference_type>(rhs.current_);
+			}
+
+			friend constexpr bool operator==(const iterator&, const iterator&) noexcept = default;
+			friend constexpr auto operator<=>(const iterator&, const iterator&) noexcept = default;
 
 		private:
 			friend class lossy_utf32_view<CharT>;
 
-			constexpr iterator(const CharT* current, const CharT* end) noexcept
-				: current_(current), end_(end)
+			static constexpr utf32_char decode(const CharT* base, std::size_t current) noexcept
 			{
-				load_current();
-			}
-
-			constexpr void load_current() noexcept
-			{
-				current_width_ = 0;
-				current_valid_ = false;
-
-				if (current_ == end_) [[unlikely]]
-				{
-					return;
-				}
-
-				current_width_ = 1;
-				const auto scalar = static_cast<std::uint32_t>(*current_);
+				const auto scalar = static_cast<std::uint32_t>(base[current]);
 				if (details::is_valid_unicode_scalar(scalar))
 				{
-					current_char_ = utf32_char::from_utf32_code_points_unchecked(current_, 1);
-					current_valid_ = true;
+					return utf32_char::from_scalar_unchecked(scalar);
 				}
+
+				return utf32_char::replacement_character;
 			}
 
-			const CharT* current_ = nullptr;
-			const CharT* end_ = nullptr;
-			utf32_char current_char_{};
-			std::size_t current_width_ = 0;
-			bool current_valid_ = false;
+			constexpr iterator(const CharT* base, std::size_t current) noexcept
+				: base_(base), current_(current)
+			{
+			}
+
+			const CharT* base_ = nullptr;
+			std::size_t current_ = 0;
 		};
 
 		constexpr iterator begin() const noexcept
 		{
-			return iterator{ base_.data(), base_.data() + base_.size() };
+			return iterator{ base_.data(), 0 };
 		}
 
-		constexpr std::default_sentinel_t end() const noexcept
+		constexpr iterator end() const noexcept
 		{
-			return std::default_sentinel;
+			return iterator{ base_.data(), base_.size() };
+		}
+
+		constexpr std::size_t size() const noexcept
+		{
+			return base_.size();
 		}
 
 		constexpr std::size_t reserve_hint() const noexcept
@@ -357,9 +330,6 @@ namespace std::ranges
 {
 	template <>
 	inline constexpr bool enable_borrowed_range<unicode_ranges::views::utf32_view> = true;
-
-	template <>
-	inline constexpr bool enable_borrowed_range<unicode_ranges::views::reversed_utf32_view> = true;
 
 	template <typename CharT>
 	inline constexpr bool enable_borrowed_range<unicode_ranges::views::lossy_utf32_view<CharT>> = true;

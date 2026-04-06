@@ -120,11 +120,43 @@ namespace std
 		template<typename FormatContext>
 		auto format(unicode_ranges::utf32_string_view value, FormatContext& ctx) const
 		{
-			std::string text;
-			for (unicode_ranges::utf32_char ch : value.chars())
+			const auto code_points = value.base();
+			std::size_t utf8_size = 0;
+			for (char32_t code_point : code_points)
 			{
-				ch.encode_utf8<char>(std::back_inserter(text));
+				const auto scalar = static_cast<std::uint32_t>(code_point);
+				if (scalar <= unicode_ranges::details::encoding_constants::ascii_scalar_max) [[likely]]
+				{
+					++utf8_size;
+				}
+				else if (scalar <= unicode_ranges::details::encoding_constants::two_byte_scalar_max)
+				{
+					utf8_size += unicode_ranges::details::encoding_constants::two_code_unit_count;
+				}
+				else if (scalar <= unicode_ranges::details::encoding_constants::bmp_scalar_max)
+				{
+					utf8_size += unicode_ranges::details::encoding_constants::three_code_unit_count;
+				}
+				else
+				{
+					utf8_size += unicode_ranges::details::encoding_constants::max_utf8_code_units;
+				}
 			}
+
+			std::string text;
+			text.resize_and_overwrite(utf8_size,
+				[&](char* buffer, std::size_t) noexcept
+				{
+					std::size_t write_index = 0;
+					for (char32_t code_point : code_points)
+					{
+						write_index += unicode_ranges::details::encode_unicode_scalar_utf8_unchecked(
+							static_cast<std::uint32_t>(code_point),
+							buffer + write_index);
+					}
+
+					return write_index;
+				});
 
 			return formatter<std::string_view, char>::format(text, ctx);
 		}
