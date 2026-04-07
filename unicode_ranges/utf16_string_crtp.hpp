@@ -2685,15 +2685,48 @@ private:
 	UTF8_RANGES_NO_UNIQUE_ADDRESS Pred pred_;
 };
 
-inline constexpr bool utf16_char_is_whitespace_at(
+struct utf16_whitespace_probe
+{
+	std::size_t next = 0;
+	bool is_whitespace = false;
+};
+
+inline constexpr bool is_ascii_whitespace_scalar(std::uint16_t scalar) noexcept
+{
+	return scalar == static_cast<std::uint16_t>(' ')
+		|| (scalar >= static_cast<std::uint16_t>('\t') && scalar <= static_cast<std::uint16_t>('\r'));
+}
+
+inline constexpr utf16_whitespace_probe probe_utf16_whitespace(
 	std::u16string_view base,
 	std::size_t pos,
 	bool ascii_only) noexcept
 {
 	const auto first = static_cast<std::uint16_t>(base[pos]);
-	const auto len = details::is_utf16_high_surrogate(first) ? 2u : 1u;
-	const auto ch = utf16_char::from_utf16_code_units_unchecked(base.data() + pos, len);
-	return ascii_only ? ch.is_ascii_whitespace() : ch.is_whitespace();
+	if (first <= details::encoding_constants::ascii_scalar_max) [[likely]]
+	{
+		return { pos + 1u, details::is_ascii_whitespace_scalar(first) };
+	}
+
+	if (!details::is_utf16_high_surrogate(first)) [[likely]]
+	{
+		return { pos + 1u, !ascii_only && details::unicode::is_whitespace(first) };
+	}
+
+	return {
+		pos + details::encoding_constants::utf16_surrogate_code_unit_count,
+		!ascii_only && details::unicode::is_whitespace(details::decode_valid_utf16_char(
+			base.data() + pos,
+			details::encoding_constants::utf16_surrogate_code_unit_count))
+	};
+}
+
+inline constexpr bool utf16_char_is_whitespace_at(
+	std::u16string_view base,
+	std::size_t pos,
+	bool ascii_only) noexcept
+{
+	return details::probe_utf16_whitespace(base, pos, ascii_only).is_whitespace;
 }
 
 inline constexpr std::size_t next_utf16_scalar_boundary(
@@ -2710,12 +2743,13 @@ inline constexpr std::size_t find_utf16_non_whitespace_boundary(
 {
 	while (pos < base.size())
 	{
-		if (!details::utf16_char_is_whitespace_at(base, pos, ascii_only))
+		const auto probe = details::probe_utf16_whitespace(base, pos, ascii_only);
+		if (!probe.is_whitespace)
 		{
 			return pos;
 		}
 
-		pos = details::next_utf16_scalar_boundary(base, pos);
+		pos = probe.next;
 	}
 
 	return std::u16string_view::npos;
@@ -2728,12 +2762,13 @@ inline constexpr std::size_t find_utf16_whitespace_boundary(
 {
 	while (pos < base.size())
 	{
-		if (details::utf16_char_is_whitespace_at(base, pos, ascii_only))
+		const auto probe = details::probe_utf16_whitespace(base, pos, ascii_only);
+		if (probe.is_whitespace)
 		{
 			return pos;
 		}
 
-		pos = details::next_utf16_scalar_boundary(base, pos);
+		pos = probe.next;
 	}
 
 	return std::u16string_view::npos;
@@ -2746,16 +2781,52 @@ inline constexpr std::size_t utf16_trim_end_boundary(
 	std::size_t end = 0;
 	for (std::size_t pos = 0; pos < base.size();)
 	{
-		const auto next = details::next_utf16_scalar_boundary(base, pos);
-		if (!details::utf16_char_is_whitespace_at(base, pos, ascii_only))
+		const auto probe = details::probe_utf16_whitespace(base, pos, ascii_only);
+		if (!probe.is_whitespace)
 		{
-			end = next;
+			end = probe.next;
 		}
 
-		pos = next;
+		pos = probe.next;
 	}
 
 	return end;
+}
+
+inline constexpr std::pair<std::size_t, std::size_t> find_next_utf16_whitespace_split_segment(
+	std::u16string_view base,
+	std::size_t pos,
+	bool ascii_only) noexcept
+{
+	while (pos < base.size())
+	{
+		const auto probe = details::probe_utf16_whitespace(base, pos, ascii_only);
+		if (!probe.is_whitespace)
+		{
+			break;
+		}
+
+		pos = probe.next;
+	}
+
+	if (pos >= base.size())
+	{
+		return { std::u16string_view::npos, std::u16string_view::npos };
+	}
+
+	const auto current = pos;
+	while (pos < base.size())
+	{
+		const auto probe = details::probe_utf16_whitespace(base, pos, ascii_only);
+		if (probe.is_whitespace)
+		{
+			return { current, pos };
+		}
+
+		pos = probe.next;
+	}
+
+	return { current, std::u16string_view::npos };
 }
 
 template <typename View, bool AsciiOnly>
@@ -2802,17 +2873,12 @@ public:
 
 		constexpr iterator& operator++() noexcept
 		{
-			current_ = details::find_utf16_non_whitespace_boundary(
+			const auto [current, next_whitespace] = details::find_next_utf16_whitespace_split_segment(
 				base_,
 				next_whitespace_ == std::u16string_view::npos ? base_.size() : next_whitespace_,
 				AsciiOnly);
-			if (current_ == std::u16string_view::npos)
-			{
-				next_whitespace_ = std::u16string_view::npos;
-				return *this;
-			}
-
-			next_whitespace_ = details::find_utf16_whitespace_boundary(base_, current_, AsciiOnly);
+			current_ = current;
+			next_whitespace_ = next_whitespace;
 			return *this;
 		}
 
@@ -2841,7 +2907,7 @@ public:
 
 	constexpr iterator begin() const noexcept
 	{
-		const auto current = details::find_utf16_non_whitespace_boundary(base_, 0, AsciiOnly);
+		const auto [current, next_whitespace] = details::find_next_utf16_whitespace_split_segment(base_, 0, AsciiOnly);
 		if (current == std::u16string_view::npos)
 		{
 			return iterator{};
@@ -2850,7 +2916,7 @@ public:
 		return iterator{
 			base_,
 			current,
-			details::find_utf16_whitespace_boundary(base_, current, AsciiOnly)
+			next_whitespace
 		};
 	}
 

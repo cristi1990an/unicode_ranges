@@ -1171,6 +1171,12 @@ namespace details
 		std::ranges::input_range<R> &&
 		std::convertible_to<std::ranges::range_reference_t<R>, T>;
 
+	template <typename R, typename T>
+	concept contiguous_sized_range_of =
+		std::ranges::contiguous_range<R>
+		&& std::ranges::sized_range<R>
+		&& std::same_as<std::remove_cv_t<std::ranges::range_value_t<R>>, T>;
+
 	inline constexpr bool is_valid_unicode_scalar(std::uint32_t scalar) noexcept
 	{
 		return scalar <= encoding_constants::max_unicode_scalar
