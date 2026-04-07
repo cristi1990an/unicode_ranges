@@ -70,6 +70,18 @@
 	} while (false)
 #endif
 
+#if defined(_MSC_VER) && !defined(__clang__)
+#define UTF8_RANGES_NO_UNIQUE_ADDRESS [[msvc::no_unique_address]]
+#elif defined(__has_cpp_attribute)
+#if __has_cpp_attribute(no_unique_address)
+#define UTF8_RANGES_NO_UNIQUE_ADDRESS [[no_unique_address]]
+#else
+#define UTF8_RANGES_NO_UNIQUE_ADDRESS
+#endif
+#else
+#define UTF8_RANGES_NO_UNIQUE_ADDRESS
+#endif
+
 #include "unicode_tables.hpp"
 
 namespace unicode_ranges
@@ -996,6 +1008,11 @@ namespace details
 			}
 
 			copy_ascii_code_units_to_utf8_scalar(out + index, code_units.substr(index));
+			return;
+		}
+		else
+		{
+			copy_ascii_code_units_to_utf8_scalar(out, code_units);
 			return;
 		}
 #endif

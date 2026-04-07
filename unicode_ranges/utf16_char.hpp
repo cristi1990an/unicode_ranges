@@ -84,6 +84,7 @@ public:
 	constexpr operator utf32_char() const noexcept;
 
 	template <typename Allocator = std::allocator<char16_t>>
+	[[nodiscard]]
 	constexpr basic_utf16_string<Allocator> to_utf16_owned(const Allocator& alloc = Allocator()) const;
 
 	constexpr utf16_char& operator++() noexcept

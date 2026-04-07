@@ -152,23 +152,25 @@ public:
 
 			return from_code_units_unchecked(std::move(result));
 		}
+		else
+		{
+			UTF8_RANGES_DEBUG_ASSERT(details::validate_unicode_scalars(bytes).has_value());
 
-		UTF8_RANGES_DEBUG_ASSERT(details::validate_unicode_scalars(bytes).has_value());
-
-		base_type utf16_code_units{ alloc };
-		utf16_code_units.resize_and_overwrite(bytes.size() * details::encoding_constants::utf16_surrogate_code_unit_count,
-			[&](char16_t* buffer, std::size_t) noexcept
-			{
-				std::size_t write_index = 0;
-				for (wchar_t ch : bytes)
+			base_type utf16_code_units{ alloc };
+			utf16_code_units.resize_and_overwrite(bytes.size() * details::encoding_constants::utf16_surrogate_code_unit_count,
+				[&](char16_t* buffer, std::size_t) noexcept
 				{
-					write_index += details::encode_unicode_scalar_utf16_unchecked(static_cast<std::uint32_t>(ch), buffer + write_index);
-				}
+					std::size_t write_index = 0;
+					for (wchar_t ch : bytes)
+					{
+						write_index += details::encode_unicode_scalar_utf16_unchecked(static_cast<std::uint32_t>(ch), buffer + write_index);
+					}
 
-				return write_index;
-			});
+					return write_index;
+				});
 
-		return from_code_units_unchecked(std::move(utf16_code_units));
+			return from_code_units_unchecked(std::move(utf16_code_units));
+		}
 	}
 
 private:
@@ -265,6 +267,11 @@ private:
 			return *this;
 		}
 
+		if (needle == replacement) [[unlikely]]
+		{
+			return *this;
+		}
+
 		base_type stable_needle{ base_.get_allocator() };
 		if (overlaps_base(needle))
 		{
@@ -277,11 +284,6 @@ private:
 		{
 			stable_replacement.assign(replacement);
 			replacement = stable_replacement;
-		}
-
-		if (needle == replacement)
-		{
-			return *this;
 		}
 
 		if (needle.size() == replacement.size())
