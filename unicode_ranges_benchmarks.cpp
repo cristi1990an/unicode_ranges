@@ -888,6 +888,15 @@ int main(int argc, char** argv)
 		}
 	});
 	cases.push_back({
+		"utf32.char_count.mixed",
+		utf32_char_count_storage.size() * sizeof(char32_t),
+		8,
+		[&]() -> std::size_t
+		{
+			return utf32_char_count_text.char_count();
+		}
+	});
+	cases.push_back({
 		"utf32.to_ascii_lowercase.view",
 		utf32_ascii_upper_storage.size() * sizeof(char32_t),
 		8,
