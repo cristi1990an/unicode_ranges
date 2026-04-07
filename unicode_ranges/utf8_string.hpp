@@ -499,7 +499,7 @@ public:
 					auto* out = buffer + old_size;
 					for (size_type i = 0; i != count; ++i)
 					{
-						out += chars[i].encode_utf8<char8_t>(out);
+						out += chars[i].template encode_utf8<char8_t>(out);
 					}
 
 					return old_size + appended_size;
@@ -587,7 +587,7 @@ public:
 					auto* out = buffer;
 					for (size_type i = 0; i != count; ++i)
 					{
-						out += chars[i].encode_utf8<char8_t>(out);
+						out += chars[i].template encode_utf8<char8_t>(out);
 					}
 
 					return replacement_size;
