@@ -57,6 +57,23 @@ jobs:
       - name: Run tests
         run: .\x64\${{ matrix.configuration }}\unicode_ranges.exe
 
+  macos:
+    name: macOS (AppleClang, O2, C++23)
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show compiler version
+        run: clang++ --version
+
+      - name: Build
+        run: clang++ -std=c++23 -O2 -Wall -Wextra -Werror -pedantic source.cpp -o unicode_ranges_macos_o2
+
+      - name: Run tests
+        run: ./unicode_ranges_macos_o2
+
   static_analysis:
     name: Static analysis (MSVC /analyze)
     runs-on: windows-latest
@@ -232,6 +249,53 @@ jobs:
           ASAN_OPTIONS: ${{ matrix.asan_options }}
           UBSAN_OPTIONS: ${{ matrix.ubsan_options }}
 
+  linux_32:
+    name: Linux x86 GCC (${{ matrix.opt_name }}${{ matrix.sanitizer_name }}, C++23)
+    runs-on: ubuntu-24.04
+    continue-on-error: ${{ matrix.sanitized }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - opt_name: O2
+            opt_flags: "-O2"
+            sanitizer_name: ""
+            sanitized: false
+            sanitizer_flags: ""
+            asan_options: ""
+            ubsan_options: ""
+            output: unicode_ranges_gcc_x86_o2
+          - opt_name: O2
+            opt_flags: "-O2"
+            sanitizer_name: ", ASan+UBSan"
+            sanitized: true
+            sanitizer_flags: "-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all"
+            asan_options: "detect_leaks=0"
+            ubsan_options: "print_stacktrace=1"
+            output: unicode_ranges_gcc_x86_o2_san
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install GCC multilib toolchain
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y g++-14 g++-14-multilib libc6-dev-i386
+
+      - name: Show compiler version
+        run: g++-14 --version
+
+      - name: Build
+        run: g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.sanitizer_flags }} source.cpp -o ${{ matrix.output }}
+
+      - name: Run tests
+        run: ./${{ matrix.output }}
+        env:
+          ASAN_OPTIONS: ${{ matrix.asan_options }}
+          UBSAN_OPTIONS: ${{ matrix.ubsan_options }}
+
   linux_icu:
     name: ${{ matrix.name }} + ICU (O2, C++23)
     runs-on: ubuntu-24.04
@@ -393,7 +457,9 @@ jobs:
     needs:
       - msvc
       - clang_cl
+      - macos
       - linux
+      - linux_32
       - linux_icu
       - docs_examples
       - coverage
@@ -407,12 +473,13 @@ jobs:
   benchmarks:
     name: Benchmark (${{ matrix.name }}, ${{ matrix.opt_name }}, C++23)
     if: github.event_name != 'pull_request'
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.runs_on }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: GCC
+            runs_on: ubuntu-24.04
             install_kind: gcc
             packages: g++-14
             cxx: g++-14
@@ -422,6 +489,7 @@ jobs:
             output: unicode_ranges_benchmarks_gcc_o3
             artifact_name: benchmark-gcc-o3
           - name: Clang trunk
+            runs_on: ubuntu-24.04
             install_kind: clang
             packages: clang-22 libc++-22-dev libc++abi-22-dev
             cxx: clang++-22
@@ -430,6 +498,26 @@ jobs:
             opt_flags: "-O2 -DNDEBUG"
             output: unicode_ranges_benchmarks_clang_o2
             artifact_name: benchmark-clang-o2
+          - name: GCC x86
+            runs_on: ubuntu-24.04
+            install_kind: gcc32
+            packages: g++-14 g++-14-multilib libc6-dev-i386
+            cxx: g++-14
+            cxxflags: "-m32"
+            opt_name: O3
+            opt_flags: "-O3 -DNDEBUG"
+            output: unicode_ranges_benchmarks_gcc_x86_o3
+            artifact_name: benchmark-gcc-x86-o3
+          - name: AppleClang
+            runs_on: macos-latest
+            install_kind: appleclang
+            packages: ""
+            cxx: clang++
+            cxxflags: ""
+            opt_name: O2
+            opt_flags: "-O2 -DNDEBUG"
+            output: unicode_ranges_benchmarks_macos_o2
+            artifact_name: benchmark-macos-o2
 
     steps:
       - name: Checkout
@@ -438,6 +526,13 @@ jobs:
       - name: Install GCC
         if: matrix.install_kind == 'gcc'
         run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.packages }}
+
+      - name: Install GCC multilib
+        if: matrix.install_kind == 'gcc32'
+        run: |
+          sudo dpkg --add-architecture i386
           sudo apt-get update
           sudo apt-get install -y ${{ matrix.packages }}
 
