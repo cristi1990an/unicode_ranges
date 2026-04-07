@@ -122,6 +122,7 @@ public:
 		else
 		{
 			code_units_[0] = 0;
+			code_units_[1] = 0;
 		}
 
 		return *this;
@@ -167,7 +168,7 @@ public:
 		}
 		else
 		{
-			code_units_[0] = static_cast<char16_t>(details::encoding_constants::scalar_before_surrogate_range);
+			code_units_[0] = static_cast<char16_t>(details::encoding_constants::bmp_scalar_max);
 			code_units_[1] = 0;
 		}
 
