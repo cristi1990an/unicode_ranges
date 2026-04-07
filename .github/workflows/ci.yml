@@ -375,8 +375,10 @@ jobs:
             echo "## Coverage"
             echo
             echo '```text'
-            cat coverage/report.txt
+            cat coverage/summary.txt
             echo '```'
+            echo
+            echo "Full function-level coverage is available in the \`coverage-report\` artifact."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload coverage artifact

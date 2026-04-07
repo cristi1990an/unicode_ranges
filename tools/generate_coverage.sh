@@ -11,6 +11,7 @@ BINARY="${BINARY:-unicode_ranges_cov}"
 PROFRAW="${OUTPUT_DIR}/unicode_ranges.profraw"
 PROFDATA="${OUTPUT_DIR}/unicode_ranges.profdata"
 REPORT_TXT="${OUTPUT_DIR}/report.txt"
+SUMMARY_TXT="${OUTPUT_DIR}/summary.txt"
 HTML_DIR="${OUTPUT_DIR}/html"
 
 mkdir -p "${OUTPUT_DIR}"
@@ -42,6 +43,12 @@ COVERED_FILES+=("unicode_ranges.hpp")
 	-show-functions \
 	-show-branch-summary \
 	"${COVERED_FILES[@]}" | tee "${REPORT_TXT}"
+
+"${LLVM_COV}" report \
+	"${OUTPUT_DIR}/${BINARY}" \
+	-instr-profile="${PROFDATA}" \
+	-show-branch-summary \
+	"${COVERED_FILES[@]}" | tee "${SUMMARY_TXT}"
 
 "${LLVM_COV}" show \
 	"${OUTPUT_DIR}/${BINARY}" \
