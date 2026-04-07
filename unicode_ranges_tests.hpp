@@ -2026,16 +2026,16 @@ inline void run_unicode_ranges_tests()
 		assert(utf32_char::from_scalar(0x20ACu).has_value());
 		assert(!utf32_char::from_scalar(0x110000u).has_value());
 		{
-			const auto euro = utf32_char::from_scalar(0x20ACu);
+			[[maybe_unused]] const auto euro = utf32_char::from_scalar(0x20ACu);
 			assert(euro.has_value());
 			assert(euro->as_scalar() == 0x20ACu);
 			assert(std::hash<utf32_char>{}(*euro) == std::hash<std::u32string_view>{}(U"\u20AC"_utf32_sv.base()));
 
-			const std::array<char32_t, 1> euro_code_points{ U'\u20AC' };
+			[[maybe_unused]] const std::array<char32_t, 1> euro_code_points{ U'\u20AC' };
 			assert(utf32_char::from_utf32_code_points(euro_code_points.data(), euro_code_points.size()).value() == U"\u20AC"_u32c);
 			assert(utf32_char::from_utf32_code_points_unchecked(euro_code_points.data(), euro_code_points.size()) == U"\u20AC"_u32c);
 
-			const std::array<char32_t, 1> invalid_code_points{ static_cast<char32_t>(0xD800u) };
+			[[maybe_unused]] const std::array<char32_t, 1> invalid_code_points{ static_cast<char32_t>(0xD800u) };
 			assert(!utf32_char::from_utf32_code_points(invalid_code_points.data(), invalid_code_points.size()).has_value());
 		}
 		assert(U"\u03A9"_u32c.is_alphabetic());
@@ -2129,7 +2129,7 @@ inline void run_unicode_ranges_tests()
 		assert(static_cast<std::u8string_view>(runtime_utf8_text) == runtime_utf8_text.base());
 		assert((runtime_utf8_text <=> u8"B"_utf8_sv) == std::strong_ordering::less);
 		{
-			const std::array<char8_t, 2> invalid_bytes{ static_cast<char8_t>('A'), static_cast<char8_t>(0xFFu) };
+			[[maybe_unused]] const std::array<char8_t, 2> invalid_bytes{ static_cast<char8_t>('A'), static_cast<char8_t>(0xFFu) };
 			assert(!utf8_string_view::from_bytes(std::u8string_view{ invalid_bytes.data(), invalid_bytes.size() }).has_value());
 		}
 		assert(runtime_utf8_text.is_char_boundary(0));
@@ -2412,12 +2412,12 @@ inline void run_unicode_ranges_tests()
 			assert(chars.reserve_hint() == runtime_utf8_storage.size());
 
 			auto it = chars.begin();
-			const auto copy = it;
+			[[maybe_unused]] const auto copy = it;
 			assert(it == copy);
 			assert(!(it == chars.end()));
 			assert(!(chars.end() == it));
 			assert(*it == u8"A"_u8c);
-			const auto post = it++;
+			[[maybe_unused]] const auto post = it++;
 			assert(*post == u8"A"_u8c);
 			assert(*it == u8"\u00E9"_u8c);
 			++it;
@@ -2432,12 +2432,12 @@ inline void run_unicode_ranges_tests()
 			assert(reversed.reserve_hint() == runtime_utf8_storage.size());
 
 			auto it = reversed.begin();
-			const auto copy = it;
+			[[maybe_unused]] const auto copy = it;
 			assert(it == copy);
 			assert(!(it == reversed.end()));
 			assert(!(reversed.end() == it));
 			assert(*it == u8"\u20AC"_u8c);
-			const auto post = it++;
+			[[maybe_unused]] const auto post = it++;
 			assert(*post == u8"\u20AC"_u8c);
 			assert(*it == u8"\u00E9"_u8c);
 			++it;
@@ -2898,7 +2898,7 @@ inline void run_unicode_ranges_tests()
 		assert(static_cast<std::u16string_view>(runtime_utf16_text) == runtime_utf16_text.base());
 		assert((runtime_utf16_text <=> u"B"_utf16_sv) == std::strong_ordering::less);
 		{
-			const std::array<char16_t, 1> invalid_code_units{ static_cast<char16_t>(0xD800u) };
+			[[maybe_unused]] const std::array<char16_t, 1> invalid_code_units{ static_cast<char16_t>(0xD800u) };
 			assert(!utf16_string_view::from_code_units(std::u16string_view{ invalid_code_units.data(), invalid_code_units.size() }).has_value());
 		}
 		assert(runtime_utf16_text.is_char_boundary(0));
@@ -3005,7 +3005,7 @@ inline void run_unicode_ranges_tests()
 		assert((runtime_utf32_text <=> U"B"_utf32_sv) == std::strong_ordering::less);
 		assert(utf32_string_view::from_code_points(runtime_utf32_text.base()).has_value());
 		{
-			const std::array<char32_t, 1> invalid_code_points{ static_cast<char32_t>(0xD800u) };
+			[[maybe_unused]] const std::array<char32_t, 1> invalid_code_points{ static_cast<char32_t>(0xD800u) };
 			assert(!utf32_string_view::from_code_points(std::u32string_view{ invalid_code_points.data(), invalid_code_points.size() }).has_value());
 		}
 		assert(runtime_utf32_text.is_char_boundary(0));
@@ -3210,17 +3210,17 @@ inline void run_unicode_ranges_tests()
 
 			auto it = chars.begin();
 			assert(*it == U"A"_u32c);
-			const auto post = it++;
+			[[maybe_unused]] const auto post = it++;
 			assert(*post == U"A"_u32c);
 			assert(*it == U"\u00E9"_u32c);
 			assert(it[1] == U"\U0001F600"_u32c);
 
-			auto shifted = 1 + it;
+			[[maybe_unused]] auto shifted = 1 + it;
 			assert(*shifted == U"\U0001F600"_u32c);
 			auto advanced = it + 1;
 			assert(*advanced == U"\U0001F600"_u32c);
 			assert(advanced - it == 1);
-			const auto postdec = advanced--;
+			[[maybe_unused]] const auto postdec = advanced--;
 			assert(*postdec == U"\U0001F600"_u32c);
 			assert(*advanced == U"\u00E9"_u32c);
 			--advanced;
@@ -3245,17 +3245,17 @@ inline void run_unicode_ranges_tests()
 
 			auto it = lossy.begin();
 			assert(*it == U"A"_u32c);
-			const auto post = it++;
+			[[maybe_unused]] const auto post = it++;
 			assert(*post == U"A"_u32c);
 			assert(*it == utf32_char::replacement_character);
 			assert(it[1] == U"B"_u32c);
 
-			auto shifted = 1 + it;
+			[[maybe_unused]] auto shifted = 1 + it;
 			assert(*shifted == U"B"_u32c);
 			auto advanced = it + 2;
 			assert(*advanced == utf32_char::replacement_character);
 			assert(advanced - it == 2);
-			const auto postdec = advanced--;
+			[[maybe_unused]] const auto postdec = advanced--;
 			assert(*postdec == utf32_char::replacement_character);
 			assert(*advanced == U"B"_u32c);
 			--advanced;
@@ -3336,10 +3336,10 @@ inline void run_unicode_ranges_tests()
 			assert(accented.trim_matches(U"\u00E9"_u32c) == U"A"_utf32_sv);
 		}
 		{
-			const std::u32string repeated_storage = U"----abra----";
-			const auto repeated = unwrap_utf32_view(repeated_storage);
+			[[maybe_unused]] const std::u32string repeated_storage = U"----abra----";
+			[[maybe_unused]] const auto repeated = unwrap_utf32_view(repeated_storage);
 			const std::u32string accented_storage = U"\u00E9\u00E9A\u00E9";
-			const auto accented = unwrap_utf32_view(accented_storage);
+			[[maybe_unused]] const auto accented = unwrap_utf32_view(accented_storage);
 			assert(repeated.trim_prefix(U"++"_utf32_sv) == repeated);
 			assert(repeated.trim_suffix(U"++"_utf32_sv) == repeated);
 			assert(repeated.trim_start_matches(U"--"_utf32_sv) == U"abra----"_utf32_sv);
@@ -3380,11 +3380,11 @@ inline void run_unicode_ranges_tests()
 		}
 		{
 			const std::u32string unicode_trimmed_storage = U"\u00A0\tA\u00A0 ";
-			const auto unicode_trimmed = unwrap_utf32_view(unicode_trimmed_storage);
+			[[maybe_unused]] const auto unicode_trimmed = unwrap_utf32_view(unicode_trimmed_storage);
 			const std::u32string unicode_split_storage = U"\u00A0A\u2003B C";
-			const auto unicode_split = unwrap_utf32_view(unicode_split_storage);
+			[[maybe_unused]] const auto unicode_split = unwrap_utf32_view(unicode_split_storage);
 			const std::u32string empty_storage;
-			const auto empty = unwrap_utf32_view(empty_storage);
+			[[maybe_unused]] const auto empty = unwrap_utf32_view(empty_storage);
 			assert(unicode_trimmed.trim() == U"A"_utf32_sv);
 			assert(unicode_trimmed.trim_start() == U"A\u00A0 "_utf32_sv);
 			assert(unicode_trimmed.trim_end() == U"\u00A0\tA"_utf32_sv);
@@ -3592,12 +3592,12 @@ inline void run_unicode_ranges_tests()
 			assert(chars.reserve_hint() == runtime_utf16_storage.size());
 
 			auto it = chars.begin();
-			const auto copy = it;
+			[[maybe_unused]] const auto copy = it;
 			assert(it == copy);
 			assert(!(it == chars.end()));
 			assert(!(chars.end() == it));
 			assert(*it == u"A"_u16c);
-			const auto post = it++;
+			[[maybe_unused]] const auto post = it++;
 			assert(*post == u"A"_u16c);
 			assert(*it == u"\u00E9"_u16c);
 			++it;
@@ -3612,12 +3612,12 @@ inline void run_unicode_ranges_tests()
 			assert(reversed.reserve_hint() == runtime_utf16_storage.size());
 
 			auto it = reversed.begin();
-			const auto copy = it;
+			[[maybe_unused]] const auto copy = it;
 			assert(it == copy);
 			assert(!(it == reversed.end()));
 			assert(!(reversed.end() == it));
 			assert(*it == u"\U0001F600"_u16c);
-			const auto post = it++;
+			[[maybe_unused]] const auto post = it++;
 			assert(*post == u"\U0001F600"_u16c);
 			assert(*it == u"\u00E9"_u16c);
 			++it;
@@ -4110,13 +4110,13 @@ inline void run_unicode_ranges_tests()
 	assert(!utf8_char::from_scalar(0x110000u).has_value());
 	assert(utf8_char::from_scalar(0x20ACu).has_value());
 	{
-		const auto euro = utf8_char::from_scalar(0x20ACu);
+		[[maybe_unused]] const auto euro = utf8_char::from_scalar(0x20ACu);
 		assert(euro.has_value());
 		assert(euro->as_scalar() == 0x20ACu);
 		assert(std::hash<utf8_char>{}(*euro) == std::hash<std::u8string_view>{}(details::utf8_char_view(*euro)));
-		const std::array<char8_t, 1> ascii_bytes{ static_cast<char8_t>('A') };
-		const std::array<char8_t, 2> latin1_bytes{ static_cast<char8_t>(0xC3u), static_cast<char8_t>(0xA9u) };
-		const std::array<char8_t, 4> emoji_bytes{ static_cast<char8_t>(0xF0u), static_cast<char8_t>(0x9Fu), static_cast<char8_t>(0x98u), static_cast<char8_t>(0x80u) };
+		[[maybe_unused]] const std::array<char8_t, 1> ascii_bytes{ static_cast<char8_t>('A') };
+		[[maybe_unused]] const std::array<char8_t, 2> latin1_bytes{ static_cast<char8_t>(0xC3u), static_cast<char8_t>(0xA9u) };
+		[[maybe_unused]] const std::array<char8_t, 4> emoji_bytes{ static_cast<char8_t>(0xF0u), static_cast<char8_t>(0x9Fu), static_cast<char8_t>(0x98u), static_cast<char8_t>(0x80u) };
 		assert(utf8_char::from_utf8_bytes_unchecked(ascii_bytes.data(), ascii_bytes.size()) == u8"A"_u8c);
 		assert(utf8_char::from_utf8_bytes_unchecked(latin1_bytes.data(), latin1_bytes.size()) == u8"\u00E9"_u8c);
 		assert(utf8_char::from_utf8_bytes_unchecked(emoji_bytes.data(), emoji_bytes.size()) == u8"\U0001F600"_u8c);
@@ -4166,16 +4166,16 @@ inline void run_unicode_ranges_tests()
 	assert(utf16_char::from_utf16_code_units(u"\u20AC", 1).has_value());
 	assert(!utf16_char::from_utf16_code_units(u"\xD800", 1).has_value());
 	{
-		const auto euro = utf16_char::from_scalar(0x20ACu);
+		[[maybe_unused]] const auto euro = utf16_char::from_scalar(0x20ACu);
 		assert(euro.has_value());
 		assert(euro->as_scalar() == 0x20ACu);
 		assert(std::hash<utf16_char>{}(*euro) == std::hash<std::u16string_view>{}(details::utf16_char_view(*euro)));
 
-		const std::array<char16_t, 2> emoji_units{ static_cast<char16_t>(0xD83Du), static_cast<char16_t>(0xDE00u) };
+		[[maybe_unused]] const std::array<char16_t, 2> emoji_units{ static_cast<char16_t>(0xD83Du), static_cast<char16_t>(0xDE00u) };
 		assert(utf16_char::from_utf16_code_units(emoji_units.data(), emoji_units.size()).value() == u"\U0001F600"_u16c);
 		assert(utf16_char::from_utf16_code_units_unchecked(emoji_units.data(), emoji_units.size()) == u"\U0001F600"_u16c);
 
-		const std::array<wchar_t, 2> emoji_wide_units{ static_cast<wchar_t>(0xD83Du), static_cast<wchar_t>(0xDE00u) };
+		[[maybe_unused]] const std::array<wchar_t, 2> emoji_wide_units{ static_cast<wchar_t>(0xD83Du), static_cast<wchar_t>(0xDE00u) };
 		assert(utf16_char::from_utf16_code_units(emoji_wide_units.data(), emoji_wide_units.size()).value() == u"\U0001F600"_u16c);
 		assert(utf16_char::from_utf16_code_units_unchecked(emoji_wide_units.data(), emoji_wide_units.size()) == u"\U0001F600"_u16c);
 	}
@@ -4323,7 +4323,7 @@ inline void run_unicode_ranges_tests()
 		auto it = view.begin();
 		assert(!(it == view.end()));
 		assert(!(view.end() == it));
-		const auto first = it++;
+		[[maybe_unused]] const auto first = it++;
 		assert(*first == u8"A"_u8c);
 		assert(*it == u8"\u00E9"_u8c);
 		++it;
@@ -4344,7 +4344,7 @@ inline void run_unicode_ranges_tests()
 		auto it = view.begin();
 		assert(!(it == view.end()));
 		assert(!(view.end() == it));
-		const auto first = it++;
+		[[maybe_unused]] const auto first = it++;
 		assert(*first == u8"\u20AC"_u8c);
 		assert(*it == u8"\u00E9"_u8c);
 		++it;
@@ -5231,7 +5231,7 @@ static_assert([] {
 		auto it = view.begin();
 		assert(!(it == view.end()));
 		assert(!(view.end() == it));
-		const auto first = it++;
+		[[maybe_unused]] const auto first = it++;
 		assert(*first == u8"A"_u8c);
 		assert(*it == utf8_char::replacement_character);
 	}
@@ -5267,7 +5267,7 @@ static_assert([] {
 		auto it = view.begin();
 		assert(!(it == view.end()));
 		assert(!(view.end() == it));
-		const auto first = it++;
+		[[maybe_unused]] const auto first = it++;
 		assert(*first == u8"A"_u8c);
 		assert(*it == utf8_char::replacement_character);
 	}
@@ -5307,7 +5307,7 @@ static_assert([] {
 		auto it = view.begin();
 		assert(!(it == view.end()));
 		assert(!(view.end() == it));
-		const auto first = it++;
+		[[maybe_unused]] const auto first = it++;
 		assert(*first == u"A"_u16c);
 		assert(*it == utf16_char::replacement_character);
 	}
@@ -5345,7 +5345,7 @@ static_assert([] {
 		auto it = view.begin();
 		assert(!(it == view.end()));
 		assert(!(view.end() == it));
-		const auto first = it++;
+		[[maybe_unused]] const auto first = it++;
 		assert(*first == u"A"_u16c);
 		assert(*it == utf16_char::replacement_character);
 	}
