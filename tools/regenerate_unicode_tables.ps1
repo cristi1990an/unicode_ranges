@@ -1,5 +1,6 @@
 param(
-	[string]$DataRoot = (Join-Path $PSScriptRoot "unicode_data\17.0.0")
+	[string]$DataRoot = (Join-Path $PSScriptRoot "unicode_data\17.0.0"),
+	[string]$UnicodeVersion = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -12,7 +13,23 @@ $outputPath = Join-Path $repoRoot "unicode_ranges\unicode_tables.hpp"
 & rustc $generatorSource -o $generatorExe
 try
 {
-	$output = & $generatorExe $DataRoot
+	if ([string]::IsNullOrWhiteSpace($UnicodeVersion))
+	{
+		$leaf = Split-Path $DataRoot -Leaf
+		if ($leaf -match '^\d+\.\d+\.\d+$')
+		{
+			$UnicodeVersion = $leaf
+		}
+	}
+
+	if ([string]::IsNullOrWhiteSpace($UnicodeVersion))
+	{
+		$output = & $generatorExe $DataRoot
+	}
+	else
+	{
+		$output = & $generatorExe $DataRoot $UnicodeVersion
+	}
 	$utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 	[System.IO.File]::WriteAllText($outputPath, ($output -join [Environment]::NewLine), $utf8NoBom)
 }

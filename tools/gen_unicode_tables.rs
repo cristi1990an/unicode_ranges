@@ -7,7 +7,18 @@ use std::path::{Path, PathBuf};
 
 type Range = (u32, u32);
 
-const UNICODE_VERSION: (u8, u8, u8) = (17, 0, 0);
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct UnicodeVersion {
+    major: u8,
+    minor: u8,
+    patch: u8,
+}
+
+const DEFAULT_UNICODE_VERSION: UnicodeVersion = UnicodeVersion {
+    major: 17,
+    minor: 0,
+    patch: 0,
+};
 
 const GRAPHEME_BREAK_VALUES: &[(&str, &str, &str)] = &[
     ("CR", "grapheme_break_cr_ranges", "grapheme_cluster_break_property::cr"),
@@ -1501,26 +1512,58 @@ fn emit_property_value_lookup(
     println!();
 }
 
-fn unicode_version_string() -> String {
-    format!(
-        "{}.{}.{}",
-        UNICODE_VERSION.0, UNICODE_VERSION.1, UNICODE_VERSION.2
-    )
+fn unicode_version_string(version: UnicodeVersion) -> String {
+    format!("{}.{}.{}", version.major, version.minor, version.patch)
 }
 
 fn default_data_root() -> PathBuf {
     PathBuf::from("tools")
         .join("unicode_data")
-        .join(unicode_version_string())
+        .join(unicode_version_string(DEFAULT_UNICODE_VERSION))
 }
 
-fn configured_data_root() -> PathBuf {
+fn parse_unicode_version_string(value: &str) -> io::Result<UnicodeVersion> {
+    let components: Vec<&str> = value.trim().split('.').collect();
+    if components.len() != 3 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("invalid Unicode version `{value}`"),
+        ));
+    }
+
+    let parse_component = |component: &str| {
+        component.parse::<u8>().map_err(|err| {
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("invalid Unicode version `{value}`: {err}"),
+            )
+        })
+    };
+
+    Ok(UnicodeVersion {
+        major: parse_component(components[0])?,
+        minor: parse_component(components[1])?,
+        patch: parse_component(components[2])?,
+    })
+}
+
+fn infer_unicode_version_from_data_root(data_root: &Path) -> Option<UnicodeVersion> {
+    let directory = data_root.file_name()?.to_str()?;
+    parse_unicode_version_string(directory).ok()
+}
+
+fn configured_generation_config() -> io::Result<(PathBuf, UnicodeVersion)> {
     let mut args = env::args_os();
     let _program = args.next();
-    match args.next() {
+    let data_root = match args.next() {
         Some(path) => PathBuf::from(path),
         None => default_data_root(),
-    }
+    };
+    let unicode_version = match args.next() {
+        Some(version) => parse_unicode_version_string(&version.to_string_lossy())?,
+        None => infer_unicode_version_from_data_root(&data_root).unwrap_or(DEFAULT_UNICODE_VERSION),
+    };
+    Ok((data_root, unicode_version))
 }
 
 fn parse_range_spec(spec: &str) -> Result<Range, String> {
@@ -1732,18 +1775,23 @@ fn collect_indic_conjunct_break_ranges(path: &Path) -> io::Result<BTreeMap<Strin
 }
 
 fn main() -> io::Result<()> {
+    let (data_root, unicode_version) = configured_generation_config()?;
     let rust_unicode_version = char::UNICODE_VERSION;
-    if rust_unicode_version != UNICODE_VERSION {
+    if rust_unicode_version
+        != (
+            unicode_version.major,
+            unicode_version.minor,
+            unicode_version.patch,
+        )
+    {
         eprintln!(
             "warning: Rust std::char uses Unicode {}.{}.{}, but generated tables are pinned to {}",
             rust_unicode_version.0,
             rust_unicode_version.1,
             rust_unicode_version.2,
-            unicode_version_string(),
+            unicode_version_string(unicode_version),
         );
     }
-
-    let data_root = configured_data_root();
     let grapheme_break_path = data_root
         .join("ucd")
         .join("auxiliary")
@@ -1891,7 +1939,9 @@ fn main() -> io::Result<()> {
     println!();
     println!(
         "inline constexpr std::tuple<std::size_t, std::size_t, std::size_t> unicode_version{{ {}, {}, {} }};",
-        UNICODE_VERSION.0, UNICODE_VERSION.1, UNICODE_VERSION.2
+        unicode_version.major,
+        unicode_version.minor,
+        unicode_version.patch
     );
     println!();
     emit_case_mapping_support(unicode_case_mapping_max_length);

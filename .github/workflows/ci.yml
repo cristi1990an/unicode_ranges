@@ -10,6 +10,9 @@ on:
   schedule:
     - cron: "0 6 * * 1"
 
+env:
+  UNICODE_TEST_VERSIONS: "15.1.0 16.0.0 17.0.0"
+
 jobs:
   msvc:
     name: MSVC (${{ matrix.configuration }}, C++23)
@@ -25,14 +28,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Build
-        run: msbuild unicode_ranges.vcxproj /p:Configuration=${{ matrix.configuration }} /p:Platform=x64 /p:PlatformToolset=v143 /p:TreatWarningAsError=true
-
-      - name: Run tests
-        run: .\x64\${{ matrix.configuration }}\unicode_ranges.exe
+      - name: Build and run tests for all Unicode versions
+        shell: powershell
+        run: |
+          foreach ($version in ($env:UNICODE_TEST_VERSIONS -split ' ' | Where-Object { $_ -ne '' }))
+          {
+            ./tools/update_unicode_data.ps1 -Version $version
+            ./tools/regenerate_unicode_tables.ps1 -DataRoot (Join-Path $PWD "tools/unicode_data/$version") -UnicodeVersion $version
+            msbuild unicode_ranges.vcxproj "/t:Clean;Build" /p:Configuration=${{ matrix.configuration }} /p:Platform=x64 /p:PlatformToolset=v143 /p:TreatWarningAsError=true
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            .\x64\${{ matrix.configuration }}\unicode_ranges.exe
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
 
   clang_cl:
     name: Clang-cl (${{ matrix.configuration }}, C++23)
@@ -48,14 +61,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Build
-        run: msbuild unicode_ranges.vcxproj /p:Configuration=${{ matrix.configuration }} /p:Platform=x64 /p:PlatformToolset=ClangCL /p:TreatWarningAsError=true
-
-      - name: Run tests
-        run: .\x64\${{ matrix.configuration }}\unicode_ranges.exe
+      - name: Build and run tests for all Unicode versions
+        shell: powershell
+        run: |
+          foreach ($version in ($env:UNICODE_TEST_VERSIONS -split ' ' | Where-Object { $_ -ne '' }))
+          {
+            ./tools/update_unicode_data.ps1 -Version $version
+            ./tools/regenerate_unicode_tables.ps1 -DataRoot (Join-Path $PWD "tools/unicode_data/$version") -UnicodeVersion $version
+            msbuild unicode_ranges.vcxproj "/t:Clean;Build" /p:Configuration=${{ matrix.configuration }} /p:Platform=x64 /p:PlatformToolset=ClangCL /p:TreatWarningAsError=true
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            .\x64\${{ matrix.configuration }}\unicode_ranges.exe
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
 
   macos:
     name: macOS (AppleClang, O2, C++23)
@@ -65,14 +88,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Show compiler version
-        run: clang++ --version
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Build
-        run: clang++ -std=c++23 -O2 -Wall -Wextra -Werror -pedantic source.cpp -o unicode_ranges_macos_o2
+      - name: Show compiler versions
+        run: |
+          clang++ --version
+          rustc --version
+          pwsh --version
 
-      - name: Run tests
-        run: ./unicode_ranges_macos_o2
+      - name: Build and run tests for all Unicode versions
+        run: |
+          for version in $UNICODE_TEST_VERSIONS; do
+            pwsh ./tools/update_unicode_data.ps1 -Version "$version"
+            pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
+            output="unicode_ranges_macos_o2_${version//./_}"
+            clang++ -std=c++23 -O2 -Wall -Wextra -Werror -pedantic source.cpp -o "$output"
+            "./$output"
+          done
 
   static_analysis:
     name: Static analysis (MSVC /analyze)
@@ -223,6 +256,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Install GCC
         if: matrix.install_kind == 'gcc'
         run: |
@@ -238,13 +274,20 @@ jobs:
           sudo apt-get install -y ${{ matrix.packages }}
 
       - name: Show compiler version
-        run: ${{ matrix.cxx }} --version
+        run: |
+          ${{ matrix.cxx }} --version
+          rustc --version
+          pwsh --version
 
-      - name: Build
-        run: ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} source.cpp -o ${{ matrix.output }}
-
-      - name: Run tests
-        run: ./${{ matrix.output }}
+      - name: Build and run tests for all Unicode versions
+        run: |
+          for version in $UNICODE_TEST_VERSIONS; do
+            pwsh ./tools/update_unicode_data.ps1 -Version "$version"
+            pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
+            output="${{ matrix.output }}_${version//./_}"
+            ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} source.cpp -o "$output"
+            "./$output"
+          done
         env:
           ASAN_OPTIONS: ${{ matrix.asan_options }}
           UBSAN_OPTIONS: ${{ matrix.ubsan_options }}
@@ -278,6 +321,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Install GCC multilib toolchain
         run: |
           sudo dpkg --add-architecture i386
@@ -285,13 +331,20 @@ jobs:
           sudo apt-get install -y g++-14 g++-14-multilib libc6-dev-i386
 
       - name: Show compiler version
-        run: g++-14 --version
+        run: |
+          g++-14 --version
+          rustc --version
+          pwsh --version
 
-      - name: Build
-        run: g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.sanitizer_flags }} source.cpp -o ${{ matrix.output }}
-
-      - name: Run tests
-        run: ./${{ matrix.output }}
+      - name: Build and run tests for all Unicode versions
+        run: |
+          for version in $UNICODE_TEST_VERSIONS; do
+            pwsh ./tools/update_unicode_data.ps1 -Version "$version"
+            pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
+            output="${{ matrix.output }}_${version//./_}"
+            g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.sanitizer_flags }} source.cpp -o "$output"
+            "./$output"
+          done
         env:
           ASAN_OPTIONS: ${{ matrix.asan_options }}
           UBSAN_OPTIONS: ${{ matrix.ubsan_options }}
@@ -321,6 +374,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Install GCC and ICU
         if: matrix.install_kind == 'gcc'
         run: |
@@ -338,20 +394,25 @@ jobs:
       - name: Show tool versions
         run: |
           ${{ matrix.cxx }} --version
+          rustc --version
+          pwsh --version
           pkg-config --modversion icu-uc
 
-      - name: Build with ICU enabled
+      - name: Build and run ICU-enabled tests for all Unicode versions
         run: |
-          ${{ matrix.cxx }} -std=c++23 -O2 -Wall -Wextra -Werror -pedantic \
-            -DUTF8_RANGES_ENABLE_ICU=1 \
-            ${{ matrix.cxxflags }} \
-            $(pkg-config --cflags icu-uc) \
-            source.cpp \
-            -o ${{ matrix.output }} \
-            $(pkg-config --libs icu-uc)
-
-      - name: Run ICU-enabled tests
-        run: ./${{ matrix.output }}
+          for version in $UNICODE_TEST_VERSIONS; do
+            pwsh ./tools/update_unicode_data.ps1 -Version "$version"
+            pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
+            output="${{ matrix.output }}_${version//./_}"
+            ${{ matrix.cxx }} -std=c++23 -O2 -Wall -Wextra -Werror -pedantic \
+              -DUTF8_RANGES_ENABLE_ICU=1 \
+              ${{ matrix.cxxflags }} \
+              $(pkg-config --cflags icu-uc) \
+              source.cpp \
+              -o "$output" \
+              $(pkg-config --libs icu-uc)
+            "./$output"
+          done
 
   docs_examples:
     name: Docs examples (${{ matrix.name }}, C++23)
@@ -392,7 +453,8 @@ jobs:
           sudo apt-get install -y ${{ matrix.packages }}
 
       - name: Show compiler version
-        run: ${{ matrix.cxx }} --version
+        run: |
+          ${{ matrix.cxx }} --version
 
       - name: Compile docs examples
         id: compile_docs_examples
@@ -472,7 +534,6 @@ jobs:
 
   benchmarks:
     name: Benchmark (${{ matrix.name }}, ${{ matrix.opt_name }}, C++23)
-    if: github.event_name != 'pull_request'
     runs-on: ${{ matrix.runs_on }}
     strategy:
       fail-fast: false
