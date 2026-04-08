@@ -75,6 +75,14 @@ inline void run_unicode_ranges_tests()
 		assert(result.has_value());
 		return result.value();
 	};
+	constexpr auto is_ci_tested_unicode_version = [] {
+		const auto major = std::get<0>(unicode_version);
+		const auto minor = std::get<1>(unicode_version);
+		const auto patch = std::get<2>(unicode_version);
+		return (major == 15 && minor == 1 && patch == 0)
+			|| (major == 16 && minor == 0 && patch == 0)
+			|| (major == 17 && minor == 0 && patch == 0);
+	};
 
 	static_assert(std::same_as<
 		pmr::utf8_string,
@@ -756,9 +764,7 @@ inline void run_unicode_ranges_tests()
 	static_assert(!" "_u8c.is_ascii_graphic());
 	static_assert("\n"_u8c.is_ascii_control());
 
-	static_assert(std::get<0>(unicode_version) == 17);
-	static_assert(std::get<1>(unicode_version) == 0);
-	static_assert(std::get<2>(unicode_version) == 0);
+	static_assert(is_ci_tested_unicode_version());
 
 	static_assert([] {
 		utf8_char lhs = "A"_u8c;
@@ -2110,9 +2116,7 @@ inline void run_unicode_ranges_tests()
 			assert(rewound == utf32_char::from_scalar_unchecked(details::encoding_constants::max_unicode_scalar));
 		}
 
-		assert(std::get<0>(unicode_version) == 17);
-		assert(std::get<1>(unicode_version) == 0);
-		assert(std::get<2>(unicode_version) == 0);
+		assert(is_ci_tested_unicode_version());
 
 		{
 			utf8_char lhs = u8"A"_u8c;
