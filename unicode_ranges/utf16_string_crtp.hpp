@@ -544,21 +544,9 @@ struct utf16_char_span_matcher
 	}
 
 	[[nodiscard]]
-	constexpr bool is_bmp_only() const noexcept
-	{
-		return supplementary_count == 0 && !supplementary_overflow;
-	}
-
-	[[nodiscard]]
 	constexpr bool has_supplementary() const noexcept
 	{
 		return supplementary_count != 0 || supplementary_overflow;
-	}
-
-	[[nodiscard]]
-	constexpr std::u16string_view bmp_non_ascii_code_unit_view() const noexcept
-	{
-		return { bmp_non_ascii_code_units.data(), bmp_non_ascii_count };
 	}
 
 	[[nodiscard]]
@@ -813,14 +801,6 @@ inline constexpr utf16_predicate_match find_utf16_predicate_match(
 	const utf16_char_span_matcher& matcher) noexcept
 {
 	const auto has_ascii = matcher.has_ascii();
-	if (!has_ascii && matcher.is_bmp_only() && !matcher.has_non_ascii_overflow())
-	{
-		const auto match = base.find_first_of(matcher.bmp_non_ascii_code_unit_view(), pos);
-		return match == std::u16string_view::npos
-			? utf16_predicate_match{}
-			: utf16_predicate_match{ match, 1 };
-	}
-
 	const auto has_bmp_non_ascii = matcher.has_bmp_non_ascii();
 	const auto has_supplementary = matcher.has_supplementary();
 	while (pos < base.size())
@@ -880,14 +860,6 @@ inline constexpr utf16_predicate_match rfind_utf16_predicate_match(
 	if (base.empty() || end_exclusive == 0)
 	{
 		return {};
-	}
-
-	if (!matcher.has_ascii() && matcher.is_bmp_only() && !matcher.has_non_ascii_overflow())
-	{
-		const auto match = base.find_last_of(matcher.bmp_non_ascii_code_unit_view(), end_exclusive - 1);
-		return match == std::u16string_view::npos
-			? utf16_predicate_match{}
-			: utf16_predicate_match{ match, 1 };
 	}
 
 	const auto has_bmp_non_ascii = matcher.has_bmp_non_ascii();
