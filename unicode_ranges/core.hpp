@@ -2832,8 +2832,8 @@ namespace details
 			return count;
 		}
 
-		inline constexpr std::size_t grapheme_count(std::u16string_view text) noexcept
-		{
+			inline constexpr std::size_t grapheme_count(std::u16string_view text) noexcept
+			{
 			if (text.empty())
 			{
 				return 0;
@@ -2959,33 +2959,90 @@ namespace details
 			return text.size();
 		}
 
-		template <typename CharT>
-		inline constexpr std::size_t grapheme_count(std::basic_string_view<CharT> text) noexcept
-		{
-			if constexpr (std::same_as<CharT, char8_t>)
+			inline constexpr std::size_t grapheme_count(std::u32string_view text) noexcept
 			{
-				return grapheme_count(std::u8string_view{ text.data(), text.size() });
-			}
-
-			else if constexpr (std::same_as<CharT, char16_t>)
-			{
-				return grapheme_count(std::u16string_view{ text.data(), text.size() });
-			}
-			else
-			{
-				std::size_t count = 0;
-				for (std::size_t index = 0; index < text.size(); index = next_grapheme_boundary(text, index))
+				if (text.empty())
 				{
-					++count;
+					return 0;
+				}
+
+				const auto* const begin = text.data();
+				const auto* const end = begin + text.size();
+				auto position = begin;
+				std::size_t count = 0;
+				bool has_state = false;
+				grapheme_state state{};
+
+				while (position < end)
+				{
+					const auto remaining = std::u32string_view{ position, static_cast<std::size_t>(end - position) };
+					const auto ascii_run = ascii_prefix_length(remaining);
+					if (ascii_run != 0) [[likely]]
+					{
+						const auto ascii_view = remaining.substr(0, ascii_run);
+						const auto first_scalar = static_cast<std::uint32_t>(ascii_view.front());
+						count += count_ascii_grapheme_run(
+							ascii_view,
+							has_state && should_continue_grapheme_cluster(state, first_scalar));
+						state = make_initial_grapheme_state(static_cast<std::uint32_t>(ascii_view.back()));
+						has_state = true;
+						position += ascii_run;
+						continue;
+					}
+
+					const auto scalar_info = classify_grapheme_scalar(static_cast<std::uint32_t>(*position++));
+					if (!has_state)
+					{
+						++count;
+						state = make_initial_grapheme_state(scalar_info);
+						has_state = true;
+					}
+					else if (!should_continue_grapheme_cluster(state, scalar_info))
+					{
+						++count;
+						state = make_initial_grapheme_state(scalar_info);
+					}
+					else
+					{
+						consume_grapheme_scalar(state, scalar_info);
+					}
 				}
 
 				return count;
 			}
-		}
 
-		template <typename CharT>
-		inline constexpr std::size_t floor_grapheme_boundary(std::basic_string_view<CharT> text, std::size_t index) noexcept
-		{
+			template <typename CharT>
+			inline constexpr std::size_t grapheme_count(std::basic_string_view<CharT> text) noexcept
+			{
+				if constexpr (std::same_as<CharT, char8_t>)
+				{
+					return grapheme_count(std::u8string_view{ text.data(), text.size() });
+				}
+
+				else if constexpr (std::same_as<CharT, char16_t>)
+				{
+					return grapheme_count(std::u16string_view{ text.data(), text.size() });
+				}
+
+				else if constexpr (std::same_as<CharT, char32_t>)
+				{
+					return grapheme_count(std::u32string_view{ text.data(), text.size() });
+				}
+				else
+				{
+					std::size_t count = 0;
+					for (std::size_t index = 0; index < text.size(); index = next_grapheme_boundary(text, index))
+					{
+						++count;
+					}
+
+						return count;
+					}
+				}
+
+			template <typename CharT>
+			inline constexpr std::size_t floor_grapheme_boundary(std::basic_string_view<CharT> text, std::size_t index) noexcept
+			{
 			return previous_grapheme_boundary(text, index);
 		}
 
@@ -3246,17 +3303,17 @@ namespace details
 				}
 			}
 
-			consteval const char32_t* data() const noexcept
-			{
-				return &p[0];
+				consteval const char32_t* data() const noexcept
+				{
+					return &p[0];
+				}
+				};
 			}
-		};
-	}
-}
+		}
 
-#if UTF8_RANGES_HAS_ICU
-namespace literals
-{
+		#if UTF8_RANGES_HAS_ICU
+	namespace literals
+		{
 	consteval locale_id operator ""_locale(const char* name, std::size_t size)
 	{
 		for (std::size_t i = 0; i < size; ++i)

@@ -276,10 +276,10 @@ namespace unicode_ranges
 		return scalar > 0x11A7u && scalar < 0x11C3u;
 	}
 
-	inline constexpr void append_reordered_scalar(
-		std::u32string& scalars,
-		std::size_t& segment_begin,
-		std::uint32_t scalar)
+		inline constexpr void append_reordered_scalar(
+			std::u32string& scalars,
+			std::size_t& segment_begin,
+			std::uint32_t scalar)
 	{
 		const auto combining_class = unicode::canonical_combining_class(scalar);
 		scalars.push_back(static_cast<char32_t>(scalar));
@@ -306,9 +306,30 @@ namespace unicode_ranges
 			}
 
 			std::swap(scalars[insert_index], scalars[insert_index - 1]);
-			--insert_index;
+				--insert_index;
+			}
 		}
-	}
+
+		template <typename CharT>
+		constexpr void append_ascii_scalar_run(
+			std::u32string& scalars,
+			std::size_t& segment_begin,
+			std::basic_string_view<CharT> ascii_run)
+		{
+			if (ascii_run.empty())
+			{
+				return;
+			}
+
+			const auto original_size = scalars.size();
+			scalars.resize(original_size + ascii_run.size());
+			for (std::size_t index = 0; index != ascii_run.size(); ++index)
+			{
+				scalars[original_size + index] = static_cast<char32_t>(ascii_run[index]);
+			}
+
+			segment_begin = scalars.size() - 1;
+		}
 
 	template <bool Compatibility>
 	constexpr void append_decomposed_scalar(
@@ -351,48 +372,76 @@ namespace unicode_ranges
 		append_reordered_scalar(scalars, segment_begin, scalar);
 	}
 
-	template <bool Compatibility>
-	constexpr std::u32string decompose_scalars(std::u8string_view bytes)
-	{
-		std::u32string scalars;
-		scalars.reserve(bytes.size());
-		std::size_t segment_begin = 0;
-		for (std::size_t index = 0; index < bytes.size();)
+		template <bool Compatibility>
+		constexpr std::u32string decompose_scalars(std::u8string_view bytes)
 		{
-			const auto decoded = decode_next_scalar(bytes, index);
-			append_decomposed_scalar<Compatibility>(scalars, segment_begin, decoded.scalar);
-			index = decoded.next_index;
-		}
-		return scalars;
+			std::u32string scalars;
+			scalars.reserve(bytes.size());
+			std::size_t segment_begin = 0;
+			for (std::size_t index = 0; index < bytes.size();)
+			{
+				const auto remaining = std::u8string_view{ bytes.data() + index, bytes.size() - index };
+				const auto ascii_run = ascii_prefix_length(remaining);
+				if (ascii_run != 0)
+				{
+					append_ascii_scalar_run(scalars, segment_begin, remaining.substr(0, ascii_run));
+					index += ascii_run;
+					continue;
+				}
+
+				const auto decoded = decode_next_scalar(bytes, index);
+				append_decomposed_scalar<Compatibility>(scalars, segment_begin, decoded.scalar);
+				index = decoded.next_index;
+			}
+			return scalars;
 	}
 
-	template <bool Compatibility>
-	constexpr std::u32string decompose_scalars(std::u16string_view code_units)
-	{
-		std::u32string scalars;
-		scalars.reserve(code_units.size());
-		std::size_t segment_begin = 0;
-		for (std::size_t index = 0; index < code_units.size();)
+		template <bool Compatibility>
+		constexpr std::u32string decompose_scalars(std::u16string_view code_units)
 		{
-			const auto decoded = decode_next_scalar(code_units, index);
-			append_decomposed_scalar<Compatibility>(scalars, segment_begin, decoded.scalar);
-			index = decoded.next_index;
-		}
-		return scalars;
+			std::u32string scalars;
+			scalars.reserve(code_units.size());
+			std::size_t segment_begin = 0;
+			for (std::size_t index = 0; index < code_units.size();)
+			{
+				const auto remaining = std::u16string_view{ code_units.data() + index, code_units.size() - index };
+				const auto ascii_run = ascii_prefix_length(remaining);
+				if (ascii_run != 0)
+				{
+					append_ascii_scalar_run(scalars, segment_begin, remaining.substr(0, ascii_run));
+					index += ascii_run;
+					continue;
+				}
+
+				const auto decoded = decode_next_scalar(code_units, index);
+				append_decomposed_scalar<Compatibility>(scalars, segment_begin, decoded.scalar);
+				index = decoded.next_index;
+			}
+			return scalars;
 	}
 
-	template <bool Compatibility>
-	constexpr std::u32string decompose_scalars(std::u32string_view code_points)
-	{
-		std::u32string scalars;
-		scalars.reserve(code_points.size());
-		std::size_t segment_begin = 0;
-		for (char32_t ch : code_points)
+		template <bool Compatibility>
+		constexpr std::u32string decompose_scalars(std::u32string_view code_points)
 		{
-			append_decomposed_scalar<Compatibility>(scalars, segment_begin, static_cast<std::uint32_t>(ch));
+			std::u32string scalars;
+			scalars.reserve(code_points.size());
+			std::size_t segment_begin = 0;
+			for (std::size_t index = 0; index < code_points.size();)
+			{
+				const auto remaining = std::u32string_view{ code_points.data() + index, code_points.size() - index };
+				const auto ascii_run = ascii_prefix_length(remaining);
+				if (ascii_run != 0)
+				{
+					append_ascii_scalar_run(scalars, segment_begin, remaining.substr(0, ascii_run));
+					index += ascii_run;
+					continue;
+				}
+
+				append_decomposed_scalar<Compatibility>(scalars, segment_begin, static_cast<std::uint32_t>(code_points[index]));
+				++index;
+			}
+			return scalars;
 		}
-		return scalars;
-	}
 
 	inline constexpr std::uint32_t try_compose_hangul(std::uint32_t first, std::uint32_t second) noexcept
 	{
@@ -411,19 +460,33 @@ namespace unicode_ranges
 		return 0u;
 	}
 
-	inline constexpr std::u32string compose_scalars(std::u32string_view decomposed)
-	{
-		std::u32string result;
-		result.reserve(decomposed.size());
-
-		std::size_t starter_index = static_cast<std::size_t>(-1);
-		std::uint8_t last_combining_class = 0;
-
-		for (char32_t ch : decomposed)
+		inline constexpr std::u32string compose_scalars(std::u32string_view decomposed)
 		{
-			const auto scalar = static_cast<std::uint32_t>(ch);
-			const auto combining_class = unicode::canonical_combining_class(scalar);
-			if (result.empty())
+			std::u32string result;
+			result.reserve(decomposed.size());
+
+			std::size_t starter_index = static_cast<std::size_t>(-1);
+			std::uint8_t last_combining_class = 0;
+
+			for (std::size_t index = 0; index < decomposed.size();)
+			{
+				const auto remaining = std::u32string_view{ decomposed.data() + index, decomposed.size() - index };
+				const auto ascii_run = ascii_prefix_length(remaining);
+				if (ascii_run != 0)
+				{
+					const auto original_size = result.size();
+					result.resize(original_size + ascii_run);
+					std::char_traits<char32_t>::copy(result.data() + original_size, remaining.data(), ascii_run);
+					starter_index = result.size() - 1;
+					last_combining_class = 0;
+					index += ascii_run;
+					continue;
+				}
+
+				const auto ch = decomposed[index++];
+				const auto scalar = static_cast<std::uint32_t>(ch);
+				const auto combining_class = unicode::canonical_combining_class(scalar);
+				if (result.empty())
 			{
 				result.push_back(ch);
 				starter_index = combining_class == 0 ? 0 : static_cast<std::size_t>(-1);
@@ -1809,11 +1872,11 @@ namespace unicode_ranges
 		return basic_utf8_string<Allocator>::from_bytes_unchecked(std::move(result));
 	}
 
-	template <bool Lowercase, typename Allocator>
-	constexpr basic_utf16_string<Allocator> case_map_utf16_copy(
-		std::u16string_view code_units,
-		const Allocator& alloc)
-	{
+		template <bool Lowercase, typename Allocator>
+		constexpr basic_utf16_string<Allocator> case_map_utf16_copy(
+			std::u16string_view code_units,
+			const Allocator& alloc)
+		{
 		using base_type = typename basic_utf16_string<Allocator>::base_type;
 
 		if (is_ascii_only(code_units))
@@ -1840,14 +1903,28 @@ namespace unicode_ranges
 				return copy_utf16_view(code_units, alloc);
 			}
 
-			return basic_utf16_string<Allocator>::from_code_units_unchecked(std::move(result));
-		}
+				return basic_utf16_string<Allocator>::from_code_units_unchecked(std::move(result));
+			}
 
-		base_type same_size_result{ alloc };
-		if (try_case_map_utf16_same_size<Lowercase>(code_units, same_size_result))
-		{
-			return basic_utf16_string<Allocator>::from_code_units_unchecked(std::move(same_size_result));
-		}
+			if constexpr (!Lowercase)
+			{
+				const auto measurement = measure_case_map_utf16<Lowercase>(code_units);
+				if (!measurement.changed)
+				{
+					return copy_utf16_view(code_units, alloc);
+				}
+
+				base_type result{ alloc };
+				write_case_map_utf16<Lowercase>(code_units, result, measurement.output_size);
+
+				return basic_utf16_string<Allocator>::from_code_units_unchecked(std::move(result));
+			}
+
+			base_type same_size_result{ alloc };
+			if (try_case_map_utf16_same_size<Lowercase>(code_units, same_size_result))
+			{
+				return basic_utf16_string<Allocator>::from_code_units_unchecked(std::move(same_size_result));
+			}
 
 		const auto measurement = measure_case_map_utf16<Lowercase>(code_units);
 		if (!measurement.changed)
@@ -1858,12 +1935,152 @@ namespace unicode_ranges
 		base_type result{ alloc };
 		write_case_map_utf16<Lowercase>(code_units, result, measurement.output_size);
 
-		return basic_utf16_string<Allocator>::from_code_units_unchecked(std::move(result));
-	}
+			return basic_utf16_string<Allocator>::from_code_units_unchecked(std::move(result));
+		}
 
-	constexpr case_map_measurement measure_case_fold_utf8(std::u8string_view bytes) noexcept
-	{
-		case_map_measurement result{};
+		template <typename BaseType>
+		constexpr bool try_case_fold_utf8_same_size(
+			std::u8string_view bytes,
+			BaseType& result,
+			bool& changed) noexcept
+		{
+			bool same_size = true;
+			changed = false;
+			result.resize_and_overwrite(bytes.size(),
+				[&](char8_t* buffer, std::size_t) noexcept
+				{
+					std::size_t write_index = 0;
+					for (std::size_t index = 0; index < bytes.size();)
+					{
+						const auto remaining = std::u8string_view{ bytes.data() + index, bytes.size() - index };
+						const auto ascii_run = ascii_prefix_length(remaining);
+						if (ascii_run != 0)
+						{
+							changed = ascii_lowercase_copy(buffer + write_index, remaining.substr(0, ascii_run)) || changed;
+							write_index += ascii_run;
+							index += ascii_run;
+							continue;
+						}
+
+						const auto decoded = decode_next_scalar(bytes, index);
+						const auto input_size = decoded.next_index - index;
+						const auto mapping = lookup_case_fold_mapping(decoded.scalar);
+						if (mapping.has_special())
+						{
+							const auto& special = case_fold_special_mapping_from_index(mapping.special_index);
+							if (case_special_mapping_utf8_size(special) != input_size)
+							{
+								same_size = false;
+								return write_index;
+							}
+
+							changed = true;
+							for (std::size_t mapped_index = 0; mapped_index != special.count; ++mapped_index)
+							{
+								write_index += encode_unicode_scalar_utf8_unchecked(
+									special.mapped[mapped_index],
+									buffer + write_index);
+							}
+						}
+						else if (mapping.has_simple)
+						{
+							if (unicode_scalar_utf8_size(mapping.simple_mapped) != input_size)
+							{
+								same_size = false;
+								return write_index;
+							}
+
+							changed = true;
+							write_index += encode_unicode_scalar_utf8_unchecked(mapping.simple_mapped, buffer + write_index);
+						}
+						else
+						{
+							std::char_traits<char8_t>::copy(buffer + write_index, bytes.data() + index, input_size);
+							write_index += input_size;
+						}
+
+						index = decoded.next_index;
+					}
+
+					return write_index;
+				});
+
+			return same_size;
+		}
+
+		template <typename BaseType>
+		constexpr bool try_case_fold_utf16_same_size(
+			std::u16string_view code_units,
+			BaseType& result,
+			bool& changed) noexcept
+		{
+			bool same_size = true;
+			changed = false;
+			result.resize_and_overwrite(code_units.size(),
+				[&](char16_t* buffer, std::size_t) noexcept
+				{
+					std::size_t write_index = 0;
+					for (std::size_t index = 0; index < code_units.size();)
+					{
+						const auto remaining = std::u16string_view{ code_units.data() + index, code_units.size() - index };
+						const auto ascii_run = ascii_prefix_length(remaining);
+						if (ascii_run != 0)
+						{
+							changed = ascii_lowercase_copy(buffer + write_index, remaining.substr(0, ascii_run)) || changed;
+							write_index += ascii_run;
+							index += ascii_run;
+							continue;
+						}
+
+						const auto decoded = decode_next_scalar(code_units, index);
+						const auto input_size = decoded.next_index - index;
+						const auto mapping = lookup_case_fold_mapping(decoded.scalar);
+						if (mapping.has_special())
+						{
+							const auto& special = case_fold_special_mapping_from_index(mapping.special_index);
+							if (case_special_mapping_utf16_size(special) != input_size)
+							{
+								same_size = false;
+								return write_index;
+							}
+
+							changed = true;
+							for (std::size_t mapped_index = 0; mapped_index != special.count; ++mapped_index)
+							{
+								write_index += encode_unicode_scalar_utf16_unchecked(
+									special.mapped[mapped_index],
+									buffer + write_index);
+							}
+						}
+						else if (mapping.has_simple)
+						{
+							if (unicode_scalar_utf16_size(mapping.simple_mapped) != input_size)
+							{
+								same_size = false;
+								return write_index;
+							}
+
+							changed = true;
+							write_index += encode_unicode_scalar_utf16_unchecked(mapping.simple_mapped, buffer + write_index);
+						}
+						else
+						{
+							std::char_traits<char16_t>::copy(buffer + write_index, code_units.data() + index, input_size);
+							write_index += input_size;
+						}
+
+						index = decoded.next_index;
+					}
+
+					return write_index;
+				});
+
+			return same_size;
+		}
+
+		constexpr case_map_measurement measure_case_fold_utf8(std::u8string_view bytes) noexcept
+		{
+			case_map_measurement result{};
 		for (std::size_t index = 0; index < bytes.size();)
 		{
 			const auto remaining = std::u8string_view{ bytes.data() + index, bytes.size() - index };
@@ -2033,18 +2250,30 @@ namespace unicode_ranges
 		return write_index;
 	}
 
-	template <typename Allocator>
-	constexpr basic_utf8_string<Allocator> case_fold_utf8_copy(
-		std::u8string_view bytes,
-		const Allocator& alloc)
-	{
-		using base_type = typename basic_utf8_string<Allocator>::base_type;
-
-		const auto measurement = measure_case_fold_utf8(bytes);
-		if (!measurement.changed)
+		template <typename Allocator>
+		constexpr basic_utf8_string<Allocator> case_fold_utf8_copy(
+			std::u8string_view bytes,
+			const Allocator& alloc)
 		{
-			return copy_utf8_view(bytes, alloc);
-		}
+			using base_type = typename basic_utf8_string<Allocator>::base_type;
+
+			base_type same_size_result{ alloc };
+			bool changed = false;
+			if (try_case_fold_utf8_same_size(bytes, same_size_result, changed))
+			{
+				if (!changed)
+				{
+					return copy_utf8_view(bytes, alloc);
+				}
+
+				return basic_utf8_string<Allocator>::from_bytes_unchecked(std::move(same_size_result));
+			}
+
+			const auto measurement = measure_case_fold_utf8(bytes);
+			if (!measurement.changed)
+			{
+				return copy_utf8_view(bytes, alloc);
+			}
 
 		base_type result{ alloc };
 		result.resize_and_overwrite(measurement.output_size,
@@ -2056,18 +2285,30 @@ namespace unicode_ranges
 		return basic_utf8_string<Allocator>::from_bytes_unchecked(std::move(result));
 	}
 
-	template <typename Allocator>
-	constexpr basic_utf16_string<Allocator> case_fold_utf16_copy(
-		std::u16string_view code_units,
-		const Allocator& alloc)
-	{
-		using base_type = typename basic_utf16_string<Allocator>::base_type;
-
-		const auto measurement = measure_case_fold_utf16(code_units);
-		if (!measurement.changed)
+		template <typename Allocator>
+		constexpr basic_utf16_string<Allocator> case_fold_utf16_copy(
+			std::u16string_view code_units,
+			const Allocator& alloc)
 		{
-			return copy_utf16_view(code_units, alloc);
-		}
+			using base_type = typename basic_utf16_string<Allocator>::base_type;
+
+			base_type same_size_result{ alloc };
+			bool changed = false;
+			if (try_case_fold_utf16_same_size(code_units, same_size_result, changed))
+			{
+				if (!changed)
+				{
+					return copy_utf16_view(code_units, alloc);
+				}
+
+				return basic_utf16_string<Allocator>::from_code_units_unchecked(std::move(same_size_result));
+			}
+
+			const auto measurement = measure_case_fold_utf16(code_units);
+			if (!measurement.changed)
+			{
+				return copy_utf16_view(code_units, alloc);
+			}
 
 		base_type result{ alloc };
 		result.resize_and_overwrite(measurement.output_size,
@@ -2137,17 +2378,35 @@ namespace unicode_ranges
 		}
 	};
 
-	class utf8_case_fold_reader
-	{
-	public:
-		constexpr explicit utf8_case_fold_reader(std::u8string_view bytes, bool turkic = false) noexcept
-			: bytes_(bytes), turkic_(turkic)
+		class utf8_case_fold_reader
 		{
-		}
+		public:
+			using code_unit_type = char8_t;
 
-		constexpr bool next(std::uint32_t& scalar) noexcept
-		{
-			if (mapping_index_ < mapping_.count)
+			constexpr explicit utf8_case_fold_reader(std::u8string_view bytes, bool turkic = false) noexcept
+				: bytes_(bytes), turkic_(turkic)
+			{
+			}
+
+			constexpr std::u8string_view ascii_run() const noexcept
+			{
+				if (mapping_index_ < mapping_.count || turkic_)
+				{
+					return {};
+				}
+
+				const auto remaining = std::u8string_view{ bytes_.data() + cursor_, bytes_.size() - cursor_ };
+				return remaining.substr(0, ascii_prefix_length(remaining));
+			}
+
+			constexpr void skip_ascii_run(std::size_t count) noexcept
+			{
+				cursor_ += count;
+			}
+
+			constexpr bool next(std::uint32_t& scalar) noexcept
+			{
+				if (mapping_index_ < mapping_.count)
 			{
 				scalar = mapping_.data[mapping_index_++];
 				return true;
@@ -2242,17 +2501,35 @@ namespace unicode_ranges
 		bool turkic_ = false;
 	};
 
-	class utf16_case_fold_reader
-	{
-	public:
-		constexpr explicit utf16_case_fold_reader(std::u16string_view code_units, bool turkic = false) noexcept
-			: code_units_(code_units), turkic_(turkic)
+		class utf16_case_fold_reader
 		{
-		}
+		public:
+			using code_unit_type = char16_t;
 
-		constexpr bool next(std::uint32_t& scalar) noexcept
-		{
-			if (mapping_index_ < mapping_.count)
+			constexpr explicit utf16_case_fold_reader(std::u16string_view code_units, bool turkic = false) noexcept
+				: code_units_(code_units), turkic_(turkic)
+			{
+			}
+
+			constexpr std::u16string_view ascii_run() const noexcept
+			{
+				if (mapping_index_ < mapping_.count || turkic_)
+				{
+					return {};
+				}
+
+				const auto remaining = std::u16string_view{ code_units_.data() + cursor_, code_units_.size() - cursor_ };
+				return remaining.substr(0, ascii_prefix_length(remaining));
+			}
+
+			constexpr void skip_ascii_run(std::size_t count) noexcept
+			{
+				cursor_ += count;
+			}
+
+			constexpr bool next(std::uint32_t& scalar) noexcept
+			{
+				if (mapping_index_ < mapping_.count)
 			{
 				scalar = mapping_.data[mapping_index_++];
 				return true;
@@ -2344,14 +2621,124 @@ namespace unicode_ranges
 		std::size_t cursor_ = 0;
 		case_fold_scalar_buffer mapping_{};
 		std::uint8_t mapping_index_ = 0;
-		bool turkic_ = false;
-	};
+			bool turkic_ = false;
+		};
 
-	template <typename Reader>
-	constexpr std::weak_ordering compare_case_folded_sequences(Reader lhs, Reader rhs) noexcept
-	{
-		std::uint32_t lhs_scalar = 0;
-		std::uint32_t rhs_scalar = 0;
+		template <typename LeftChar, typename RightChar>
+		constexpr std::weak_ordering compare_ascii_case_folded_run(
+			std::basic_string_view<LeftChar> lhs,
+			std::basic_string_view<RightChar> rhs,
+			std::size_t count) noexcept
+		{
+			for (std::size_t index = 0; index != count; ++index)
+			{
+				const auto lhs_scalar = lowercase_ascii_scalar(static_cast<std::uint32_t>(lhs[index]));
+				const auto rhs_scalar = lowercase_ascii_scalar(static_cast<std::uint32_t>(rhs[index]));
+				if (lhs_scalar < rhs_scalar)
+				{
+					return std::weak_ordering::less;
+				}
+
+				if (lhs_scalar > rhs_scalar)
+				{
+					return std::weak_ordering::greater;
+				}
+			}
+
+			return std::weak_ordering::equivalent;
+		}
+
+		template <typename Reader>
+		constexpr std::weak_ordering compare_case_folded_forward_sequences(Reader lhs, Reader rhs) noexcept
+		{
+			std::uint32_t lhs_scalar = 0;
+			std::uint32_t rhs_scalar = 0;
+			while (true)
+			{
+				const auto lhs_ascii = lhs.ascii_run();
+				const auto rhs_ascii = rhs.ascii_run();
+				if (!lhs_ascii.empty() && !rhs_ascii.empty())
+				{
+					const auto common = (std::min)(lhs_ascii.size(), rhs_ascii.size());
+					const auto ordering = compare_ascii_case_folded_run(lhs_ascii, rhs_ascii, common);
+					if (ordering != std::weak_ordering::equivalent)
+					{
+						return ordering;
+					}
+
+					lhs.skip_ascii_run(common);
+					rhs.skip_ascii_run(common);
+					continue;
+				}
+
+				const auto lhs_has_scalar = lhs.next(lhs_scalar);
+				const auto rhs_has_scalar = rhs.next(rhs_scalar);
+				if (!lhs_has_scalar || !rhs_has_scalar)
+				{
+					if (lhs_has_scalar)
+					{
+						return std::weak_ordering::greater;
+					}
+
+					if (rhs_has_scalar)
+					{
+						return std::weak_ordering::less;
+					}
+
+					return std::weak_ordering::equivalent;
+				}
+
+				if (lhs_scalar < rhs_scalar)
+				{
+					return std::weak_ordering::less;
+				}
+
+				if (lhs_scalar > rhs_scalar)
+				{
+					return std::weak_ordering::greater;
+				}
+			}
+		}
+
+		template <typename Reader>
+		constexpr bool folded_forward_sequence_starts_with(Reader text, Reader prefix) noexcept
+		{
+			std::uint32_t text_scalar = 0;
+			std::uint32_t prefix_scalar = 0;
+			while (true)
+			{
+				const auto text_ascii = text.ascii_run();
+				const auto prefix_ascii = prefix.ascii_run();
+				if (!text_ascii.empty() && !prefix_ascii.empty())
+				{
+					const auto common = (std::min)(text_ascii.size(), prefix_ascii.size());
+					if (compare_ascii_case_folded_run(text_ascii, prefix_ascii, common) != std::weak_ordering::equivalent)
+					{
+						return false;
+					}
+
+					text.skip_ascii_run(common);
+					prefix.skip_ascii_run(common);
+					continue;
+				}
+
+				if (!prefix.next(prefix_scalar))
+				{
+					return true;
+				}
+
+				if (!text.next(text_scalar) || text_scalar != prefix_scalar)
+				{
+					return false;
+				}
+			}
+		}
+
+		template <typename Reader>
+		constexpr std::weak_ordering compare_case_folded_sequences(Reader lhs, Reader rhs) noexcept
+		{
+			std::uint32_t lhs_scalar = 0;
+			std::uint32_t rhs_scalar = 0;
 		while (true)
 		{
 			const auto lhs_has_scalar = lhs.next(lhs_scalar);
@@ -2399,23 +2786,23 @@ namespace unicode_ranges
 		return true;
 	}
 
-	inline constexpr std::weak_ordering compare_case_folded_utf8(
-		std::u8string_view lhs,
-		std::u8string_view rhs) noexcept
-	{
-		return compare_case_folded_sequences(
-			utf8_case_fold_reader{ lhs },
-			utf8_case_fold_reader{ rhs });
-	}
+		inline constexpr std::weak_ordering compare_case_folded_utf8(
+			std::u8string_view lhs,
+			std::u8string_view rhs) noexcept
+		{
+			return compare_case_folded_forward_sequences(
+				utf8_case_fold_reader{ lhs },
+				utf8_case_fold_reader{ rhs });
+		}
 
-	inline constexpr bool starts_with_case_folded_utf8(
-		std::u8string_view text,
-		std::u8string_view prefix) noexcept
-	{
-		return folded_sequence_starts_with(
-			utf8_case_fold_reader{ text },
-			utf8_case_fold_reader{ prefix });
-	}
+		inline constexpr bool starts_with_case_folded_utf8(
+			std::u8string_view text,
+			std::u8string_view prefix) noexcept
+		{
+			return folded_forward_sequence_starts_with(
+				utf8_case_fold_reader{ text },
+				utf8_case_fold_reader{ prefix });
+		}
 
 	inline constexpr bool ends_with_case_folded_utf8(
 		std::u8string_view text,
@@ -2426,23 +2813,23 @@ namespace unicode_ranges
 			utf8_reverse_case_fold_reader{ suffix });
 	}
 
-	inline constexpr std::weak_ordering compare_case_folded_utf16(
-		std::u16string_view lhs,
-		std::u16string_view rhs) noexcept
-	{
-		return compare_case_folded_sequences(
-			utf16_case_fold_reader{ lhs },
-			utf16_case_fold_reader{ rhs });
-	}
+		inline constexpr std::weak_ordering compare_case_folded_utf16(
+			std::u16string_view lhs,
+			std::u16string_view rhs) noexcept
+		{
+			return compare_case_folded_forward_sequences(
+				utf16_case_fold_reader{ lhs },
+				utf16_case_fold_reader{ rhs });
+		}
 
-	inline constexpr bool starts_with_case_folded_utf16(
-		std::u16string_view text,
-		std::u16string_view prefix) noexcept
-	{
-		return folded_sequence_starts_with(
-			utf16_case_fold_reader{ text },
-			utf16_case_fold_reader{ prefix });
-	}
+		inline constexpr bool starts_with_case_folded_utf16(
+			std::u16string_view text,
+			std::u16string_view prefix) noexcept
+		{
+			return folded_forward_sequence_starts_with(
+				utf16_case_fold_reader{ text },
+				utf16_case_fold_reader{ prefix });
+		}
 
 	inline constexpr bool ends_with_case_folded_utf16(
 		std::u16string_view text,
@@ -2459,27 +2846,27 @@ namespace unicode_ranges
 		return icu_locale_uses_turkic_case_behavior(locale);
 	}
 
-	inline std::weak_ordering compare_case_folded_utf8(
-		std::u8string_view lhs,
-		std::u8string_view rhs,
-		locale_id locale)
-	{
-		const auto turkic = icu_case_fold_is_turkic(locale);
-		return compare_case_folded_sequences(
-			utf8_case_fold_reader{ lhs, turkic },
-			utf8_case_fold_reader{ rhs, turkic });
-	}
+		inline std::weak_ordering compare_case_folded_utf8(
+			std::u8string_view lhs,
+			std::u8string_view rhs,
+			locale_id locale)
+		{
+			const auto turkic = icu_case_fold_is_turkic(locale);
+			return compare_case_folded_forward_sequences(
+				utf8_case_fold_reader{ lhs, turkic },
+				utf8_case_fold_reader{ rhs, turkic });
+		}
 
-	inline bool starts_with_case_folded_utf8(
-		std::u8string_view text,
-		std::u8string_view prefix,
-		locale_id locale)
-	{
-		const auto turkic = icu_case_fold_is_turkic(locale);
-		return folded_sequence_starts_with(
-			utf8_case_fold_reader{ text, turkic },
-			utf8_case_fold_reader{ prefix, turkic });
-	}
+		inline bool starts_with_case_folded_utf8(
+			std::u8string_view text,
+			std::u8string_view prefix,
+			locale_id locale)
+		{
+			const auto turkic = icu_case_fold_is_turkic(locale);
+			return folded_forward_sequence_starts_with(
+				utf8_case_fold_reader{ text, turkic },
+				utf8_case_fold_reader{ prefix, turkic });
+		}
 
 	inline bool ends_with_case_folded_utf8(
 		std::u8string_view text,
@@ -2492,27 +2879,27 @@ namespace unicode_ranges
 			utf8_reverse_case_fold_reader{ suffix, turkic });
 	}
 
-	inline std::weak_ordering compare_case_folded_utf16(
-		std::u16string_view lhs,
-		std::u16string_view rhs,
-		locale_id locale)
-	{
-		const auto turkic = icu_case_fold_is_turkic(locale);
-		return compare_case_folded_sequences(
-			utf16_case_fold_reader{ lhs, turkic },
-			utf16_case_fold_reader{ rhs, turkic });
-	}
+		inline std::weak_ordering compare_case_folded_utf16(
+			std::u16string_view lhs,
+			std::u16string_view rhs,
+			locale_id locale)
+		{
+			const auto turkic = icu_case_fold_is_turkic(locale);
+			return compare_case_folded_forward_sequences(
+				utf16_case_fold_reader{ lhs, turkic },
+				utf16_case_fold_reader{ rhs, turkic });
+		}
 
-	inline bool starts_with_case_folded_utf16(
-		std::u16string_view text,
-		std::u16string_view prefix,
-		locale_id locale)
-	{
-		const auto turkic = icu_case_fold_is_turkic(locale);
-		return folded_sequence_starts_with(
-			utf16_case_fold_reader{ text, turkic },
-			utf16_case_fold_reader{ prefix, turkic });
-	}
+		inline bool starts_with_case_folded_utf16(
+			std::u16string_view text,
+			std::u16string_view prefix,
+			locale_id locale)
+		{
+			const auto turkic = icu_case_fold_is_turkic(locale);
+			return folded_forward_sequence_starts_with(
+				utf16_case_fold_reader{ text, turkic },
+				utf16_case_fold_reader{ prefix, turkic });
+		}
 
 	inline bool ends_with_case_folded_utf16(
 		std::u16string_view text,
