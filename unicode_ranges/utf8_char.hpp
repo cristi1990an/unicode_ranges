@@ -13,6 +13,14 @@ namespace details
 {
 	[[nodiscard]]
 	constexpr std::u8string_view utf8_char_view(const utf8_char& ch) noexcept;
+
+	[[nodiscard]]
+	constexpr std::size_t utf8_char_code_unit_count_fast(const utf8_char& ch) noexcept;
+
+	[[nodiscard]]
+	constexpr std::size_t utf8_char_sequence_code_unit_count(const utf8_char* chars, std::size_t count) noexcept;
+
+	constexpr char8_t* copy_utf8_char_sequence(const utf8_char* chars, std::size_t count, char8_t* out) noexcept;
 }
 
 inline constexpr std::tuple<std::size_t, std::size_t, std::size_t> unicode_version = details::unicode::unicode_version;
@@ -843,6 +851,9 @@ private:
 	friend class views::lossy_utf8_view;
 
 	friend constexpr std::u8string_view details::utf8_char_view(const utf8_char& ch) noexcept;
+	friend constexpr std::size_t details::utf8_char_code_unit_count_fast(const utf8_char& ch) noexcept;
+	friend constexpr std::size_t details::utf8_char_sequence_code_unit_count(const utf8_char* chars, std::size_t count) noexcept;
+	friend constexpr char8_t* details::copy_utf8_char_sequence(const utf8_char* chars, std::size_t count, char8_t* out) noexcept;
 
 	[[nodiscard]]
 	constexpr std::u8string_view as_view() const noexcept
@@ -1002,6 +1013,41 @@ namespace details
 	inline constexpr std::u8string_view utf8_char_view(const utf8_char& ch) noexcept
 	{
 		return ch.as_view();
+	}
+
+	[[nodiscard]]
+	inline constexpr std::size_t utf8_char_code_unit_count_fast(const utf8_char& ch) noexcept
+	{
+		return utf8_byte_count_from_lead(static_cast<std::uint8_t>(ch.bytes_[0]));
+	}
+
+	[[nodiscard]]
+	inline constexpr std::size_t utf8_char_sequence_code_unit_count(
+		const utf8_char* chars,
+		std::size_t count) noexcept
+	{
+		std::size_t total = 0;
+		for (std::size_t i = 0; i != count; ++i)
+		{
+			total += utf8_char_code_unit_count_fast(chars[i]);
+		}
+
+		return total;
+	}
+
+	inline constexpr char8_t* copy_utf8_char_sequence(
+		const utf8_char* chars,
+		std::size_t count,
+		char8_t* out) noexcept
+	{
+		for (std::size_t i = 0; i != count; ++i)
+		{
+			const auto size = utf8_char_code_unit_count_fast(chars[i]);
+			std::char_traits<char8_t>::copy(out, chars[i].bytes_.data(), size);
+			out += size;
+		}
+
+		return out;
 	}
 }
 
