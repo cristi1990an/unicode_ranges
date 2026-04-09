@@ -1906,20 +1906,6 @@ namespace unicode_ranges
 				return basic_utf16_string<Allocator>::from_code_units_unchecked(std::move(result));
 			}
 
-			if constexpr (!Lowercase)
-			{
-				const auto measurement = measure_case_map_utf16<Lowercase>(code_units);
-				if (!measurement.changed)
-				{
-					return copy_utf16_view(code_units, alloc);
-				}
-
-				base_type result{ alloc };
-				write_case_map_utf16<Lowercase>(code_units, result, measurement.output_size);
-
-				return basic_utf16_string<Allocator>::from_code_units_unchecked(std::move(result));
-			}
-
 			base_type same_size_result{ alloc };
 			if (try_case_map_utf16_same_size<Lowercase>(code_units, same_size_result))
 			{
@@ -2790,7 +2776,7 @@ namespace unicode_ranges
 			std::u8string_view lhs,
 			std::u8string_view rhs) noexcept
 		{
-			return compare_case_folded_forward_sequences(
+			return compare_case_folded_sequences(
 				utf8_case_fold_reader{ lhs },
 				utf8_case_fold_reader{ rhs });
 		}
@@ -2799,7 +2785,7 @@ namespace unicode_ranges
 			std::u8string_view text,
 			std::u8string_view prefix) noexcept
 		{
-			return folded_forward_sequence_starts_with(
+			return folded_sequence_starts_with(
 				utf8_case_fold_reader{ text },
 				utf8_case_fold_reader{ prefix });
 		}
@@ -2817,7 +2803,7 @@ namespace unicode_ranges
 			std::u16string_view lhs,
 			std::u16string_view rhs) noexcept
 		{
-			return compare_case_folded_forward_sequences(
+			return compare_case_folded_sequences(
 				utf16_case_fold_reader{ lhs },
 				utf16_case_fold_reader{ rhs });
 		}
@@ -2826,7 +2812,7 @@ namespace unicode_ranges
 			std::u16string_view text,
 			std::u16string_view prefix) noexcept
 		{
-			return folded_forward_sequence_starts_with(
+			return folded_sequence_starts_with(
 				utf16_case_fold_reader{ text },
 				utf16_case_fold_reader{ prefix });
 		}
@@ -2852,7 +2838,7 @@ namespace unicode_ranges
 			locale_id locale)
 		{
 			const auto turkic = icu_case_fold_is_turkic(locale);
-			return compare_case_folded_forward_sequences(
+			return compare_case_folded_sequences(
 				utf8_case_fold_reader{ lhs, turkic },
 				utf8_case_fold_reader{ rhs, turkic });
 		}
@@ -2863,7 +2849,7 @@ namespace unicode_ranges
 			locale_id locale)
 		{
 			const auto turkic = icu_case_fold_is_turkic(locale);
-			return folded_forward_sequence_starts_with(
+			return folded_sequence_starts_with(
 				utf8_case_fold_reader{ text, turkic },
 				utf8_case_fold_reader{ prefix, turkic });
 		}
@@ -2885,7 +2871,7 @@ namespace unicode_ranges
 			locale_id locale)
 		{
 			const auto turkic = icu_case_fold_is_turkic(locale);
-			return compare_case_folded_forward_sequences(
+			return compare_case_folded_sequences(
 				utf16_case_fold_reader{ lhs, turkic },
 				utf16_case_fold_reader{ rhs, turkic });
 		}
@@ -2896,7 +2882,7 @@ namespace unicode_ranges
 			locale_id locale)
 		{
 			const auto turkic = icu_case_fold_is_turkic(locale);
-			return folded_forward_sequence_starts_with(
+			return folded_sequence_starts_with(
 				utf16_case_fold_reader{ text, turkic },
 				utf16_case_fold_reader{ prefix, turkic });
 		}

@@ -590,7 +590,7 @@ namespace unicode_ranges
 				std::u32string_view lhs,
 				std::u32string_view rhs) noexcept
 			{
-				return compare_case_folded_forward_sequences(
+				return compare_case_folded_sequences(
 					utf32_case_fold_reader{ lhs },
 					utf32_case_fold_reader{ rhs });
 			}
@@ -598,7 +598,7 @@ namespace unicode_ranges
 				std::u32string_view text,
 				std::u32string_view prefix) noexcept
 			{
-				return folded_forward_sequence_starts_with(
+				return folded_sequence_starts_with(
 					utf32_case_fold_reader{ text },
 					utf32_case_fold_reader{ prefix });
 			}
@@ -617,7 +617,7 @@ namespace unicode_ranges
 				locale_id locale)
 			{
 				const auto turkic = icu_case_fold_is_turkic(locale);
-				return compare_case_folded_forward_sequences(
+				return compare_case_folded_sequences(
 					utf32_case_fold_reader{ lhs, turkic },
 					utf32_case_fold_reader{ rhs, turkic });
 			}
@@ -627,7 +627,7 @@ namespace unicode_ranges
 				locale_id locale)
 			{
 				const auto turkic = icu_case_fold_is_turkic(locale);
-				return folded_forward_sequence_starts_with(
+				return folded_sequence_starts_with(
 					utf32_case_fold_reader{ text, turkic },
 					utf32_case_fold_reader{ prefix, turkic });
 			}
