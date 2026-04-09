@@ -548,12 +548,6 @@ struct utf8_char_span_matcher
 	}
 
 	[[nodiscard]]
-	constexpr bool has_non_ascii_overflow() const noexcept
-	{
-		return non_ascii_overflow;
-	}
-
-	[[nodiscard]]
 	constexpr bool matches_ascii(std::uint8_t ascii) const noexcept
 	{
 		return (ascii_bits[ascii / 64u] & (std::uint64_t{ 1 } << (ascii % 64u))) != 0;
@@ -791,68 +785,6 @@ inline constexpr utf8_predicate_match rfind_utf8_predicate_match(
 			return {};
 		}
 	}
-}
-
-inline constexpr utf8_predicate_match find_utf8_non_ascii_span_match(
-	std::u8string_view base,
-	std::size_t pos,
-	const utf8_char_span_matcher& matcher) noexcept
-{
-	utf8_predicate_match result{};
-	for (utf8_char ch : matcher.chars)
-	{
-		if (ch.is_ascii())
-		{
-			continue;
-		}
-
-		const auto needle = details::utf8_char_view(ch);
-		const auto match = details::find_utf8_exact(base, needle, pos);
-		if (match != std::u8string_view::npos
-			&& (result.pos == std::u8string_view::npos || match < result.pos))
-		{
-			result = { match, static_cast<std::uint8_t>(needle.size()) };
-			if (match == pos)
-			{
-				break;
-			}
-		}
-	}
-
-	return result;
-}
-
-inline constexpr utf8_predicate_match rfind_utf8_non_ascii_span_match(
-	std::u8string_view base,
-	std::size_t pos,
-	const utf8_char_span_matcher& matcher) noexcept
-{
-	utf8_predicate_match result{};
-	for (utf8_char ch : matcher.chars)
-	{
-		if (ch.is_ascii())
-		{
-			continue;
-		}
-
-		const auto needle = details::utf8_char_view(ch);
-		if (needle.size() > base.size())
-		{
-			continue;
-		}
-
-		const auto max_start = pos == std::u8string_view::npos
-			? base.size() - needle.size()
-			: (std::min)(pos, base.size() - needle.size());
-		const auto match = details::rfind_utf8_exact(base, needle, max_start);
-		if (match != std::u8string_view::npos
-			&& (result.pos == std::u8string_view::npos || match > result.pos))
-		{
-			result = { match, static_cast<std::uint8_t>(needle.size()) };
-		}
-	}
-
-	return result;
 }
 
 template <utf8_char_predicate Pred>
@@ -3123,11 +3055,6 @@ public:
 
 		pos = ceil_char_boundary((std::min)(size(), pos));
 		const details::utf8_char_span_matcher matcher{ chars };
-		if (!matcher.has_ascii() && !matcher.has_non_ascii_overflow())
-		{
-			return details::find_utf8_non_ascii_span_match(byte_view(), pos, matcher).pos;
-		}
-
 		return details::find_utf8_predicate_match(byte_view(), pos, matcher).pos;
 	}
 
@@ -3297,11 +3224,6 @@ public:
 
 		pos = floor_char_boundary((std::min)(size(), pos));
 		const details::utf8_char_span_matcher matcher{ chars };
-		if (!matcher.has_ascii() && !matcher.has_non_ascii_overflow())
-		{
-			return details::rfind_utf8_non_ascii_span_match(byte_view(), pos, matcher).pos;
-		}
-
 		const auto end_exclusive = pos == npos
 			? size()
 			: pos == size()
