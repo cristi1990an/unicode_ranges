@@ -475,7 +475,9 @@ struct utf16_char_span_matcher
 
 	std::span<const utf16_char> chars{};
 	std::array<std::uint64_t, 2> ascii_bits{};
-	std::array<std::uint16_t, non_ascii_inline_capacity> bmp_non_ascii_code_units{};
+	std::array<std::uint64_t, 4> bmp_non_ascii_high_byte_bits{};
+	std::array<std::uint64_t, 4> bmp_non_ascii_low_byte_bits{};
+	std::array<char16_t, non_ascii_inline_capacity> bmp_non_ascii_code_units{};
 	std::array<std::uint32_t, non_ascii_inline_capacity> supplementary_scalars{};
 	std::uint8_t bmp_non_ascii_count = 0;
 	std::uint8_t supplementary_count = 0;
@@ -499,7 +501,12 @@ struct utf16_char_span_matcher
 			{
 				if (scalar <= 0xFFFFu)
 				{
-					insert_bmp_non_ascii_code_unit(static_cast<std::uint16_t>(scalar));
+					const auto code_unit = static_cast<std::uint16_t>(scalar);
+					const auto high = static_cast<std::uint8_t>(code_unit >> 8);
+					const auto low = static_cast<std::uint8_t>(code_unit & 0xFFu);
+					bmp_non_ascii_high_byte_bits[high / 64u] |= (std::uint64_t{ 1 } << (high % 64u));
+					bmp_non_ascii_low_byte_bits[low / 64u] |= (std::uint64_t{ 1 } << (low % 64u));
+					insert_bmp_non_ascii_code_unit(static_cast<char16_t>(scalar));
 				}
 				else
 				{
@@ -525,15 +532,33 @@ struct utf16_char_span_matcher
 	}
 
 	[[nodiscard]]
+	constexpr bool has_bmp_non_ascii() const noexcept
+	{
+		return bmp_non_ascii_count != 0 || bmp_non_ascii_overflow;
+	}
+
+	[[nodiscard]]
 	constexpr bool has_non_ascii_overflow() const noexcept
 	{
 		return bmp_non_ascii_overflow || supplementary_overflow;
 	}
 
 	[[nodiscard]]
+	constexpr bool is_bmp_only() const noexcept
+	{
+		return supplementary_count == 0 && !supplementary_overflow;
+	}
+
+	[[nodiscard]]
 	constexpr bool has_supplementary() const noexcept
 	{
 		return supplementary_count != 0 || supplementary_overflow;
+	}
+
+	[[nodiscard]]
+	constexpr std::u16string_view bmp_non_ascii_code_unit_view() const noexcept
+	{
+		return { bmp_non_ascii_code_units.data(), bmp_non_ascii_count };
 	}
 
 	[[nodiscard]]
@@ -550,9 +575,14 @@ struct utf16_char_span_matcher
 			return false;
 		}
 
+		if (!may_match_bmp_non_ascii_code_unit(code_unit))
+		{
+			return false;
+		}
+
 		if (!bmp_non_ascii_overflow)
 		{
-			return contains_bmp_non_ascii_code_unit(code_unit);
+			return contains_bmp_non_ascii_code_unit(static_cast<char16_t>(code_unit));
 		}
 
 		for (utf16_char candidate : chars)
@@ -566,6 +596,19 @@ struct utf16_char_span_matcher
 		}
 
 		return false;
+	}
+
+	[[nodiscard]]
+	constexpr bool may_match_bmp_non_ascii_code_unit(std::uint16_t code_unit) const noexcept
+	{
+		const auto high = static_cast<std::uint8_t>(code_unit >> 8);
+		if ((bmp_non_ascii_high_byte_bits[high / 64u] & (std::uint64_t{ 1 } << (high % 64u))) == 0)
+		{
+			return false;
+		}
+
+		const auto low = static_cast<std::uint8_t>(code_unit & 0xFFu);
+		return (bmp_non_ascii_low_byte_bits[low / 64u] & (std::uint64_t{ 1 } << (low % 64u))) != 0;
 	}
 
 	[[nodiscard]]
@@ -667,6 +710,19 @@ private:
 		const auto& storage,
 		std::uint8_t count) noexcept
 	{
+		if (count <= 8u)
+		{
+			for (std::uint8_t i = 0; i != count; ++i)
+			{
+				if (storage[i] == value)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
 		std::size_t first = 0;
 		std::size_t last = count;
 		while (first < last)
@@ -685,7 +741,7 @@ private:
 		return first != count && storage[first] == value;
 	}
 
-	constexpr void insert_bmp_non_ascii_code_unit(std::uint16_t code_unit) noexcept
+	constexpr void insert_bmp_non_ascii_code_unit(char16_t code_unit) noexcept
 	{
 		insert_sorted_unique(
 			code_unit,
@@ -704,7 +760,7 @@ private:
 	}
 
 	[[nodiscard]]
-	constexpr bool contains_bmp_non_ascii_code_unit(std::uint16_t code_unit) const noexcept
+	constexpr bool contains_bmp_non_ascii_code_unit(char16_t code_unit) const noexcept
 	{
 		return contains_sorted(code_unit, bmp_non_ascii_code_units, bmp_non_ascii_count);
 	}
@@ -757,7 +813,15 @@ inline constexpr utf16_predicate_match find_utf16_predicate_match(
 	const utf16_char_span_matcher& matcher) noexcept
 {
 	const auto has_ascii = matcher.has_ascii();
-	const auto has_non_ascii = matcher.has_non_ascii();
+	if (!has_ascii && matcher.is_bmp_only() && !matcher.has_non_ascii_overflow())
+	{
+		const auto match = base.find_first_of(matcher.bmp_non_ascii_code_unit_view(), pos);
+		return match == std::u16string_view::npos
+			? utf16_predicate_match{}
+			: utf16_predicate_match{ match, 1 };
+	}
+
+	const auto has_bmp_non_ascii = matcher.has_bmp_non_ascii();
 	const auto has_supplementary = matcher.has_supplementary();
 	while (pos < base.size())
 	{
@@ -784,7 +848,7 @@ inline constexpr utf16_predicate_match find_utf16_predicate_match(
 
 		if (!details::is_utf16_high_surrogate(first))
 		{
-			if (has_non_ascii && matcher.matches_bmp_non_ascii(first))
+			if (has_bmp_non_ascii && matcher.matches_bmp_non_ascii(first))
 			{
 				return { pos, 1 };
 			}
@@ -818,7 +882,15 @@ inline constexpr utf16_predicate_match rfind_utf16_predicate_match(
 		return {};
 	}
 
-	const auto has_non_ascii = matcher.has_non_ascii();
+	if (!matcher.has_ascii() && matcher.is_bmp_only() && !matcher.has_non_ascii_overflow())
+	{
+		const auto match = base.find_last_of(matcher.bmp_non_ascii_code_unit_view(), end_exclusive - 1);
+		return match == std::u16string_view::npos
+			? utf16_predicate_match{}
+			: utf16_predicate_match{ match, 1 };
+	}
+
+	const auto has_bmp_non_ascii = matcher.has_bmp_non_ascii();
 	const auto has_supplementary = matcher.has_supplementary();
 	for (std::size_t pos = details::previous_utf16_scalar_boundary(base, end_exclusive);; pos = details::previous_utf16_scalar_boundary(base, pos))
 	{
@@ -833,7 +905,7 @@ inline constexpr utf16_predicate_match rfind_utf16_predicate_match(
 		}
 		else if (!details::is_utf16_high_surrogate(first))
 		{
-			if (has_non_ascii && matcher.matches_bmp_non_ascii(first))
+			if (has_bmp_non_ascii && matcher.matches_bmp_non_ascii(first))
 			{
 				return { pos, size };
 			}

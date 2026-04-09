@@ -12,6 +12,14 @@ namespace details
 {
 	[[nodiscard]]
 	constexpr std::u16string_view utf16_char_view(const utf16_char& ch) noexcept;
+
+	[[nodiscard]]
+	constexpr std::size_t utf16_char_code_unit_count_fast(const utf16_char& ch) noexcept;
+
+	[[nodiscard]]
+	constexpr std::size_t utf16_char_sequence_code_unit_count(const utf16_char* chars, std::size_t count) noexcept;
+
+	constexpr char16_t* copy_utf16_char_sequence(const utf16_char* chars, std::size_t count, char16_t* out) noexcept;
 }
 
 struct utf16_char
@@ -524,6 +532,9 @@ public:
 
 private:
 	friend constexpr std::u16string_view details::utf16_char_view(const utf16_char& ch) noexcept;
+	friend constexpr std::size_t details::utf16_char_code_unit_count_fast(const utf16_char& ch) noexcept;
+	friend constexpr std::size_t details::utf16_char_sequence_code_unit_count(const utf16_char* chars, std::size_t count) noexcept;
+	friend constexpr char16_t* details::copy_utf16_char_sequence(const utf16_char* chars, std::size_t count, char16_t* out) noexcept;
 
 	[[nodiscard]]
 	constexpr std::u16string_view as_view() const noexcept
@@ -589,6 +600,45 @@ namespace details
 	inline constexpr std::u16string_view utf16_char_view(const utf16_char& ch) noexcept
 	{
 		return ch.as_view();
+	}
+
+	[[nodiscard]]
+	inline constexpr std::size_t utf16_char_code_unit_count_fast(const utf16_char& ch) noexcept
+	{
+		return ch.code_units_[1] == 0
+			? encoding_constants::single_code_unit_count
+			: encoding_constants::utf16_surrogate_code_unit_count;
+	}
+
+	[[nodiscard]]
+	inline constexpr std::size_t utf16_char_sequence_code_unit_count(
+		const utf16_char* chars,
+		std::size_t count) noexcept
+	{
+		std::size_t total = 0;
+		for (std::size_t i = 0; i != count; ++i)
+		{
+			total += utf16_char_code_unit_count_fast(chars[i]);
+		}
+
+		return total;
+	}
+
+	inline constexpr char16_t* copy_utf16_char_sequence(
+		const utf16_char* chars,
+		std::size_t count,
+		char16_t* out) noexcept
+	{
+		for (std::size_t i = 0; i != count; ++i)
+		{
+			*out++ = chars[i].code_units_[0];
+			if (chars[i].code_units_[1] != 0)
+			{
+				*out++ = chars[i].code_units_[1];
+			}
+		}
+
+		return out;
 	}
 }
 
