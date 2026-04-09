@@ -2711,21 +2711,19 @@ private:
 	UTF8_RANGES_NO_UNIQUE_ADDRESS Pred pred_;
 };
 
-inline constexpr bool utf32_char_is_whitespace_at(
-	std::u32string_view base,
-	std::size_t pos,
-	bool ascii_only) noexcept
+inline constexpr bool is_utf32_ascii_whitespace_scalar(std::uint32_t scalar) noexcept
 {
-	const auto ch = utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(base[pos]));
-	return ascii_only ? ch.is_ascii_whitespace() : ch.is_whitespace();
+	return scalar == U' '
+		|| (scalar >= U'\t' && scalar <= U'\r');
 }
 
-inline constexpr std::size_t next_utf32_scalar_boundary(
-	std::u32string_view base,
-	std::size_t pos) noexcept
+inline constexpr bool is_utf32_whitespace_scalar(std::uint32_t scalar, bool ascii_only) noexcept
 {
-	(void)base;
-	return pos + 1u;
+	return ascii_only
+		? details::is_utf32_ascii_whitespace_scalar(scalar)
+		: scalar <= details::encoding_constants::ascii_scalar_max
+			? details::is_utf32_ascii_whitespace_scalar(scalar)
+			: details::unicode::is_whitespace(scalar);
 }
 
 inline constexpr std::size_t find_utf32_non_whitespace_boundary(
@@ -2735,12 +2733,12 @@ inline constexpr std::size_t find_utf32_non_whitespace_boundary(
 {
 	while (pos < base.size())
 	{
-		if (!details::utf32_char_is_whitespace_at(base, pos, ascii_only))
+		if (!details::is_utf32_whitespace_scalar(static_cast<std::uint32_t>(base[pos]), ascii_only))
 		{
 			return pos;
 		}
 
-		pos = details::next_utf32_scalar_boundary(base, pos);
+		++pos;
 	}
 
 	return std::u32string_view::npos;
@@ -2753,15 +2751,47 @@ inline constexpr std::size_t find_utf32_whitespace_boundary(
 {
 	while (pos < base.size())
 	{
-		if (details::utf32_char_is_whitespace_at(base, pos, ascii_only))
+		if (details::is_utf32_whitespace_scalar(static_cast<std::uint32_t>(base[pos]), ascii_only))
 		{
 			return pos;
 		}
 
-		pos = details::next_utf32_scalar_boundary(base, pos);
+		++pos;
 	}
 
 	return std::u32string_view::npos;
+}
+
+struct utf32_whitespace_segment
+{
+	std::size_t start = std::u32string_view::npos;
+	std::size_t end = std::u32string_view::npos;
+};
+
+inline constexpr utf32_whitespace_segment find_next_utf32_whitespace_segment(
+	std::u32string_view base,
+	std::size_t pos,
+	bool ascii_only) noexcept
+{
+	while (pos < base.size()
+		&& details::is_utf32_whitespace_scalar(static_cast<std::uint32_t>(base[pos]), ascii_only))
+	{
+		++pos;
+	}
+
+	if (pos == base.size())
+	{
+		return {};
+	}
+
+	const auto start = pos;
+	while (pos < base.size()
+		&& !details::is_utf32_whitespace_scalar(static_cast<std::uint32_t>(base[pos]), ascii_only))
+	{
+		++pos;
+	}
+
+	return { start, pos };
 }
 
 inline constexpr std::size_t utf32_trim_end_boundary(
@@ -2769,15 +2799,12 @@ inline constexpr std::size_t utf32_trim_end_boundary(
 	bool ascii_only) noexcept
 {
 	std::size_t end = 0;
-	for (std::size_t pos = 0; pos < base.size();)
+	for (std::size_t pos = 0; pos < base.size(); ++pos)
 	{
-		const auto next = details::next_utf32_scalar_boundary(base, pos);
-		if (!details::utf32_char_is_whitespace_at(base, pos, ascii_only))
+		if (!details::is_utf32_whitespace_scalar(static_cast<std::uint32_t>(base[pos]), ascii_only))
 		{
-			end = next;
+			end = pos + 1;
 		}
-
-		pos = next;
 	}
 
 	return end;
@@ -2812,32 +2839,19 @@ public:
 
 		constexpr iterator(
 			std::u32string_view base,
-			std::size_t current,
-			std::size_t next_whitespace) noexcept
-			: base_(base), current_(current), next_whitespace_(next_whitespace)
+			utf32_whitespace_segment current_segment) noexcept
+			: base_(base), current_segment_(current_segment)
 		{}
 
 		constexpr reference operator*() const noexcept
 		{
-			const auto end = next_whitespace_ == std::u32string_view::npos
-				? base_.size()
-				: next_whitespace_;
-			return View::from_code_points_unchecked(base_.substr(current_, end - current_));
+			return View::from_code_points_unchecked(
+				base_.substr(current_segment_.start, current_segment_.end - current_segment_.start));
 		}
 
 		constexpr iterator& operator++() noexcept
 		{
-			current_ = details::find_utf32_non_whitespace_boundary(
-				base_,
-				next_whitespace_ == std::u32string_view::npos ? base_.size() : next_whitespace_,
-				AsciiOnly);
-			if (current_ == std::u32string_view::npos)
-			{
-				next_whitespace_ = std::u32string_view::npos;
-				return *this;
-			}
-
-			next_whitespace_ = details::find_utf32_whitespace_boundary(base_, current_, AsciiOnly);
+			current_segment_ = details::find_next_utf32_whitespace_segment(base_, current_segment_.end, AsciiOnly);
 			return *this;
 		}
 
@@ -2850,33 +2864,22 @@ public:
 
 		friend constexpr bool operator==(const iterator& it, std::default_sentinel_t) noexcept
 		{
-			return it.current_ == std::u32string_view::npos;
+			return it.current_segment_.start == std::u32string_view::npos;
 		}
 
 		friend constexpr bool operator==(std::default_sentinel_t, const iterator& it) noexcept
 		{
-			return it.current_ == std::u32string_view::npos;
+			return it.current_segment_.start == std::u32string_view::npos;
 		}
 
 	private:
 		std::u32string_view base_{};
-		std::size_t current_ = std::u32string_view::npos;
-		std::size_t next_whitespace_ = std::u32string_view::npos;
+		utf32_whitespace_segment current_segment_{};
 	};
 
 	constexpr iterator begin() const noexcept
 	{
-		const auto current = details::find_utf32_non_whitespace_boundary(base_, 0, AsciiOnly);
-		if (current == std::u32string_view::npos)
-		{
-			return iterator{};
-		}
-
-		return iterator{
-			base_,
-			current,
-			details::find_utf32_whitespace_boundary(base_, current, AsciiOnly)
-		};
+		return iterator{ base_, details::find_next_utf32_whitespace_segment(base_, 0, AsciiOnly) };
 	}
 
 	constexpr std::default_sentinel_t end() const noexcept

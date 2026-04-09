@@ -638,6 +638,72 @@ namespace details
 		return changed;
 	}
 
+	inline bool ascii_lowercase_copy_runtime(char32_t* out, std::u32string_view code_points) noexcept
+	{
+#if UTF8_RANGES_HAS_SSE2_INTRINSICS
+		const auto upper_min = _mm_set1_epi32(U'A' - 1);
+		const auto upper_max = _mm_set1_epi32(U'Z' + 1);
+		const auto delta = _mm_set1_epi32(U'a' - U'A');
+		bool changed = false;
+		std::size_t index = 0;
+		while (index + 4 <= code_points.size())
+		{
+			const auto block = _mm_loadu_si128(
+				reinterpret_cast<const __m128i*>(code_points.data() + index));
+			const auto is_after_min = _mm_cmpgt_epi32(block, upper_min);
+			const auto is_before_max = _mm_cmpgt_epi32(upper_max, block);
+			const auto upper = _mm_and_si128(is_after_min, is_before_max);
+			changed = changed || (_mm_movemask_epi8(upper) != 0);
+			const auto add = _mm_and_si128(upper, delta);
+			const auto mapped = _mm_add_epi32(block, add);
+			_mm_storeu_si128(reinterpret_cast<__m128i*>(out + index), mapped);
+			index += 4;
+		}
+
+		if (index != code_points.size())
+		{
+			changed = ascii_lowercase_copy_scalar(out + index, code_points.substr(index)) || changed;
+		}
+
+		return changed;
+#else
+		return ascii_lowercase_copy_scalar(out, code_points);
+#endif
+	}
+
+	inline bool ascii_uppercase_copy_runtime(char32_t* out, std::u32string_view code_points) noexcept
+	{
+#if UTF8_RANGES_HAS_SSE2_INTRINSICS
+		const auto lower_min = _mm_set1_epi32(U'a' - 1);
+		const auto lower_max = _mm_set1_epi32(U'z' + 1);
+		const auto delta = _mm_set1_epi32(U'a' - U'A');
+		bool changed = false;
+		std::size_t index = 0;
+		while (index + 4 <= code_points.size())
+		{
+			const auto block = _mm_loadu_si128(
+				reinterpret_cast<const __m128i*>(code_points.data() + index));
+			const auto is_after_min = _mm_cmpgt_epi32(block, lower_min);
+			const auto is_before_max = _mm_cmpgt_epi32(lower_max, block);
+			const auto lower = _mm_and_si128(is_after_min, is_before_max);
+			changed = changed || (_mm_movemask_epi8(lower) != 0);
+			const auto sub = _mm_and_si128(lower, delta);
+			const auto mapped = _mm_sub_epi32(block, sub);
+			_mm_storeu_si128(reinterpret_cast<__m128i*>(out + index), mapped);
+			index += 4;
+		}
+
+		if (index != code_points.size())
+		{
+			changed = ascii_uppercase_copy_scalar(out + index, code_points.substr(index)) || changed;
+		}
+
+		return changed;
+#else
+		return ascii_uppercase_copy_scalar(out, code_points);
+#endif
+	}
+
 	inline bool ascii_lowercase_copy_runtime(char8_t* out, std::u8string_view bytes) noexcept
 	{
 #if UTF8_RANGES_HAS_SSE2_INTRINSICS
@@ -816,12 +882,22 @@ namespace details
 
 	inline constexpr bool ascii_lowercase_copy(char32_t* out, std::u32string_view code_points) noexcept
 	{
-		return ascii_lowercase_copy_scalar(out, code_points);
+		if (std::is_constant_evaluated())
+		{
+			return ascii_lowercase_copy_scalar(out, code_points);
+		}
+
+		return ascii_lowercase_copy_runtime(out, code_points);
 	}
 
 	inline constexpr bool ascii_uppercase_copy(char32_t* out, std::u32string_view code_points) noexcept
 	{
-		return ascii_uppercase_copy_scalar(out, code_points);
+		if (std::is_constant_evaluated())
+		{
+			return ascii_uppercase_copy_scalar(out, code_points);
+		}
+
+		return ascii_uppercase_copy_runtime(out, code_points);
 	}
 
 	inline constexpr bool ascii_lowercase_inplace(char8_t* bytes, std::size_t size) noexcept
