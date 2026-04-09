@@ -3197,6 +3197,11 @@ public:
 
 		pos = ceil_char_boundary((std::min)(size(), pos));
 		const details::utf32_char_span_matcher matcher{ chars };
+		if (!matcher.has_ascii() && !matcher.has_non_ascii_overflow())
+		{
+			return details::find_utf32_non_ascii_span_match(code_unit_view(), pos, matcher).pos;
+		}
+
 		return details::find_utf32_predicate_match(code_unit_view(), pos, matcher).pos;
 	}
 
@@ -3371,6 +3376,11 @@ public:
 
 		pos = floor_char_boundary((std::min)(size(), pos));
 		const details::utf32_char_span_matcher matcher{ chars };
+		if (!matcher.has_ascii() && !matcher.has_non_ascii_overflow())
+		{
+			return details::rfind_utf32_non_ascii_span_match(code_unit_view(), pos, matcher).pos;
+		}
+
 		const auto end_exclusive = pos == npos
 			? size()
 			: pos == size()
