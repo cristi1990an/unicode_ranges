@@ -1043,8 +1043,25 @@ namespace details
 		for (std::size_t i = 0; i != count; ++i)
 		{
 			const auto size = utf8_char_code_unit_count_fast(chars[i]);
-			std::char_traits<char8_t>::copy(out, chars[i].bytes_.data(), size);
-			out += size;
+			*out++ = chars[i].bytes_[0];
+			if (size == encoding_constants::single_code_unit_count) [[likely]]
+			{
+				continue;
+			}
+
+			*out++ = chars[i].bytes_[1];
+			if (size == encoding_constants::two_code_unit_count)
+			{
+				continue;
+			}
+
+			*out++ = chars[i].bytes_[2];
+			if (size == encoding_constants::three_code_unit_count)
+			{
+				continue;
+			}
+
+			*out++ = chars[i].bytes_[3];
 		}
 
 		return out;
