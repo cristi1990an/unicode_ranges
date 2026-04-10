@@ -8,7 +8,9 @@ LLVM_PROFDATA="${LLVM_PROFDATA:-llvm-profdata-22}"
 
 OUTPUT_DIR="${OUTPUT_DIR:-coverage}"
 BINARY="${BINARY:-unicode_ranges_cov}"
+BENCH_BINARY="${BENCH_BINARY:-unicode_ranges_cov_bench}"
 PROFRAW="${OUTPUT_DIR}/unicode_ranges.profraw"
+PROFRAW_BENCH="${OUTPUT_DIR}/unicode_ranges_bench.profraw"
 PROFDATA="${OUTPUT_DIR}/unicode_ranges.profdata"
 REPORT_TXT="${OUTPUT_DIR}/report.txt"
 SUMMARY_TXT="${OUTPUT_DIR}/summary.txt"
@@ -33,7 +35,24 @@ mkdir -p "${OUTPUT_DIR}"
 
 LLVM_PROFILE_FILE="${PROFRAW}" "${OUTPUT_DIR}/${BINARY}"
 
-"${LLVM_PROFDATA}" merge -sparse "${PROFRAW}" -o "${PROFDATA}"
+"${CXX}" \
+	-std=c++23 \
+	-O0 \
+	-Wall \
+	-Wextra \
+	-Werror \
+	-pedantic \
+	-pthread \
+	-stdlib=libc++ \
+	-fprofile-instr-generate \
+	-fcoverage-mapping \
+	-fno-inline \
+	unicode_ranges_benchmarks.cpp \
+	-o "${OUTPUT_DIR}/${BENCH_BINARY}"
+
+LLVM_PROFILE_FILE="${PROFRAW_BENCH}" "${OUTPUT_DIR}/${BENCH_BINARY}" --quick --filter=large.view
+
+"${LLVM_PROFDATA}" merge -sparse "${PROFRAW}" "${PROFRAW_BENCH}" -o "${PROFDATA}"
 
 mapfile -t COVERED_FILES < <(find unicode_ranges -name '*.hpp' -print | sort)
 COVERED_FILES+=("unicode_ranges.hpp")

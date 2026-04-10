@@ -1692,6 +1692,12 @@ inline void run_unicode_ranges_tests()
 	static_assert(details::runtime_parallel_min_bytes_per_worker == (1u << 20));
 	static_assert(details::runtime_parallel_max_worker_count == 2);
 #endif
+#if UTF8_RANGES_TEST_FORCE_UTF32_PARALLEL
+	static_assert(details::make_utf32_parallel_plan(0, 8).worker_count == 1);
+	static_assert(details::make_utf32_parallel_plan(0, 8).chunk_size == 0);
+	static_assert(details::make_utf32_parallel_plan(1, 2).worker_count == 2);
+	static_assert(details::make_utf32_parallel_plan(1, 2).chunk_size == 1);
+#else
 	static_assert(details::make_utf32_parallel_plan(0, 8).worker_count == 1);
 	static_assert(details::make_utf32_parallel_plan(0, 8).chunk_size == 0);
 	static_assert([] {
@@ -1717,6 +1723,7 @@ inline void run_unicode_ranges_tests()
 			&& details::utf32_parallel_chunk(text, plan, 2) == std::u32string_view{ U"ij", 2 }
 			&& details::utf32_parallel_chunk(text, plan, 3).empty();
 	}());
+#endif
 	static_assert(details::nfc_quick_check_pass(u8"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf8_sv.base()));
 	static_assert(details::nfc_quick_check_pass(u"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf16_sv.base()));
 	static_assert(details::nfc_quick_check_pass(U"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf32_sv.base()));
@@ -2381,6 +2388,14 @@ inline void run_unicode_ranges_tests()
 			assert(details::runtime_parallel_min_bytes_per_worker == (1u << 20));
 			assert(details::runtime_parallel_max_worker_count == 2);
 #endif
+#if UTF8_RANGES_TEST_FORCE_UTF32_PARALLEL
+			[[maybe_unused]] const auto zero_parallel_plan = details::make_utf32_parallel_plan(0, 8);
+			assert(zero_parallel_plan.worker_count == 1);
+			assert(zero_parallel_plan.chunk_size == 0);
+			[[maybe_unused]] const auto forced_plan = details::make_utf32_parallel_plan(1, 2);
+			assert(forced_plan.worker_count == 2);
+			assert(forced_plan.chunk_size == 1);
+#else
 			[[maybe_unused]] const auto zero_parallel_plan = details::make_utf32_parallel_plan(0, 8);
 			assert(zero_parallel_plan.worker_count == 1);
 			assert(zero_parallel_plan.chunk_size == 0);
@@ -2407,6 +2422,7 @@ inline void run_unicode_ranges_tests()
 			assert(details::utf32_parallel_chunk(chunk_text, chunk_plan, 1) == chunk1);
 			assert(details::utf32_parallel_chunk(chunk_text, chunk_plan, 2) == chunk2);
 			assert(details::utf32_parallel_chunk(chunk_text, chunk_plan, 3).empty());
+#endif
 			assert(details::nfc_quick_check_pass(u8"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf8_sv.base()));
 			assert(details::nfc_quick_check_pass(u"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf16_sv.base()));
 			assert(details::nfc_quick_check_pass(U"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf32_sv.base()));

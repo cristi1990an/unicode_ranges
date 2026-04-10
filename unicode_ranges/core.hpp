@@ -583,6 +583,12 @@ namespace details
 	inline constexpr std::size_t runtime_parallel_max_worker_count = 2;
 #endif
 
+#ifndef UTF8_RANGES_TEST_FORCE_UTF32_PARALLEL
+#define UTF8_RANGES_TEST_FORCE_UTF32_PARALLEL 0
+#endif
+
+	inline constexpr bool test_force_utf32_parallel = UTF8_RANGES_TEST_FORCE_UTF32_PARALLEL != 0;
+
 	struct utf32_parallel_plan
 	{
 		std::size_t worker_count = 1;
@@ -596,6 +602,17 @@ namespace details
 		if (code_point_count == 0)
 		{
 			return { 1, code_point_count };
+		}
+
+		if (test_force_utf32_parallel && available_workers >= 2)
+		{
+			const auto forced_workers = std::max<std::size_t>(
+				2,
+				std::min(available_workers, runtime_parallel_max_worker_count));
+			return {
+				forced_workers,
+				(code_point_count + forced_workers - 1) / forced_workers
+			};
 		}
 
 		const auto total_bytes = code_point_count * sizeof(char32_t);
