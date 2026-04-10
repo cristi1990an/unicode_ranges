@@ -1684,6 +1684,39 @@ inline void run_unicode_ranges_tests()
 	static_assert(u8"e\u0301"_utf8_sv.is_nfd());
 	static_assert(details::unicode::is_nfc_quick_check_non_yes(0x0301u));
 	static_assert(!details::unicode::is_nfc_quick_check_non_yes(0x00E9u));
+#if UINTPTR_MAX > 0xFFFFFFFFu
+	static_assert(details::runtime_parallel_min_total_bytes == (1u << 20));
+	static_assert(details::runtime_parallel_min_bytes_per_worker == (1u << 18));
+#else
+	static_assert(details::runtime_parallel_min_total_bytes == (2u << 20));
+	static_assert(details::runtime_parallel_min_bytes_per_worker == (1u << 20));
+	static_assert(details::runtime_parallel_max_worker_count == 2);
+#endif
+	static_assert(details::make_utf32_parallel_plan(0, 8).worker_count == 1);
+	static_assert(details::make_utf32_parallel_plan(0, 8).chunk_size == 0);
+	static_assert([] {
+		constexpr auto below_threshold_count =
+			(details::runtime_parallel_min_total_bytes / sizeof(char32_t)) - 1;
+		constexpr auto plan = details::make_utf32_parallel_plan(below_threshold_count, 8);
+		return plan.worker_count == 1 && plan.chunk_size == below_threshold_count;
+	}());
+	static_assert([] {
+		constexpr auto threshold_count = details::runtime_parallel_min_total_bytes / sizeof(char32_t);
+		constexpr auto plan = details::make_utf32_parallel_plan(threshold_count, 8);
+#if UINTPTR_MAX > 0xFFFFFFFFu
+		return plan.worker_count == 4 && plan.chunk_size == threshold_count / 4;
+#else
+		return plan.worker_count == 2 && plan.chunk_size == threshold_count / 2;
+#endif
+	}());
+	static_assert([] {
+		constexpr auto text = std::u32string_view{ U"abcdefghij", 10 };
+		constexpr auto plan = details::utf32_parallel_plan{ 3, 4 };
+		return details::utf32_parallel_chunk(text, plan, 0) == std::u32string_view{ U"abcd", 4 }
+			&& details::utf32_parallel_chunk(text, plan, 1) == std::u32string_view{ U"efgh", 4 }
+			&& details::utf32_parallel_chunk(text, plan, 2) == std::u32string_view{ U"ij", 2 }
+			&& details::utf32_parallel_chunk(text, plan, 3).empty();
+	}());
 	static_assert(details::nfc_quick_check_pass(u8"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf8_sv.base()));
 	static_assert(details::nfc_quick_check_pass(u"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf16_sv.base()));
 	static_assert(details::nfc_quick_check_pass(U"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf32_sv.base()));
@@ -2340,6 +2373,40 @@ inline void run_unicode_ranges_tests()
 			assert(u8"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf8_sv.to_nfc() == u8"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf8_sv);
 			assert(details::unicode::is_nfc_quick_check_non_yes(0x0301u));
 			assert(!details::unicode::is_nfc_quick_check_non_yes(0x00E9u));
+#if UINTPTR_MAX > 0xFFFFFFFFu
+			assert(details::runtime_parallel_min_total_bytes == (1u << 20));
+			assert(details::runtime_parallel_min_bytes_per_worker == (1u << 18));
+#else
+			assert(details::runtime_parallel_min_total_bytes == (2u << 20));
+			assert(details::runtime_parallel_min_bytes_per_worker == (1u << 20));
+			assert(details::runtime_parallel_max_worker_count == 2);
+#endif
+			[[maybe_unused]] const auto zero_parallel_plan = details::make_utf32_parallel_plan(0, 8);
+			assert(zero_parallel_plan.worker_count == 1);
+			assert(zero_parallel_plan.chunk_size == 0);
+			const auto below_threshold_count =
+				(details::runtime_parallel_min_total_bytes / sizeof(char32_t)) - 1;
+			[[maybe_unused]] const auto below_threshold_plan = details::make_utf32_parallel_plan(below_threshold_count, 8);
+			assert(below_threshold_plan.worker_count == 1);
+			assert(below_threshold_plan.chunk_size == below_threshold_count);
+			const auto threshold_count = details::runtime_parallel_min_total_bytes / sizeof(char32_t);
+			[[maybe_unused]] const auto threshold_plan = details::make_utf32_parallel_plan(threshold_count, 8);
+#if UINTPTR_MAX > 0xFFFFFFFFu
+			assert(threshold_plan.worker_count == 4);
+			assert(threshold_plan.chunk_size == threshold_count / 4);
+#else
+			assert(threshold_plan.worker_count == 2);
+			assert(threshold_plan.chunk_size == threshold_count / 2);
+#endif
+			[[maybe_unused]] const auto chunk_text = std::u32string_view{ U"abcdefghij", 10 };
+			[[maybe_unused]] const auto chunk_plan = details::utf32_parallel_plan{ 3, 4 };
+			[[maybe_unused]] const auto chunk0 = std::u32string_view{ U"abcd", 4 };
+			[[maybe_unused]] const auto chunk1 = std::u32string_view{ U"efgh", 4 };
+			[[maybe_unused]] const auto chunk2 = std::u32string_view{ U"ij", 2 };
+			assert(details::utf32_parallel_chunk(chunk_text, chunk_plan, 0) == chunk0);
+			assert(details::utf32_parallel_chunk(chunk_text, chunk_plan, 1) == chunk1);
+			assert(details::utf32_parallel_chunk(chunk_text, chunk_plan, 2) == chunk2);
+			assert(details::utf32_parallel_chunk(chunk_text, chunk_plan, 3).empty());
 			assert(details::nfc_quick_check_pass(u8"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf8_sv.base()));
 			assert(details::nfc_quick_check_pass(u"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf16_sv.base()));
 			assert(details::nfc_quick_check_pass(U"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf32_sv.base()));
@@ -2347,15 +2414,15 @@ inline void run_unicode_ranges_tests()
 			assert(!details::nfc_quick_check_pass(u"e\u0301"_utf16_sv.base()));
 			assert(!details::nfc_quick_check_pass(U"e\u0301"_utf32_sv.base()));
 			assert(!details::nfc_quick_check_pass(u8"a\u0315\u0300"_utf8_sv.base()));
-			constexpr auto utf8_bmp_lower = details::lookup_bmp_case_mapping<true>(0x00C4u);
-			static_assert(utf8_bmp_lower.same_size);
-			static_assert(utf8_bmp_lower.mapped == 0x00E4u);
-			constexpr auto utf8_bmp_upper = details::lookup_bmp_case_mapping<false>(0x03C9u);
-			static_assert(utf8_bmp_upper.same_size);
-			static_assert(utf8_bmp_upper.mapped == 0x03A9u);
-			constexpr auto utf8_bmp_fold = details::lookup_bmp_case_fold_mapping(0x03A9u);
-			static_assert(utf8_bmp_fold.same_size);
-			static_assert(utf8_bmp_fold.mapped == 0x03C9u);
+			[[maybe_unused]] const auto utf8_bmp_lower = details::lookup_bmp_case_mapping<true>(0x00C4u);
+			assert(utf8_bmp_lower.same_size);
+			assert(utf8_bmp_lower.mapped == 0x00E4u);
+			[[maybe_unused]] const auto utf8_bmp_upper = details::lookup_bmp_case_mapping<false>(0x03C9u);
+			assert(utf8_bmp_upper.same_size);
+			assert(utf8_bmp_upper.mapped == 0x03A9u);
+			[[maybe_unused]] const auto utf8_bmp_fold = details::lookup_bmp_case_fold_mapping(0x03A9u);
+			assert(utf8_bmp_fold.same_size);
+			assert(utf8_bmp_fold.mapped == 0x03C9u);
 			assert(u8"Straße"_utf8_sv.case_fold() == u8"strasse"_utf8_sv);
 			assert(u8"Straße"_utf8_sv.eq_ignore_case(u8"STRASSE"_utf8_sv));
 			assert(u8"Straße"_utf8_sv.starts_with_ignore_case(u8"stras"_utf8_sv));

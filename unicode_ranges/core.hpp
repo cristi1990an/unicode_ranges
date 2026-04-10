@@ -578,7 +578,7 @@ namespace details
 #else
 	// 32-bit runners have noticeably higher thread/setup pressure relative to the
 	// UTF-32 workloads we parallelize here, so they use a stricter activation policy.
-	inline constexpr std::size_t runtime_parallel_min_total_bytes = 4u << 20;
+	inline constexpr std::size_t runtime_parallel_min_total_bytes = 2u << 20;
 	inline constexpr std::size_t runtime_parallel_min_bytes_per_worker = 1u << 20;
 	inline constexpr std::size_t runtime_parallel_max_worker_count = 2;
 #endif
@@ -589,7 +589,9 @@ namespace details
 		std::size_t chunk_size = 0;
 	};
 
-	inline utf32_parallel_plan make_utf32_parallel_plan(std::size_t code_point_count) noexcept
+	inline constexpr utf32_parallel_plan make_utf32_parallel_plan(
+		std::size_t code_point_count,
+		std::size_t available_workers) noexcept
 	{
 		if (code_point_count == 0)
 		{
@@ -603,7 +605,7 @@ namespace details
 		}
 
 		// UTF-32 is fixed-width, so chunking by code-point index is always boundary-safe.
-		std::size_t worker_count = std::thread::hardware_concurrency();
+		std::size_t worker_count = available_workers;
 		if (worker_count < 2)
 		{
 			return { 1, code_point_count };
@@ -621,6 +623,11 @@ namespace details
 			worker_count,
 			(code_point_count + worker_count - 1) / worker_count
 		};
+	}
+
+	inline utf32_parallel_plan make_utf32_parallel_plan(std::size_t code_point_count) noexcept
+	{
+		return make_utf32_parallel_plan(code_point_count, std::thread::hardware_concurrency());
 	}
 
 	inline constexpr std::u32string_view utf32_parallel_chunk(
