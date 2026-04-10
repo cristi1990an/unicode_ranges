@@ -582,7 +582,7 @@ namespace details
 
 	inline utf32_parallel_plan make_utf32_parallel_plan(std::size_t code_point_count) noexcept
 	{
-		if (std::is_constant_evaluated() || code_point_count == 0)
+		if (code_point_count == 0)
 		{
 			return { 1, code_point_count };
 		}
