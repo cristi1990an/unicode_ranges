@@ -15,6 +15,12 @@
 using namespace unicode_ranges;
 using namespace unicode_ranges::literals;
 
+#if defined(_GLIBCXX_USE_CXX11_ABI) && _GLIBCXX_USE_CXX11_ABI == 0
+#define UTF8_RANGES_ENABLE_CONSTEXPR_STRINGS 0
+#else
+#define UTF8_RANGES_ENABLE_CONSTEXPR_STRINGS 1
+#endif
+
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 6262) // monolithic test aggregator; /analyze stack estimate is not actionable here
@@ -210,10 +216,17 @@ inline void run_unicode_ranges_tests()
 	static_assert(utf32_text.contains(U"\u00E9"_u32c));
 	static_assert(utf32_text.find(U"\u00E9"_u32c) == 1);
 	static_assert(utf32_text.rfind(U"\U0001F600"_u32c) == 2);
+#if UTF8_RANGES_ENABLE_CONSTEXPR_STRINGS
 	static_assert(utf32_text.replace_all(U"\u00E9"_u32c, U"!"_u32c) == U"A!\U0001F600"_utf32_sv);
 	static_assert(utf32_text.to_utf32_owned() == utf32_text);
 	static_assert(utf32_text.to_utf8() == u8"A\u00E9\U0001F600"_utf8_sv);
 	static_assert(utf32_text.to_utf16() == u"A\u00E9\U0001F600"_utf16_sv);
+#else
+	assert(utf32_text.replace_all(U"\u00E9"_u32c, U"!"_u32c) == U"A!\U0001F600"_utf32_sv);
+	assert(utf32_text.to_utf32_owned() == utf32_text);
+	assert(utf32_text.to_utf8() == u8"A\u00E9\U0001F600"_utf8_sv);
+	assert(utf32_text.to_utf16() == u"A\u00E9\U0001F600"_utf16_sv);
+#endif
 	static_assert(std::same_as<decltype(utf32_text.to_utf32_owned()), utf32_string>);
 	static_assert(std::same_as<decltype(utf32_text.to_utf8()), utf8_string>);
 	static_assert(std::same_as<decltype(utf32_text.to_utf16()), utf16_string>);
@@ -249,7 +262,11 @@ inline void run_unicode_ranges_tests()
 	static_assert(U"Stra\u00DFe"_utf32_sv.ends_with_ignore_case(U"SSE"_utf32_sv));
 	static_assert(U"Stra\u00DFe"_utf32_sv.compare_ignore_case(U"STRASSE"_utf32_sv) == std::weak_ordering::equivalent);
 	static_assert(!U"\u00E9"_utf32_sv.eq_ignore_case(U"e\u0301"_utf32_sv));
+#if UTF8_RANGES_ENABLE_CONSTEXPR_STRINGS
 	static_assert(U"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf32_sv.to_nfc() == U"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf32_sv);
+#else
+	assert(U"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf32_sv.to_nfc() == U"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf32_sv);
+#endif
 
 	static_assert(std::ranges::view<decltype(utf8_text.chars())>);
 	static_assert(std::ranges::range<decltype(utf8_text.chars())>);
@@ -902,7 +919,11 @@ inline void run_unicode_ranges_tests()
 		});
 	}());
 	static_assert(u8"e\u0301"_grapheme_utf8 == u8"e\u0301"_utf8_sv);
+#if UTF8_RANGES_ENABLE_CONSTEXPR_STRINGS
 	static_assert(u8"Aé😀"_utf8_sv.to_utf16() == u"Aé😀"_utf16_sv);
+#else
+	assert(u8"Aé😀"_utf8_sv.to_utf16() == u"Aé😀"_utf16_sv);
+#endif
 	static_assert([] {
 		constexpr auto text = u8"Aé€"_utf8_sv;
 		auto it = text.char_indices().begin();
@@ -1351,7 +1372,11 @@ inline void run_unicode_ranges_tests()
 		});
 	}());
 	static_assert(u"e\u0301"_grapheme_utf16 == u"e\u0301"_utf16_sv);
+#if UTF8_RANGES_ENABLE_CONSTEXPR_STRINGS
 	static_assert(u"Aé😀"_utf16_sv.to_utf8() == u8"Aé😀"_utf8_sv);
+#else
+	assert(u"Aé😀"_utf16_sv.to_utf8() == u8"Aé😀"_utf8_sv);
+#endif
 	static_assert([] {
 		constexpr auto text = u"Aé😀"_utf16_sv;
 		auto it = text.char_indices().begin();
@@ -1676,12 +1701,21 @@ inline void run_unicode_ranges_tests()
 			&& text.grapheme_substr(2).value() == u"🇷🇴!"_utf16_sv
 			&& !text.grapheme_substr(1, 2).has_value();
 	}());
+#if UTF8_RANGES_ENABLE_CONSTEXPR_STRINGS
 	static_assert(u8"\u00E9"_utf8_sv.to_nfd() == u8"e\u0301"_utf8_sv);
 	static_assert(u8"e\u0301"_utf8_sv.to_nfc() == u8"\u00E9"_utf8_sv);
 	static_assert(u8"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf8_sv.to_nfc() == u8"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf8_sv);
 	static_assert(u8"\uFF21"_utf8_sv.to_nfkc() == u8"A"_utf8_sv);
 	static_assert(u8"\u00E9"_utf8_sv.is_nfc());
 	static_assert(u8"e\u0301"_utf8_sv.is_nfd());
+#else
+	assert(u8"\u00E9"_utf8_sv.to_nfd() == u8"e\u0301"_utf8_sv);
+	assert(u8"e\u0301"_utf8_sv.to_nfc() == u8"\u00E9"_utf8_sv);
+	assert(u8"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf8_sv.to_nfc() == u8"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf8_sv);
+	assert(u8"\uFF21"_utf8_sv.to_nfkc() == u8"A"_utf8_sv);
+	assert(u8"\u00E9"_utf8_sv.is_nfc());
+	assert(u8"e\u0301"_utf8_sv.is_nfd());
+#endif
 	static_assert(details::unicode::is_nfc_quick_check_non_yes(0x0301u));
 	static_assert(!details::unicode::is_nfc_quick_check_non_yes(0x00E9u));
 #if UINTPTR_MAX > 0xFFFFFFFFu
@@ -1736,7 +1770,12 @@ inline void run_unicode_ranges_tests()
 	static_assert(details::lookup_bmp_case_mapping<false>(0x03C9u).mapped == 0x03A9u);
 	static_assert(details::lookup_bmp_case_fold_mapping(0x03A9u).same_size);
 	static_assert(details::lookup_bmp_case_fold_mapping(0x03A9u).mapped == 0x03C9u);
+#if UTF8_RANGES_ENABLE_CONSTEXPR_STRINGS
+#if UTF8_RANGES_ENABLE_CONSTEXPR_STRINGS
 	static_assert(u8"Straße"_utf8_sv.case_fold() == u8"strasse"_utf8_sv);
+#else
+	assert(u8"StraÃŸe"_utf8_sv.case_fold() == u8"strasse"_utf8_sv);
+#endif
 	static_assert(std::same_as<decltype(u8""_utf8_sv.compare_ignore_case(u8""_utf8_sv)), std::weak_ordering>);
 	static_assert(u8"Straße"_utf8_sv.eq_ignore_case(u8"STRASSE"_utf8_sv));
 	static_assert(u8"Straße"_utf8_sv.starts_with_ignore_case(u8"stras"_utf8_sv));
@@ -1745,6 +1784,7 @@ inline void run_unicode_ranges_tests()
 	static_assert(u8"Cafe"_utf8_sv.compare_ignore_case(u8"cafg"_utf8_sv) == std::weak_ordering::less);
 	static_assert(!u8"\u00E9"_utf8_sv.eq_ignore_case(u8"e\u0301"_utf8_sv));
 	static_assert(u8"\u00E9"_utf8_sv.compare_ignore_case(u8"e\u0301"_utf8_sv) == std::weak_ordering::greater);
+#if UTF8_RANGES_ENABLE_CONSTEXPR_STRINGS
 	static_assert(u"\u00E9"_utf16_sv.to_nfd() == u"e\u0301"_utf16_sv);
 	static_assert(u"e\u0301"_utf16_sv.to_nfc() == u"\u00E9"_utf16_sv);
 	static_assert(u"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf16_sv.to_nfc() == u"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf16_sv);
@@ -1752,6 +1792,15 @@ inline void run_unicode_ranges_tests()
 	static_assert(u"\u00E9"_utf16_sv.is_nfc());
 	static_assert(u"e\u0301"_utf16_sv.is_nfd());
 	static_assert(u"Straße"_utf16_sv.case_fold() == u"strasse"_utf16_sv);
+#else
+	assert(u"\u00E9"_utf16_sv.to_nfd() == u"e\u0301"_utf16_sv);
+	assert(u"e\u0301"_utf16_sv.to_nfc() == u"\u00E9"_utf16_sv);
+	assert(u"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf16_sv.to_nfc() == u"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf16_sv);
+	assert(u"\uFF21"_utf16_sv.to_nfkc() == u"A"_utf16_sv);
+	assert(u"\u00E9"_utf16_sv.is_nfc());
+	assert(u"e\u0301"_utf16_sv.is_nfd());
+	assert(u"StraÃŸe"_utf16_sv.case_fold() == u"strasse"_utf16_sv);
+#endif
 	static_assert(std::same_as<decltype(u""_utf16_sv.compare_ignore_case(u""_utf16_sv)), std::weak_ordering>);
 	static_assert(u"Straße"_utf16_sv.eq_ignore_case(u"STRASSE"_utf16_sv));
 	static_assert(u"Straße"_utf16_sv.starts_with_ignore_case(u"stras"_utf16_sv));
@@ -1760,6 +1809,7 @@ inline void run_unicode_ranges_tests()
 	static_assert(u"Cafe"_utf16_sv.compare_ignore_case(u"cafg"_utf16_sv) == std::weak_ordering::less);
 	static_assert(!u"\u00E9"_utf16_sv.eq_ignore_case(u"e\u0301"_utf16_sv));
 	static_assert(u"\u00E9"_utf16_sv.compare_ignore_case(u"e\u0301"_utf16_sv) == std::weak_ordering::greater);
+#endif
 
 	// utf8_char scalar stepping and UTF-16 encoding edge cases.
 	static_assert([] {
@@ -4548,11 +4598,19 @@ static_assert(std::same_as<decltype(utf8_string{}.reverse()), utf8_string&>);
 static_assert(std::same_as<decltype(utf8_string{}.reverse_graphemes()), utf8_string&>);
 static_assert(noexcept(utf8_string{}.reverse()));
 static_assert(noexcept(utf8_string{}.reverse_graphemes()));
+#if UTF8_RANGES_ENABLE_CONSTEXPR_STRINGS
 static_assert([] {
 	auto s = u8"e\u0301\U0001F1F7\U0001F1F4!"_utf8_s;
 	s.reverse_graphemes();
 	return s == u8"!\U0001F1F7\U0001F1F4e\u0301"_utf8_sv;
 }());
+#else
+{
+	auto s = u8"e\u0301\U0001F1F7\U0001F1F4!"_utf8_s;
+	s.reverse_graphemes();
+	assert(s == u8"!\U0001F1F7\U0001F1F4e\u0301"_utf8_sv);
+}
+#endif
 	{
 		auto bytes = std::u8string{ u8"A\u00E9\U0001F600" };
 		const auto result = utf8_string::from_bytes(std::move(bytes));
@@ -4767,11 +4825,19 @@ static_assert(std::same_as<decltype(utf16_string{}.reverse()), utf16_string&>);
 static_assert(std::same_as<decltype(utf16_string{}.reverse_graphemes()), utf16_string&>);
 static_assert(noexcept(utf16_string{}.reverse()));
 static_assert(noexcept(utf16_string{}.reverse_graphemes()));
+#if UTF8_RANGES_ENABLE_CONSTEXPR_STRINGS
 static_assert([] {
 	auto s = u"e\u0301\U0001F1F7\U0001F1F4!"_utf16_s;
 	s.reverse_graphemes();
 	return s == u"!\U0001F1F7\U0001F1F4e\u0301"_utf16_sv;
 }());
+#else
+{
+	auto s = u"e\u0301\U0001F1F7\U0001F1F4!"_utf16_s;
+	s.reverse_graphemes();
+	assert(s == u"!\U0001F1F7\U0001F1F4e\u0301"_utf16_sv);
+}
+#endif
 	assert(u"Aé😀"_utf16_s == utf16_text);
 	assert(utf16_string{ utf16_text } == u"Aé😀"_utf16_s);
 	assert((utf16_string{ u8"Aé😀"_utf8_sv } == u"Aé😀"_utf16_sv));
