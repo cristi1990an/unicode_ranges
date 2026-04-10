@@ -287,6 +287,19 @@ jobs:
             asan_options: ""
             ubsan_options: ""
             tsan_options: "halt_on_error=1"
+          - name: GCC (old ABI)
+            install_kind: gcc
+            packages: g++-14
+            cxx: g++-14
+            cxxflags: "-pthread -D_GLIBCXX_USE_CXX11_ABI=0"
+            output: unicode_ranges_gcc_o2_oldabi
+            opt_name: O2
+            opt_flags: "-O2"
+            sanitizer_name: ""
+            sanitizer_flags: ""
+            asan_options: ""
+            ubsan_options: ""
+            tsan_options: ""
 
     steps:
       - name: Checkout
@@ -324,6 +337,11 @@ jobs:
             ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 source.cpp -o "$output"
             "./$output"
             if [ -n "${{ matrix.sanitizer_flags }}" ]; then
+              forced_output="${output}_forced_parallel"
+              ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 source.cpp -o "$forced_output"
+              "./$forced_output"
+            fi
+            if [ "${{ matrix.sanitizer_name }}" = ", TSan" ]; then
               forced_output="${output}_forced_parallel"
               ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 source.cpp -o "$forced_output"
               "./$forced_output"

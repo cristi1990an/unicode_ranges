@@ -623,9 +623,27 @@ namespace unicode_ranges
 			// and either emit serially or split the final buffer into parallel slices.
 			case_map_measurement result{};
 			case_fold_scalar_buffer mapping{};
-			for (std::size_t index = 0; index < code_points.size();)
+			const auto* data = code_points.data();
+			const auto size = code_points.size();
+			std::size_t index = 0;
+			for (; index < size; ++index)
 			{
-				const auto remaining = std::u32string_view{ code_points.data() + index, code_points.size() - index };
+				const auto scalar = static_cast<std::uint32_t>(data[index]);
+				if (scalar > encoding_constants::bmp_scalar_max)
+				{
+					break;
+				}
+				const auto bmp_mapping = lookup_bmp_case_fold_mapping(scalar);
+				const auto mapped = bmp_mapping.same_size ? bmp_mapping.mapped : scalar;
+				result.changed = result.changed || (mapped != scalar);
+			}
+			if (index != 0)
+			{
+				result.output_size += index;
+			}
+			for (; index < size;)
+			{
+				const auto remaining = std::u32string_view{ data + index, size - index };
 				const auto ascii_run = ascii_prefix_length(remaining);
 				if (ascii_run != 0)
 				{
@@ -653,9 +671,22 @@ namespace unicode_ranges
 				// directly to the destination without any encoding-size bookkeeping.
 				std::size_t write_index = 0;
 				case_fold_scalar_buffer mapping{};
-			for (std::size_t index = 0; index < code_points.size();)
+			const auto* data = code_points.data();
+			const auto size = code_points.size();
+			std::size_t index = 0;
+			for (; index < size; ++index)
 			{
-				const auto remaining = std::u32string_view{ code_points.data() + index, code_points.size() - index };
+				const auto scalar = static_cast<std::uint32_t>(data[index]);
+				if (scalar > encoding_constants::bmp_scalar_max)
+				{
+					break;
+				}
+				const auto bmp_mapping = lookup_bmp_case_fold_mapping(scalar);
+				buffer[write_index++] = static_cast<char32_t>(bmp_mapping.same_size ? bmp_mapping.mapped : scalar);
+			}
+			for (; index < size;)
+			{
+				const auto remaining = std::u32string_view{ data + index, size - index };
 				const auto ascii_run = ascii_prefix_length(remaining);
 				if (ascii_run != 0)
 				{
@@ -697,9 +728,28 @@ namespace unicode_ranges
 					[&](char32_t* buffer, std::size_t) noexcept
 					{
 						std::size_t write_index = 0;
-						for (std::size_t index = 0; index < code_points.size();)
+						const auto* data = code_points.data();
+						const auto size = code_points.size();
+						std::size_t index = 0;
+						for (; index < size; ++index)
 						{
-							const auto remaining = std::u32string_view{ code_points.data() + index, code_points.size() - index };
+							const auto scalar = static_cast<std::uint32_t>(data[index]);
+							if (scalar > encoding_constants::bmp_scalar_max)
+							{
+								break;
+							}
+							const auto bmp_mapping = lookup_bmp_case_fold_mapping(scalar);
+							if (!bmp_mapping.same_size)
+							{
+								same_size = false;
+								return write_index;
+							}
+							changed = changed || bmp_mapping.mapped != scalar;
+							buffer[write_index++] = static_cast<char32_t>(bmp_mapping.mapped);
+						}
+						for (; index < size;)
+						{
+							const auto remaining = std::u32string_view{ data + index, size - index };
 							const auto ascii_run = ascii_prefix_length(remaining);
 							if (ascii_run != 0)
 							{
