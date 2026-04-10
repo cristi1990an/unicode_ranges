@@ -67,6 +67,10 @@ $files = @(
     @{
         Uri = "https://www.unicode.org/Public/$Version/ucd/DerivedCoreProperties.txt"
         Path = Join-Path $ucdRoot "DerivedCoreProperties.txt"
+    },
+    @{
+        Uri = "https://www.unicode.org/Public/$Version/ucd/DerivedNormalizationProps.txt"
+        Path = Join-Path $ucdRoot "DerivedNormalizationProps.txt"
     }
 )
 

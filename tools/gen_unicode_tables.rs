@@ -127,6 +127,12 @@ struct PropertyValueRangeRecord {
     value: String,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct BmpCaseMappingEntry {
+    mapped: u16,
+    same_size: bool,
+}
+
 fn collect_ranges<F: Fn(char) -> bool>(pred: F) -> Vec<Range> {
     let mut ranges = Vec::new();
     let mut start: Option<u32> = None;
@@ -1004,6 +1010,12 @@ fn emit_case_mapping_support(max_length: usize) {
     println!("    return result;");
     println!("}}");
     println!();
+    println!("struct unicode_bmp_case_mapping");
+    println!("{{");
+    println!("    char16_t mapped;");
+    println!("    bool same_size;");
+    println!("}};");
+    println!();
 }
 
 fn emit_simple_case_mappings(name: &str, mappings: &[SimpleCaseMappingRecord]) {
@@ -1045,6 +1057,119 @@ fn emit_special_case_mappings(name: &str, mappings: &[CaseMappingRecord], max_le
         println!(" }} }},");
     }
     println!("}}}};");
+    println!();
+}
+
+fn collect_bmp_case_mapping_entries(mappings: &[CaseMappingRecord]) -> Vec<BmpCaseMappingEntry> {
+    let mut entries = (0u32..=0xFFFF)
+        .map(|scalar| BmpCaseMappingEntry {
+            mapped: scalar as u16,
+            same_size: true,
+        })
+        .collect::<Vec<_>>();
+
+    for mapping in mappings {
+        if mapping.source > 0xFFFF {
+            continue;
+        }
+
+        let source = mapping.source as usize;
+        if mapping.mapped.len() == 1 && mapping.mapped[0] <= 0xFFFF {
+            entries[source] = BmpCaseMappingEntry {
+                mapped: mapping.mapped[0] as u16,
+                same_size: true,
+            };
+        } else {
+            entries[source] = BmpCaseMappingEntry {
+                mapped: mapping.source as u16,
+                same_size: false,
+            };
+        }
+    }
+
+    entries
+}
+
+fn emit_bmp_case_mapping_table(name: &str, mappings: &[CaseMappingRecord]) {
+    let entries = collect_bmp_case_mapping_entries(mappings);
+    let mut page_index = [u16::MAX; 0x100];
+    let mut pages = Vec::<Vec<BmpCaseMappingEntry>>::new();
+
+    for page in 0usize..0x100 {
+        let base = page * 0x100;
+        let page_entries = &entries[base..base + 0x100];
+        let has_non_default = page_entries.iter().enumerate().any(|(offset, entry)| {
+            entry.mapped != (base + offset) as u16 || !entry.same_size
+        });
+        if has_non_default {
+            page_index[page] = pages.len() as u16;
+            pages.push(page_entries.to_vec());
+        }
+    }
+
+    println!(
+        "inline constexpr std::array<std::uint16_t, 0x100> {name}_page_index{{{{"
+    );
+    for chunk in page_index.chunks(8) {
+        print!("    ");
+        for (index, value) in chunk.iter().enumerate() {
+            if index != 0 {
+                print!(", ");
+            }
+
+            if *value == u16::MAX {
+                print!("0xFFFFu");
+            } else {
+                print!("{value}u");
+            }
+        }
+        println!(",");
+    }
+    println!("}}}};");
+    println!();
+
+    println!(
+        "inline constexpr std::array<std::array<unicode_bmp_case_mapping, 0x100>, {}> {name}_pages{{{{",
+        pages.len()
+    );
+    for page in &pages {
+        println!("    {{{{");
+        for chunk in page.chunks(4) {
+            print!("        ");
+            for (index, entry) in chunk.iter().enumerate() {
+                if index != 0 {
+                    print!(", ");
+                }
+
+                print!(
+                    "{{ static_cast<char16_t>(0x{:04X}u), {} }}",
+                    entry.mapped,
+                    if entry.same_size { "true" } else { "false" }
+                );
+            }
+            println!(",");
+        }
+        println!("    }}}},");
+    }
+    println!("}}}};");
+    println!();
+
+    println!("constexpr unicode_bmp_case_mapping {name}(std::uint32_t scalar) noexcept");
+    println!("{{");
+    println!("    if (scalar > 0xFFFFu)");
+    println!("    {{");
+    println!("        return unicode_bmp_case_mapping{{ 0, false }};");
+    println!("    }}");
+    println!();
+    println!("    const auto page = static_cast<std::size_t>(scalar >> 8);");
+    println!("    const auto page_index = {name}_page_index[page];");
+    println!("    if (page_index == 0xFFFFu)");
+    println!("    {{");
+    println!("        return unicode_bmp_case_mapping{{ static_cast<char16_t>(scalar), true }};");
+    println!("    }}");
+    println!();
+    println!("    return {name}_pages[page_index][scalar & 0xFFu];");
+    println!("}}");
     println!();
 }
 
@@ -1434,6 +1559,21 @@ fn emit_bool_lookup(name: &str, ranges_name: &str) {
     println!();
 }
 
+fn emit_bool_lookup_paged(name: &str, ranges_name: &str) {
+    println!("inline constexpr auto {ranges_name}_page_slices =");
+    println!("    make_overlapping_range_page_slices({ranges_name});");
+    println!();
+    println!("constexpr bool {name}(std::uint32_t scalar) noexcept");
+    println!("{{");
+    println!("    return find_overlapping_range_index_paged(");
+    println!("        scalar,");
+    println!("        {ranges_name},");
+    println!("        {ranges_name}.size(),");
+    println!("        {ranges_name}_page_slices) != {ranges_name}.size();");
+    println!("}}");
+    println!();
+}
+
 fn emit_enum(name: &str, variants: &[&str]) {
     println!("enum class {name}");
     println!("{{");
@@ -1642,6 +1782,25 @@ fn collect_named_ranges(records: &[PropertyRecord], names: &[&str]) -> BTreeMap<
     ranges
 }
 
+fn merge_ranges(records: impl IntoIterator<Item = Range>) -> Vec<Range> {
+    let mut sorted: Vec<Range> = records.into_iter().collect();
+    sorted.sort_unstable_by_key(|&(first, last)| (first, last));
+
+    let mut merged = Vec::<Range>::new();
+    for (first, last) in sorted {
+        if let Some(previous) = merged.last_mut() {
+            if previous.1 + 1 >= first {
+                previous.1 = previous.1.max(last);
+                continue;
+            }
+        }
+
+        merged.push((first, last));
+    }
+
+    merged
+}
+
 fn merge_property_value_ranges(
     records: impl IntoIterator<Item = PropertyValueRangeRecord>,
 ) -> Vec<PropertyValueRangeRecord> {
@@ -1693,6 +1852,47 @@ fn collect_property_value_ranges(path: &Path) -> io::Result<Vec<PropertyValueRan
             value,
         }
     })))
+}
+
+fn collect_non_yes_normalization_quick_check_ranges(
+    path: &Path,
+    property_name: &str,
+) -> io::Result<Vec<Range>> {
+    let records = parse_property_file(path)?;
+    let mut ranges = Vec::new();
+
+    for record in records {
+        let value = match record.fields.as_slice() {
+            [property, value]
+                if property == property_name
+                    || property == "NFC_QC"
+                    || property == "NFC_Quick_Check" =>
+            {
+                Some(value.as_str())
+            }
+            [field] => field
+                .split_once('=')
+                .and_then(|(property, value)| {
+                    if property.trim() == property_name
+                        || property.trim() == "NFC_QC"
+                        || property.trim() == "NFC_Quick_Check"
+                    {
+                        Some(value.trim())
+                    } else {
+                        None
+                    }
+                }),
+            _ => None,
+        };
+
+        if let Some(value) = value {
+            if value != "Y" {
+                ranges.push((record.first, record.last));
+            }
+        }
+    }
+
+    Ok(merge_ranges(ranges))
 }
 
 fn collect_enum_variants(
@@ -1815,6 +2015,10 @@ fn main() -> io::Result<()> {
         collect_unicode_data_property_ranges(&unicode_data, |record| &record.general_category);
     let canonical_combining_class_ranges =
         collect_canonical_combining_class_ranges(&unicode_data);
+    let nfc_quick_check_non_yes_ranges = collect_non_yes_normalization_quick_check_ranges(
+        &data_root.join("ucd").join("DerivedNormalizationProps.txt"),
+        "NFC_QC",
+    )?;
     let script_ranges = collect_property_value_ranges(&data_root.join("ucd").join("Scripts.txt"))?;
     let east_asian_width_ranges =
         collect_property_value_ranges(&data_root.join("ucd").join("EastAsianWidth.txt"))?;
@@ -2063,12 +2267,19 @@ fn main() -> io::Result<()> {
         &decomposition_mappings,
         unicode_decomposition_max_length,
     );
+    emit_ranges(
+        "nfc_quick_check_non_yes_ranges",
+        &nfc_quick_check_non_yes_ranges,
+    );
     emit_composition_mappings("composition_mappings", &composition_mappings);
     emit_canonical_combining_class_ranges(
         "canonical_combining_class_ranges",
         &canonical_combining_class_ranges,
     );
     emit_grapheme_property_ranges("grapheme_properties_ranges", &grapheme_properties_ranges);
+    emit_bmp_case_mapping_table("lowercase_bmp_case_mapping", &lowercase_mappings);
+    emit_bmp_case_mapping_table("uppercase_bmp_case_mapping", &uppercase_mappings);
+    emit_bmp_case_mapping_table("case_fold_bmp_case_mapping", &case_fold_mappings);
 
     emit_bool_lookup("is_alphabetic", "alphabetic_ranges");
     emit_bool_lookup("is_lowercase", "lowercase_ranges");
@@ -2181,6 +2392,10 @@ fn main() -> io::Result<()> {
     emit_canonical_combining_class_lookup(
         "canonical_combining_class",
         "canonical_combining_class_ranges",
+    );
+    emit_bool_lookup_paged(
+        "is_nfc_quick_check_non_yes",
+        "nfc_quick_check_non_yes_ranges",
     );
     emit_grapheme_property_lookup("grapheme_properties", "grapheme_properties_ranges");
     println!("constexpr grapheme_cluster_break_property grapheme_cluster_break(std::uint32_t scalar) noexcept");

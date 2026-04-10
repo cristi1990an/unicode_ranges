@@ -509,6 +509,22 @@ public:
 	template <details::container_compatible_range<utf32_char> R>
 	constexpr basic_utf32_string& append_range(R&& rg)
 	{
+		if constexpr (details::contiguous_sized_range_of<R, utf32_char>)
+		{
+			const auto* chars = std::ranges::data(rg);
+			const auto count = static_cast<size_type>(std::ranges::size(rg));
+			const auto appended_size = static_cast<size_type>(
+				details::utf32_char_sequence_code_unit_count(chars, count));
+			const auto old_size = base_.size();
+			base_.resize_and_overwrite(old_size + appended_size,
+				[&](char32_t* buffer, std::size_t) noexcept
+				{
+					details::copy_utf32_char_sequence(chars, count, buffer + old_size);
+					return old_size + appended_size;
+				});
+			return *this;
+		}
+
 		if constexpr (std::ranges::sized_range<R>)
 		{
 			const auto upper_bound = static_cast<size_type>(std::ranges::size(rg))
@@ -572,6 +588,21 @@ public:
 	template <details::container_compatible_range<utf32_char> R>
 	constexpr basic_utf32_string& assign_range(R&& rg)
 	{
+		if constexpr (details::contiguous_sized_range_of<R, utf32_char>)
+		{
+			const auto* chars = std::ranges::data(rg);
+			const auto count = static_cast<size_type>(std::ranges::size(rg));
+			const auto replacement_size = static_cast<size_type>(
+				details::utf32_char_sequence_code_unit_count(chars, count));
+			base_.resize_and_overwrite(replacement_size,
+				[&](char32_t* buffer, std::size_t) noexcept
+				{
+					details::copy_utf32_char_sequence(chars, count, buffer);
+					return replacement_size;
+				});
+			return *this;
+		}
+
 		base_type replacement{ base_.get_allocator() };
 		if constexpr (std::ranges::sized_range<R>)
 		{

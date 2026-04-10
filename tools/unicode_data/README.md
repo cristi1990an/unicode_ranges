@@ -15,6 +15,7 @@ Expected layout for version `17.0.0`:
 - `tools/unicode_data/17.0.0/ucd/auxiliary/GraphemeBreakTest.txt`
 - `tools/unicode_data/17.0.0/ucd/emoji/emoji-data.txt`
 - `tools/unicode_data/17.0.0/ucd/DerivedCoreProperties.txt`
+- `tools/unicode_data/17.0.0/ucd/DerivedNormalizationProps.txt`
 
 You can populate that tree with:
 

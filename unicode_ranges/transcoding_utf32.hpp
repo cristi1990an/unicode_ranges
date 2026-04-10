@@ -151,6 +151,18 @@ namespace unicode_ranges
 					continue;
 				}
 				const auto decoded = decode_next_scalar(code_points, index);
+				if (decoded.scalar <= encoding_constants::bmp_scalar_max)
+				{
+					const auto bmp_mapping = lookup_bmp_case_mapping<Lowercase>(decoded.scalar);
+					if (bmp_mapping.same_size)
+					{
+						result.changed = result.changed || (bmp_mapping.mapped != decoded.scalar);
+						++result.output_size;
+						index = decoded.next_index;
+						continue;
+					}
+				}
+
 				const auto mapping = lookup_case_mapping<Lowercase>(decoded.scalar);
 				if (mapping.has_simple)
 				{
@@ -274,6 +286,17 @@ namespace unicode_ranges
 					continue;
 				}
 				const auto decoded = decode_next_scalar(code_points, index);
+				if (decoded.scalar <= encoding_constants::bmp_scalar_max)
+				{
+					const auto bmp_mapping = lookup_bmp_case_mapping<Lowercase>(decoded.scalar);
+					if (bmp_mapping.same_size)
+					{
+						buffer[write_index++] = static_cast<char32_t>(bmp_mapping.mapped);
+						index = decoded.next_index;
+						continue;
+					}
+				}
+
 				const auto mapping = lookup_case_mapping<Lowercase>(decoded.scalar);
 				if (mapping.has_simple)
 				{
@@ -341,6 +364,18 @@ namespace unicode_ranges
 					continue;
 				}
 				const auto decoded = decode_next_scalar(code_points, index);
+				if (decoded.scalar <= encoding_constants::bmp_scalar_max)
+				{
+					const auto bmp_mapping = lookup_bmp_case_fold_mapping(decoded.scalar);
+					if (bmp_mapping.same_size)
+					{
+						result.changed = result.changed || (bmp_mapping.mapped != decoded.scalar);
+						++result.output_size;
+						index = decoded.next_index;
+						continue;
+					}
+				}
+
 				const auto mapping = lookup_case_fold_mapping(decoded.scalar);
 				if (mapping.has_simple)
 				{
@@ -376,6 +411,17 @@ namespace unicode_ranges
 					continue;
 				}
 				const auto decoded = decode_next_scalar(code_points, index);
+				if (decoded.scalar <= encoding_constants::bmp_scalar_max)
+				{
+					const auto bmp_mapping = lookup_bmp_case_fold_mapping(decoded.scalar);
+					if (bmp_mapping.same_size)
+					{
+						buffer[write_index++] = static_cast<char32_t>(bmp_mapping.mapped);
+						index = decoded.next_index;
+						continue;
+					}
+				}
+
 				const auto mapping = lookup_case_fold_mapping(decoded.scalar);
 				if (mapping.has_simple)
 				{
@@ -423,6 +469,24 @@ namespace unicode_ranges
 
 							const auto decoded = decode_next_scalar(code_points, index);
 							const auto input_size = decoded.next_index - index;
+							if (decoded.scalar <= encoding_constants::bmp_scalar_max)
+							{
+								const auto bmp_mapping = lookup_bmp_case_fold_mapping(decoded.scalar);
+								if (bmp_mapping.same_size)
+								{
+									if (unicode_scalar_utf32_size(bmp_mapping.mapped) != input_size)
+									{
+										same_size = false;
+										return write_index;
+									}
+
+									changed = changed || (bmp_mapping.mapped != decoded.scalar);
+									buffer[write_index++] = static_cast<char32_t>(bmp_mapping.mapped);
+									index = decoded.next_index;
+									continue;
+								}
+							}
+
 							const auto mapping = lookup_case_fold_mapping(decoded.scalar);
 							if (mapping.has_special())
 							{

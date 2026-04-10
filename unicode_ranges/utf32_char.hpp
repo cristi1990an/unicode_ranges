@@ -12,6 +12,10 @@ namespace details
 {
 	[[nodiscard]]
 	constexpr std::u32string_view utf32_char_view(const utf32_char& ch) noexcept;
+
+	constexpr std::size_t utf32_char_sequence_code_unit_count(const utf32_char* chars, std::size_t count) noexcept;
+
+	constexpr char32_t* copy_utf32_char_sequence(const utf32_char* chars, std::size_t count, char32_t* out) noexcept;
 }
 
 struct utf32_char
@@ -470,6 +474,8 @@ public:
 
 private:
 	friend constexpr std::u32string_view details::utf32_char_view(const utf32_char& ch) noexcept;
+	friend constexpr std::size_t details::utf32_char_sequence_code_unit_count(const utf32_char* chars, std::size_t count) noexcept;
+	friend constexpr char32_t* details::copy_utf32_char_sequence(const utf32_char* chars, std::size_t count, char32_t* out) noexcept;
 
 	[[nodiscard]]
 	constexpr std::u32string_view as_view() const noexcept
@@ -545,6 +551,27 @@ namespace details
 	inline constexpr std::u32string_view utf32_char_view(const utf32_char& ch) noexcept
 	{
 		return ch.as_view();
+	}
+
+	inline constexpr std::size_t utf32_char_sequence_code_unit_count(
+		const utf32_char* chars,
+		std::size_t count) noexcept
+	{
+		(void)chars;
+		return count;
+	}
+
+	inline constexpr char32_t* copy_utf32_char_sequence(
+		const utf32_char* chars,
+		std::size_t count,
+		char32_t* out) noexcept
+	{
+		for (std::size_t index = 0; index != count; ++index)
+		{
+			*out++ = chars[index].code_points_[0];
+		}
+
+		return out;
 	}
 }
 

@@ -259,28 +259,30 @@ namespace unicode_ranges
 	template <typename InputView>
 	constexpr bool nfc_quick_check_pass(InputView input) noexcept
 	{
+		std::uint8_t previous_combining_class = 0;
 		for (std::size_t index = 0; index < input.size();)
 		{
 			const auto decoded = decode_next_scalar(input, index);
 			const auto scalar = decoded.scalar;
-			if (scalar >= 0x80u)
+			if (scalar < 0x80u)
 			{
-				if (unicode::canonical_combining_class(scalar) != 0)
-				{
-					return false;
-				}
-
-				const auto mapping_index = unicode::decomposition_mapping_index(scalar);
-				if (mapping_index != unicode::decomposition_mappings.size())
-				{
-					const auto& mapping = unicode::decomposition_mapping_at(mapping_index);
-					if (!mapping.compatibility)
-					{
-						return false;
-					}
-				}
+				previous_combining_class = 0;
+				index = decoded.next_index;
+				continue;
 			}
 
+			if (unicode::is_nfc_quick_check_non_yes(scalar))
+			{
+				return false;
+			}
+
+			const auto combining_class = unicode::canonical_combining_class(scalar);
+			if (combining_class != 0 && previous_combining_class > combining_class)
+			{
+				return false;
+			}
+
+			previous_combining_class = combining_class;
 			index = decoded.next_index;
 		}
 
@@ -759,66 +761,51 @@ namespace unicode_ranges
 		};
 	}
 
-	struct utf16_uppercase_bmp_entry
+	struct bmp_case_mapping_lookup_result
 	{
-		char16_t mapped = 0;
-		bool same_size = true;
+		std::uint32_t mapped = 0;
+		bool same_size = false;
 	};
 
-	inline constexpr auto utf16_uppercase_bmp_table = []() noexcept
+	template <bool Lowercase>
+	inline constexpr bmp_case_mapping_lookup_result lookup_bmp_case_mapping(std::uint32_t scalar) noexcept
 	{
-		std::array<utf16_uppercase_bmp_entry, 0x0400> table{};
-		for (std::size_t index = 0; index != table.size(); ++index)
+		if (scalar > encoding_constants::bmp_scalar_max)
 		{
-			const auto scalar = static_cast<std::uint32_t>(index);
-			const auto mapping = lookup_case_mapping<false>(scalar);
-			if (mapping.has_special())
-			{
-				const auto& special = case_special_mapping_from_index<false>(mapping.special_index);
-				if (special.count == 1 && unicode_scalar_utf16_size(special.mapped[0]) == 1u)
-				{
-					table[index] = utf16_uppercase_bmp_entry{
-						static_cast<char16_t>(special.mapped[0]),
-						true
-					};
-				}
-				else
-				{
-					table[index] = utf16_uppercase_bmp_entry{
-						static_cast<char16_t>(scalar),
-						false
-					};
-				}
-				continue;
-			}
-
-			if (mapping.has_simple)
-			{
-				if (unicode_scalar_utf16_size(mapping.simple_mapped) == 1u)
-				{
-					table[index] = utf16_uppercase_bmp_entry{
-						static_cast<char16_t>(mapping.simple_mapped),
-						true
-					};
-				}
-				else
-				{
-					table[index] = utf16_uppercase_bmp_entry{
-						static_cast<char16_t>(scalar),
-						false
-					};
-				}
-				continue;
-			}
-
-			table[index] = utf16_uppercase_bmp_entry{
-				static_cast<char16_t>(scalar),
-				true
-			};
+			return {};
 		}
 
-		return table;
-	}();
+		if constexpr (Lowercase)
+		{
+			const auto mapping = unicode::lowercase_bmp_case_mapping(scalar);
+			return bmp_case_mapping_lookup_result{
+				static_cast<std::uint32_t>(mapping.mapped),
+				mapping.same_size
+			};
+		}
+		else
+		{
+			const auto mapping = unicode::uppercase_bmp_case_mapping(scalar);
+			return bmp_case_mapping_lookup_result{
+				static_cast<std::uint32_t>(mapping.mapped),
+				mapping.same_size
+			};
+		}
+	}
+
+	inline constexpr bmp_case_mapping_lookup_result lookup_bmp_case_fold_mapping(std::uint32_t scalar) noexcept
+	{
+		if (scalar > encoding_constants::bmp_scalar_max)
+		{
+			return {};
+		}
+
+		const auto mapping = unicode::case_fold_bmp_case_mapping(scalar);
+		return bmp_case_mapping_lookup_result{
+			static_cast<std::uint32_t>(mapping.mapped),
+			mapping.same_size
+		};
+	}
 
 	template <typename Allocator>
 	constexpr basic_utf8_string<Allocator> copy_utf8_view(
@@ -882,6 +869,18 @@ namespace unicode_ranges
 			}
 
 			const auto decoded = decode_next_scalar(bytes, index);
+			if (decoded.scalar <= encoding_constants::bmp_scalar_max)
+			{
+				const auto bmp_mapping = lookup_bmp_case_mapping<Lowercase>(decoded.scalar);
+				if (bmp_mapping.same_size)
+				{
+					result.changed = result.changed || (bmp_mapping.mapped != decoded.scalar);
+					result.output_size += unicode_scalar_utf8_size(bmp_mapping.mapped);
+					index = decoded.next_index;
+					continue;
+				}
+			}
+
 			const auto mapping = lookup_case_mapping<Lowercase>(decoded.scalar);
 			if (mapping.has_simple)
 			{
@@ -930,6 +929,18 @@ namespace unicode_ranges
 			}
 
 			const auto decoded = decode_next_scalar(code_units, index);
+			if (decoded.scalar <= encoding_constants::bmp_scalar_max)
+			{
+				const auto bmp_mapping = lookup_bmp_case_mapping<Lowercase>(decoded.scalar);
+				if (bmp_mapping.same_size)
+				{
+					result.changed = result.changed || (bmp_mapping.mapped != decoded.scalar);
+					++result.output_size;
+					index = decoded.next_index;
+					continue;
+				}
+			}
+
 			const auto mapping = lookup_case_mapping<Lowercase>(decoded.scalar);
 			if (mapping.has_simple)
 			{
@@ -1653,6 +1664,17 @@ namespace unicode_ranges
 			}
 
 			const auto decoded = decode_next_scalar(bytes, index);
+			if (decoded.scalar <= encoding_constants::bmp_scalar_max)
+			{
+				const auto bmp_mapping = lookup_bmp_case_mapping<Lowercase>(decoded.scalar);
+				if (bmp_mapping.same_size)
+				{
+					write_index += encode_unicode_scalar_utf8_unchecked(bmp_mapping.mapped, buffer + write_index);
+					index = decoded.next_index;
+					continue;
+				}
+			}
+
 			const auto mapping = lookup_case_mapping<Lowercase>(decoded.scalar);
 			if (mapping.has_simple)
 			{
@@ -1708,6 +1730,17 @@ namespace unicode_ranges
 			}
 
 			const auto decoded = decode_next_scalar(code_units, index);
+			if (decoded.scalar <= encoding_constants::bmp_scalar_max)
+			{
+				const auto bmp_mapping = lookup_bmp_case_mapping<Lowercase>(decoded.scalar);
+				if (bmp_mapping.same_size)
+				{
+					buffer[write_index++] = static_cast<char16_t>(bmp_mapping.mapped);
+					index = decoded.next_index;
+					continue;
+				}
+			}
+
 			const auto mapping = lookup_case_mapping<Lowercase>(decoded.scalar);
 			if (mapping.has_simple)
 			{
@@ -1796,6 +1829,23 @@ namespace unicode_ranges
 
 					const auto decoded = decode_next_scalar(bytes, index);
 					const auto input_size = decoded.next_index - index;
+					if (decoded.scalar <= encoding_constants::bmp_scalar_max)
+					{
+						const auto bmp_mapping = lookup_bmp_case_mapping<Lowercase>(decoded.scalar);
+						if (bmp_mapping.same_size)
+						{
+							if (unicode_scalar_utf8_size(bmp_mapping.mapped) != input_size)
+							{
+								same_size = false;
+								return write_index;
+							}
+
+							write_index += encode_unicode_scalar_utf8_unchecked(bmp_mapping.mapped, buffer + write_index);
+							index = decoded.next_index;
+							continue;
+						}
+					}
+
 					const auto mapping = lookup_case_mapping<Lowercase>(decoded.scalar);
 					if (mapping.has_special())
 					{
@@ -1870,18 +1920,18 @@ namespace unicode_ranges
 
 					const auto decoded = decode_next_scalar(code_units, index);
 					const auto input_size = decoded.next_index - index;
-					if constexpr (!Lowercase)
+					if (decoded.scalar <= encoding_constants::bmp_scalar_max)
 					{
-						if (input_size == 1u && decoded.scalar < utf16_uppercase_bmp_table.size())
+						const auto bmp_mapping = lookup_bmp_case_mapping<Lowercase>(decoded.scalar);
+						if (bmp_mapping.same_size)
 						{
-							const auto& entry = utf16_uppercase_bmp_table[decoded.scalar];
-							if (!entry.same_size)
+							if (input_size != 1u)
 							{
 								same_size = false;
 								return write_index;
 							}
 
-							buffer[write_index++] = entry.mapped;
+							buffer[write_index++] = static_cast<char16_t>(bmp_mapping.mapped);
 							index = decoded.next_index;
 							continue;
 						}
@@ -2059,6 +2109,24 @@ namespace unicode_ranges
 
 						const auto decoded = decode_next_scalar(bytes, index);
 						const auto input_size = decoded.next_index - index;
+						if (decoded.scalar <= encoding_constants::bmp_scalar_max)
+						{
+							const auto bmp_mapping = lookup_bmp_case_fold_mapping(decoded.scalar);
+							if (bmp_mapping.same_size)
+							{
+								if (unicode_scalar_utf8_size(bmp_mapping.mapped) != input_size)
+								{
+									same_size = false;
+									return write_index;
+								}
+
+								changed = changed || (bmp_mapping.mapped != decoded.scalar);
+								write_index += encode_unicode_scalar_utf8_unchecked(bmp_mapping.mapped, buffer + write_index);
+								index = decoded.next_index;
+								continue;
+							}
+						}
+
 						const auto mapping = lookup_case_fold_mapping(decoded.scalar);
 						if (mapping.has_special())
 						{
@@ -2129,6 +2197,24 @@ namespace unicode_ranges
 
 						const auto decoded = decode_next_scalar(code_units, index);
 						const auto input_size = decoded.next_index - index;
+						if (decoded.scalar <= encoding_constants::bmp_scalar_max)
+						{
+							const auto bmp_mapping = lookup_bmp_case_fold_mapping(decoded.scalar);
+							if (bmp_mapping.same_size)
+							{
+								if (input_size != 1u)
+								{
+									same_size = false;
+									return write_index;
+								}
+
+								changed = changed || (bmp_mapping.mapped != decoded.scalar);
+								buffer[write_index++] = static_cast<char16_t>(bmp_mapping.mapped);
+								index = decoded.next_index;
+								continue;
+							}
+						}
+
 						const auto mapping = lookup_case_fold_mapping(decoded.scalar);
 						if (mapping.has_special())
 						{
@@ -2194,6 +2280,18 @@ namespace unicode_ranges
 			}
 
 			const auto decoded = decode_next_scalar(bytes, index);
+			if (decoded.scalar <= encoding_constants::bmp_scalar_max)
+			{
+				const auto bmp_mapping = lookup_bmp_case_fold_mapping(decoded.scalar);
+				if (bmp_mapping.same_size)
+				{
+					result.changed = result.changed || (bmp_mapping.mapped != decoded.scalar);
+					result.output_size += unicode_scalar_utf8_size(bmp_mapping.mapped);
+					index = decoded.next_index;
+					continue;
+				}
+			}
+
 			const auto mapping = lookup_case_fold_mapping(decoded.scalar);
 			if (mapping.has_simple)
 			{
@@ -2237,6 +2335,18 @@ namespace unicode_ranges
 			}
 
 			const auto decoded = decode_next_scalar(code_units, index);
+			if (decoded.scalar <= encoding_constants::bmp_scalar_max)
+			{
+				const auto bmp_mapping = lookup_bmp_case_fold_mapping(decoded.scalar);
+				if (bmp_mapping.same_size)
+				{
+					result.changed = result.changed || (bmp_mapping.mapped != decoded.scalar);
+					++result.output_size;
+					index = decoded.next_index;
+					continue;
+				}
+			}
+
 			const auto mapping = lookup_case_fold_mapping(decoded.scalar);
 			if (mapping.has_simple)
 			{
@@ -2275,6 +2385,17 @@ namespace unicode_ranges
 			}
 
 			const auto decoded = decode_next_scalar(bytes, index);
+			if (decoded.scalar <= encoding_constants::bmp_scalar_max)
+			{
+				const auto bmp_mapping = lookup_bmp_case_fold_mapping(decoded.scalar);
+				if (bmp_mapping.same_size)
+				{
+					write_index += encode_unicode_scalar_utf8_unchecked(bmp_mapping.mapped, buffer + write_index);
+					index = decoded.next_index;
+					continue;
+				}
+			}
+
 			const auto mapping = lookup_case_fold_mapping(decoded.scalar);
 			if (mapping.has_simple)
 			{
@@ -2318,6 +2439,17 @@ namespace unicode_ranges
 			}
 
 			const auto decoded = decode_next_scalar(code_units, index);
+			if (decoded.scalar <= encoding_constants::bmp_scalar_max)
+			{
+				const auto bmp_mapping = lookup_bmp_case_fold_mapping(decoded.scalar);
+				if (bmp_mapping.same_size)
+				{
+					buffer[write_index++] = static_cast<char16_t>(bmp_mapping.mapped);
+					index = decoded.next_index;
+					continue;
+				}
+			}
+
 			const auto mapping = lookup_case_fold_mapping(decoded.scalar);
 			if (mapping.has_simple)
 			{
