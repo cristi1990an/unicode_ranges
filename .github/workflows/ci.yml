@@ -143,6 +143,7 @@ jobs:
             sanitizer_flags: ""
             asan_options: ""
             ubsan_options: ""
+            tsan_options: ""
           - name: GCC
             install_kind: gcc
             packages: g++-14
@@ -155,6 +156,7 @@ jobs:
             sanitizer_flags: ""
             asan_options: ""
             ubsan_options: ""
+            tsan_options: ""
           - name: GCC
             install_kind: gcc
             packages: g++-14
@@ -167,6 +169,7 @@ jobs:
             sanitizer_flags: ""
             asan_options: ""
             ubsan_options: ""
+            tsan_options: ""
           - name: GCC
             install_kind: gcc
             packages: g++-14
@@ -179,6 +182,7 @@ jobs:
             sanitizer_flags: "-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all"
             asan_options: "detect_leaks=1"
             ubsan_options: "print_stacktrace=1"
+            tsan_options: ""
           - name: GCC
             install_kind: gcc
             packages: g++-14
@@ -191,6 +195,7 @@ jobs:
             sanitizer_flags: "-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all"
             asan_options: "detect_leaks=1"
             ubsan_options: "print_stacktrace=1"
+            tsan_options: ""
           - name: GCC
             install_kind: gcc
             packages: g++-14
@@ -203,6 +208,7 @@ jobs:
             sanitizer_flags: "-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all"
             asan_options: "detect_leaks=1"
             ubsan_options: "print_stacktrace=1"
+            tsan_options: ""
           - name: Clang trunk
             install_kind: clang
             packages: clang-22 libc++-22-dev libc++abi-22-dev
@@ -215,6 +221,7 @@ jobs:
             sanitizer_flags: ""
             asan_options: ""
             ubsan_options: ""
+            tsan_options: ""
           - name: Clang trunk
             install_kind: clang
             packages: clang-22 libc++-22-dev libc++abi-22-dev
@@ -227,6 +234,7 @@ jobs:
             sanitizer_flags: ""
             asan_options: ""
             ubsan_options: ""
+            tsan_options: ""
           - name: Clang trunk
             install_kind: clang
             packages: clang-22 libc++-22-dev libc++abi-22-dev
@@ -239,6 +247,7 @@ jobs:
             sanitizer_flags: "-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all"
             asan_options: "detect_leaks=1"
             ubsan_options: "print_stacktrace=1"
+            tsan_options: ""
           - name: Clang trunk
             install_kind: clang
             packages: clang-22 libc++-22-dev libc++abi-22-dev
@@ -251,6 +260,7 @@ jobs:
             sanitizer_flags: "-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all"
             asan_options: "detect_leaks=1"
             ubsan_options: "print_stacktrace=1"
+            tsan_options: ""
           - name: Clang trunk (libc++ ABI unstable)
             install_kind: clang
             packages: clang-22 libc++-22-dev libc++abi-22-dev
@@ -263,6 +273,20 @@ jobs:
             sanitizer_flags: "-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all"
             asan_options: "detect_leaks=1"
             ubsan_options: "print_stacktrace=1"
+            tsan_options: ""
+          - name: Clang trunk (TSan)
+            install_kind: clang
+            packages: clang-22 libc++-22-dev libc++abi-22-dev
+            cxx: clang++-22
+            cxxflags: "-stdlib=libc++ -pthread"
+            output: unicode_ranges_clang_o2_tsan
+            opt_name: O2
+            opt_flags: "-O2"
+            sanitizer_name: ", TSan"
+            sanitizer_flags: "-fsanitize=thread -fno-omit-frame-pointer -fno-sanitize-recover=all"
+            asan_options: ""
+            ubsan_options: ""
+            tsan_options: "halt_on_error=1"
 
     steps:
       - name: Checkout
@@ -308,6 +332,7 @@ jobs:
         env:
           ASAN_OPTIONS: ${{ matrix.asan_options }}
           UBSAN_OPTIONS: ${{ matrix.ubsan_options }}
+          TSAN_OPTIONS: ${{ matrix.tsan_options }}
 
   linux_32:
     name: Linux x86 GCC (${{ matrix.opt_name }}${{ matrix.sanitizer_name }}, C++23)
@@ -324,6 +349,7 @@ jobs:
             sanitizer_flags: ""
             asan_options: ""
             ubsan_options: ""
+            tsan_options: ""
             output: unicode_ranges_gcc_x86_o2
           - opt_name: O2
             opt_flags: "-O2"
@@ -332,6 +358,7 @@ jobs:
             sanitizer_flags: "-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all"
             asan_options: "detect_leaks=0"
             ubsan_options: "print_stacktrace=1"
+            tsan_options: ""
             output: unicode_ranges_gcc_x86_o2_san
 
     steps:
@@ -370,6 +397,7 @@ jobs:
         env:
           ASAN_OPTIONS: ${{ matrix.asan_options }}
           UBSAN_OPTIONS: ${{ matrix.ubsan_options }}
+          TSAN_OPTIONS: ${{ matrix.tsan_options }}
 
   linux_icu:
     name: ${{ matrix.name }} + ICU (O2, C++23)
