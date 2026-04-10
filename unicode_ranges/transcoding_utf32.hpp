@@ -1031,19 +1031,43 @@ namespace unicode_ranges
 	template <typename Derived, typename View>
 	bool utf32_string_crtp<Derived, View>::starts_with_ignore_case(View sv, locale_id locale) const
 	{
-		return details::starts_with_case_folded_utf32(code_unit_view(), sv.base(), locale);
+		const auto lhs = code_unit_view();
+		const auto rhs = sv.base();
+		const auto turkic = details::icu_case_fold_is_turkic(locale);
+		if (!turkic && details::is_ascii_only(lhs) && details::is_ascii_only(rhs))
+		{
+			return details::starts_with_ascii_case_insensitive(lhs, rhs);
+		}
+
+		return details::starts_with_case_folded_utf32(lhs, rhs, locale);
 	}
 
 	template <typename Derived, typename View>
 	bool utf32_string_crtp<Derived, View>::ends_with_ignore_case(View sv, locale_id locale) const
 	{
-		return details::ends_with_case_folded_utf32(code_unit_view(), sv.base(), locale);
+		const auto lhs = code_unit_view();
+		const auto rhs = sv.base();
+		const auto turkic = details::icu_case_fold_is_turkic(locale);
+		if (!turkic && details::is_ascii_only(lhs) && details::is_ascii_only(rhs))
+		{
+			return details::ends_with_ascii_case_insensitive(lhs, rhs);
+		}
+
+		return details::ends_with_case_folded_utf32(lhs, rhs, locale);
 	}
 
 	template <typename Derived, typename View>
 	std::weak_ordering utf32_string_crtp<Derived, View>::compare_ignore_case(View sv, locale_id locale) const
 	{
-		return details::compare_case_folded_utf32(code_unit_view(), sv.base(), locale);
+		const auto lhs = code_unit_view();
+		const auto rhs = sv.base();
+		const auto turkic = details::icu_case_fold_is_turkic(locale);
+		if (!turkic && details::is_ascii_only(lhs) && details::is_ascii_only(rhs))
+		{
+			return details::compare_ascii_case_insensitive(lhs, rhs);
+		}
+
+		return details::compare_case_folded_utf32(lhs, rhs, locale);
 	}
 #endif
 
@@ -1065,19 +1089,40 @@ namespace unicode_ranges
 	template <typename Derived, typename View>
 	constexpr bool utf32_string_crtp<Derived, View>::starts_with_ignore_case(View sv) const noexcept
 	{
-		return details::starts_with_case_folded_utf32(code_unit_view(), sv.base());
+		const auto lhs = code_unit_view();
+		const auto rhs = sv.base();
+		if (details::is_ascii_only(lhs) && details::is_ascii_only(rhs))
+		{
+			return details::starts_with_ascii_case_insensitive(lhs, rhs);
+		}
+
+		return details::starts_with_case_folded_utf32(lhs, rhs);
 	}
 
 	template <typename Derived, typename View>
 	constexpr bool utf32_string_crtp<Derived, View>::ends_with_ignore_case(View sv) const noexcept
 	{
-		return details::ends_with_case_folded_utf32(code_unit_view(), sv.base());
+		const auto lhs = code_unit_view();
+		const auto rhs = sv.base();
+		if (details::is_ascii_only(lhs) && details::is_ascii_only(rhs))
+		{
+			return details::ends_with_ascii_case_insensitive(lhs, rhs);
+		}
+
+		return details::ends_with_case_folded_utf32(lhs, rhs);
 	}
 
 	template <typename Derived, typename View>
 	constexpr std::weak_ordering utf32_string_crtp<Derived, View>::compare_ignore_case(View sv) const noexcept
 	{
-		return details::compare_case_folded_utf32(code_unit_view(), sv.base());
+		const auto lhs = code_unit_view();
+		const auto rhs = sv.base();
+		if (details::is_ascii_only(lhs) && details::is_ascii_only(rhs))
+		{
+			return details::compare_ascii_case_insensitive(lhs, rhs);
+		}
+
+		return details::compare_case_folded_utf32(lhs, rhs);
 	}
 
 	template <typename Derived, typename View>

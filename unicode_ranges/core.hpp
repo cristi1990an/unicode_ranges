@@ -2288,6 +2288,38 @@ namespace details
 			};
 		}
 
+		inline constexpr grapheme_scalar_info decode_next_grapheme_utf8_scalar(const char8_t*& cursor) noexcept
+		{
+			const auto scalar = decode_next_utf8_scalar(cursor);
+			if (scalar < 0x80u) [[likely]]
+			{
+				return grapheme_scalar_info{
+					.scalar = scalar,
+					.break_property = ascii_grapheme_break_property(scalar),
+					.indic_property = unicode::indic_conjunct_break_property::none,
+					.extended_pictographic = false
+				};
+			}
+
+			return classify_grapheme_scalar(scalar);
+		}
+
+		inline constexpr grapheme_scalar_info decode_next_grapheme_utf16_scalar(const char16_t*& cursor) noexcept
+		{
+			const auto scalar = decode_next_utf16_scalar(cursor);
+			if (scalar < 0x80u) [[likely]]
+			{
+				return grapheme_scalar_info{
+					.scalar = scalar,
+					.break_property = ascii_grapheme_break_property(scalar),
+					.indic_property = unicode::indic_conjunct_break_property::none,
+					.extended_pictographic = false
+				};
+			}
+
+			return classify_grapheme_scalar(scalar);
+		}
+
 		inline constexpr grapheme_emoji_suffix_state advance_emoji_suffix(
 			grapheme_emoji_suffix_state state,
 			const grapheme_scalar_info& scalar_info) noexcept
@@ -2809,7 +2841,7 @@ namespace details
 				}
 
 				auto next_position = position;
-				const auto scalar_info = classify_grapheme_scalar(decode_next_utf8_scalar(next_position));
+				const auto scalar_info = decode_next_grapheme_utf8_scalar(next_position);
 				if (!has_state)
 				{
 					++count;
@@ -2864,7 +2896,7 @@ namespace details
 				}
 
 				auto next_position = position;
-				const auto scalar_info = classify_grapheme_scalar(decode_next_utf16_scalar(next_position));
+				const auto scalar_info = decode_next_grapheme_utf16_scalar(next_position);
 				if (!has_state)
 				{
 					++count;
