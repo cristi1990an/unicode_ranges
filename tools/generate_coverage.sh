@@ -23,6 +23,7 @@ mkdir -p "${OUTPUT_DIR}"
 	-Wextra \
 	-Werror \
 	-pedantic \
+	-pthread \
 	-stdlib=libc++ \
 	-fprofile-instr-generate \
 	-fcoverage-mapping \

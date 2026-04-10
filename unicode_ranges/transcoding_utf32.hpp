@@ -2,6 +2,46 @@
 #define UTF8_RANGES_TRANSCODING_UTF32_HPP
 namespace unicode_ranges
 {
+	namespace details
+	{
+		template <typename Result, typename MeasureFn>
+		inline void fill_parallel_utf32_chunk_results(
+			std::u32string_view code_points,
+			utf32_parallel_plan plan,
+			Result* chunk_results,
+			MeasureFn&& measure_fn)
+		{
+			// First pass: let each worker compute metadata for its own chunk. The caller
+			// later turns these per-chunk measurements into a global prefix-sum.
+			run_parallel_jobs(plan.worker_count,
+				[&](std::size_t chunk_index) noexcept
+				{
+					chunk_results[chunk_index] = measure_fn(utf32_parallel_chunk(code_points, plan, chunk_index));
+				});
+		}
+
+		template <typename CodeUnit, typename WriteFn>
+		inline void write_parallel_utf32_chunks(
+			std::u32string_view code_points,
+			utf32_parallel_plan plan,
+			const std::size_t* chunk_offsets,
+			CodeUnit* buffer,
+			WriteFn&& write_fn)
+		{
+			// Second pass: each worker writes into the exact output slice reserved for its
+			// chunk, so no synchronization is needed during emission.
+			run_parallel_jobs(plan.worker_count,
+				[&](std::size_t chunk_index) noexcept
+				{
+					const auto chunk = utf32_parallel_chunk(code_points, plan, chunk_index);
+					if (!chunk.empty())
+					{
+						write_fn(chunk, buffer + chunk_offsets[chunk_index]);
+					}
+				});
+		}
+	}
+
 	template <typename Allocator>
 	constexpr basic_utf8_string<Allocator>::basic_utf8_string(utf32_string_view view, const Allocator& alloc)
 		: base_(alloc)
@@ -28,6 +68,53 @@ namespace unicode_ranges
 	constexpr basic_utf8_string<Allocator>& basic_utf8_string<Allocator>::append_range(views::utf32_view rg)
 	{
 		const auto code_points = rg.base();
+		if (!std::is_constant_evaluated())
+		{
+			// UTF-32 gives us trivially chunkable input, so we can parallelize the
+			// measure+encode pipeline without any code-unit boundary fixups.
+			const auto plan = details::make_utf32_parallel_plan(code_points.size());
+			if (plan.worker_count != 1)
+			{
+				auto chunk_sizes = std::make_unique<std::size_t[]>(plan.worker_count);
+				details::fill_parallel_utf32_chunk_results(
+					code_points,
+					plan,
+					chunk_sizes.get(),
+					[](std::u32string_view chunk) noexcept
+					{
+						return details::scalar_sequence_utf8_size(chunk);
+					});
+
+				auto chunk_offsets = std::make_unique<std::size_t[]>(plan.worker_count);
+				std::size_t appended_size = 0;
+				for (std::size_t chunk_index = 0; chunk_index != plan.worker_count; ++chunk_index)
+				{
+					chunk_offsets[chunk_index] = appended_size;
+					appended_size += chunk_sizes[chunk_index];
+				}
+
+				const auto original_size = base_.size();
+				base_.resize(original_size + appended_size);
+				details::write_parallel_utf32_chunks(
+					code_points,
+					plan,
+					chunk_offsets.get(),
+					base_.data() + original_size,
+					[](std::u32string_view chunk, char8_t* out) noexcept
+					{
+						std::size_t write_index = 0;
+						for (char32_t code_point : chunk)
+						{
+							write_index += details::encode_unicode_scalar_utf8_unchecked(
+								static_cast<std::uint32_t>(code_point),
+								out + write_index);
+						}
+					});
+
+				return *this;
+			}
+		}
+
 		const auto appended_size = details::scalar_sequence_utf8_size(code_points);
 		const auto original_size = base_.size();
 		base_.resize_and_overwrite(original_size + appended_size,
@@ -51,6 +138,51 @@ namespace unicode_ranges
 	{
 		base_type replacement{ base_.get_allocator() };
 		const auto code_points = rg.base();
+		if (!std::is_constant_evaluated())
+		{
+			const auto plan = details::make_utf32_parallel_plan(code_points.size());
+			if (plan.worker_count != 1)
+			{
+				auto chunk_sizes = std::make_unique<std::size_t[]>(plan.worker_count);
+				details::fill_parallel_utf32_chunk_results(
+					code_points,
+					plan,
+					chunk_sizes.get(),
+					[](std::u32string_view chunk) noexcept
+					{
+						return details::scalar_sequence_utf8_size(chunk);
+					});
+
+				auto chunk_offsets = std::make_unique<std::size_t[]>(plan.worker_count);
+				std::size_t output_size = 0;
+				for (std::size_t chunk_index = 0; chunk_index != plan.worker_count; ++chunk_index)
+				{
+					chunk_offsets[chunk_index] = output_size;
+					output_size += chunk_sizes[chunk_index];
+				}
+
+				replacement.resize(output_size);
+				details::write_parallel_utf32_chunks(
+					code_points,
+					plan,
+					chunk_offsets.get(),
+					replacement.data(),
+					[](std::u32string_view chunk, char8_t* out) noexcept
+					{
+						std::size_t write_index = 0;
+						for (char32_t code_point : chunk)
+						{
+							write_index += details::encode_unicode_scalar_utf8_unchecked(
+								static_cast<std::uint32_t>(code_point),
+								out + write_index);
+						}
+					});
+
+				base_ = std::move(replacement);
+				return *this;
+			}
+		}
+
 		replacement.resize_and_overwrite(details::scalar_sequence_utf8_size(code_points),
 			[&](char8_t* buffer, std::size_t) noexcept
 			{
@@ -71,6 +203,51 @@ namespace unicode_ranges
 	constexpr basic_utf16_string<Allocator>& basic_utf16_string<Allocator>::append_range(views::utf32_view rg)
 	{
 		const auto code_points = rg.base();
+		if (!std::is_constant_evaluated())
+		{
+			const auto plan = details::make_utf32_parallel_plan(code_points.size());
+			if (plan.worker_count != 1)
+			{
+				auto chunk_sizes = std::make_unique<std::size_t[]>(plan.worker_count);
+				details::fill_parallel_utf32_chunk_results(
+					code_points,
+					plan,
+					chunk_sizes.get(),
+					[](std::u32string_view chunk) noexcept
+					{
+						return details::scalar_sequence_utf16_size(chunk);
+					});
+
+				auto chunk_offsets = std::make_unique<std::size_t[]>(plan.worker_count);
+				std::size_t appended_size = 0;
+				for (std::size_t chunk_index = 0; chunk_index != plan.worker_count; ++chunk_index)
+				{
+					chunk_offsets[chunk_index] = appended_size;
+					appended_size += chunk_sizes[chunk_index];
+				}
+
+				const auto original_size = base_.size();
+				base_.resize(original_size + appended_size);
+				details::write_parallel_utf32_chunks(
+					code_points,
+					plan,
+					chunk_offsets.get(),
+					base_.data() + original_size,
+					[](std::u32string_view chunk, char16_t* out) noexcept
+					{
+						std::size_t write_index = 0;
+						for (char32_t code_point : chunk)
+						{
+							write_index += details::encode_unicode_scalar_utf16_unchecked(
+								static_cast<std::uint32_t>(code_point),
+								out + write_index);
+						}
+					});
+
+				return *this;
+			}
+		}
+
 		const auto appended_size = details::scalar_sequence_utf16_size(code_points);
 		const auto original_size = base_.size();
 		base_.resize_and_overwrite(original_size + appended_size,
@@ -94,6 +271,51 @@ namespace unicode_ranges
 	{
 		base_type replacement{ base_.get_allocator() };
 		const auto code_points = rg.base();
+		if (!std::is_constant_evaluated())
+		{
+			const auto plan = details::make_utf32_parallel_plan(code_points.size());
+			if (plan.worker_count != 1)
+			{
+				auto chunk_sizes = std::make_unique<std::size_t[]>(plan.worker_count);
+				details::fill_parallel_utf32_chunk_results(
+					code_points,
+					plan,
+					chunk_sizes.get(),
+					[](std::u32string_view chunk) noexcept
+					{
+						return details::scalar_sequence_utf16_size(chunk);
+					});
+
+				auto chunk_offsets = std::make_unique<std::size_t[]>(plan.worker_count);
+				std::size_t output_size = 0;
+				for (std::size_t chunk_index = 0; chunk_index != plan.worker_count; ++chunk_index)
+				{
+					chunk_offsets[chunk_index] = output_size;
+					output_size += chunk_sizes[chunk_index];
+				}
+
+				replacement.resize(output_size);
+				details::write_parallel_utf32_chunks(
+					code_points,
+					plan,
+					chunk_offsets.get(),
+					replacement.data(),
+					[](std::u32string_view chunk, char16_t* out) noexcept
+					{
+						std::size_t write_index = 0;
+						for (char32_t code_point : chunk)
+						{
+							write_index += details::encode_unicode_scalar_utf16_unchecked(
+								static_cast<std::uint32_t>(code_point),
+								out + write_index);
+						}
+					});
+
+				base_ = std::move(replacement);
+				return *this;
+			}
+		}
+
 		replacement.resize_and_overwrite(details::scalar_sequence_utf16_size(code_points),
 			[&](char16_t* buffer, std::size_t) noexcept
 			{
@@ -336,6 +558,52 @@ namespace unicode_ranges
 			const Allocator& alloc)
 		{
 			using base_type = typename basic_utf32_string<Allocator>::base_type;
+			if (!std::is_constant_evaluated())
+			{
+				// For large inputs it is cheaper to measure each chunk once, build output
+				// offsets, then let workers write directly into their final slices.
+				const auto plan = make_utf32_parallel_plan(code_points.size());
+				if (plan.worker_count != 1)
+				{
+					auto chunk_measurements = std::make_unique<case_map_measurement[]>(plan.worker_count);
+					fill_parallel_utf32_chunk_results(
+						code_points,
+						plan,
+						chunk_measurements.get(),
+						[](std::u32string_view chunk) noexcept
+						{
+							return measure_case_map_utf32<Lowercase>(chunk);
+						});
+
+					auto chunk_offsets = std::make_unique<std::size_t[]>(plan.worker_count);
+					case_map_measurement measurement{};
+					for (std::size_t chunk_index = 0; chunk_index != plan.worker_count; ++chunk_index)
+					{
+						chunk_offsets[chunk_index] = measurement.output_size;
+						measurement.output_size += chunk_measurements[chunk_index].output_size;
+						measurement.changed = measurement.changed || chunk_measurements[chunk_index].changed;
+					}
+
+					if (!measurement.changed)
+					{
+						return copy_utf32_view(code_points, alloc);
+					}
+
+					base_type result{ alloc };
+					result.resize(measurement.output_size);
+					write_parallel_utf32_chunks(
+						code_points,
+						plan,
+						chunk_offsets.get(),
+						result.data(),
+						[](std::u32string_view chunk, char32_t* out) noexcept
+						{
+							write_case_map_utf32_into<Lowercase>(chunk, out);
+						});
+					return basic_utf32_string<Allocator>::from_code_points_unchecked(std::move(result));
+				}
+			}
+
 			const auto measurement = measure_case_map_utf32<Lowercase>(code_points);
 			if (!measurement.changed)
 			{
@@ -533,6 +801,53 @@ namespace unicode_ranges
 				const Allocator& alloc)
 			{
 				using base_type = typename basic_utf32_string<Allocator>::base_type;
+				if (!std::is_constant_evaluated())
+				{
+					// The parallel path intentionally uses the generic measure+write split
+					// instead of the same-size shortcut, because each worker needs a stable
+					// output offset before it can emit into a shared buffer.
+					const auto plan = make_utf32_parallel_plan(code_points.size());
+					if (plan.worker_count != 1)
+					{
+						auto chunk_measurements = std::make_unique<case_map_measurement[]>(plan.worker_count);
+						fill_parallel_utf32_chunk_results(
+							code_points,
+							plan,
+							chunk_measurements.get(),
+							[](std::u32string_view chunk) noexcept
+							{
+								return measure_case_fold_utf32(chunk);
+							});
+
+						auto chunk_offsets = std::make_unique<std::size_t[]>(plan.worker_count);
+						case_map_measurement measurement{};
+						for (std::size_t chunk_index = 0; chunk_index != plan.worker_count; ++chunk_index)
+						{
+							chunk_offsets[chunk_index] = measurement.output_size;
+							measurement.output_size += chunk_measurements[chunk_index].output_size;
+							measurement.changed = measurement.changed || chunk_measurements[chunk_index].changed;
+						}
+
+						if (!measurement.changed)
+						{
+							return copy_utf32_view(code_points, alloc);
+						}
+
+						base_type result{ alloc };
+						result.resize(measurement.output_size);
+						write_parallel_utf32_chunks(
+							code_points,
+							plan,
+							chunk_offsets.get(),
+							result.data(),
+							[](std::u32string_view chunk, char32_t* out) noexcept
+							{
+								write_case_fold_utf32_into(chunk, out);
+							});
+						return basic_utf32_string<Allocator>::from_code_points_unchecked(std::move(result));
+					}
+				}
+
 				base_type same_size_result{ alloc };
 				bool changed = false;
 				if (try_case_fold_utf32_same_size(code_points, same_size_result, changed))

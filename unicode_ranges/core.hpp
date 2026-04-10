@@ -23,6 +23,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -560,6 +561,89 @@ namespace details
 	inline constexpr bool is_ascii_only(std::basic_string_view<CharT> value) noexcept
 	{
 		return ascii_prefix_length(value) == value.size();
+	}
+
+	// Runtime-only thresholding for the UTF-32 parallel paths. These are intentionally
+	// conservative so we do not pay thread setup costs on mid-sized inputs.
+	inline constexpr std::size_t runtime_parallel_min_total_bytes = 1u << 20;
+	inline constexpr std::size_t runtime_parallel_min_bytes_per_worker = 1u << 18;
+
+	struct utf32_parallel_plan
+	{
+		std::size_t worker_count = 1;
+		std::size_t chunk_size = 0;
+	};
+
+	inline utf32_parallel_plan make_utf32_parallel_plan(std::size_t code_point_count) noexcept
+	{
+		if (std::is_constant_evaluated() || code_point_count == 0)
+		{
+			return { 1, code_point_count };
+		}
+
+		const auto total_bytes = code_point_count * sizeof(char32_t);
+		if (total_bytes < runtime_parallel_min_total_bytes)
+		{
+			return { 1, code_point_count };
+		}
+
+		// UTF-32 is fixed-width, so chunking by code-point index is always boundary-safe.
+		std::size_t worker_count = std::thread::hardware_concurrency();
+		if (worker_count < 2)
+		{
+			return { 1, code_point_count };
+		}
+
+		worker_count = std::min(worker_count, total_bytes / runtime_parallel_min_bytes_per_worker);
+		worker_count = std::min(worker_count, code_point_count);
+		if (worker_count < 2)
+		{
+			return { 1, code_point_count };
+		}
+
+		return {
+			worker_count,
+			(code_point_count + worker_count - 1) / worker_count
+		};
+	}
+
+	inline constexpr std::u32string_view utf32_parallel_chunk(
+		std::u32string_view code_points,
+		utf32_parallel_plan plan,
+		std::size_t chunk_index) noexcept
+	{
+		// Each worker gets a disjoint contiguous subspan so it can measure and write
+		// independently without any boundary repair.
+		const auto start = chunk_index * plan.chunk_size;
+		if (start >= code_points.size())
+		{
+			return {};
+		}
+
+		return code_points.substr(start, std::min(plan.chunk_size, code_points.size() - start));
+	}
+
+	template <typename Fn>
+	inline void run_parallel_jobs(std::size_t worker_count, Fn&& fn)
+	{
+		if (worker_count <= 1)
+		{
+			fn(0);
+			return;
+		}
+
+		// The calling thread participates as the last worker to avoid spinning up an
+		// extra thread just to sit idle waiting for joins.
+		auto workers = std::make_unique<std::jthread[]>(worker_count - 1);
+		for (std::size_t worker_index = 0; worker_index + 1 < worker_count; ++worker_index)
+		{
+			workers[worker_index] = std::jthread([&, worker_index]
+				{
+					fn(worker_index);
+				});
+		}
+
+		fn(worker_count - 1);
 	}
 
 	inline constexpr bool ascii_lowercase_copy_scalar(char8_t* out, std::u8string_view bytes) noexcept

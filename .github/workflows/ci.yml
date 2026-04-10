@@ -103,7 +103,7 @@ jobs:
             pwsh ./tools/update_unicode_data.ps1 -Version "$version"
             pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
             output="unicode_ranges_macos_o2_${version//./_}"
-            clang++ -std=c++23 -O2 -Wall -Wextra -Werror -pedantic source.cpp -o "$output"
+            clang++ -std=c++23 -O2 -Wall -Wextra -Werror -pedantic -pthread source.cpp -o "$output"
             "./$output"
           done
 
@@ -135,7 +135,7 @@ jobs:
             install_kind: gcc
             packages: g++-14
             cxx: g++-14
-            cxxflags: ""
+            cxxflags: "-pthread"
             output: unicode_ranges_gcc_o0
             opt_name: O0
             opt_flags: "-O0"
@@ -147,7 +147,7 @@ jobs:
             install_kind: gcc
             packages: g++-14
             cxx: g++-14
-            cxxflags: ""
+            cxxflags: "-pthread"
             output: unicode_ranges_gcc_o2
             opt_name: O2
             opt_flags: "-O2"
@@ -159,7 +159,7 @@ jobs:
             install_kind: gcc
             packages: g++-14
             cxx: g++-14
-            cxxflags: ""
+            cxxflags: "-pthread"
             output: unicode_ranges_gcc_o3
             opt_name: O3
             opt_flags: "-O3"
@@ -171,7 +171,7 @@ jobs:
             install_kind: gcc
             packages: g++-14
             cxx: g++-14
-            cxxflags: ""
+            cxxflags: "-pthread"
             output: unicode_ranges_gcc_o0_san
             opt_name: O0
             opt_flags: "-O0"
@@ -183,7 +183,7 @@ jobs:
             install_kind: gcc
             packages: g++-14
             cxx: g++-14
-            cxxflags: ""
+            cxxflags: "-pthread"
             output: unicode_ranges_gcc_o2_san
             opt_name: O2
             opt_flags: "-O2"
@@ -195,7 +195,7 @@ jobs:
             install_kind: gcc
             packages: g++-14
             cxx: g++-14
-            cxxflags: ""
+            cxxflags: "-pthread"
             output: unicode_ranges_gcc_o3_san
             opt_name: O3
             opt_flags: "-O3"
@@ -207,7 +207,7 @@ jobs:
             install_kind: clang
             packages: clang-22 libc++-22-dev libc++abi-22-dev
             cxx: clang++-22
-            cxxflags: "-stdlib=libc++"
+            cxxflags: "-stdlib=libc++ -pthread"
             output: unicode_ranges_clang_o0
             opt_name: O0
             opt_flags: "-O0"
@@ -219,7 +219,7 @@ jobs:
             install_kind: clang
             packages: clang-22 libc++-22-dev libc++abi-22-dev
             cxx: clang++-22
-            cxxflags: "-stdlib=libc++"
+            cxxflags: "-stdlib=libc++ -pthread"
             output: unicode_ranges_clang_o2
             opt_name: O2
             opt_flags: "-O2"
@@ -231,7 +231,7 @@ jobs:
             install_kind: clang
             packages: clang-22 libc++-22-dev libc++abi-22-dev
             cxx: clang++-22
-            cxxflags: "-stdlib=libc++"
+            cxxflags: "-stdlib=libc++ -pthread"
             output: unicode_ranges_clang_o0_san
             opt_name: O0
             opt_flags: "-O0"
@@ -243,7 +243,7 @@ jobs:
             install_kind: clang
             packages: clang-22 libc++-22-dev libc++abi-22-dev
             cxx: clang++-22
-            cxxflags: "-stdlib=libc++"
+            cxxflags: "-stdlib=libc++ -pthread"
             output: unicode_ranges_clang_o2_san
             opt_name: O2
             opt_flags: "-O2"
@@ -342,7 +342,7 @@ jobs:
             pwsh ./tools/update_unicode_data.ps1 -Version "$version"
             pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
             output="${{ matrix.output }}_${version//./_}"
-            g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.sanitizer_flags }} source.cpp -o "$output"
+            g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} source.cpp -o "$output"
             "./$output"
           done
         env:
@@ -361,13 +361,13 @@ jobs:
             install_kind: gcc
             packages: g++-14 libicu-dev pkg-config
             cxx: g++-14
-            cxxflags: ""
+            cxxflags: "-pthread"
             output: unicode_ranges_gcc_icu
           - name: Clang trunk
             install_kind: clang
             packages: clang-22 libc++-22-dev libc++abi-22-dev libicu-dev pkg-config
             cxx: clang++-22
-            cxxflags: "-stdlib=libc++"
+            cxxflags: "-stdlib=libc++ -pthread"
             output: unicode_ranges_clang_icu
 
     steps:
@@ -425,13 +425,13 @@ jobs:
             install_kind: gcc
             packages: g++-14
             cxx: g++-14
-            cxxflags: ""
+            cxxflags: "-pthread"
             output_dir: build/docs-examples-gcc
           - name: Clang trunk
             install_kind: clang
             packages: clang-22 libc++-22-dev libc++abi-22-dev
             cxx: clang++-22
-            cxxflags: "-stdlib=libc++"
+            cxxflags: "-stdlib=libc++ -pthread"
             output_dir: build/docs-examples-clang
 
     steps:
@@ -544,7 +544,7 @@ jobs:
             install_kind: gcc
             packages: g++-14
             cxx: g++-14
-            cxxflags: ""
+            cxxflags: "-pthread"
             opt_name: O3
             opt_flags: "-O3 -DNDEBUG"
             output: unicode_ranges_benchmarks_gcc_o3
@@ -554,7 +554,7 @@ jobs:
             install_kind: clang
             packages: clang-22 libc++-22-dev libc++abi-22-dev
             cxx: clang++-22
-            cxxflags: "-stdlib=libc++"
+            cxxflags: "-stdlib=libc++ -pthread"
             opt_name: O2
             opt_flags: "-O2 -DNDEBUG"
             output: unicode_ranges_benchmarks_clang_o2
@@ -564,7 +564,7 @@ jobs:
             install_kind: gcc32
             packages: g++-14 g++-14-multilib libc6-dev-i386
             cxx: g++-14
-            cxxflags: "-m32"
+            cxxflags: "-m32 -pthread"
             opt_name: O3
             opt_flags: "-O3 -DNDEBUG"
             output: unicode_ranges_benchmarks_gcc_x86_o3
@@ -574,7 +574,7 @@ jobs:
             install_kind: appleclang
             packages: ""
             cxx: clang++
-            cxxflags: ""
+            cxxflags: "-pthread"
             opt_name: O2
             opt_flags: "-O2 -DNDEBUG"
             output: unicode_ranges_benchmarks_macos_o2

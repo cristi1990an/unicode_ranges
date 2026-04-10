@@ -411,6 +411,9 @@ int main(int argc, char** argv)
 	const auto utf32_already_nfc_storage = repeat_text(
 		U"Caf\u00E9 \u00C5ngstr\u00F6m d\u00E9j\u00E0 vu \U0001F642 "sv,
 		2048);
+	const auto utf32_parallel_large_storage = repeat_text(
+		U"ASCII \u00C4 \u03A9 STRASSE \u1E9E \U0001F642 done "sv,
+		32768);
 	const auto utf8_split_whitespace_storage = repeat_text(
 		u8"alpha  beta\tcaf\u00E9 \n\U0001F642  \u03A9mega\r\n"sv,
 		2048);
@@ -426,15 +429,35 @@ int main(int argc, char** argv)
 	const auto utf8_char_count_text = utf8_string_view::from_bytes_unchecked(utf8_char_count_storage);
 	const auto utf16_char_count_text = utf16_string_view::from_code_units_unchecked(utf16_char_count_storage);
 	const auto utf32_char_count_text = utf32_string_view::from_code_points_unchecked(utf32_char_count_storage);
+	const auto utf8_ascii_upper_text = utf8_string_view::from_bytes_unchecked(utf8_ascii_upper_storage);
+	const auto utf8_ascii_lower_text = utf8_string_view::from_bytes_unchecked(utf8_ascii_lower_storage);
+	const auto utf16_ascii_upper_text = utf16_string_view::from_code_units_unchecked(utf16_ascii_upper_storage);
+	const auto utf16_ascii_lower_text = utf16_string_view::from_code_units_unchecked(utf16_ascii_lower_storage);
+	const auto utf32_ascii_upper_text = utf32_string_view::from_code_points_unchecked(utf32_ascii_upper_storage);
+	const auto utf32_ascii_lower_text = utf32_string_view::from_code_points_unchecked(utf32_ascii_lower_storage);
 	const auto utf8_normalize_nfc_text = utf8_string_view::from_bytes_unchecked(utf8_normalize_nfc_storage);
 	const auto utf16_normalize_nfc_text = utf16_string_view::from_code_units_unchecked(utf16_normalize_nfc_storage);
 	const auto utf32_normalize_nfc_text = utf32_string_view::from_code_points_unchecked(utf32_normalize_nfc_storage);
 	const auto utf8_already_nfc_text = utf8_string_view::from_bytes_unchecked(utf8_already_nfc_storage);
 	const auto utf16_already_nfc_text = utf16_string_view::from_code_units_unchecked(utf16_already_nfc_storage);
 	const auto utf32_already_nfc_text = utf32_string_view::from_code_points_unchecked(utf32_already_nfc_storage);
+	const auto utf32_parallel_large_text = utf32_string_view::from_code_points_unchecked(utf32_parallel_large_storage);
 	const auto utf8_split_whitespace_text = utf8_string_view::from_bytes_unchecked(utf8_split_whitespace_storage);
 	const auto utf16_split_whitespace_text = utf16_string_view::from_code_units_unchecked(utf16_split_whitespace_storage);
 	const auto utf32_split_whitespace_text = utf32_string_view::from_code_points_unchecked(utf32_split_whitespace_storage);
+	constexpr std::size_t ascii_ignore_case_trim = 64;
+	const auto utf8_ascii_prefix = utf8_string_view::from_bytes_unchecked(
+		std::u8string_view{ utf8_ascii_lower_storage.data(), utf8_ascii_lower_storage.size() - ascii_ignore_case_trim });
+	const auto utf16_ascii_prefix = utf16_string_view::from_code_units_unchecked(
+		std::u16string_view{ utf16_ascii_lower_storage.data(), utf16_ascii_lower_storage.size() - ascii_ignore_case_trim });
+	const auto utf32_ascii_prefix = utf32_string_view::from_code_points_unchecked(
+		std::u32string_view{ utf32_ascii_lower_storage.data(), utf32_ascii_lower_storage.size() - ascii_ignore_case_trim });
+	const auto utf8_ascii_suffix = utf8_string_view::from_bytes_unchecked(
+		std::u8string_view{ utf8_ascii_lower_storage.data() + ascii_ignore_case_trim, utf8_ascii_lower_storage.size() - ascii_ignore_case_trim });
+	const auto utf16_ascii_suffix = utf16_string_view::from_code_units_unchecked(
+		std::u16string_view{ utf16_ascii_lower_storage.data() + ascii_ignore_case_trim, utf16_ascii_lower_storage.size() - ascii_ignore_case_trim });
+	const auto utf32_ascii_suffix = utf32_string_view::from_code_points_unchecked(
+		std::u32string_view{ utf32_ascii_lower_storage.data() + ascii_ignore_case_trim, utf32_ascii_lower_storage.size() - ascii_ignore_case_trim });
 
 	assert(utf8_string_view::from_bytes_unchecked(utf8_ascii_upper_storage).to_ascii_lowercase()
 		== utf8_string_view::from_bytes_unchecked(utf8_ascii_lower_storage));
@@ -442,6 +465,18 @@ int main(int argc, char** argv)
 		== utf16_string_view::from_code_units_unchecked(utf16_ascii_lower_storage));
 	assert(utf32_string_view::from_code_points_unchecked(utf32_ascii_upper_storage).to_ascii_lowercase()
 		== utf32_string_view::from_code_points_unchecked(utf32_ascii_lower_storage));
+	assert(utf8_ascii_upper_text.eq_ignore_case(utf8_ascii_lower_text));
+	assert(utf16_ascii_upper_text.eq_ignore_case(utf16_ascii_lower_text));
+	assert(utf32_ascii_upper_text.eq_ignore_case(utf32_ascii_lower_text));
+	assert(utf8_ascii_upper_text.compare_ignore_case(utf8_ascii_lower_text) == std::weak_ordering::equivalent);
+	assert(utf16_ascii_upper_text.compare_ignore_case(utf16_ascii_lower_text) == std::weak_ordering::equivalent);
+	assert(utf32_ascii_upper_text.compare_ignore_case(utf32_ascii_lower_text) == std::weak_ordering::equivalent);
+	assert(utf8_ascii_upper_text.starts_with_ignore_case(utf8_ascii_prefix));
+	assert(utf16_ascii_upper_text.starts_with_ignore_case(utf16_ascii_prefix));
+	assert(utf32_ascii_upper_text.starts_with_ignore_case(utf32_ascii_prefix));
+	assert(utf8_ascii_upper_text.ends_with_ignore_case(utf8_ascii_suffix));
+	assert(utf16_ascii_upper_text.ends_with_ignore_case(utf16_ascii_suffix));
+	assert(utf32_ascii_upper_text.ends_with_ignore_case(utf32_ascii_suffix));
 	assert(utf8_string_view::from_bytes_unchecked(utf8_mixed_upper_storage).to_lowercase()
 		== utf8_string_view::from_bytes_unchecked(utf8_mixed_lower_storage));
 	assert(utf16_string_view::from_code_units_unchecked(utf16_mixed_upper_storage).to_lowercase()
@@ -493,6 +528,10 @@ int main(int argc, char** argv)
 
 	const auto utf32_chars = make_utf32_char_vector(U"AbC-\u00E9\u00DF\U0001F642 "sv, 4096);
 
+	assert(utf32_parallel_large_text.to_utf8().to_utf32() == utf32_parallel_large_text);
+	assert(utf32_parallel_large_text.to_utf16().to_utf32() == utf32_parallel_large_text);
+	assert(!utf32_parallel_large_text.case_fold().empty());
+
 	std::vector<std::uint32_t> utf8_char_scalars;
 	utf8_char_scalars.reserve(utf8_chars.size());
 	for (const auto ch : utf8_chars)
@@ -517,7 +556,7 @@ int main(int argc, char** argv)
 	}
 
 	std::vector<benchmark_case> cases;
-	cases.reserve(64);
+	cases.reserve(80);
 
 	cases.push_back({
 		"utf8.find.long_needle",
@@ -1066,6 +1105,46 @@ int main(int argc, char** argv)
 		}
 	});
 	cases.push_back({
+		"utf32.to_utf8.large.view",
+		utf32_parallel_large_storage.size() * sizeof(char32_t),
+		1,
+		[&]() -> std::size_t
+		{
+			auto result = utf32_parallel_large_text.to_utf8();
+			return checksum(result.base());
+		}
+	});
+	cases.push_back({
+		"utf32.to_utf16.large.view",
+		utf32_parallel_large_storage.size() * sizeof(char32_t),
+		1,
+		[&]() -> std::size_t
+		{
+			auto result = utf32_parallel_large_text.to_utf16();
+			return checksum(result.base());
+		}
+	});
+	cases.push_back({
+		"utf32.to_lowercase.large.view",
+		utf32_parallel_large_storage.size() * sizeof(char32_t),
+		1,
+		[&]() -> std::size_t
+		{
+			auto result = utf32_parallel_large_text.to_lowercase();
+			return checksum(result.base());
+		}
+	});
+	cases.push_back({
+		"utf32.to_uppercase.large.view",
+		utf32_parallel_large_storage.size() * sizeof(char32_t),
+		1,
+		[&]() -> std::size_t
+		{
+			auto result = utf32_parallel_large_text.to_uppercase();
+			return checksum(result.base());
+		}
+	});
+	cases.push_back({
 		"utf8.case_fold.mixed.view",
 		utf8_mixed_upper_storage.size(),
 		8,
@@ -1093,6 +1172,124 @@ int main(int argc, char** argv)
 		{
 			auto result = utf32_string_view::from_code_points_unchecked(utf32_mixed_upper_storage).case_fold();
 			return checksum(result.base());
+		}
+	});
+	cases.push_back({
+		"utf32.case_fold.large.view",
+		utf32_parallel_large_storage.size() * sizeof(char32_t),
+		1,
+		[&]() -> std::size_t
+		{
+			auto result = utf32_parallel_large_text.case_fold();
+			return checksum(result.base());
+		}
+	});
+	cases.push_back({
+		"utf8.eq_ignore_case.ascii",
+		utf8_ascii_upper_storage.size() + utf8_ascii_lower_storage.size(),
+		16,
+		[&]() -> std::size_t
+		{
+			return utf8_ascii_upper_text.eq_ignore_case(utf8_ascii_lower_text) ? 1u : 0u;
+		}
+	});
+	cases.push_back({
+		"utf16.eq_ignore_case.ascii",
+		(utf16_ascii_upper_storage.size() + utf16_ascii_lower_storage.size()) * sizeof(char16_t),
+		16,
+		[&]() -> std::size_t
+		{
+			return utf16_ascii_upper_text.eq_ignore_case(utf16_ascii_lower_text) ? 1u : 0u;
+		}
+	});
+	cases.push_back({
+		"utf32.eq_ignore_case.ascii",
+		(utf32_ascii_upper_storage.size() + utf32_ascii_lower_storage.size()) * sizeof(char32_t),
+		16,
+		[&]() -> std::size_t
+		{
+			return utf32_ascii_upper_text.eq_ignore_case(utf32_ascii_lower_text) ? 1u : 0u;
+		}
+	});
+	cases.push_back({
+		"utf8.compare_ignore_case.ascii",
+		utf8_ascii_upper_storage.size() + utf8_ascii_lower_storage.size(),
+		16,
+		[&]() -> std::size_t
+		{
+			return utf8_ascii_upper_text.compare_ignore_case(utf8_ascii_lower_text) == std::weak_ordering::equivalent ? 1u : 0u;
+		}
+	});
+	cases.push_back({
+		"utf16.compare_ignore_case.ascii",
+		(utf16_ascii_upper_storage.size() + utf16_ascii_lower_storage.size()) * sizeof(char16_t),
+		16,
+		[&]() -> std::size_t
+		{
+			return utf16_ascii_upper_text.compare_ignore_case(utf16_ascii_lower_text) == std::weak_ordering::equivalent ? 1u : 0u;
+		}
+	});
+	cases.push_back({
+		"utf32.compare_ignore_case.ascii",
+		(utf32_ascii_upper_storage.size() + utf32_ascii_lower_storage.size()) * sizeof(char32_t),
+		16,
+		[&]() -> std::size_t
+		{
+			return utf32_ascii_upper_text.compare_ignore_case(utf32_ascii_lower_text) == std::weak_ordering::equivalent ? 1u : 0u;
+		}
+	});
+	cases.push_back({
+		"utf8.starts_with_ignore_case.ascii",
+		utf8_ascii_upper_storage.size() + utf8_ascii_prefix.size(),
+		16,
+		[&]() -> std::size_t
+		{
+			return utf8_ascii_upper_text.starts_with_ignore_case(utf8_ascii_prefix) ? 1u : 0u;
+		}
+	});
+	cases.push_back({
+		"utf16.starts_with_ignore_case.ascii",
+		(utf16_ascii_upper_storage.size() + utf16_ascii_prefix.size()) * sizeof(char16_t),
+		16,
+		[&]() -> std::size_t
+		{
+			return utf16_ascii_upper_text.starts_with_ignore_case(utf16_ascii_prefix) ? 1u : 0u;
+		}
+	});
+	cases.push_back({
+		"utf32.starts_with_ignore_case.ascii",
+		(utf32_ascii_upper_storage.size() + utf32_ascii_prefix.size()) * sizeof(char32_t),
+		16,
+		[&]() -> std::size_t
+		{
+			return utf32_ascii_upper_text.starts_with_ignore_case(utf32_ascii_prefix) ? 1u : 0u;
+		}
+	});
+	cases.push_back({
+		"utf8.ends_with_ignore_case.ascii",
+		utf8_ascii_upper_storage.size() + utf8_ascii_suffix.size(),
+		16,
+		[&]() -> std::size_t
+		{
+			return utf8_ascii_upper_text.ends_with_ignore_case(utf8_ascii_suffix) ? 1u : 0u;
+		}
+	});
+	cases.push_back({
+		"utf16.ends_with_ignore_case.ascii",
+		(utf16_ascii_upper_storage.size() + utf16_ascii_suffix.size()) * sizeof(char16_t),
+		16,
+		[&]() -> std::size_t
+		{
+			return utf16_ascii_upper_text.ends_with_ignore_case(utf16_ascii_suffix) ? 1u : 0u;
+		}
+	});
+	cases.push_back({
+		"utf32.ends_with_ignore_case.ascii",
+		(utf32_ascii_upper_storage.size() + utf32_ascii_suffix.size()) * sizeof(char32_t),
+		16,
+		[&]() -> std::size_t
+		{
+			return utf32_ascii_upper_text.ends_with_ignore_case(utf32_ascii_suffix) ? 1u : 0u;
 		}
 	});
 	cases.push_back({
