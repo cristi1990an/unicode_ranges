@@ -356,20 +356,20 @@ int main(int argc, char** argv)
 		u8"ÉLAN ΑΒΓ DÉJÀ VU STRASSE CAFÉ "sv,
 		2048);
 	const auto utf8_mixed_lower_storage = repeat_text(
-		u8"élan αβγ déjà vu straße café "sv,
+		u8"élan αβγ déjà vu strasse café "sv,
 		2048);
 	const auto utf16_mixed_upper_storage = repeat_text(
 		u"ÉLAN ΑΒΓ DÉJÀ VU STRASSE CAFÉ "sv,
 		2048);
 	const auto utf16_mixed_lower_storage = repeat_text(
-		u"élan αβγ déjà vu straße café "sv,
+		u"élan αβγ déjà vu strasse café "sv,
 		2048);
 
 	const auto utf32_mixed_upper_storage = repeat_text(
 		U"\u00C9LAN \u0391\u0392\u0393 D\u00C9J\u00C0 VU STRASSE CAF\u00C9 "sv,
 		2048);
 	const auto utf32_mixed_lower_storage = repeat_text(
-		U"\u00E9lan \u03B1\u03B2\u03B3 d\u00E9j\u00E0 vu stra\u00DFe caf\u00E9 "sv,
+		U"\u00E9lan \u03B1\u03B2\u03B3 d\u00E9j\u00E0 vu strasse caf\u00E9 "sv,
 		2048);
 
 	const auto utf8_validate_storage = repeat_text(
