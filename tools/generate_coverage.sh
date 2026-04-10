@@ -27,6 +27,7 @@ mkdir -p "${OUTPUT_DIR}"
 	-pedantic \
 	-pthread \
 	-stdlib=libc++ \
+	-DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 \
 	-fprofile-instr-generate \
 	-fcoverage-mapping \
 	-fno-inline \
@@ -44,6 +45,7 @@ LLVM_PROFILE_FILE="${PROFRAW}" "${OUTPUT_DIR}/${BINARY}"
 	-pedantic \
 	-pthread \
 	-stdlib=libc++ \
+	-DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 \
 	-fprofile-instr-generate \
 	-fcoverage-mapping \
 	-fno-inline \
