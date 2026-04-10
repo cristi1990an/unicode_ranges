@@ -251,6 +251,18 @@ jobs:
             sanitizer_flags: "-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all"
             asan_options: "detect_leaks=1"
             ubsan_options: "print_stacktrace=1"
+          - name: Clang trunk (libc++ ABI unstable)
+            install_kind: clang
+            packages: clang-22 libc++-22-dev libc++abi-22-dev
+            cxx: clang++-22
+            cxxflags: "-stdlib=libc++ -pthread -D_LIBCPP_ABI_UNSTABLE"
+            output: unicode_ranges_clang_o2_san_abi_unstable
+            opt_name: O2
+            opt_flags: "-O2"
+            sanitizer_name: ", ASan+UBSan"
+            sanitizer_flags: "-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all"
+            asan_options: "detect_leaks=1"
+            ubsan_options: "print_stacktrace=1"
 
     steps:
       - name: Checkout
