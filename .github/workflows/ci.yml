@@ -287,6 +287,11 @@ jobs:
             output="${{ matrix.output }}_${version//./_}"
             ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} source.cpp -o "$output"
             "./$output"
+            if [ -n "${{ matrix.sanitizer_flags }}" ]; then
+              forced_output="${output}_forced_parallel"
+              ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 source.cpp -o "$forced_output"
+              "./$forced_output"
+            fi
           done
         env:
           ASAN_OPTIONS: ${{ matrix.asan_options }}
@@ -344,6 +349,11 @@ jobs:
             output="${{ matrix.output }}_${version//./_}"
             g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} source.cpp -o "$output"
             "./$output"
+            if [ -n "${{ matrix.sanitizer_flags }}" ]; then
+              forced_output="${output}_forced_parallel"
+              g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 source.cpp -o "$forced_output"
+              "./$forced_output"
+            fi
           done
         env:
           ASAN_OPTIONS: ${{ matrix.asan_options }}
