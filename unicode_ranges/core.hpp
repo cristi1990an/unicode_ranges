@@ -510,7 +510,39 @@ namespace details
 	requires (sizeof(CharT) == 4)
 	inline std::size_t ascii_prefix_length_runtime(std::basic_string_view<CharT> value) noexcept
 	{
+#if UTF8_RANGES_HAS_SSE2_INTRINSICS
+		const auto ascii_mask = _mm_set1_epi32(static_cast<int>(~0x7Fu));
+		const auto zero = _mm_setzero_si128();
+		std::size_t index = 0;
+		while (index + 4 <= value.size())
+		{
+			const auto block = _mm_loadu_si128(reinterpret_cast<const __m128i*>(value.data() + index));
+			const auto high_bits = _mm_and_si128(block, ascii_mask);
+			const auto ascii_lanes = _mm_cmpeq_epi32(high_bits, zero);
+			if (_mm_movemask_epi8(ascii_lanes) != 0xFFFF)
+			{
+				for (std::size_t lane = 0; lane != 4; ++lane)
+				{
+					if (static_cast<std::uint32_t>(value[index + lane]) > encoding_constants::ascii_scalar_max)
+					{
+						return index + lane;
+					}
+				}
+			}
+
+			index += 4;
+		}
+
+		while (index < value.size()
+			&& static_cast<std::uint32_t>(value[index]) <= encoding_constants::ascii_scalar_max)
+		{
+			++index;
+		}
+
+		return index;
+#else
 		return ascii_prefix_length_scalar(value);
+#endif
 	}
 
 	template <typename CharT>
@@ -640,6 +672,34 @@ namespace details
 
 	inline bool ascii_lowercase_copy_runtime(char32_t* out, std::u32string_view code_points) noexcept
 	{
+#if UTF8_RANGES_HAS_SSE2_INTRINSICS
+		const auto* data = reinterpret_cast<const char32_t*>(code_points.data());
+		auto* dest = reinterpret_cast<char32_t*>(out);
+		const auto upper_min = _mm_set1_epi32(U'A' - 1);
+		const auto upper_max = _mm_set1_epi32(U'Z' + 1);
+		const auto delta = _mm_set1_epi32(U'a' - U'A');
+		bool changed = false;
+		std::size_t index = 0;
+		while (index + 4 <= code_points.size())
+		{
+			const auto block = _mm_loadu_si128(reinterpret_cast<const __m128i*>(data + index));
+			const auto is_after_min = _mm_cmpgt_epi32(block, upper_min);
+			const auto is_before_max = _mm_cmpgt_epi32(upper_max, block);
+			const auto upper = _mm_and_si128(is_after_min, is_before_max);
+			changed = changed || (_mm_movemask_epi8(upper) != 0);
+			const auto add = _mm_and_si128(upper, delta);
+			const auto mapped = _mm_add_epi32(block, add);
+			_mm_storeu_si128(reinterpret_cast<__m128i*>(dest + index), mapped);
+			index += 4;
+		}
+
+		if (index != code_points.size())
+		{
+			changed = ascii_lowercase_copy_scalar(out + index, code_points.substr(index)) || changed;
+		}
+
+		return changed;
+#else
 		bool changed = false;
 		for (std::size_t index = 0; index != code_points.size(); ++index)
 		{
@@ -651,10 +711,39 @@ namespace details
 		}
 
 		return changed;
+#endif
 	}
 
 	inline bool ascii_uppercase_copy_runtime(char32_t* out, std::u32string_view code_points) noexcept
 	{
+#if UTF8_RANGES_HAS_SSE2_INTRINSICS
+		const auto* data = reinterpret_cast<const char32_t*>(code_points.data());
+		auto* dest = reinterpret_cast<char32_t*>(out);
+		const auto lower_min = _mm_set1_epi32(U'a' - 1);
+		const auto lower_max = _mm_set1_epi32(U'z' + 1);
+		const auto delta = _mm_set1_epi32(U'a' - U'A');
+		bool changed = false;
+		std::size_t index = 0;
+		while (index + 4 <= code_points.size())
+		{
+			const auto block = _mm_loadu_si128(reinterpret_cast<const __m128i*>(data + index));
+			const auto is_after_min = _mm_cmpgt_epi32(block, lower_min);
+			const auto is_before_max = _mm_cmpgt_epi32(lower_max, block);
+			const auto lower = _mm_and_si128(is_after_min, is_before_max);
+			changed = changed || (_mm_movemask_epi8(lower) != 0);
+			const auto sub = _mm_and_si128(lower, delta);
+			const auto mapped = _mm_sub_epi32(block, sub);
+			_mm_storeu_si128(reinterpret_cast<__m128i*>(dest + index), mapped);
+			index += 4;
+		}
+
+		if (index != code_points.size())
+		{
+			changed = ascii_uppercase_copy_scalar(out + index, code_points.substr(index)) || changed;
+		}
+
+		return changed;
+#else
 		bool changed = false;
 		for (std::size_t index = 0; index != code_points.size(); ++index)
 		{
@@ -666,6 +755,7 @@ namespace details
 		}
 
 		return changed;
+#endif
 	}
 
 	inline bool ascii_lowercase_copy_runtime(char8_t* out, std::u8string_view bytes) noexcept
@@ -2320,6 +2410,22 @@ namespace details
 			return classify_grapheme_scalar(scalar);
 		}
 
+		inline constexpr grapheme_scalar_info decode_next_grapheme_utf32_scalar(const char32_t*& cursor) noexcept
+		{
+			const auto scalar = decode_next_utf32_scalar(cursor);
+			if (scalar < 0x80u) [[likely]]
+			{
+				return grapheme_scalar_info{
+					.scalar = scalar,
+					.break_property = ascii_grapheme_break_property(scalar),
+					.indic_property = unicode::indic_conjunct_break_property::none,
+					.extended_pictographic = false
+				};
+			}
+
+			return classify_grapheme_scalar(scalar);
+		}
+
 		inline constexpr grapheme_emoji_suffix_state advance_emoji_suffix(
 			grapheme_emoji_suffix_state state,
 			const grapheme_scalar_info& scalar_info) noexcept
@@ -2705,12 +2811,12 @@ namespace details
 			const auto* const begin = text.data();
 			const auto* const end = begin + text.size();
 			auto position = begin + index;
-			auto state = make_initial_grapheme_state(classify_grapheme_scalar(decode_next_utf8_scalar(position)));
+			auto state = make_initial_grapheme_state(decode_next_grapheme_utf8_scalar(position));
 
 			while (position < end)
 			{
 				auto next_position = position;
-				const auto next_scalar_info = classify_grapheme_scalar(decode_next_utf8_scalar(next_position));
+				const auto next_scalar_info = decode_next_grapheme_utf8_scalar(next_position);
 				if (!should_continue_grapheme_cluster(state, next_scalar_info))
 				{
 					return static_cast<std::size_t>(position - begin);
@@ -2733,12 +2839,12 @@ namespace details
 			const auto* const begin = text.data();
 			const auto* const end = begin + text.size();
 			auto position = begin + index;
-			auto state = make_initial_grapheme_state(classify_grapheme_scalar(decode_next_utf16_scalar(position)));
+			auto state = make_initial_grapheme_state(decode_next_grapheme_utf16_scalar(position));
 
 			while (position < end)
 			{
 				auto next_position = position;
-				const auto next_scalar_info = classify_grapheme_scalar(decode_next_utf16_scalar(next_position));
+				const auto next_scalar_info = decode_next_grapheme_utf16_scalar(next_position);
 				if (!should_continue_grapheme_cluster(state, next_scalar_info))
 				{
 					return static_cast<std::size_t>(position - begin);
@@ -2761,12 +2867,12 @@ namespace details
 			const auto* const begin = text.data();
 			const auto* const end = begin + text.size();
 			auto position = begin + index;
-			auto state = make_initial_grapheme_state(classify_grapheme_scalar(decode_next_utf32_scalar(position)));
+			auto state = make_initial_grapheme_state(decode_next_grapheme_utf32_scalar(position));
 
 			while (position < end)
 			{
 				auto next_position = position;
-				const auto next_scalar_info = classify_grapheme_scalar(decode_next_utf32_scalar(next_position));
+				const auto next_scalar_info = decode_next_grapheme_utf32_scalar(next_position);
 				if (!should_continue_grapheme_cluster(state, next_scalar_info))
 				{
 					return static_cast<std::size_t>(position - begin);
@@ -2794,6 +2900,11 @@ namespace details
 				return first_continues_previous ? 0u : 1u;
 			}
 
+			if (ascii_run.find(static_cast<CharT>('\r')) == std::basic_string_view<CharT>::npos)
+			{
+				return ascii_run.size() - (first_continues_previous ? 1u : 0u);
+			}
+
 			std::size_t count = first_continues_previous ? 0u : 1u;
 			for (std::size_t index = 1; index != ascii_run.size(); ++index)
 			{
@@ -2819,36 +2930,43 @@ namespace details
 			const auto* const begin = text.data();
 			const auto* const end = begin + text.size();
 			auto position = begin;
-			std::size_t count = 0;
-			bool has_state = false;
 			grapheme_state state{};
+			std::size_t count = 1;
 
-			while (position < end)
+			if (static_cast<std::uint8_t>(*position) <= encoding_constants::ascii_scalar_max) [[likely]]
 			{
 				const auto remaining = std::u8string_view{ position, static_cast<std::size_t>(end - position) };
 				const auto ascii_run = ascii_prefix_length(remaining);
-				if (ascii_run != 0) [[likely]]
+				const auto ascii_view = remaining.substr(0, ascii_run);
+				count = count_ascii_grapheme_run(ascii_view, false);
+				state = make_initial_grapheme_state(static_cast<std::uint8_t>(ascii_view.back()));
+				position += ascii_run;
+			}
+			else
+			{
+				auto next_position = position;
+				state = make_initial_grapheme_state(decode_next_grapheme_utf8_scalar(next_position));
+				position = next_position;
+			}
+
+			while (position < end)
+			{
+				if (static_cast<std::uint8_t>(*position) <= encoding_constants::ascii_scalar_max) [[likely]]
 				{
+					const auto remaining = std::u8string_view{ position, static_cast<std::size_t>(end - position) };
+					const auto ascii_run = ascii_prefix_length(remaining);
 					const auto ascii_view = remaining.substr(0, ascii_run);
-					const auto first_scalar = static_cast<std::uint8_t>(ascii_view.front());
 					count += count_ascii_grapheme_run(
 						ascii_view,
-						has_state && should_continue_grapheme_cluster(state, first_scalar));
+						should_continue_grapheme_cluster(state, static_cast<std::uint8_t>(ascii_view.front())));
 					state = make_initial_grapheme_state(static_cast<std::uint8_t>(ascii_view.back()));
-					has_state = true;
 					position += ascii_run;
 					continue;
 				}
 
 				auto next_position = position;
 				const auto scalar_info = decode_next_grapheme_utf8_scalar(next_position);
-				if (!has_state)
-				{
-					++count;
-					state = make_initial_grapheme_state(scalar_info);
-					has_state = true;
-				}
-				else if (!should_continue_grapheme_cluster(state, scalar_info))
+				if (!should_continue_grapheme_cluster(state, scalar_info))
 				{
 					++count;
 					state = make_initial_grapheme_state(scalar_info);
@@ -2864,8 +2982,8 @@ namespace details
 			return count;
 		}
 
-			inline constexpr std::size_t grapheme_count(std::u16string_view text) noexcept
-			{
+		inline constexpr std::size_t grapheme_count(std::u16string_view text) noexcept
+		{
 			if (text.empty())
 			{
 				return 0;
@@ -2874,36 +2992,43 @@ namespace details
 			const auto* const begin = text.data();
 			const auto* const end = begin + text.size();
 			auto position = begin;
-			std::size_t count = 0;
-			bool has_state = false;
 			grapheme_state state{};
+			std::size_t count = 1;
 
-			while (position < end)
+			if (static_cast<std::uint16_t>(*position) <= encoding_constants::ascii_scalar_max) [[likely]]
 			{
 				const auto remaining = std::u16string_view{ position, static_cast<std::size_t>(end - position) };
 				const auto ascii_run = ascii_prefix_length(remaining);
-				if (ascii_run != 0) [[likely]]
+				const auto ascii_view = remaining.substr(0, ascii_run);
+				count = count_ascii_grapheme_run(ascii_view, false);
+				state = make_initial_grapheme_state(static_cast<std::uint16_t>(ascii_view.back()));
+				position += ascii_run;
+			}
+			else
+			{
+				auto next_position = position;
+				state = make_initial_grapheme_state(decode_next_grapheme_utf16_scalar(next_position));
+				position = next_position;
+			}
+
+			while (position < end)
+			{
+				if (static_cast<std::uint16_t>(*position) <= encoding_constants::ascii_scalar_max) [[likely]]
 				{
+					const auto remaining = std::u16string_view{ position, static_cast<std::size_t>(end - position) };
+					const auto ascii_run = ascii_prefix_length(remaining);
 					const auto ascii_view = remaining.substr(0, ascii_run);
-					const auto first_scalar = static_cast<std::uint16_t>(ascii_view.front());
 					count += count_ascii_grapheme_run(
 						ascii_view,
-						has_state && should_continue_grapheme_cluster(state, first_scalar));
+						should_continue_grapheme_cluster(state, static_cast<std::uint16_t>(ascii_view.front())));
 					state = make_initial_grapheme_state(static_cast<std::uint16_t>(ascii_view.back()));
-					has_state = true;
 					position += ascii_run;
 					continue;
 				}
 
 				auto next_position = position;
 				const auto scalar_info = decode_next_grapheme_utf16_scalar(next_position);
-				if (!has_state)
-				{
-					++count;
-					state = make_initial_grapheme_state(scalar_info);
-					has_state = true;
-				}
-				else if (!should_continue_grapheme_cluster(state, scalar_info))
+				if (!should_continue_grapheme_cluster(state, scalar_info))
 				{
 					++count;
 					state = make_initial_grapheme_state(scalar_info);
@@ -2991,57 +3116,67 @@ namespace details
 			return text.size();
 		}
 
-			inline constexpr std::size_t grapheme_count(std::u32string_view text) noexcept
+		inline constexpr std::size_t grapheme_count(std::u32string_view text) noexcept
+		{
+			if (text.empty())
 			{
-				if (text.empty())
-				{
-					return 0;
-				}
+				return 0;
+			}
 
-				const auto* const begin = text.data();
-				const auto* const end = begin + text.size();
-				auto position = begin;
-				std::size_t count = 0;
-				bool has_state = false;
-				grapheme_state state{};
+			const auto* const begin = text.data();
+			const auto* const end = begin + text.size();
+			auto position = begin;
+			grapheme_state state{};
+			std::size_t count = 1;
 
-				while (position < end)
+			if (static_cast<std::uint32_t>(*position) <= encoding_constants::ascii_scalar_max) [[likely]]
+			{
+				const auto remaining = std::u32string_view{ position, static_cast<std::size_t>(end - position) };
+				const auto ascii_run = ascii_prefix_length(remaining);
+				const auto ascii_view = remaining.substr(0, ascii_run);
+				count = count_ascii_grapheme_run(ascii_view, false);
+				state = make_initial_grapheme_state(static_cast<std::uint32_t>(ascii_view.back()));
+				position += ascii_run;
+			}
+			else
+			{
+				auto next_position = position;
+				state = make_initial_grapheme_state(decode_next_grapheme_utf32_scalar(next_position));
+				position = next_position;
+			}
+
+			while (position < end)
+			{
+				if (static_cast<std::uint32_t>(*position) <= encoding_constants::ascii_scalar_max) [[likely]]
 				{
 					const auto remaining = std::u32string_view{ position, static_cast<std::size_t>(end - position) };
 					const auto ascii_run = ascii_prefix_length(remaining);
-					if (ascii_run != 0) [[likely]]
-					{
-						const auto ascii_view = remaining.substr(0, ascii_run);
-						const auto first_scalar = static_cast<std::uint32_t>(ascii_view.front());
-						count += count_ascii_grapheme_run(
-							ascii_view,
-							has_state && should_continue_grapheme_cluster(state, first_scalar));
-						state = make_initial_grapheme_state(static_cast<std::uint32_t>(ascii_view.back()));
-						has_state = true;
-						position += ascii_run;
-						continue;
-					}
-
-					const auto scalar_info = classify_grapheme_scalar(static_cast<std::uint32_t>(*position++));
-					if (!has_state)
-					{
-						++count;
-						state = make_initial_grapheme_state(scalar_info);
-						has_state = true;
-					}
-					else if (!should_continue_grapheme_cluster(state, scalar_info))
-					{
-						++count;
-						state = make_initial_grapheme_state(scalar_info);
-					}
-					else
-					{
-						consume_grapheme_scalar(state, scalar_info);
-					}
+					const auto ascii_view = remaining.substr(0, ascii_run);
+					count += count_ascii_grapheme_run(
+						ascii_view,
+						should_continue_grapheme_cluster(state, static_cast<std::uint32_t>(ascii_view.front())));
+					state = make_initial_grapheme_state(static_cast<std::uint32_t>(ascii_view.back()));
+					position += ascii_run;
+					continue;
 				}
 
-				return count;
+				auto next_position = position;
+				const auto scalar_info = decode_next_grapheme_utf32_scalar(next_position);
+				if (!should_continue_grapheme_cluster(state, scalar_info))
+				{
+					++count;
+					state = make_initial_grapheme_state(scalar_info);
+				}
+				else
+				{
+					consume_grapheme_scalar(state, scalar_info);
+				}
+
+				position = next_position;
 			}
+
+			return count;
+		}
 
 			template <typename CharT>
 			inline constexpr std::size_t grapheme_count(std::basic_string_view<CharT> text) noexcept

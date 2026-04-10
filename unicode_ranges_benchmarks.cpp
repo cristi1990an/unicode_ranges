@@ -402,6 +402,15 @@ int main(int argc, char** argv)
 	const auto utf32_normalize_nfc_storage = repeat_text(
 		U"e\u0301 A\u030A \u1E9B\u0323 "sv,
 		2048);
+	const auto utf8_already_nfc_storage = repeat_text(
+		u8"Caf\u00E9 \u00C5ngstr\u00F6m d\u00E9j\u00E0 vu \U0001F642 "sv,
+		2048);
+	const auto utf16_already_nfc_storage = repeat_text(
+		u"Caf\u00E9 \u00C5ngstr\u00F6m d\u00E9j\u00E0 vu \U0001F642 "sv,
+		2048);
+	const auto utf32_already_nfc_storage = repeat_text(
+		U"Caf\u00E9 \u00C5ngstr\u00F6m d\u00E9j\u00E0 vu \U0001F642 "sv,
+		2048);
 	const auto utf8_split_whitespace_storage = repeat_text(
 		u8"alpha  beta\tcaf\u00E9 \n\U0001F642  \u03A9mega\r\n"sv,
 		2048);
@@ -420,6 +429,9 @@ int main(int argc, char** argv)
 	const auto utf8_normalize_nfc_text = utf8_string_view::from_bytes_unchecked(utf8_normalize_nfc_storage);
 	const auto utf16_normalize_nfc_text = utf16_string_view::from_code_units_unchecked(utf16_normalize_nfc_storage);
 	const auto utf32_normalize_nfc_text = utf32_string_view::from_code_points_unchecked(utf32_normalize_nfc_storage);
+	const auto utf8_already_nfc_text = utf8_string_view::from_bytes_unchecked(utf8_already_nfc_storage);
+	const auto utf16_already_nfc_text = utf16_string_view::from_code_units_unchecked(utf16_already_nfc_storage);
+	const auto utf32_already_nfc_text = utf32_string_view::from_code_points_unchecked(utf32_already_nfc_storage);
 	const auto utf8_split_whitespace_text = utf8_string_view::from_bytes_unchecked(utf8_split_whitespace_storage);
 	const auto utf16_split_whitespace_text = utf16_string_view::from_code_units_unchecked(utf16_split_whitespace_storage);
 	const auto utf32_split_whitespace_text = utf32_string_view::from_code_points_unchecked(utf32_split_whitespace_storage);
@@ -446,6 +458,21 @@ int main(int argc, char** argv)
 	assert(utf8_normalize_nfc_text.to_nfc().is_nfc());
 	assert(utf16_normalize_nfc_text.to_nfc().is_nfc());
 	assert(utf32_normalize_nfc_text.to_nfc().is_nfc());
+	assert(utf8_already_nfc_text.is_nfc());
+	assert(utf16_already_nfc_text.is_nfc());
+	assert(utf32_already_nfc_text.is_nfc());
+	assert(utf8_already_nfc_text.to_nfc() == utf8_already_nfc_text);
+	assert(utf16_already_nfc_text.to_nfc() == utf16_already_nfc_text);
+	assert(utf32_already_nfc_text.to_nfc() == utf32_already_nfc_text);
+	assert(utf8_string_view::from_bytes_unchecked(utf8_mixed_lower_storage).is_nfc());
+	assert(utf16_string_view::from_code_units_unchecked(utf16_mixed_lower_storage).is_nfc());
+	assert(utf32_string_view::from_code_points_unchecked(utf32_mixed_lower_storage).is_nfc());
+	assert(utf8_string_view::from_bytes_unchecked(utf8_mixed_lower_storage).to_nfc()
+		== utf8_string_view::from_bytes_unchecked(utf8_mixed_lower_storage));
+	assert(utf16_string_view::from_code_units_unchecked(utf16_mixed_lower_storage).to_nfc()
+		== utf16_string_view::from_code_units_unchecked(utf16_mixed_lower_storage));
+	assert(utf32_string_view::from_code_points_unchecked(utf32_mixed_lower_storage).to_nfc()
+		== utf32_string_view::from_code_points_unchecked(utf32_mixed_lower_storage));
 	assert(utf8_string_view::from_bytes_unchecked(utf8_mixed_upper_storage).eq_ignore_case(
 		utf8_string_view::from_bytes_unchecked(utf8_mixed_lower_storage)));
 	assert(utf16_string_view::from_code_units_unchecked(utf16_mixed_upper_storage).eq_ignore_case(
@@ -1131,6 +1158,66 @@ int main(int argc, char** argv)
 		[&]() -> std::size_t
 		{
 			auto result = utf32_normalize_nfc_text.to_nfc();
+			return checksum(result.base());
+		}
+	});
+	cases.push_back({
+		"utf8.to_nfc.already_nfc.view",
+		utf8_already_nfc_storage.size(),
+		8,
+		[&]() -> std::size_t
+		{
+			auto result = utf8_already_nfc_text.to_nfc();
+			return checksum(result.base());
+		}
+	});
+	cases.push_back({
+		"utf8.to_nfc.already_nfc.mixed",
+		utf8_mixed_lower_storage.size(),
+		8,
+		[&]() -> std::size_t
+		{
+			auto result = utf8_string_view::from_bytes_unchecked(utf8_mixed_lower_storage).to_nfc();
+			return checksum(result.base());
+		}
+	});
+	cases.push_back({
+		"utf16.to_nfc.already_nfc.view",
+		utf16_already_nfc_storage.size() * sizeof(char16_t),
+		8,
+		[&]() -> std::size_t
+		{
+			auto result = utf16_already_nfc_text.to_nfc();
+			return checksum(result.base());
+		}
+	});
+	cases.push_back({
+		"utf16.to_nfc.already_nfc.mixed",
+		utf16_mixed_lower_storage.size() * sizeof(char16_t),
+		8,
+		[&]() -> std::size_t
+		{
+			auto result = utf16_string_view::from_code_units_unchecked(utf16_mixed_lower_storage).to_nfc();
+			return checksum(result.base());
+		}
+	});
+	cases.push_back({
+		"utf32.to_nfc.already_nfc.view",
+		utf32_already_nfc_storage.size() * sizeof(char32_t),
+		8,
+		[&]() -> std::size_t
+		{
+			auto result = utf32_already_nfc_text.to_nfc();
+			return checksum(result.base());
+		}
+	});
+	cases.push_back({
+		"utf32.to_nfc.already_nfc.mixed",
+		utf32_mixed_lower_storage.size() * sizeof(char32_t),
+		8,
+		[&]() -> std::size_t
+		{
+			auto result = utf32_string_view::from_code_points_unchecked(utf32_mixed_lower_storage).to_nfc();
 			return checksum(result.base());
 		}
 	});
