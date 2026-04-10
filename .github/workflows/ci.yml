@@ -321,11 +321,11 @@ jobs:
             pwsh ./tools/update_unicode_data.ps1 -Version "$version"
             pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
             output="${{ matrix.output }}_${version//./_}"
-            ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} source.cpp -o "$output"
+            ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 source.cpp -o "$output"
             "./$output"
             if [ -n "${{ matrix.sanitizer_flags }}" ]; then
               forced_output="${output}_forced_parallel"
-              ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 source.cpp -o "$forced_output"
+              ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 source.cpp -o "$forced_output"
               "./$forced_output"
             fi
           done
@@ -386,11 +386,11 @@ jobs:
             pwsh ./tools/update_unicode_data.ps1 -Version "$version"
             pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
             output="${{ matrix.output }}_${version//./_}"
-            g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} source.cpp -o "$output"
+            g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 source.cpp -o "$output"
             "./$output"
             if [ -n "${{ matrix.sanitizer_flags }}" ]; then
               forced_output="${output}_forced_parallel"
-              g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 source.cpp -o "$forced_output"
+              g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 source.cpp -o "$forced_output"
               "./$forced_output"
             fi
           done

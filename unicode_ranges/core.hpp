@@ -583,11 +583,19 @@ namespace details
 	inline constexpr std::size_t runtime_parallel_max_worker_count = 2;
 #endif
 
+#ifndef UTF8_RANGES_ENABLE_TEST_HOOKS
+#define UTF8_RANGES_ENABLE_TEST_HOOKS 0
+#endif
+
 #ifndef UTF8_RANGES_TEST_FORCE_UTF32_PARALLEL
 #define UTF8_RANGES_TEST_FORCE_UTF32_PARALLEL 0
 #endif
 
+#if UTF8_RANGES_ENABLE_TEST_HOOKS
 	inline constexpr bool test_force_utf32_parallel = UTF8_RANGES_TEST_FORCE_UTF32_PARALLEL != 0;
+#else
+	inline constexpr bool test_force_utf32_parallel = false;
+#endif
 
 	struct utf32_parallel_plan
 	{
