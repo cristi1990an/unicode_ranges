@@ -30,6 +30,12 @@
 
 #include <uchar.h>
 
+#if defined(__cpp_lib_jthread) && __cpp_lib_jthread >= 201911L
+#define UTF8_RANGES_HAS_JTHREAD 1
+#else
+#define UTF8_RANGES_HAS_JTHREAD 0
+#endif
+
 #if defined(__has_include)
 #if __has_include(<emmintrin.h>) && (defined(_M_X64) || defined(_M_AMD64) || defined(__x86_64__) || defined(__SSE2__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2))
 #define UTF8_RANGES_HAS_SSE2_INTRINSICS 1
@@ -634,6 +640,7 @@ namespace details
 
 		// The calling thread participates as the last worker to avoid spinning up an
 		// extra thread just to sit idle waiting for joins.
+#if UTF8_RANGES_HAS_JTHREAD
 		auto workers = std::make_unique<std::jthread[]>(worker_count - 1);
 		for (std::size_t worker_index = 0; worker_index + 1 < worker_count; ++worker_index)
 		{
@@ -642,8 +649,41 @@ namespace details
 					fn(worker_index);
 				});
 		}
-
 		fn(worker_count - 1);
+#else
+		auto workers = std::make_unique<std::thread[]>(worker_count - 1);
+		std::size_t started_workers = 0;
+		try
+		{
+			for (std::size_t worker_index = 0; worker_index + 1 < worker_count; ++worker_index)
+			{
+				workers[worker_index] = std::thread([&, worker_index]
+					{
+						fn(worker_index);
+					});
+				++started_workers;
+			}
+		}
+		catch (...)
+		{
+			for (std::size_t worker_index = 0; worker_index != started_workers; ++worker_index)
+			{
+				if (workers[worker_index].joinable())
+				{
+					workers[worker_index].join();
+				}
+			}
+			throw;
+		}
+		fn(worker_count - 1);
+		for (std::size_t worker_index = 0; worker_index != started_workers; ++worker_index)
+		{
+			if (workers[worker_index].joinable())
+			{
+				workers[worker_index].join();
+			}
+		}
+#endif
 	}
 
 	inline constexpr bool ascii_lowercase_copy_scalar(char8_t* out, std::u8string_view bytes) noexcept
