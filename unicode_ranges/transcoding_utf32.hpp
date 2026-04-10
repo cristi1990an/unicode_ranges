@@ -634,8 +634,11 @@ namespace unicode_ranges
 					break;
 				}
 				const auto bmp_mapping = lookup_bmp_case_fold_mapping(scalar);
-				const auto mapped = bmp_mapping.same_size ? bmp_mapping.mapped : scalar;
-				result.changed = result.changed || (mapped != scalar);
+				if (!bmp_mapping.same_size)
+				{
+					break;
+				}
+				result.changed = result.changed || (bmp_mapping.mapped != scalar);
 			}
 			if (index != 0)
 			{
@@ -682,7 +685,11 @@ namespace unicode_ranges
 					break;
 				}
 				const auto bmp_mapping = lookup_bmp_case_fold_mapping(scalar);
-				buffer[write_index++] = static_cast<char32_t>(bmp_mapping.same_size ? bmp_mapping.mapped : scalar);
+				if (!bmp_mapping.same_size)
+				{
+					break;
+				}
+				buffer[write_index++] = static_cast<char32_t>(bmp_mapping.mapped);
 			}
 			for (; index < size;)
 			{
