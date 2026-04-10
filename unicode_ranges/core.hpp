@@ -571,8 +571,17 @@ namespace details
 
 	// Runtime-only thresholding for the UTF-32 parallel paths. These are intentionally
 	// conservative so we do not pay thread setup costs on mid-sized inputs.
+#if UINTPTR_MAX > 0xFFFFFFFFu
 	inline constexpr std::size_t runtime_parallel_min_total_bytes = 1u << 20;
 	inline constexpr std::size_t runtime_parallel_min_bytes_per_worker = 1u << 18;
+	inline constexpr std::size_t runtime_parallel_max_worker_count = (std::numeric_limits<std::size_t>::max)();
+#else
+	// 32-bit runners have noticeably higher thread/setup pressure relative to the
+	// UTF-32 workloads we parallelize here, so they use a stricter activation policy.
+	inline constexpr std::size_t runtime_parallel_min_total_bytes = 4u << 20;
+	inline constexpr std::size_t runtime_parallel_min_bytes_per_worker = 1u << 20;
+	inline constexpr std::size_t runtime_parallel_max_worker_count = 2;
+#endif
 
 	struct utf32_parallel_plan
 	{
@@ -600,6 +609,7 @@ namespace details
 			return { 1, code_point_count };
 		}
 
+		worker_count = std::min(worker_count, runtime_parallel_max_worker_count);
 		worker_count = std::min(worker_count, total_bytes / runtime_parallel_min_bytes_per_worker);
 		worker_count = std::min(worker_count, code_point_count);
 		if (worker_count < 2)
@@ -2504,6 +2514,8 @@ namespace details
 
 		inline constexpr grapheme_scalar_info decode_next_grapheme_utf8_scalar(const char8_t*& cursor) noexcept
 		{
+			// Fold decode + classify into one helper so grapheme algorithms only branch
+			// once per scalar, with a very cheap ASCII fast path.
 			const auto scalar = decode_next_utf8_scalar(cursor);
 			if (scalar < 0x80u) [[likely]]
 			{
@@ -2520,6 +2532,8 @@ namespace details
 
 		inline constexpr grapheme_scalar_info decode_next_grapheme_utf16_scalar(const char16_t*& cursor) noexcept
 		{
+			// Fold decode + classify into one helper so grapheme algorithms only branch
+			// once per scalar, with a very cheap ASCII fast path.
 			const auto scalar = decode_next_utf16_scalar(cursor);
 			if (scalar < 0x80u) [[likely]]
 			{
@@ -2536,6 +2550,8 @@ namespace details
 
 		inline constexpr grapheme_scalar_info decode_next_grapheme_utf32_scalar(const char32_t*& cursor) noexcept
 		{
+			// Fold decode + classify into one helper so grapheme algorithms only branch
+			// once per scalar, with a very cheap ASCII fast path.
 			const auto scalar = decode_next_utf32_scalar(cursor);
 			if (scalar < 0x80u) [[likely]]
 			{
@@ -2935,6 +2951,8 @@ namespace details
 			const auto* const begin = text.data();
 			const auto* const end = begin + text.size();
 			auto position = begin + index;
+			// The initial scalar seeds the rolling state; each following scalar asks
+			// whether the cluster continues before mutating that state.
 			auto state = make_initial_grapheme_state(decode_next_grapheme_utf8_scalar(position));
 
 			while (position < end)
@@ -2963,6 +2981,8 @@ namespace details
 			const auto* const begin = text.data();
 			const auto* const end = begin + text.size();
 			auto position = begin + index;
+			// The initial scalar seeds the rolling state; each following scalar asks
+			// whether the cluster continues before mutating that state.
 			auto state = make_initial_grapheme_state(decode_next_grapheme_utf16_scalar(position));
 
 			while (position < end)
@@ -2991,6 +3011,8 @@ namespace details
 			const auto* const begin = text.data();
 			const auto* const end = begin + text.size();
 			auto position = begin + index;
+			// The initial scalar seeds the rolling state; each following scalar asks
+			// whether the cluster continues before mutating that state.
 			auto state = make_initial_grapheme_state(decode_next_grapheme_utf32_scalar(position));
 
 			while (position < end)
@@ -3014,6 +3036,9 @@ namespace details
 			std::basic_string_view<CharT> ascii_run,
 			bool first_continues_previous) noexcept
 		{
+			// For ASCII, grapheme segmentation degenerates to "one code point per
+			// grapheme" except for CRLF, so we can count runs without per-scalar table
+			// lookups or full grapheme-state transitions.
 			if (ascii_run.empty())
 			{
 				return 0;
@@ -3057,6 +3082,8 @@ namespace details
 			grapheme_state state{};
 			std::size_t count = 1;
 
+			// Large ASCII spans are counted in bulk; non-ASCII falls back to the full
+			// state machine only when needed.
 			if (static_cast<std::uint8_t>(*position) <= encoding_constants::ascii_scalar_max) [[likely]]
 			{
 				const auto remaining = std::u8string_view{ position, static_cast<std::size_t>(end - position) };
@@ -3119,6 +3146,8 @@ namespace details
 			grapheme_state state{};
 			std::size_t count = 1;
 
+			// Large ASCII spans are counted in bulk; non-ASCII falls back to the full
+			// state machine only when needed.
 			if (static_cast<std::uint16_t>(*position) <= encoding_constants::ascii_scalar_max) [[likely]]
 			{
 				const auto remaining = std::u16string_view{ position, static_cast<std::size_t>(end - position) };
@@ -3253,6 +3282,8 @@ namespace details
 			grapheme_state state{};
 			std::size_t count = 1;
 
+			// Large ASCII spans are counted in bulk; non-ASCII falls back to the full
+			// state machine only when needed.
 			if (static_cast<std::uint32_t>(*position) <= encoding_constants::ascii_scalar_max) [[likely]]
 			{
 				const auto remaining = std::u32string_view{ position, static_cast<std::size_t>(end - position) };

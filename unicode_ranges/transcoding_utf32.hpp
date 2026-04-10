@@ -356,6 +356,8 @@ namespace unicode_ranges
 		template <bool Lowercase>
 		constexpr case_map_measurement measure_case_map_utf32(std::u32string_view code_points) noexcept
 		{
+			// Measurement mirrors the write pass exactly. That lets callers allocate once
+			// and either emit serially or split the final buffer into parallel slices.
 			case_map_measurement result{};
 			for (std::size_t index = 0; index < code_points.size();)
 			{
@@ -488,6 +490,8 @@ namespace unicode_ranges
 		template <bool Lowercase>
 		constexpr std::size_t write_case_map_utf32_into(std::u32string_view code_points, char32_t* buffer) noexcept
 		{
+			// UTF-32 writes are simple once the output size is known: each branch emits
+			// directly to the destination without any encoding-size bookkeeping.
 			std::size_t write_index = 0;
 			for (std::size_t index = 0; index < code_points.size();)
 			{
@@ -615,7 +619,10 @@ namespace unicode_ranges
 		}
 		constexpr case_map_measurement measure_case_fold_utf32(std::u32string_view code_points) noexcept
 		{
+			// Measurement mirrors the write pass exactly. That lets callers allocate once
+			// and either emit serially or split the final buffer into parallel slices.
 			case_map_measurement result{};
+			case_fold_scalar_buffer mapping{};
 			for (std::size_t index = 0; index < code_points.size();)
 			{
 				const auto remaining = std::u32string_view{ code_points.data() + index, code_points.size() - index };
@@ -631,42 +638,21 @@ namespace unicode_ranges
 					index += ascii_run;
 					continue;
 				}
-				const auto decoded = decode_next_scalar(code_points, index);
-				if (decoded.scalar <= encoding_constants::bmp_scalar_max)
-				{
-					const auto bmp_mapping = lookup_bmp_case_fold_mapping(decoded.scalar);
-					if (bmp_mapping.same_size)
-					{
-						result.changed = result.changed || (bmp_mapping.mapped != decoded.scalar);
-						++result.output_size;
-						index = decoded.next_index;
-						continue;
-					}
-				}
 
-				const auto mapping = lookup_case_fold_mapping(decoded.scalar);
-				if (mapping.has_simple)
-				{
-					result.changed = true;
-					result.output_size += unicode_scalar_utf32_size(mapping.simple_mapped);
-				}
-				else if (mapping.has_special())
-				{
-					result.changed = true;
-					const auto& special = case_fold_special_mapping_from_index(mapping.special_index);
-					result.output_size += special.count;
-				}
-				else
-				{
-					result.output_size += decoded.next_index - index;
-				}
+				const auto decoded = decode_next_scalar(code_points, index);
+				mapping.load(decoded.scalar);
+				result.changed = result.changed || mapping.count != 1 || mapping.data[0] != decoded.scalar;
+				result.output_size += mapping.count;
 				index = decoded.next_index;
 			}
 			return result;
 		}
 			constexpr std::size_t write_case_fold_utf32_into(std::u32string_view code_points, char32_t* buffer) noexcept
 			{
+				// UTF-32 writes are simple once the output size is known: each branch emits
+				// directly to the destination without any encoding-size bookkeeping.
 				std::size_t write_index = 0;
+				case_fold_scalar_buffer mapping{};
 			for (std::size_t index = 0; index < code_points.size();)
 			{
 				const auto remaining = std::u32string_view{ code_points.data() + index, code_points.size() - index };
@@ -679,33 +665,17 @@ namespace unicode_ranges
 					continue;
 				}
 				const auto decoded = decode_next_scalar(code_points, index);
-				if (decoded.scalar <= encoding_constants::bmp_scalar_max)
+				mapping.load(decoded.scalar);
+				if (mapping.count == 1)
 				{
-					const auto bmp_mapping = lookup_bmp_case_fold_mapping(decoded.scalar);
-					if (bmp_mapping.same_size)
-					{
-						buffer[write_index++] = static_cast<char32_t>(bmp_mapping.mapped);
-						index = decoded.next_index;
-						continue;
-					}
-				}
-
-				const auto mapping = lookup_case_fold_mapping(decoded.scalar);
-				if (mapping.has_simple)
-				{
-					buffer[write_index++] = static_cast<char32_t>(mapping.simple_mapped);
-				}
-				else if (mapping.has_special())
-				{
-					const auto& special = case_fold_special_mapping_from_index(mapping.special_index);
-					for (std::size_t mapped_index = 0; mapped_index != special.count; ++mapped_index)
-					{
-						buffer[write_index++] = static_cast<char32_t>(special.mapped[mapped_index]);
-					}
+					buffer[write_index++] = static_cast<char32_t>(mapping.data[0]);
 				}
 				else
 				{
-					buffer[write_index++] = code_points[index];
+					for (std::size_t mapped_index = 0; mapped_index != mapping.count; ++mapped_index)
+					{
+						buffer[write_index++] = static_cast<char32_t>(mapping.data[mapped_index]);
+					}
 				}
 				index = decoded.next_index;
 				}
@@ -717,8 +687,12 @@ namespace unicode_ranges
 				BaseType& result,
 				bool& changed) noexcept
 			{
+				// Many folds are one-input-scalar to one-output-scalar. This fast path tries
+				// to reuse the original size and bails out immediately on the first
+				// expansion/shrink so the caller can switch to the measured path.
 				bool same_size = true;
 				changed = false;
+				case_fold_scalar_buffer mapping{};
 				result.resize_and_overwrite(code_points.size(),
 					[&](char32_t* buffer, std::size_t) noexcept
 					{
@@ -737,54 +711,17 @@ namespace unicode_ranges
 
 							const auto decoded = decode_next_scalar(code_points, index);
 							const auto input_size = decoded.next_index - index;
-							if (decoded.scalar <= encoding_constants::bmp_scalar_max)
+							mapping.load(decoded.scalar);
+							if (mapping.count != input_size)
 							{
-								const auto bmp_mapping = lookup_bmp_case_fold_mapping(decoded.scalar);
-								if (bmp_mapping.same_size)
-								{
-									if (unicode_scalar_utf32_size(bmp_mapping.mapped) != input_size)
-									{
-										same_size = false;
-										return write_index;
-									}
-
-									changed = changed || (bmp_mapping.mapped != decoded.scalar);
-									buffer[write_index++] = static_cast<char32_t>(bmp_mapping.mapped);
-									index = decoded.next_index;
-									continue;
-								}
+								same_size = false;
+								return write_index;
 							}
 
-							const auto mapping = lookup_case_fold_mapping(decoded.scalar);
-							if (mapping.has_special())
+							changed = changed || mapping.count != 1 || mapping.data[0] != decoded.scalar;
+							for (std::size_t mapped_index = 0; mapped_index != mapping.count; ++mapped_index)
 							{
-								const auto& special = case_fold_special_mapping_from_index(mapping.special_index);
-								if (special.count != input_size)
-								{
-									same_size = false;
-									return write_index;
-								}
-
-								changed = true;
-								for (std::size_t mapped_index = 0; mapped_index != special.count; ++mapped_index)
-								{
-									buffer[write_index++] = static_cast<char32_t>(special.mapped[mapped_index]);
-								}
-							}
-							else if (mapping.has_simple)
-							{
-								if (unicode_scalar_utf32_size(mapping.simple_mapped) != input_size)
-								{
-									same_size = false;
-									return write_index;
-								}
-
-								changed = true;
-								buffer[write_index++] = static_cast<char32_t>(mapping.simple_mapped);
-							}
-							else
-							{
-								buffer[write_index++] = code_points[index];
+								buffer[write_index++] = static_cast<char32_t>(mapping.data[mapped_index]);
 							}
 
 							index = decoded.next_index;

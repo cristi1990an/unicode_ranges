@@ -259,6 +259,10 @@ namespace unicode_ranges
 	template <typename InputView>
 	constexpr bool nfc_quick_check_pass(InputView input) noexcept
 	{
+		// This is a conservative fast path for NFC:
+		// 1. reject any scalar whose generated Quick_Check value is not "Yes"
+		// 2. reject canonically decomposed text that is out of combining-class order
+		// If both checks pass, we can safely return the original bytes/code units.
 		std::uint8_t previous_combining_class = 0;
 		for (std::size_t index = 0; index < input.size();)
 		{
@@ -309,11 +313,13 @@ namespace unicode_ranges
 		return scalar > 0x11A7u && scalar < 0x11C3u;
 	}
 
-		inline constexpr void append_reordered_scalar(
-			std::u32string& scalars,
-			std::size_t& segment_begin,
-			std::uint32_t scalar)
+	inline constexpr void append_reordered_scalar(
+		std::u32string& scalars,
+		std::size_t& segment_begin,
+		std::uint32_t scalar)
 	{
+		// Canonical decomposition requires combining marks inside the current segment
+		// to stay sorted by canonical combining class.
 		const auto combining_class = unicode::canonical_combining_class(scalar);
 		scalars.push_back(static_cast<char32_t>(scalar));
 		if (scalars.size() == 1)
@@ -579,6 +585,7 @@ namespace unicode_ranges
 
 	inline constexpr std::size_t scalar_sequence_utf8_size(std::u32string_view scalars) noexcept
 	{
+		// Used as the measuring pass before resize_and_overwrite/transcoding writes.
 		std::size_t size = 0;
 		for (char32_t ch : scalars)
 		{
@@ -589,6 +596,7 @@ namespace unicode_ranges
 
 	inline constexpr std::size_t scalar_sequence_utf16_size(std::u32string_view scalars) noexcept
 	{
+		// Used as the measuring pass before resize_and_overwrite/transcoding writes.
 		std::size_t size = 0;
 		for (char32_t ch : scalars)
 		{
@@ -770,6 +778,8 @@ namespace unicode_ranges
 	template <bool Lowercase>
 	inline constexpr bmp_case_mapping_lookup_result lookup_bmp_case_mapping(std::uint32_t scalar) noexcept
 	{
+		// Generated BMP tables cover the overwhelmingly common same-size mappings and
+		// let the hot paths avoid the more general sparse mapping lookup.
 		if (scalar > encoding_constants::bmp_scalar_max)
 		{
 			return {};
@@ -795,6 +805,8 @@ namespace unicode_ranges
 
 	inline constexpr bmp_case_mapping_lookup_result lookup_bmp_case_fold_mapping(std::uint32_t scalar) noexcept
 	{
+		// Case-folding gets its own BMP table because it is not identical to either
+		// lowercase or uppercase simple mapping.
 		if (scalar > encoding_constants::bmp_scalar_max)
 		{
 			return {};
@@ -2555,6 +2567,8 @@ namespace unicode_ranges
 
 		constexpr void load(std::uint32_t scalar, bool turkic = false) noexcept
 		{
+			// Most callers only need one folded scalar. This buffer hides the slow-path
+			// cases where folding expands into multiple scalars or uses Turkic rules.
 			if (turkic)
 			{
 				if (scalar == 0x0049u)
@@ -2863,13 +2877,15 @@ namespace unicode_ranges
 			bool turkic_ = false;
 		};
 
-		template <typename LeftChar, typename RightChar>
-		constexpr std::size_t ascii_case_insensitive_mismatch_index_scalar(
-			std::basic_string_view<LeftChar> lhs,
-			std::basic_string_view<RightChar> rhs,
-			std::size_t count) noexcept
-		{
-			for (std::size_t index = 0; index != count; ++index)
+	template <typename LeftChar, typename RightChar>
+	constexpr std::size_t ascii_case_insensitive_mismatch_index_scalar(
+		std::basic_string_view<LeftChar> lhs,
+		std::basic_string_view<RightChar> rhs,
+		std::size_t count) noexcept
+	{
+		// Shared scalar fallback for all encodings. The SIMD paths below use this to
+		// finish the tail and to locate the first mismatching lane inside a block.
+		for (std::size_t index = 0; index != count; ++index)
 			{
 				const auto lhs_scalar = lowercase_ascii_scalar(static_cast<std::uint32_t>(lhs[index]));
 				const auto rhs_scalar = lowercase_ascii_scalar(static_cast<std::uint32_t>(rhs[index]));
@@ -2989,19 +3005,21 @@ namespace unicode_ranges
 		}
 #endif
 
-		template <typename LeftChar, typename RightChar>
-		constexpr std::size_t ascii_case_insensitive_mismatch_index(
-			std::basic_string_view<LeftChar> lhs,
-			std::basic_string_view<RightChar> rhs,
-			std::size_t count) noexcept
+	template <typename LeftChar, typename RightChar>
+	constexpr std::size_t ascii_case_insensitive_mismatch_index(
+		std::basic_string_view<LeftChar> lhs,
+		std::basic_string_view<RightChar> rhs,
+		std::size_t count) noexcept
+	{
+		if (std::is_constant_evaluated())
 		{
-			if (std::is_constant_evaluated())
-			{
-				return ascii_case_insensitive_mismatch_index_scalar(lhs, rhs, count);
-			}
+			return ascii_case_insensitive_mismatch_index_scalar(lhs, rhs, count);
+		}
 
 #if UTF8_RANGES_HAS_SSE2_INTRINSICS
-			if constexpr (std::same_as<LeftChar, RightChar>)
+		// At runtime, same-width ASCII comparisons are handled a block at a time.
+		// Non-matching blocks fall back to the scalar helper to find the exact lane.
+		if constexpr (std::same_as<LeftChar, RightChar>)
 			{
 				if constexpr (sizeof(LeftChar) == 1)
 				{
@@ -3101,10 +3119,13 @@ namespace unicode_ranges
 			return ascii_case_insensitive_mismatch_index(text.substr(offset), suffix, suffix.size()) == suffix.size();
 		}
 
-		template <typename Reader>
-		constexpr std::weak_ordering compare_case_folded_forward_sequences(Reader lhs, Reader rhs) noexcept
-		{
-			std::uint32_t lhs_scalar = 0;
+	template <typename Reader>
+	constexpr std::weak_ordering compare_case_folded_forward_sequences(Reader lhs, Reader rhs) noexcept
+	{
+		// Readers expose already-folded scalars and may also expose contiguous ASCII
+		// runs. We compare those runs in bulk before falling back to scalar-by-scalar
+		// folded comparison.
+		std::uint32_t lhs_scalar = 0;
 			std::uint32_t rhs_scalar = 0;
 			while (true)
 			{
@@ -3384,6 +3405,8 @@ namespace unicode_ranges
 			return copy_utf8_view(bytes, alloc);
 		}
 
+		// NFC is by far the common normalization request, so try to prove the input is
+		// already NFC before paying for full decomposition/composition.
 		if (form == normalization_form::nfc && nfc_quick_check_pass(bytes))
 		{
 			return copy_utf8_view(bytes, alloc);
@@ -3429,6 +3452,8 @@ namespace unicode_ranges
 			return copy_utf16_view(code_units, alloc);
 		}
 
+		// NFC is by far the common normalization request, so try to prove the input is
+		// already NFC before paying for full decomposition/composition.
 		if (form == normalization_form::nfc && nfc_quick_check_pass(code_units))
 		{
 			return copy_utf16_view(code_units, alloc);
