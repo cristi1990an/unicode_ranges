@@ -257,7 +257,7 @@ namespace views
 
 			constexpr iterator& operator++() noexcept
 			{
-				current_ += static_cast<difference_type>(current_char_.maybe_invalid_code_unit_count());
+				current_ += static_cast<difference_type>(current_width_);
 				load_current();
 				return *this;
 			}
@@ -295,49 +295,32 @@ namespace views
 
 			constexpr void load_current() noexcept
 			{
+				current_width_ = 0;
+				current_char_ = utf8_char::invalid_sentinel_unchecked();
+
 				if (current_ == end_) [[unlikely]]
 				{
 					return;
 				}
 
-				current_char_ = utf8_char::invalid_sentinel_unchecked();
-				const std::size_t remaining = static_cast<std::size_t>(end_ - current_);
-				const std::uint8_t lead = static_cast<std::uint8_t>(*current_);
-				std::size_t expected_size = 0;
-				if (lead <= 0x7Fu) [[likely]]
-				{
-					expected_size = 1;
-				}
-				else if (lead >= 0xC2u && lead <= 0xDFu)
-				{
-					expected_size = 2;
-				}
-				else if (lead >= 0xE0u && lead <= 0xEFu)
-				{
-					expected_size = 3;
-				}
-				else if (lead >= 0xF0u && lead <= 0xF4u)
-				{
-					expected_size = 4;
-				}
+				const std::basic_string_view<CharT> remaining{
+					current_,
+					static_cast<std::size_t>(end_ - current_)
+				};
+				current_width_ = details::lossy_utf8_sequence_width(remaining);
 
-				if (expected_size == 0 || expected_size > remaining)
+				const auto traits = details::utf8_lead_validation_table[static_cast<std::uint8_t>(*current_)];
+				if (traits.size != 0 && current_width_ == traits.size)
 				{
-					return;
+					current_char_ = utf8_char::from_scalar_unchecked(
+						details::decode_valid_utf8_char(remaining.data(), current_width_));
 				}
-
-				const std::basic_string_view<CharT> candidate{ current_, expected_size };
-				if (!details::is_single_valid_utf8_char(candidate)) [[unlikely]]
-				{
-					return;
-				}
-
-				current_char_ = utf8_char::from_scalar_unchecked(details::decode_valid_utf8_char(candidate));
 			}
 
 			const CharT* current_ = nullptr;
 			const CharT* end_ = nullptr;
 			utf8_char current_char_ = utf8_char::invalid_sentinel_unchecked();
+			std::size_t current_width_ = 0;
 		};
 
 		constexpr iterator begin() const noexcept

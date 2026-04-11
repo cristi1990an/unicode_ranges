@@ -209,7 +209,8 @@ inline constexpr lossy_utf32_fn lossy_utf32{};
 ### Behavior
 
 - Lossy views adapt possibly-invalid UTF input into a character range.
-- Invalid units are replaced with `replacement_character`.
+- Invalid input is replaced with `replacement_character`.
+- `lossy_utf8_view` replaces each malformed UTF-8 subsequence with a single replacement character, then resumes decoding at the next byte that was not part of that malformed subsequence.
 - Valid subsequences are yielded unchanged.
 - The view types inherit [`std::ranges::view_interface`](https://en.cppreference.com/w/cpp/ranges/view_interface) and behave as lazy borrowed forward views.
 - The closure objects are [`std::ranges::range_adaptor_closure`](https://en.cppreference.com/w/cpp/ranges/range_adaptor_closure)-style adapters, which makes the lossy views pipe-friendly.

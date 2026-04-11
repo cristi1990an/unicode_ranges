@@ -1754,6 +1754,55 @@ namespace details
 	}
 
 	template<typename CharT>
+	inline constexpr std::size_t lossy_utf8_sequence_width(std::basic_string_view<CharT> value) noexcept
+	{
+		UTF8_RANGES_DEBUG_ASSERT(!value.empty());
+
+		const std::uint8_t lead = static_cast<std::uint8_t>(value.front());
+		const auto traits = utf8_lead_validation_table[lead];
+		if (traits.size <= encoding_constants::single_code_unit_count)
+		{
+			return encoding_constants::single_code_unit_count;
+		}
+
+		std::size_t width = encoding_constants::single_code_unit_count;
+		if (value.size() == width)
+		{
+			return width;
+		}
+
+		const auto second = static_cast<std::uint8_t>(value[1]);
+		if (second < traits.second_min || second > traits.second_max)
+		{
+			return width;
+		}
+
+		width = encoding_constants::two_code_unit_count;
+		if (traits.size == width || value.size() == width)
+		{
+			return width;
+		}
+
+		if (!is_utf8_continuation_byte(static_cast<std::uint8_t>(value[2])))
+		{
+			return width;
+		}
+
+		width = encoding_constants::three_code_unit_count;
+		if (traits.size == width || value.size() == width)
+		{
+			return width;
+		}
+
+		if (!is_utf8_continuation_byte(static_cast<std::uint8_t>(value[3])))
+		{
+			return width;
+		}
+
+		return encoding_constants::max_utf8_code_units;
+	}
+
+	template<typename CharT>
 	inline constexpr auto validate_utf16_sequence_at(
 		std::basic_string_view<CharT> value,
 		std::size_t index) noexcept -> std::expected<std::size_t, utf16_error>

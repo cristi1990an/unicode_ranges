@@ -5486,6 +5486,45 @@ static_assert([] {
 		assert(decoded == "A��(�");
 	}
 	{
+		const std::string input{ "Hello \xF0\x90\x80World", 14 };
+		std::string decoded;
+		for (const utf8_char ch : views::lossy_utf8_view<char>{ input })
+		{
+			ch.encode_utf8<char>(std::back_inserter(decoded));
+		}
+		std::string expected = "Hello ";
+		utf8_char::replacement_character.encode_utf8<char>(std::back_inserter(expected));
+		expected += "World";
+		assert(decoded == expected);
+	}
+	{
+		const std::array<char8_t, 14> input{
+			static_cast<char8_t>('H'),
+			static_cast<char8_t>('e'),
+			static_cast<char8_t>('l'),
+			static_cast<char8_t>('l'),
+			static_cast<char8_t>('o'),
+			static_cast<char8_t>(' '),
+			static_cast<char8_t>(0xF0u),
+			static_cast<char8_t>(0x90u),
+			static_cast<char8_t>(0x80u),
+			static_cast<char8_t>('W'),
+			static_cast<char8_t>('o'),
+			static_cast<char8_t>('r'),
+			static_cast<char8_t>('l'),
+			static_cast<char8_t>('d')
+		};
+		std::string decoded;
+		for (const utf8_char ch : std::u8string_view{ input.data(), input.size() } | views::lossy_utf8)
+		{
+			ch.encode_utf8<char>(std::back_inserter(decoded));
+		}
+		std::string expected = "Hello ";
+		utf8_char::replacement_character.encode_utf8<char>(std::back_inserter(expected));
+		expected += "World";
+		assert(decoded == expected);
+	}
+	{
 		const std::u16string input{
 			static_cast<char16_t>(u'A'),
 			static_cast<char16_t>(0xD800),

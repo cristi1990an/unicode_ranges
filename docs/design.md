@@ -56,6 +56,70 @@ and both:
 - `substr(...)`
 - `grapheme_substr(...)`
 
+## Iteration and encoded storage
+
+### Encoded strings do not model ranges directly
+
+`utf8_string_view`, `utf16_string_view`, `utf32_string_view`, and their owning counterparts intentionally do not expose direct range-based iteration.
+
+That is deliberate: `for (auto x : text)` is ambiguous for encoded Unicode text. The obvious candidates are:
+
+- raw UTF code units
+- Unicode scalar values
+- grapheme clusters
+
+The library requires that choice to be explicit instead of silently picking one interpretation.
+
+### `base()` is the raw-storage escape hatch
+
+When callers explicitly want the encoded storage, the API exposes `base()`.
+
+That member is named `base()` rather than `bytes()` because the same surface is shared across UTF-8, UTF-16, and UTF-32:
+
+- for UTF-8, `base()` exposes bytes
+- for UTF-16, `base()` exposes code units
+- for UTF-32, `base()` exposes code points in the underlying storage type
+
+The name is intentionally generic because the concept is "underlying validated storage", not specifically "bytes".
+
+### `chars()` is explicit scalar iteration
+
+`chars()` and `reversed_chars()` return dedicated view types over Unicode scalar values.
+
+These views are created through member functions only:
+
+- their constructors are not part of the public user-facing construction path
+- the library does not expose a `range_adaptor_closure`-style pipe API for them
+
+That keeps scalar iteration discoverable and explicit at the string/view API boundary.
+
+Construction is currently O(1) because the returned view wraps existing validated storage, but that is current behavior rather than a promised long-term complexity guarantee.
+
+The iteration strength depends on the encoding:
+
+- UTF-8 and UTF-16 scalar iteration are forward ranges
+- UTF-32 scalar iteration is random-access
+
+### `graphemes()` returns borrowed text slices
+
+`graphemes()` returns a forward view whose elements are encoding-matched string views:
+
+- `utf8_string_view` slices for UTF-8 text
+- `utf16_string_view` slices for UTF-16 text
+- `utf32_string_view` slices for UTF-32 text
+
+Each element represents one grapheme cluster under the default Unicode grapheme-cluster rules.
+
+There is intentionally no `reversed_graphemes()` companion today. Reverse grapheme iteration needs different machinery and tradeoffs, and the library does not currently want to standardize that surface prematurely.
+
+### Alternatives considered for grapheme iteration
+
+Two obvious alternatives were considered and rejected.
+
+Returning a dedicated grapheme value type, analogous to `utf8_char`, would add another abstraction layer without enough clear payoff. In most places, a borrowed string-view slice already communicates the right semantics, and the `_grapheme_utf8`, `_grapheme_utf16`, and `_grapheme_utf32` literals cover the "single grapheme value" use case.
+
+Returning owning strings instead of borrowed slices would solve some lifetime problems and would often fit inside small-string optimization for short graphemes, but it would also make the common iteration path heavier. When ownership is actually needed, callers can materialize it explicitly with a simple transform step.
+
 ## Checked versus unchecked APIs
 
 Checked construction validates input and reports structured errors. Unchecked construction exists, but it is intentionally named as such:
