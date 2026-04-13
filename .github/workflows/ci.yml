@@ -5,7 +5,13 @@ on:
     branches:
       - main
       - feature/**
+    paths-ignore:
+      - 'docs/**'
+      - 'mkdocs.yml'
   pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - 'mkdocs.yml'
   workflow_dispatch:
   schedule:
     - cron: "0 6 * * 1"
