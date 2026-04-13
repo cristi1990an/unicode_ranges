@@ -39,6 +39,7 @@ nav:
   - Getting Started: getting-started.md
   - Common Tasks: common-tasks.md
   - Design: design.md
+  - Extensible Encodings (Proposal): extensible-encodings.md
   - Unicode Data: unicode-data.md
   - Error Model: error-model.md
   - Text Operations: text-operations.md

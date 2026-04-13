@@ -76,11 +76,11 @@ When callers explicitly want the encoded storage, the API exposes `base()`.
 
 That member is named `base()` rather than `bytes()` because the same surface is shared across UTF-8, UTF-16, and UTF-32:
 
-- for UTF-8, `base()` exposes bytes
-- for UTF-16, `base()` exposes code units
-- for UTF-32, `base()` exposes code points in the underlying storage type
+- for UTF-8, `base()` exposes the underlying `std::u8string_view` / `std::u8string`
+- for UTF-16, `base()` exposes the underlying `std::u16string_view` / `std::u16string`
+- for UTF-32, `base()` exposes the underlying `std::u32string_view` / `std::u32string`
 
-The name is intentionally generic because the concept is "underlying validated storage", not specifically "bytes".
+The name is intentionally generic because the concept is "underlying validated storage", not specifically "bytes". For UTF-32, that storage is still just the underlying UTF-32 code-unit sequence; it only happens to line up 1:1 with the represented scalar values.
 
 ### `chars()` is explicit scalar iteration
 
