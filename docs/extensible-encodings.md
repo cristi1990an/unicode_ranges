@@ -120,7 +120,7 @@ struct my_encoder {
 Optional additions:
 
 - `using encode_error = ...;`
-- `static constexpr bool is_always_equal = true;`
+- `static constexpr bool allow_implicit_construction = true;`
 - `flush(auto& writer)`
 - bulk fast paths such as `encode_from_utf8(...)`
 
@@ -140,16 +140,20 @@ void
 
 A decoder consumes encoded code units and produces Unicode scalars.
 
+The success payload of `decode_one(...)` is a library-defined `decode_result`:
+
+```cpp
+struct decode_result {
+    std::size_t consumed_input = 0;
+    char32_t scalar = 0;
+};
+```
+
 Minimum shape:
 
 ```cpp
 struct my_decoder {
     using code_unit_type = unsigned char;
-
-    struct decode_result {
-        std::size_t consumed_input = 0;
-        char32_t scalar = 0;
-    };
 
     decode_result decode_one(std::basic_string_view<code_unit_type> input);
 };
@@ -158,7 +162,7 @@ struct my_decoder {
 Optional additions:
 
 - `using decode_error = ...;`
-- `static constexpr bool is_always_equal = true;`
+- `static constexpr bool allow_implicit_construction = true;`
 - `flush()`
 - bulk fast paths such as `decode_to_utf8(...)`
 
@@ -214,7 +218,7 @@ Convenience overloads without an explicit object may still exist when implicit c
 
 The rule is:
 
-- if the codec defines `is_always_equal`, use that
+- if the codec defines `allow_implicit_construction`, use that
 - otherwise, an empty default-constructible type may be treated as implicitly constructible
 
 So the convenience API is enabled for codecs that are effectively stateless and interchangeable.
@@ -298,12 +302,27 @@ Instead, the library adapts the output range to a uniform internal `Writer`.
 
 The writer is responsible for:
 
+- `reserve(additional_units)`
 - `push(unit)`
 - `append(units)`
 - overflow checks
 - opportunistic bulk-copy optimizations
 
 Encoders only express encoding semantics. They do not manage buffer capacity.
+
+`reserve(additional_units)` is an advisory hook:
+
+- it takes a count of additional code units the codec expects to emit soon
+- it may help string-backed or otherwise growable writers reduce reallocations
+- it does not affect correctness
+- for decode-side writers, it may initially be a no-op until a more specific reservation strategy is designed
+
+`append(units)` should support both:
+
+- an exact bulk path for `std::span<const code_unit_type>`
+- a more generic range-based overload for inputs whose reference type is implicitly convertible to `code_unit_type`
+
+This allows codecs to hand the writer a wide variety of small views and ranges while still preserving an obvious optimized path for contiguous code unit buffers.
 
 ### Overflow semantics
 
@@ -317,6 +336,19 @@ The writer's contract is:
 - already-written prefix data is preserved
 
 No guarantee is made that the written prefix ends on an encoding boundary. That is acceptable for the low-level sink API.
+
+### Validation timing
+
+When a custom bulk decode path writes directly toward a UTF-owned result, the writer should not try to validate Unicode incrementally on each `push(...)` or `append(...)`.
+
+Instead:
+
+- the codec writes into raw internal storage
+- `decoder_traits<Decoder>::flush(decoder)` runs
+- the final produced UTF buffer is validated once
+- only then is the validated UTF type materialized
+
+This keeps the writer simple and avoids repeated partial-sequence validation. If a custom bulk decode path emits malformed UTF, that is a codec contract violation rather than an ordinary boundary error.
 
 ## Sink Error Type
 
@@ -419,7 +451,7 @@ Those cases should be treated as contract violations, not folded into the normal
 ```cpp
 struct ascii_encoder {
     using code_unit_type = char8_t;
-    static constexpr bool is_always_equal = true;
+    static constexpr bool allow_implicit_construction = true;
 
     enum class encode_error {
         unrepresentable_scalar
@@ -466,12 +498,7 @@ struct ascii_lossy_encoder {
 ```cpp
 struct ascii_decoder {
     using code_unit_type = char8_t;
-    static constexpr bool is_always_equal = true;
-
-    struct decode_result {
-        std::size_t consumed_input = 0;
-        char32_t scalar = 0;
-    };
+    static constexpr bool allow_implicit_construction = true;
 
     enum class decode_error {
         invalid_input,
