@@ -245,6 +245,8 @@ template <typename Writer>
 std::expected<void, decode_error> flush(Writer out);
 ```
 
+Decoder `flush(...)` must also be valid when called with no prior `decode_one(...)` calls. That case occurs naturally when the original input is empty and the library transitions directly to finalization.
+
 If `decode_error` exists, then `decode_one(...)` must return:
 
 ```cpp
@@ -348,6 +350,8 @@ The intended meaning is:
 
 - encoder `flush(writer)`: emit any buffered trailing encoded units
 - decoder `flush(writer)`: emit any buffered trailing Unicode scalars and report trailing incomplete input for strict codecs
+
+Both encoder and decoder `flush(...)` calls must be valid even if no prior primitive hook was invoked during that operation. In particular, empty input may cause the library to reach decoder finalization without any preceding `decode_one(...)` calls.
 
 On the raw `encode_to(...)` path, `flush(writer)` participates in the same bounded-writer rules as ordinary writes. If a final encoder flush overruns the destination, that is reported as `encode_to_error_kind::overflow`.
 
