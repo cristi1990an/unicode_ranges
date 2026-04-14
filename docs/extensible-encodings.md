@@ -113,7 +113,8 @@ Minimum shape:
 struct my_encoder {
     using code_unit_type = unsigned char;
 
-    void encode_one(char32_t scalar, auto& writer);
+    template <typename Writer>
+    void encode_one(char32_t scalar, Writer& out);
 };
 ```
 
@@ -121,7 +122,7 @@ Optional additions:
 
 - `using encode_error = ...;`
 - `static constexpr bool allow_implicit_construction = true;`
-- `flush(auto& writer)`
+- `flush(...)`
 - bulk fast paths such as `encode_from_utf8(...)`
 
 `allow_implicit_construction` is optional. If it is omitted, an empty default-constructible encoder may still be treated as implicitly constructible by the library.
@@ -210,7 +211,7 @@ Optional additions:
 
 - `using decode_error = ...;`
 - `static constexpr bool allow_implicit_construction = true;`
-- `flush(auto& writer)`
+- `flush(...)`
 - bulk fast paths such as `decode_to_utf8(...)`
 
 `allow_implicit_construction` is optional. If it is omitted, an empty default-constructible decoder may still be treated as implicitly constructible by the library.
@@ -489,6 +490,8 @@ This protocol is used in two ways:
 
 So `Writer` is a logical protocol name here, not one fixed element type. The element type depends on which codec hook is being dispatched.
 
+In the remainder of this section, `unit_type` means that writer element type.
+
 For library-owned UTF results, the internal writer will usually forward to the underlying base string storage through its native append primitives, most commonly `push_back(...)` for single-unit writes and `append_range(...)` or equivalent bulk append operations for multi-unit writes.
 
 The writer is responsible for:
@@ -514,8 +517,8 @@ Reservation quality is the caller's responsibility through the chosen output des
 
 `append(units)` should support both:
 
-- an exact bulk path for `std::span<const code_unit_type>`
-- a more generic range-based overload for inputs whose reference type is implicitly convertible to `code_unit_type`
+- an exact bulk path for `std::span<const unit_type>`
+- a more generic range-based overload for inputs whose reference type is implicitly convertible to `unit_type`
 
 This allows codecs to hand the writer a wide variety of small views and ranges while still preserving an obvious optimized path for contiguous buffers.
 
@@ -792,6 +795,8 @@ These bulk hooks are whole-input operations:
 - on success, they are expected to consume the entire input view they were given
 - they may not silently stop early and report success
 - if they cannot finish the whole provided input, they must report failure instead
+
+A successful bulk hook does not replace end-of-stream finalization. The surrounding library algorithm still calls `flush(...)` afterwards through the traits layer.
 
 These are also surfaced through the traits layer.
 
