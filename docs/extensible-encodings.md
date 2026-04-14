@@ -114,7 +114,7 @@ struct my_encoder {
     using code_unit_type = unsigned char;
 
     template <typename Writer>
-    void encode_one(char32_t scalar, Writer& out);
+    void encode_one(char32_t scalar, Writer out);
 };
 ```
 
@@ -131,28 +131,28 @@ The exact primitive signatures are:
 
 ```cpp
 template <typename Writer>
-void encode_one(char32_t scalar, Writer& out);
+void encode_one(char32_t scalar, Writer out);
 ```
 
 or, for fallible encoders:
 
 ```cpp
 template <typename Writer>
-std::expected<void, encode_error> encode_one(char32_t scalar, Writer& out);
+std::expected<void, encode_error> encode_one(char32_t scalar, Writer out);
 ```
 
 The exact `flush(...)` signatures follow the same rule:
 
 ```cpp
 template <typename Writer>
-void flush(Writer& out);
+void flush(Writer out);
 ```
 
 or, for fallible encoders:
 
 ```cpp
 template <typename Writer>
-std::expected<void, encode_error> flush(Writer& out);
+std::expected<void, encode_error> flush(Writer out);
 ```
 
 If `encode_error` exists, then `encode_one(...)` must return:
@@ -197,7 +197,7 @@ struct my_decoder {
     using code_unit_type = unsigned char;
 
     template <typename Writer>
-    std::size_t decode_one(std::basic_string_view<code_unit_type> input, Writer& out);
+    std::size_t decode_one(std::basic_string_view<code_unit_type> input, Writer out);
 };
 ```
 
@@ -220,7 +220,7 @@ The exact primitive signatures are:
 
 ```cpp
 template <typename Writer>
-std::size_t decode_one(std::basic_string_view<code_unit_type> input, Writer& out);
+std::size_t decode_one(std::basic_string_view<code_unit_type> input, Writer out);
 ```
 
 or, for fallible decoders:
@@ -228,21 +228,21 @@ or, for fallible decoders:
 ```cpp
 template <typename Writer>
 std::expected<std::size_t, decode_error>
-decode_one(std::basic_string_view<code_unit_type> input, Writer& out);
+decode_one(std::basic_string_view<code_unit_type> input, Writer out);
 ```
 
 The exact `flush(...)` signatures follow the same rule:
 
 ```cpp
 template <typename Writer>
-void flush(Writer& out);
+void flush(Writer out);
 ```
 
 or, for fallible decoders:
 
 ```cpp
 template <typename Writer>
-std::expected<void, decode_error> flush(Writer& out);
+std::expected<void, decode_error> flush(Writer out);
 ```
 
 If `decode_error` exists, then `decode_one(...)` must return:
@@ -491,6 +491,12 @@ This protocol is used in two ways:
 So `Writer` is a logical protocol name here, not one fixed element type. The element type depends on which codec hook is being dispatched.
 
 In the remainder of this section, `unit_type` means that writer element type.
+
+`Writer` should be a cheap non-owning handle that encapsulates references or pointers to the underlying sink state. Copying a writer copies only that handle, not the destination itself, and writes through any copy affect the same underlying sink.
+
+That is why codec hooks may take `Writer` by value without accidentally introducing value semantics for the actual output destination.
+
+The intended lifetime model is still call-scoped: codecs should treat writer values as transient handles and should not retain them beyond the boundary operation unless the library explicitly documents that as supported.
 
 For library-owned UTF results, the internal writer will usually forward to the underlying base string storage through its native append primitives, most commonly `push_back(...)` for single-unit writes and `append_range(...)` or equivalent bulk append operations for multi-unit writes.
 
@@ -759,27 +765,27 @@ The required signatures for these hooks are:
 
 ```cpp
 template <typename Writer>
-auto encode_from_utf8(utf8_string_view input, Writer& out)
+auto encode_from_utf8(utf8_string_view input, Writer out)
     -> /* void or std::expected<void, encode_error> */;
 
 template <typename Writer>
-auto encode_from_utf16(utf16_string_view input, Writer& out)
+auto encode_from_utf16(utf16_string_view input, Writer out)
     -> /* void or std::expected<void, encode_error> */;
 
 template <typename Writer>
-auto encode_from_utf32(utf32_string_view input, Writer& out)
+auto encode_from_utf32(utf32_string_view input, Writer out)
     -> /* void or std::expected<void, encode_error> */;
 
 template <typename Writer>
-auto decode_to_utf8(std::basic_string_view<code_unit_type> input, Writer& out)
+auto decode_to_utf8(std::basic_string_view<code_unit_type> input, Writer out)
     -> /* void or std::expected<void, decode_error> */;
 
 template <typename Writer>
-auto decode_to_utf16(std::basic_string_view<code_unit_type> input, Writer& out)
+auto decode_to_utf16(std::basic_string_view<code_unit_type> input, Writer out)
     -> /* void or std::expected<void, decode_error> */;
 
 template <typename Writer>
-auto decode_to_utf32(std::basic_string_view<code_unit_type> input, Writer& out)
+auto decode_to_utf32(std::basic_string_view<code_unit_type> input, Writer out)
     -> /* void or std::expected<void, decode_error> */;
 ```
 
@@ -888,7 +894,7 @@ struct ascii_encoder {
     };
 
     template <typename Writer>
-    constexpr auto encode_one(char32_t scalar, Writer& out)
+    constexpr auto encode_one(char32_t scalar, Writer out)
         -> std::expected<void, encode_error>
     {
         if (scalar > 0x7F) {
@@ -910,7 +916,7 @@ struct ascii_lossy_encoder {
     std::size_t replacement_count = 0;
 
     template <typename Writer>
-    void encode_one(char32_t scalar, Writer& out)
+    void encode_one(char32_t scalar, Writer out)
     {
         if (scalar <= 0x7F) {
             out.push(static_cast<char8_t>(scalar));
@@ -936,7 +942,7 @@ struct ascii_decoder {
     };
 
     template <typename Writer>
-    constexpr auto decode_one(std::basic_string_view<char8_t> input, Writer& out)
+    constexpr auto decode_one(std::basic_string_view<char8_t> input, Writer out)
         -> std::expected<std::size_t, decode_error>
     {
         if (input.empty()) {
