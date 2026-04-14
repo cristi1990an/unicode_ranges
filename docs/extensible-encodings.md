@@ -125,8 +125,6 @@ Optional additions:
 - `flush(...)`
 - bulk fast paths such as `encode_from_utf8(...)`
 
-`allow_implicit_construction` is optional. If it is omitted, an empty default-constructible encoder may still be treated as implicitly constructible by the library.
-
 The exact primitive signatures are:
 
 ```cpp
@@ -213,8 +211,6 @@ Optional additions:
 - `static constexpr bool allow_implicit_construction = true;`
 - `flush(...)`
 - bulk fast paths such as `decode_to_utf8(...)`
-
-`allow_implicit_construction` is optional. If it is omitted, an empty default-constructible decoder may still be treated as implicitly constructible by the library.
 
 The exact primitive signatures are:
 
@@ -438,6 +434,14 @@ auto utf8_string::to_encoded(Encoder& encoder) const
 
 This is the "just give me an owned encoded string" path.
 
+Convenience overloads may additionally exist for implicitly constructible encoders:
+
+```cpp
+template <typename Encoder>
+auto utf8_string::to_encoded() const
+    -> to_encoded_result<Encoder>;
+```
+
 #### Low-level destination APIs
 
 ```cpp
@@ -447,6 +451,18 @@ auto utf8_string::encode_to(Out&& out, Encoder& encoder) const
 
 template <typename Encoder, typename Container>
 auto utf8_string::encode_append_to(Container& container, Encoder& encoder) const
+    -> /* void or std::expected<void, encode_error> */;
+```
+
+Convenience overloads may additionally exist for implicitly constructible encoders:
+
+```cpp
+template <typename Encoder, typename Out>
+auto utf8_string::encode_to(Out&& out) const
+    -> std::expected<void, encode_to_error<Encoder>>;
+
+template <typename Encoder, typename Container>
+auto utf8_string::encode_append_to(Container& container) const
     -> /* void or std::expected<void, encode_error> */;
 ```
 
