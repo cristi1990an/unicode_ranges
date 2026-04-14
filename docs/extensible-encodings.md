@@ -205,6 +205,10 @@ The `input` passed to `decode_one(...)` is always the remaining suffix of the or
 
 So if earlier calls consumed the first `n` code units of the original buffer, the next `decode_one(...)` call receives `input.substr(n)` conceptually.
 
+Under the library's normal control flow, `decode_one(...)` is called only while unconsumed input remains. That means the library should never call `decode_one(...)` with an empty input view.
+
+If the original input is empty, or once all input has been consumed, the library skips further `decode_one(...)` calls and proceeds directly to `flush(...)`.
+
 Optional additions:
 
 - `using decode_error = ...;`
@@ -263,6 +267,8 @@ That means:
 - for a successful whole-buffer decode, the cumulative consumed count across all successful calls must match the entire original input buffer
 
 Reporting success with `0` consumed input is a codec contract violation.
+
+So for fallible decoders, `incomplete_input` or similar trailing-input errors should describe a non-empty suffix that is insufficient to complete a sequence, not an empty input view passed to `decode_one(...)`.
 
 This is the switch that declares whether a decoder is fallible.
 
@@ -953,18 +959,13 @@ struct ascii_decoder {
     static constexpr bool allow_implicit_construction = true;
 
     enum class decode_error {
-        invalid_input,
-        incomplete_input
+        invalid_input
     };
 
     template <typename Writer>
     constexpr auto decode_one(std::basic_string_view<char8_t> input, Writer out)
         -> std::expected<std::size_t, decode_error>
     {
-        if (input.empty()) {
-            return std::unexpected(decode_error::incomplete_input);
-        }
-
         const auto byte = static_cast<unsigned char>(input.front());
         if (byte > 0x7F) {
             return std::unexpected(decode_error::invalid_input);
