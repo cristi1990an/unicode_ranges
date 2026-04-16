@@ -229,7 +229,7 @@ public:
 		else
 		{
 			auto result = details::decode_whole_input_to_utf32(decoder, input, code_unit_writer, scalar_writer);
-			if (!result)
+			if (!result) [[unlikely]]
 			{
 				return std::unexpected(result.error());
 			}
@@ -801,7 +801,7 @@ public:
 		else
 		{
 			auto result = details::encode_whole_input(encoder, this->as_view(), writer);
-			if (!result)
+			if (!result) [[unlikely]]
 			{
 				return std::unexpected(result.error());
 			}
@@ -843,7 +843,7 @@ public:
 		if constexpr (std::same_as<typename encoder_traits<Encoder>::encode_error, void>)
 		{
 			details::encode_whole_input(encoder, this->as_view(), writer);
-			if (writer.overflowed())
+			if (writer.overflowed()) [[unlikely]]
 			{
 				return std::unexpected(encode_to_error<Encoder>::overflow());
 			}
@@ -853,12 +853,12 @@ public:
 		else
 		{
 			auto result = details::encode_whole_input(encoder, this->as_view(), writer);
-			if (writer.overflowed())
+			if (writer.overflowed()) [[unlikely]]
 			{
 				return std::unexpected(encode_to_error<Encoder>::overflow());
 			}
 
-			if (!result)
+			if (!result) [[unlikely]]
 			{
 				return std::unexpected(encode_to_error<Encoder>::encoding(result.error()));
 			}

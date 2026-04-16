@@ -241,7 +241,7 @@ inline constexpr bool allow_implicit_construction_requested_v =
 	inline constexpr void validate_codec_scalar(char32_t scalar)
 	{
 #if UTF8_RANGES_ENABLE_CODEC_CONTRACT_CHECKS
-		if (!details::is_valid_unicode_scalar(static_cast<std::uint32_t>(scalar)))
+		if (!details::is_valid_unicode_scalar(static_cast<std::uint32_t>(scalar))) [[unlikely]]
 		{
 			on_codec_contract_violation<void>("codec emitted an invalid Unicode scalar");
 		}
@@ -253,7 +253,7 @@ inline constexpr bool allow_implicit_construction_requested_v =
 	inline constexpr void validate_decode_progress(std::size_t consumed, std::size_t available)
 	{
 #if UTF8_RANGES_ENABLE_CODEC_CONTRACT_CHECKS
-		if (consumed == 0 || consumed > available)
+		if (consumed == 0 || consumed > available) [[unlikely]]
 		{
 			on_codec_contract_violation<void>("decoder reported invalid consumed input");
 		}
@@ -288,12 +288,12 @@ inline constexpr bool allow_implicit_construction_requested_v =
 
 		constexpr void push(Unit unit) const
 		{
-			if (state_->overflowed)
+			if (state_->overflowed) [[unlikely]]
 			{
 				return;
 			}
 
-			if (state_->current == state_->end)
+			if (state_->current == state_->end) [[unlikely]]
 			{
 				state_->overflowed = true;
 				return;
@@ -472,7 +472,7 @@ inline constexpr bool allow_implicit_construction_requested_v =
 
 		constexpr void append(std::span<const Unit> units) const
 		{
-			if (units.empty())
+			if (units.empty()) [[unlikely]]
 			{
 				return;
 			}
@@ -603,7 +603,7 @@ inline constexpr bool allow_implicit_construction_requested_v =
 
 		constexpr void append(std::span<const char32_t> scalars) const
 		{
-			if (!scalars.empty())
+			if (!scalars.empty()) [[likely]]
 			{
 				reserve(scalars.size());
 			}
@@ -659,7 +659,7 @@ inline constexpr bool allow_implicit_construction_requested_v =
 
 		constexpr void append(std::span<const char32_t> scalars) const
 		{
-			if (!scalars.empty())
+			if (!scalars.empty()) [[likely]]
 			{
 				reserve(scalars.size());
 			}
@@ -713,7 +713,7 @@ inline constexpr bool allow_implicit_construction_requested_v =
 
 		constexpr void append(std::span<const char32_t> scalars) const
 		{
-			if (!scalars.empty())
+			if (!scalars.empty()) [[likely]]
 			{
 				reserve(scalars.size());
 			}
@@ -769,7 +769,7 @@ inline constexpr bool allow_implicit_construction_requested_v =
 			else
 			{
 				auto consumed = traits_type::decode_one(decoder, remaining, out);
-				if (!consumed)
+				if (!consumed) [[unlikely]]
 				{
 					return std::expected<void, decode_error>{ std::unexpected(consumed.error()) };
 				}
@@ -803,7 +803,7 @@ inline constexpr bool allow_implicit_construction_requested_v =
 			for (auto ch : input.chars())
 			{
 				auto result = traits_type::encode_one(encoder, static_cast<char32_t>(ch.as_scalar()), out);
-				if (!result)
+				if (!result) [[unlikely]]
 				{
 					return result;
 				}
@@ -819,21 +819,21 @@ inline constexpr bool allow_implicit_construction_requested_v =
 #if UTF8_RANGES_ENABLE_CODEC_CONTRACT_CHECKS
 		if constexpr (std::same_as<typename BaseString::value_type, char8_t>)
 		{
-			if (!details::validate_utf8(std::u8string_view{ output }).has_value())
+			if (!details::validate_utf8(std::u8string_view{ output }).has_value()) [[unlikely]]
 			{
 				on_codec_contract_violation<void>("decoder emitted malformed UTF-8");
 			}
 		}
 		else if constexpr (std::same_as<typename BaseString::value_type, char16_t>)
 		{
-			if (!details::validate_utf16(std::u16string_view{ output }).has_value())
+			if (!details::validate_utf16(std::u16string_view{ output }).has_value()) [[unlikely]]
 			{
 				on_codec_contract_violation<void>("decoder emitted malformed UTF-16");
 			}
 		}
 		else if constexpr (std::same_as<typename BaseString::value_type, char32_t>)
 		{
-			if (!details::validate_utf32(std::u32string_view{ output }).has_value())
+			if (!details::validate_utf32(std::u32string_view{ output }).has_value()) [[unlikely]]
 			{
 				on_codec_contract_violation<void>("decoder emitted malformed UTF-32");
 			}
@@ -855,7 +855,7 @@ inline constexpr bool allow_implicit_construction_requested_v =
 		else
 		{
 			auto result = encoder_traits<Encoder>::encode_from_utf8(encoder, input, out);
-			if (!result)
+			if (!result) [[unlikely]]
 			{
 				return result;
 			}
@@ -876,7 +876,7 @@ inline constexpr bool allow_implicit_construction_requested_v =
 		else
 		{
 			auto result = encoder_traits<Encoder>::encode_from_utf16(encoder, input, out);
-			if (!result)
+			if (!result) [[unlikely]]
 			{
 				return result;
 			}
@@ -897,7 +897,7 @@ inline constexpr bool allow_implicit_construction_requested_v =
 		else
 		{
 			auto result = encoder_traits<Encoder>::encode_from_utf32(encoder, input, out);
-			if (!result)
+			if (!result) [[unlikely]]
 			{
 				return result;
 			}
@@ -916,7 +916,7 @@ inline constexpr bool allow_implicit_construction_requested_v =
 		using decode_error = typename decoder_traits<Decoder>::decode_error;
 		if constexpr (std::same_as<decode_error, void>)
 		{
-			if (!input.empty())
+			if (!input.empty()) [[likely]]
 			{
 				decoder_traits<Decoder>::decode_to_utf8(decoder, input, code_unit_out);
 			}
@@ -924,10 +924,10 @@ inline constexpr bool allow_implicit_construction_requested_v =
 		}
 		else
 		{
-			if (!input.empty())
+			if (!input.empty()) [[likely]]
 			{
 				auto result = decoder_traits<Decoder>::decode_to_utf8(decoder, input, code_unit_out);
-				if (!result)
+				if (!result) [[unlikely]]
 				{
 					return result;
 				}
@@ -947,7 +947,7 @@ inline constexpr bool allow_implicit_construction_requested_v =
 		using decode_error = typename decoder_traits<Decoder>::decode_error;
 		if constexpr (std::same_as<decode_error, void>)
 		{
-			if (!input.empty())
+			if (!input.empty()) [[likely]]
 			{
 				decoder_traits<Decoder>::decode_to_utf16(decoder, input, code_unit_out);
 			}
@@ -955,10 +955,10 @@ inline constexpr bool allow_implicit_construction_requested_v =
 		}
 		else
 		{
-			if (!input.empty())
+			if (!input.empty()) [[likely]]
 			{
 				auto result = decoder_traits<Decoder>::decode_to_utf16(decoder, input, code_unit_out);
-				if (!result)
+				if (!result) [[unlikely]]
 				{
 					return result;
 				}
@@ -978,7 +978,7 @@ inline constexpr bool allow_implicit_construction_requested_v =
 		using decode_error = typename decoder_traits<Decoder>::decode_error;
 		if constexpr (std::same_as<decode_error, void>)
 		{
-			if (!input.empty())
+			if (!input.empty()) [[likely]]
 			{
 				decoder_traits<Decoder>::decode_to_utf32(decoder, input, code_unit_out);
 			}
@@ -986,10 +986,10 @@ inline constexpr bool allow_implicit_construction_requested_v =
 		}
 		else
 		{
-			if (!input.empty())
+			if (!input.empty()) [[likely]]
 			{
 				auto result = decoder_traits<Decoder>::decode_to_utf32(decoder, input, code_unit_out);
-				if (!result)
+				if (!result) [[unlikely]]
 				{
 					return result;
 				}
