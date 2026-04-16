@@ -13,6 +13,7 @@
 #include <span>
 #include <sstream>
 #include <string>
+#include <utility>
 
 using namespace unicode_ranges;
 using namespace unicode_ranges::literals;
@@ -26,7 +27,28 @@ using namespace unicode_ranges::literals;
 	std::abort();
 }
 
-#define UTF8_RANGES_TEST_ASSERT(expr) ((expr) ? static_cast<void>(0) : utf8_ranges_test_assert_fail(#expr, __FILE__, __LINE__))
+#if defined(_MSC_VER)
+#define UTF8_RANGES_TEST_NOINLINE __declspec(noinline)
+#elif defined(__GNUC__) || defined(__clang__)
+#define UTF8_RANGES_TEST_NOINLINE __attribute__((noinline))
+#else
+#define UTF8_RANGES_TEST_NOINLINE
+#endif
+
+template <typename Predicate>
+UTF8_RANGES_TEST_NOINLINE inline void utf8_ranges_test_assert(
+	Predicate&& predicate,
+	const char* expression,
+	const char* file,
+	int line)
+{
+	if (!std::invoke(std::forward<Predicate>(predicate)))
+	{
+		utf8_ranges_test_assert_fail(expression, file, line);
+	}
+}
+
+#define UTF8_RANGES_TEST_ASSERT(expr) utf8_ranges_test_assert([&]() -> bool { return (expr); }, #expr, __FILE__, __LINE__)
 #if defined(_GLIBCXX_USE_CXX11_ABI) && _GLIBCXX_USE_CXX11_ABI == 0
 #define UTF8_RANGES_ENABLE_CONSTEXPR_STRINGS 0
 #else
