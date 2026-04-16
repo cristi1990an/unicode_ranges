@@ -13,6 +13,7 @@
 #include <span>
 #include <sstream>
 #include <string>
+#include <vector>
 #include <utility>
 
 using namespace unicode_ranges;
@@ -60,6 +61,340 @@ UTF8_RANGES_TEST_NOINLINE inline void utf8_ranges_test_assert(
 #else
 #define UTF8_RANGES_ENABLE_CONSTEXPR_STRINGS 1
 #endif
+
+namespace unicode_ranges_test_details
+{
+
+struct explicit_opt_out_ascii_encoder
+{
+	using code_unit_type = char8_t;
+	static constexpr bool allow_implicit_construction = false;
+
+	template <typename Writer>
+	constexpr void encode_one(char32_t scalar, Writer out)
+	{
+		if (scalar <= 0x7F)
+		{
+			out.push(static_cast<code_unit_type>(scalar));
+		}
+	}
+};
+
+struct opted_in_nonempty_ascii_encoder
+{
+	using code_unit_type = char8_t;
+	static constexpr bool allow_implicit_construction = true;
+
+	int state = 0;
+
+	template <typename Writer>
+	constexpr void encode_one(char32_t scalar, Writer out)
+	{
+		++state;
+		if (scalar <= 0x7F)
+		{
+			out.push(static_cast<code_unit_type>(scalar));
+		}
+		else
+		{
+			out.push(static_cast<code_unit_type>('?'));
+		}
+	}
+};
+
+struct explicit_opt_out_ascii_decoder
+{
+	using code_unit_type = char8_t;
+	static constexpr bool allow_implicit_construction = false;
+
+	template <typename Writer>
+	constexpr std::size_t decode_one(std::basic_string_view<code_unit_type> input, Writer out)
+	{
+		out.push(static_cast<char32_t>(input.front()));
+		return 1;
+	}
+};
+
+struct opted_in_nonempty_ascii_decoder
+{
+	using code_unit_type = char8_t;
+	static constexpr bool allow_implicit_construction = true;
+
+	int state = 0;
+
+	template <typename Writer>
+	constexpr std::size_t decode_one(std::basic_string_view<code_unit_type> input, Writer out)
+	{
+		++state;
+		out.push(static_cast<char32_t>(input.front()));
+		return 1;
+	}
+};
+
+struct empty_input_flush_decoder
+{
+	using code_unit_type = char8_t;
+
+	bool decode_called = false;
+	bool flush_called = false;
+
+	template <typename Writer>
+	constexpr std::size_t decode_one(std::basic_string_view<code_unit_type>, Writer)
+	{
+		decode_called = true;
+		return 1;
+	}
+
+	template <typename Writer>
+	constexpr void flush(Writer)
+	{
+		flush_called = true;
+	}
+};
+
+struct bulk_tracking_encoder
+{
+	using code_unit_type = char8_t;
+
+	int encode_one_calls = 0;
+	int encode_from_utf8_calls = 0;
+	int encode_from_utf16_calls = 0;
+	int encode_from_utf32_calls = 0;
+	int flush_calls = 0;
+
+	template <typename Writer>
+	constexpr void encode_one(char32_t scalar, Writer out)
+	{
+		++encode_one_calls;
+		out.push(static_cast<code_unit_type>(scalar <= 0x7Fu ? scalar : '?'));
+	}
+
+	template <typename Writer>
+	constexpr void encode_from_utf8(utf8_string_view, Writer out)
+	{
+		++encode_from_utf8_calls;
+		out.push(static_cast<code_unit_type>('8'));
+	}
+
+	template <typename Writer>
+	constexpr void encode_from_utf16(utf16_string_view, Writer out)
+	{
+		++encode_from_utf16_calls;
+		out.push(static_cast<code_unit_type>('6'));
+	}
+
+	template <typename Writer>
+	constexpr void encode_from_utf32(utf32_string_view, Writer out)
+	{
+		++encode_from_utf32_calls;
+		out.push(static_cast<code_unit_type>('3'));
+	}
+
+	template <typename Writer>
+	constexpr void flush(Writer out)
+	{
+		++flush_calls;
+		out.push(static_cast<code_unit_type>('!'));
+	}
+};
+
+struct flush_only_encoder
+{
+	using code_unit_type = char8_t;
+
+	bool flush_called = false;
+
+	template <typename Writer>
+	constexpr void encode_one(char32_t, Writer)
+	{
+	}
+
+	template <typename Writer>
+	constexpr void flush(Writer out)
+	{
+		flush_called = true;
+		out.push(static_cast<code_unit_type>('!'));
+	}
+};
+
+struct bulk_tracking_decoder
+{
+	using code_unit_type = char8_t;
+
+	int decode_one_calls = 0;
+	int decode_to_utf8_calls = 0;
+	int decode_to_utf16_calls = 0;
+	int decode_to_utf32_calls = 0;
+	int flush_calls = 0;
+
+	template <typename Writer>
+	constexpr std::size_t decode_one(std::basic_string_view<code_unit_type>, Writer out)
+	{
+		++decode_one_calls;
+		out.push(U'?');
+		return 1;
+	}
+
+	template <typename Writer>
+	constexpr void decode_to_utf8(std::basic_string_view<code_unit_type>, Writer out)
+	{
+		++decode_to_utf8_calls;
+		out.push(static_cast<char8_t>('8'));
+	}
+
+	template <typename Writer>
+	constexpr void decode_to_utf16(std::basic_string_view<code_unit_type>, Writer out)
+	{
+		++decode_to_utf16_calls;
+		out.push(static_cast<char16_t>(u'6'));
+	}
+
+	template <typename Writer>
+	constexpr void decode_to_utf32(std::basic_string_view<code_unit_type>, Writer out)
+	{
+		++decode_to_utf32_calls;
+		out.push(static_cast<char32_t>(U'3'));
+	}
+
+	template <typename Writer>
+	constexpr void flush(Writer out)
+	{
+		++flush_calls;
+		out.push(U'!');
+	}
+};
+
+struct invalid_progress_decoder
+{
+	using code_unit_type = char8_t;
+
+	template <typename Writer>
+	constexpr std::size_t decode_one(std::basic_string_view<code_unit_type>, Writer)
+	{
+		return 0;
+	}
+};
+
+struct malformed_utf8_bulk_decoder
+{
+	using code_unit_type = char8_t;
+
+	template <typename Writer>
+	constexpr std::size_t decode_one(std::basic_string_view<code_unit_type>, Writer out)
+	{
+		out.push(U'?');
+		return 1;
+	}
+
+	template <typename Writer>
+	constexpr void decode_to_utf8(std::basic_string_view<code_unit_type>, Writer out)
+	{
+		const std::array<char8_t, 2> malformed{
+			static_cast<char8_t>(0xC3u),
+			static_cast<char8_t>('(') };
+		out.append(std::span<const char8_t>{ malformed });
+	}
+};
+
+struct append_range_tracking_container
+{
+	using value_type = char8_t;
+
+	std::vector<value_type> storage{};
+	int push_back_calls = 0;
+	int append_range_calls = 0;
+
+	constexpr auto size() const noexcept -> std::size_t
+	{
+		return storage.size();
+	}
+
+	constexpr auto end() noexcept
+	{
+		return storage.end();
+	}
+
+	constexpr void push_back(value_type value)
+	{
+		++push_back_calls;
+		storage.push_back(value);
+	}
+
+	template <std::ranges::input_range R>
+		constexpr void append_range(R&& range)
+	{
+		++append_range_calls;
+		for (auto&& value : range)
+		{
+			storage.push_back(static_cast<value_type>(value));
+		}
+	}
+};
+
+struct reserve_push_tracking_container
+{
+	using value_type = char8_t;
+
+	std::vector<value_type> storage{};
+	int reserve_calls = 0;
+	int push_back_calls = 0;
+
+	constexpr auto size() const noexcept -> std::size_t
+	{
+		return storage.size();
+	}
+
+	constexpr auto end() noexcept
+	{
+		return storage.end();
+	}
+
+	constexpr void reserve(std::size_t new_capacity)
+	{
+		++reserve_calls;
+		storage.reserve(new_capacity);
+	}
+
+	constexpr void push_back(value_type value)
+	{
+		++push_back_calls;
+		storage.push_back(value);
+	}
+};
+
+struct resize_and_overwrite_tracking_container
+{
+	using value_type = char8_t;
+
+	std::u8string storage{};
+	int push_back_calls = 0;
+	int resize_and_overwrite_calls = 0;
+
+	constexpr auto size() const noexcept -> std::size_t
+	{
+		return storage.size();
+	}
+
+	constexpr auto end() noexcept
+	{
+		return storage.end();
+	}
+
+	constexpr void push_back(value_type value)
+	{
+		++push_back_calls;
+		storage.push_back(value);
+	}
+
+	template <typename Operation>
+	constexpr void resize_and_overwrite(std::size_t new_size, Operation operation)
+	{
+		++resize_and_overwrite_calls;
+		storage.resize_and_overwrite(new_size, operation);
+	}
+};
+
+} // namespace unicode_ranges_test_details
 
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -139,6 +474,57 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 	static_assert(std::same_as<
 		pmr::utf32_string,
 		basic_utf32_string<std::pmr::polymorphic_allocator<char32_t>>>);
+	static_assert(encoder<encodings::ascii_strict>);
+	static_assert(encoder<encodings::ascii_lossy>);
+	static_assert(encoder<encodings::windows_1252>);
+	static_assert(decoder<encodings::ascii_strict>);
+	static_assert(decoder<encodings::ascii_lossy>);
+	static_assert(decoder<encodings::windows_1252>);
+	static_assert(encoder_traits<encodings::ascii_strict>::allow_implicit_construction_requested);
+	static_assert(encoder_traits<encodings::windows_1252>::allow_implicit_construction_requested);
+	static_assert(decoder_traits<encodings::windows_1252>::allow_implicit_construction_requested);
+	static_assert(!encoder_traits<encodings::ascii_lossy>::allow_implicit_construction_requested);
+	static_assert(encoder_traits<unicode_ranges_test_details::opted_in_nonempty_ascii_encoder>::allow_implicit_construction_requested);
+	static_assert(!encoder_traits<unicode_ranges_test_details::explicit_opt_out_ascii_encoder>::allow_implicit_construction_requested);
+	static_assert(decoder_traits<unicode_ranges_test_details::opted_in_nonempty_ascii_decoder>::allow_implicit_construction_requested);
+	static_assert(!decoder_traits<unicode_ranges_test_details::explicit_opt_out_ascii_decoder>::allow_implicit_construction_requested);
+	static_assert(requires(const utf8_string& text)
+		{
+			text.template to_encoded<encodings::ascii_strict>();
+			text.template encode_to<encodings::ascii_strict>(std::span<char8_t>{});
+		});
+	static_assert(requires(const utf8_string& text)
+		{
+			text.template to_encoded<unicode_ranges_test_details::opted_in_nonempty_ascii_encoder>();
+		});
+	static_assert(requires(const utf8_string& text, std::vector<char8_t>& bytes)
+		{
+			text.template encode_append_to<unicode_ranges_test_details::opted_in_nonempty_ascii_encoder>(bytes);
+		});
+	static_assert(std::same_as<
+		decltype(utf8_string::from_encoded<encodings::ascii_strict>(std::u8string_view{})),
+		std::expected<utf8_string, encodings::ascii_strict::decode_error>>);
+	static_assert(std::same_as<
+		decltype(utf16_string::from_encoded<encodings::ascii_strict>(std::u8string_view{})),
+		std::expected<utf16_string, encodings::ascii_strict::decode_error>>);
+	static_assert(std::same_as<
+		decltype(utf32_string::from_encoded<encodings::ascii_strict>(std::u8string_view{})),
+		std::expected<utf32_string, encodings::ascii_strict::decode_error>>);
+	static_assert(std::same_as<
+		decltype(utf8_string::from_encoded<encodings::windows_1252>(std::u8string_view{})),
+		utf8_string>);
+	static_assert(std::same_as<
+		decltype(utf16_string::from_encoded<encodings::windows_1252>(std::u8string_view{})),
+		utf16_string>);
+	static_assert(std::same_as<
+		decltype(utf32_string::from_encoded<encodings::windows_1252>(std::u8string_view{})),
+		utf32_string>);
+	static_assert(std::same_as<
+		decltype(utf8_string{}.to_encoded<encodings::windows_1252>()),
+		std::expected<std::u8string, encodings::windows_1252::encode_error>>);
+	static_assert(std::same_as<
+		decltype(utf8_string::from_encoded<unicode_ranges_test_details::opted_in_nonempty_ascii_decoder>(std::u8string_view{})),
+		utf8_string>);
 	constexpr utf8_char latin1_ch = "é"_u8c;
 	constexpr auto utf8_text = "Aé€"_utf8_sv;
 	constexpr auto utf16_text = u"Aé😀"_utf16_sv;
@@ -335,6 +721,281 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 	static_assert(U"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf32_sv.to_nfc() == U"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf32_sv);
 #else
 	UTF8_RANGES_TEST_ASSERT(U"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf32_sv.to_nfc() == U"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf32_sv);
+#endif
+
+	{
+		const std::array<char8_t, 2> ascii_bytes{ static_cast<char8_t>('H'), static_cast<char8_t>('i') };
+		const std::u8string_view encoded_view{ ascii_bytes.data(), ascii_bytes.size() };
+		const std::u8string expected_bytes{ ascii_bytes.begin(), ascii_bytes.end() };
+
+		auto decoded8 = utf8_string::from_encoded<encodings::ascii_strict>(encoded_view);
+		UTF8_RANGES_TEST_ASSERT(decoded8.has_value());
+		UTF8_RANGES_TEST_ASSERT(decoded8->base() == u8"Hi");
+		auto encoded8 = decoded8->to_encoded<encodings::ascii_strict>();
+		UTF8_RANGES_TEST_ASSERT(encoded8.has_value());
+		UTF8_RANGES_TEST_ASSERT(*encoded8 == expected_bytes);
+
+		auto decoded16 = utf16_string::from_encoded<encodings::ascii_strict>(encoded_view);
+		UTF8_RANGES_TEST_ASSERT(decoded16.has_value());
+		UTF8_RANGES_TEST_ASSERT(decoded16->base() == u"Hi");
+		auto encoded16 = decoded16->to_encoded<encodings::ascii_strict>();
+		UTF8_RANGES_TEST_ASSERT(encoded16.has_value());
+		UTF8_RANGES_TEST_ASSERT(*encoded16 == expected_bytes);
+
+		auto decoded32 = utf32_string::from_encoded<encodings::ascii_strict>(encoded_view);
+		UTF8_RANGES_TEST_ASSERT(decoded32.has_value());
+		UTF8_RANGES_TEST_ASSERT(decoded32->base() == U"Hi");
+		auto encoded32 = decoded32->to_encoded<encodings::ascii_strict>();
+		UTF8_RANGES_TEST_ASSERT(encoded32.has_value());
+		UTF8_RANGES_TEST_ASSERT(*encoded32 == expected_bytes);
+	}
+
+	{
+		const auto text = u8"Caf\u00E9"_utf8_sv.to_utf8_owned();
+		auto encoded = text.to_encoded<encodings::ascii_strict>();
+		UTF8_RANGES_TEST_ASSERT(!encoded.has_value());
+		UTF8_RANGES_TEST_ASSERT(encoded.error() == encodings::ascii_strict::encode_error::unrepresentable_scalar);
+	}
+
+	{
+		const std::array<char8_t, 4> encoded_bytes{
+			static_cast<char8_t>('A'),
+			static_cast<char8_t>(0x80u),
+			static_cast<char8_t>(0x9Fu),
+			static_cast<char8_t>(0x81u)
+		};
+		const std::u8string_view encoded_view{ encoded_bytes.data(), encoded_bytes.size() };
+		const std::u8string expected_bytes{ encoded_bytes.begin(), encoded_bytes.end() };
+
+		const auto decoded8 = utf8_string::from_encoded<encodings::windows_1252>(encoded_view);
+		UTF8_RANGES_TEST_ASSERT(decoded8.base() == u8"A\u20AC\u0178\u0081");
+		const auto encoded8 = decoded8.to_encoded<encodings::windows_1252>();
+		UTF8_RANGES_TEST_ASSERT(encoded8.has_value());
+		UTF8_RANGES_TEST_ASSERT(*encoded8 == expected_bytes);
+
+		const auto decoded16 = utf16_string::from_encoded<encodings::windows_1252>(encoded_view);
+		UTF8_RANGES_TEST_ASSERT(decoded16.base() == u"A\u20AC\u0178\u0081");
+		const auto encoded16 = decoded16.to_encoded<encodings::windows_1252>();
+		UTF8_RANGES_TEST_ASSERT(encoded16.has_value());
+		UTF8_RANGES_TEST_ASSERT(*encoded16 == expected_bytes);
+
+		const auto decoded32 = utf32_string::from_encoded<encodings::windows_1252>(encoded_view);
+		UTF8_RANGES_TEST_ASSERT(decoded32.base() == U"A\u20AC\u0178\u0081");
+		const auto encoded32 = decoded32.to_encoded<encodings::windows_1252>();
+		UTF8_RANGES_TEST_ASSERT(encoded32.has_value());
+		UTF8_RANGES_TEST_ASSERT(*encoded32 == expected_bytes);
+	}
+
+	{
+		const auto result = u8"\u009F"_utf8_sv.to_utf8_owned().to_encoded<encodings::windows_1252>();
+		UTF8_RANGES_TEST_ASSERT(!result.has_value());
+		UTF8_RANGES_TEST_ASSERT(result.error() == encodings::windows_1252::encode_error::unrepresentable_scalar);
+	}
+
+	{
+		const std::array<char8_t, 1> invalid_bytes{ static_cast<char8_t>(0xFFu) };
+		const auto result = utf8_string::from_encoded<encodings::ascii_strict>(
+			std::u8string_view{ invalid_bytes.data(), invalid_bytes.size() });
+		UTF8_RANGES_TEST_ASSERT(!result.has_value());
+		UTF8_RANGES_TEST_ASSERT(result.error() == encodings::ascii_strict::decode_error::invalid_input);
+	}
+
+	{
+		encodings::ascii_lossy encoder{};
+		std::vector<char8_t> bytes{ static_cast<char8_t>('>') };
+		u8"Caf\u00E9"_utf8_sv.to_utf8_owned().encode_append_to(bytes, encoder);
+		UTF8_RANGES_TEST_ASSERT((bytes == std::vector<char8_t>{
+			static_cast<char8_t>('>'),
+			static_cast<char8_t>('C'),
+			static_cast<char8_t>('a'),
+			static_cast<char8_t>('f'),
+			static_cast<char8_t>('?') }));
+		UTF8_RANGES_TEST_ASSERT(encoder.replacement_count == 1);
+	}
+
+	{
+		encodings::ascii_lossy decoder{};
+		const std::array<char8_t, 2> encoded_bytes{ static_cast<char8_t>('A'), static_cast<char8_t>(0xFFu) };
+		const auto decoded = utf8_string::from_encoded(
+			std::u8string_view{ encoded_bytes.data(), encoded_bytes.size() },
+			decoder);
+		UTF8_RANGES_TEST_ASSERT(decoded.base() == u8"A\uFFFD");
+		UTF8_RANGES_TEST_ASSERT(decoder.replacement_count == 1);
+	}
+
+	{
+		std::array<char8_t, 1> buffer{};
+		encodings::ascii_strict encoder{};
+		[[maybe_unused]] const auto result = u8"AB"_utf8_sv.to_utf8_owned().encode_to(std::span<char8_t>{ buffer }, encoder);
+		UTF8_RANGES_TEST_ASSERT(!result.has_value());
+		UTF8_RANGES_TEST_ASSERT(result.error().kind == encode_to_error_kind::overflow);
+		UTF8_RANGES_TEST_ASSERT(buffer[0] == static_cast<char8_t>('A'));
+	}
+
+	{
+		std::array<char8_t, 4> buffer{};
+		encodings::ascii_strict encoder{};
+		[[maybe_unused]] const auto result = u"A\u00E9"_utf16_sv.to_utf16_owned().encode_to(std::span<char8_t>{ buffer }, encoder);
+		UTF8_RANGES_TEST_ASSERT(!result.has_value());
+		UTF8_RANGES_TEST_ASSERT(result.error().kind == encode_to_error_kind::encoding_error);
+		UTF8_RANGES_TEST_ASSERT(result.error().error.has_value());
+		UTF8_RANGES_TEST_ASSERT(*result.error().error == encodings::ascii_strict::encode_error::unrepresentable_scalar);
+		UTF8_RANGES_TEST_ASSERT(buffer[0] == static_cast<char8_t>('A'));
+	}
+
+	{
+		std::vector<char8_t> bytes{ static_cast<char8_t>('X') };
+		encodings::ascii_strict encoder{};
+		[[maybe_unused]] const auto result = u"A\u00E9"_utf16_sv.to_utf16_owned().encode_append_to(bytes, encoder);
+		UTF8_RANGES_TEST_ASSERT(!result.has_value());
+		UTF8_RANGES_TEST_ASSERT(result.error() == encodings::ascii_strict::encode_error::unrepresentable_scalar);
+		UTF8_RANGES_TEST_ASSERT((bytes == std::vector<char8_t>{
+			static_cast<char8_t>('X'),
+			static_cast<char8_t>('A') }));
+	}
+
+	{
+		const auto encoded = u8"AB"_utf8_sv.to_utf8_owned()
+			.to_encoded<unicode_ranges_test_details::opted_in_nonempty_ascii_encoder>();
+		UTF8_RANGES_TEST_ASSERT((encoded == std::u8string{
+			static_cast<char8_t>('A'),
+			static_cast<char8_t>('B') }));
+	}
+
+	{
+		unicode_ranges_test_details::empty_input_flush_decoder decoder{};
+		const auto decoded = utf8_string::from_encoded(
+			std::u8string_view{},
+			decoder);
+		UTF8_RANGES_TEST_ASSERT(decoded.empty());
+		UTF8_RANGES_TEST_ASSERT(!decoder.decode_called);
+		UTF8_RANGES_TEST_ASSERT(decoder.flush_called);
+	}
+
+	{
+		unicode_ranges_test_details::bulk_tracking_encoder encoder{};
+
+		auto encoded8 = u8"ignored"_utf8_sv.to_utf8_owned().to_encoded(encoder);
+		UTF8_RANGES_TEST_ASSERT((encoded8 == std::u8string{ static_cast<char8_t>('8'), static_cast<char8_t>('!') }));
+		UTF8_RANGES_TEST_ASSERT(encoder.encode_from_utf8_calls == 1);
+		UTF8_RANGES_TEST_ASSERT(encoder.encode_one_calls == 0);
+		UTF8_RANGES_TEST_ASSERT(encoder.flush_calls == 1);
+
+		auto encoded16 = u"ignored"_utf16_sv.to_utf16_owned().to_encoded(encoder);
+		UTF8_RANGES_TEST_ASSERT((encoded16 == std::u8string{ static_cast<char8_t>('6'), static_cast<char8_t>('!') }));
+		UTF8_RANGES_TEST_ASSERT(encoder.encode_from_utf16_calls == 1);
+		UTF8_RANGES_TEST_ASSERT(encoder.encode_one_calls == 0);
+		UTF8_RANGES_TEST_ASSERT(encoder.flush_calls == 2);
+
+		auto encoded32 = U"ignored"_utf32_sv.to_utf32_owned().to_encoded(encoder);
+		UTF8_RANGES_TEST_ASSERT((encoded32 == std::u8string{ static_cast<char8_t>('3'), static_cast<char8_t>('!') }));
+		UTF8_RANGES_TEST_ASSERT(encoder.encode_from_utf32_calls == 1);
+		UTF8_RANGES_TEST_ASSERT(encoder.encode_one_calls == 0);
+		UTF8_RANGES_TEST_ASSERT(encoder.flush_calls == 3);
+	}
+
+	{
+		unicode_ranges_test_details::bulk_tracking_decoder decoder8{};
+		const auto decoded8 = utf8_string::from_encoded(std::u8string_view{ u8"ignored" }, decoder8);
+		UTF8_RANGES_TEST_ASSERT(decoded8.base() == u8"8!");
+		UTF8_RANGES_TEST_ASSERT(decoder8.decode_to_utf8_calls == 1);
+		UTF8_RANGES_TEST_ASSERT(decoder8.decode_one_calls == 0);
+		UTF8_RANGES_TEST_ASSERT(decoder8.flush_calls == 1);
+
+		unicode_ranges_test_details::bulk_tracking_decoder decoder16{};
+		const auto decoded16 = utf16_string::from_encoded(std::u8string_view{ u8"ignored" }, decoder16);
+		UTF8_RANGES_TEST_ASSERT(decoded16.base() == u"6!");
+		UTF8_RANGES_TEST_ASSERT(decoder16.decode_to_utf16_calls == 1);
+		UTF8_RANGES_TEST_ASSERT(decoder16.decode_one_calls == 0);
+		UTF8_RANGES_TEST_ASSERT(decoder16.flush_calls == 1);
+
+		unicode_ranges_test_details::bulk_tracking_decoder decoder32{};
+		const auto decoded32 = utf32_string::from_encoded(std::u8string_view{ u8"ignored" }, decoder32);
+		UTF8_RANGES_TEST_ASSERT(decoded32.base() == U"3!");
+		UTF8_RANGES_TEST_ASSERT(decoder32.decode_to_utf32_calls == 1);
+		UTF8_RANGES_TEST_ASSERT(decoder32.decode_one_calls == 0);
+		UTF8_RANGES_TEST_ASSERT(decoder32.flush_calls == 1);
+	}
+
+	{
+		std::array<char8_t, 0> buffer{};
+		unicode_ranges_test_details::flush_only_encoder encoder{};
+		const auto result = u8""_utf8_sv.to_utf8_owned().encode_to(std::span<char8_t>{ buffer }, encoder);
+		UTF8_RANGES_TEST_ASSERT(!result.has_value());
+		UTF8_RANGES_TEST_ASSERT(result.error().kind == encode_to_error_kind::overflow);
+		UTF8_RANGES_TEST_ASSERT(encoder.flush_called);
+	}
+
+	{
+		unicode_ranges_test_details::append_range_tracking_container container{};
+		details::container_append_writer<char8_t, unicode_ranges_test_details::append_range_tracking_container> writer{ container };
+		const std::u8string_view input{ u8"AB" };
+		writer.append(input | std::views::transform([](char8_t ch) { return ch; }));
+		UTF8_RANGES_TEST_ASSERT(container.append_range_calls == 1);
+		UTF8_RANGES_TEST_ASSERT(container.push_back_calls == 0);
+		UTF8_RANGES_TEST_ASSERT((container.storage == std::vector<char8_t>{
+			static_cast<char8_t>('A'),
+			static_cast<char8_t>('B') }));
+	}
+
+	{
+		unicode_ranges_test_details::reserve_push_tracking_container container{};
+		details::container_append_writer<char8_t, unicode_ranges_test_details::reserve_push_tracking_container> writer{ container };
+		const std::u8string_view input{ u8"CD" };
+		writer.append(input | std::views::transform([](char8_t ch) { return ch; }));
+		UTF8_RANGES_TEST_ASSERT(container.reserve_calls == 1);
+		UTF8_RANGES_TEST_ASSERT(container.push_back_calls == 2);
+		UTF8_RANGES_TEST_ASSERT((container.storage == std::vector<char8_t>{
+			static_cast<char8_t>('C'),
+			static_cast<char8_t>('D') }));
+	}
+
+	{
+		unicode_ranges_test_details::resize_and_overwrite_tracking_container container{};
+		details::container_append_writer<char8_t, unicode_ranges_test_details::resize_and_overwrite_tracking_container> writer{ container };
+		const std::array<char8_t, 2> input{
+			static_cast<char8_t>('E'),
+			static_cast<char8_t>('F') };
+		writer.append(std::span<const char8_t>{ input });
+		UTF8_RANGES_TEST_ASSERT(container.resize_and_overwrite_calls == 1);
+		UTF8_RANGES_TEST_ASSERT(container.push_back_calls == 0);
+		UTF8_RANGES_TEST_ASSERT((container.storage == std::u8string{
+			static_cast<char8_t>('E'),
+			static_cast<char8_t>('F') }));
+	}
+
+#if UTF8_RANGES_ENABLE_CODEC_CONTRACT_CHECKS
+	{
+		bool threw = false;
+		try
+		{
+			unicode_ranges_test_details::invalid_progress_decoder decoder{};
+			static_cast<void>(utf8_string::from_encoded(
+				std::u8string_view{ u8"A" },
+				decoder));
+		}
+		catch (const codec_contract_violation&)
+		{
+			threw = true;
+		}
+		UTF8_RANGES_TEST_ASSERT(threw);
+	}
+
+	{
+		bool threw = false;
+		try
+		{
+			unicode_ranges_test_details::malformed_utf8_bulk_decoder decoder{};
+			static_cast<void>(utf8_string::from_encoded(
+				std::u8string_view{ u8"A" },
+				decoder));
+		}
+		catch (const codec_contract_violation&)
+		{
+			threw = true;
+		}
+		UTF8_RANGES_TEST_ASSERT(threw);
+	}
 #endif
 
 	static_assert(std::ranges::view<decltype(utf8_text.chars())>);

@@ -49,4 +49,5 @@ nav:
       - Characters: reference/chars.md
       - String Views: reference/string-views.md
       - Owning Strings: reference/owning-strings.md
+      - Boundary Encodings: reference/encodings.md
       - Views, Literals, and Formatting: reference/views-literals-formatting.md

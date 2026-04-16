@@ -111,7 +111,7 @@ Minimum shape:
 
 ```cpp
 struct my_encoder {
-    using code_unit_type = unsigned char;
+    using code_unit_type = char8_t;
 
     template <typename Writer>
     void encode_one(char32_t scalar, Writer out);
@@ -124,6 +124,9 @@ Optional additions:
 - `static constexpr bool allow_implicit_construction = true;`
 - `flush(...)`
 - bulk fast paths such as `encode_from_utf8(...)`
+
+`code_unit_type` is expected to be usable with `std::basic_string_view<code_unit_type>`.
+If the encoder is intended to participate in `to_encoded(...)`, it must also be usable with `std::basic_string<code_unit_type, std::char_traits<code_unit_type>, ...>`.
 
 The exact primitive signatures are:
 
@@ -192,7 +195,7 @@ Minimum shape:
 
 ```cpp
 struct my_decoder {
-    using code_unit_type = unsigned char;
+    using code_unit_type = char8_t;
 
     template <typename Writer>
     std::size_t decode_one(std::basic_string_view<code_unit_type> input, Writer out);
@@ -493,6 +496,9 @@ These are the low-level paths for:
 - string-specific `resize_and_overwrite(...)`
 
 The convenience API is implemented in terms of `encode_append_to(...)`.
+
+The raw `encode_to(...)` overload is constrained to `std::ranges::range<Out>` and `std::ranges::output_range<Out, code_unit_type>`.
+The `encode_append_to(...)` overload is constrained to sequence-like append containers whose `value_type` is constructible from `code_unit_type`.
 
 The traits layer normalizes the exact return types:
 
