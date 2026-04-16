@@ -36,6 +36,12 @@ using namespace unicode_ranges::literals;
 #define UTF8_RANGES_TEST_NOINLINE
 #endif
 
+#if defined(__clang__)
+#define UTF8_RANGES_TEST_OPTNONE [[clang::optnone]]
+#else
+#define UTF8_RANGES_TEST_OPTNONE
+#endif
+
 template <typename Predicate>
 UTF8_RANGES_TEST_NOINLINE inline void utf8_ranges_test_assert(
 	Predicate&& predicate,
@@ -123,7 +129,7 @@ struct empty_input_flush_decoder
 #pragma warning(push)
 #pragma warning(disable: 6262) // monolithic test aggregator; /analyze stack estimate is not actionable here
 #endif
-inline void run_unicode_ranges_tests()
+UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_ranges_tests()
 {
 	// Shared test helpers used by both the UTF-8 and UTF-16 sections.
 	[[maybe_unused]] const auto wide_from_scalar = [](std::uint32_t scalar)
