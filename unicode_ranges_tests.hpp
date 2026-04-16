@@ -5,6 +5,8 @@
 
 #include <array>
 #include <cassert>
+#include <cstdio>
+#include <cstdlib>
 #include <format>
 #include <functional>
 #include <memory_resource>
@@ -15,6 +17,18 @@
 
 using namespace unicode_ranges;
 using namespace unicode_ranges::literals;
+
+[[noreturn]] inline void utf8_ranges_test_assert_fail(
+	const char* expression,
+	const char* file,
+	int line)
+{
+	std::fprintf(stderr, "Assertion failed: %s, file %s, line %d\n", expression, file, line);
+	std::abort();
+}
+
+#undef assert
+#define assert(expr) ((expr) ? static_cast<void>(0) : utf8_ranges_test_assert_fail(#expr, __FILE__, __LINE__))
 
 #if defined(_GLIBCXX_USE_CXX11_ABI) && _GLIBCXX_USE_CXX11_ABI == 0
 #define UTF8_RANGES_ENABLE_CONSTEXPR_STRINGS 0
