@@ -2,6 +2,7 @@
 #define _UNICODE_RANGES_
 
 #include "unicode_ranges/core.hpp"
+#include "unicode_ranges/encoding.hpp"
 #include "unicode_ranges/utf8_char.hpp"
 #include "unicode_ranges/utf16_char.hpp"
 #include "unicode_ranges/utf32_char.hpp"

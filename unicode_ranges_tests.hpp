@@ -11,6 +11,7 @@
 #include <span>
 #include <sstream>
 #include <string>
+#include <vector>
 
 using namespace unicode_ranges;
 using namespace unicode_ranges::literals;
@@ -20,6 +21,69 @@ using namespace unicode_ranges::literals;
 #else
 #define UTF8_RANGES_ENABLE_CONSTEXPR_STRINGS 1
 #endif
+
+namespace unicode_ranges_test_details
+{
+
+struct explicit_opt_out_ascii_encoder
+{
+	using code_unit_type = unsigned char;
+	static constexpr bool allow_implicit_construction = false;
+
+	template <typename Writer>
+	constexpr void encode_one(char32_t scalar, Writer out)
+	{
+		if (scalar <= 0x7F)
+		{
+			out.push(static_cast<code_unit_type>(scalar));
+		}
+	}
+};
+
+struct opted_in_nonempty_ascii_encoder
+{
+	using code_unit_type = unsigned char;
+	static constexpr bool allow_implicit_construction = true;
+
+	int state = 0;
+
+	template <typename Writer>
+	constexpr void encode_one(char32_t scalar, Writer out)
+	{
+		++state;
+		if (scalar <= 0x7F)
+		{
+			out.push(static_cast<code_unit_type>(scalar));
+		}
+		else
+		{
+			out.push(static_cast<code_unit_type>('?'));
+		}
+	}
+};
+
+struct empty_input_flush_decoder
+{
+	using code_unit_type = unsigned char;
+
+	bool decode_called = false;
+	bool flush_called = false;
+
+	template <typename Writer>
+	constexpr std::size_t decode_one(std::basic_string_view<code_unit_type>, Writer)
+	{
+		decode_called = true;
+		return 1;
+	}
+
+	template <typename Writer>
+	constexpr void flush(Writer)
+	{
+		flush_called = true;
+	}
+};
+
+} // namespace unicode_ranges_test_details
 
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -99,6 +163,32 @@ inline void run_unicode_ranges_tests()
 	static_assert(std::same_as<
 		pmr::utf32_string,
 		basic_utf32_string<std::pmr::polymorphic_allocator<char32_t>>>);
+	static_assert(encoder<encodings::ascii_strict>);
+	static_assert(encoder<encodings::ascii_lossy>);
+	static_assert(decoder<encodings::ascii_strict>);
+	static_assert(decoder<encodings::ascii_lossy>);
+	static_assert(encoder_traits<encodings::ascii_strict>::allow_implicit_construction_requested);
+	static_assert(!encoder_traits<encodings::ascii_lossy>::allow_implicit_construction_requested);
+	static_assert(encoder_traits<unicode_ranges_test_details::opted_in_nonempty_ascii_encoder>::allow_implicit_construction_requested);
+	static_assert(!encoder_traits<unicode_ranges_test_details::explicit_opt_out_ascii_encoder>::allow_implicit_construction_requested);
+	static_assert(requires(const utf8_string& text)
+		{
+			text.template to_encoded<encodings::ascii_strict>();
+			text.template encode_to<encodings::ascii_strict>(std::span<unsigned char>{});
+		});
+	static_assert(requires(const utf8_string& text)
+		{
+			text.template to_encoded<unicode_ranges_test_details::opted_in_nonempty_ascii_encoder>();
+		});
+	static_assert(std::same_as<
+		decltype(utf8_string::from_encoded<encodings::ascii_strict>(std::basic_string_view<unsigned char>{})),
+		std::expected<utf8_string, encodings::ascii_strict::decode_error>>);
+	static_assert(std::same_as<
+		decltype(utf16_string::from_encoded<encodings::ascii_strict>(std::basic_string_view<unsigned char>{})),
+		std::expected<utf16_string, encodings::ascii_strict::decode_error>>);
+	static_assert(std::same_as<
+		decltype(utf32_string::from_encoded<encodings::ascii_strict>(std::basic_string_view<unsigned char>{})),
+		std::expected<utf32_string, encodings::ascii_strict::decode_error>>);
 	constexpr utf8_char latin1_ch = "é"_u8c;
 	constexpr auto utf8_text = "Aé€"_utf8_sv;
 	constexpr auto utf16_text = u"Aé😀"_utf16_sv;
@@ -267,6 +357,120 @@ inline void run_unicode_ranges_tests()
 #else
 	assert(U"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf32_sv.to_nfc() == U"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf32_sv);
 #endif
+
+	{
+		const std::array<unsigned char, 2> ascii_bytes{ static_cast<unsigned char>('H'), static_cast<unsigned char>('i') };
+		const std::basic_string_view<unsigned char> encoded_view{ ascii_bytes.data(), ascii_bytes.size() };
+		const std::basic_string<unsigned char> expected_bytes{ ascii_bytes.begin(), ascii_bytes.end() };
+
+		auto decoded8 = utf8_string::from_encoded<encodings::ascii_strict>(encoded_view);
+		assert(decoded8.has_value());
+		assert(decoded8->base() == u8"Hi");
+		auto encoded8 = decoded8->to_encoded<encodings::ascii_strict>();
+		assert(encoded8.has_value());
+		assert(*encoded8 == expected_bytes);
+
+		auto decoded16 = utf16_string::from_encoded<encodings::ascii_strict>(encoded_view);
+		assert(decoded16.has_value());
+		assert(decoded16->base() == u"Hi");
+		auto encoded16 = decoded16->to_encoded<encodings::ascii_strict>();
+		assert(encoded16.has_value());
+		assert(*encoded16 == expected_bytes);
+
+		auto decoded32 = utf32_string::from_encoded<encodings::ascii_strict>(encoded_view);
+		assert(decoded32.has_value());
+		assert(decoded32->base() == U"Hi");
+		auto encoded32 = decoded32->to_encoded<encodings::ascii_strict>();
+		assert(encoded32.has_value());
+		assert(*encoded32 == expected_bytes);
+	}
+
+	{
+		const auto text = u8"Caf\u00E9"_utf8_sv.to_utf8_owned();
+		auto encoded = text.to_encoded<encodings::ascii_strict>();
+		assert(!encoded.has_value());
+		assert(encoded.error() == encodings::ascii_strict::encode_error::unrepresentable_scalar);
+	}
+
+	{
+		const std::array<unsigned char, 1> invalid_bytes{ 0xFFu };
+		const auto result = utf8_string::from_encoded<encodings::ascii_strict>(
+			std::basic_string_view<unsigned char>{ invalid_bytes.data(), invalid_bytes.size() });
+		assert(!result.has_value());
+		assert(result.error() == encodings::ascii_strict::decode_error::invalid_input);
+	}
+
+	{
+		encodings::ascii_lossy encoder{};
+		std::vector<unsigned char> bytes{ static_cast<unsigned char>('>') };
+		u8"Caf\u00E9"_utf8_sv.to_utf8_owned().encode_append_to(bytes, encoder);
+		assert((bytes == std::vector<unsigned char>{
+			static_cast<unsigned char>('>'),
+			static_cast<unsigned char>('C'),
+			static_cast<unsigned char>('a'),
+			static_cast<unsigned char>('f'),
+			static_cast<unsigned char>('?') }));
+		assert(encoder.replacement_count == 1);
+	}
+
+	{
+		encodings::ascii_lossy decoder{};
+		const std::array<unsigned char, 2> encoded_bytes{ static_cast<unsigned char>('A'), 0xFFu };
+		const auto decoded = utf8_string::from_encoded(
+			std::basic_string_view<unsigned char>{ encoded_bytes.data(), encoded_bytes.size() },
+			decoder);
+		assert(decoded.base() == u8"A\uFFFD");
+		assert(decoder.replacement_count == 1);
+	}
+
+	{
+		std::array<unsigned char, 1> buffer{};
+		encodings::ascii_strict encoder{};
+		const auto result = u8"AB"_utf8_sv.to_utf8_owned().encode_to(std::span<unsigned char>{ buffer }, encoder);
+		assert(!result.has_value());
+		assert(result.error().kind == encode_to_error_kind::overflow);
+		assert(buffer[0] == static_cast<unsigned char>('A'));
+	}
+
+	{
+		std::array<unsigned char, 4> buffer{};
+		encodings::ascii_strict encoder{};
+		const auto result = u"A\u00E9"_utf16_sv.to_utf16_owned().encode_to(std::span<unsigned char>{ buffer }, encoder);
+		assert(!result.has_value());
+		assert(result.error().kind == encode_to_error_kind::encoding_error);
+		assert(result.error().error.has_value());
+		assert(*result.error().error == encodings::ascii_strict::encode_error::unrepresentable_scalar);
+		assert(buffer[0] == static_cast<unsigned char>('A'));
+	}
+
+	{
+		std::vector<unsigned char> bytes{ static_cast<unsigned char>('X') };
+		encodings::ascii_strict encoder{};
+		const auto result = u"A\u00E9"_utf16_sv.to_utf16_owned().encode_append_to(bytes, encoder);
+		assert(!result.has_value());
+		assert(result.error() == encodings::ascii_strict::encode_error::unrepresentable_scalar);
+		assert((bytes == std::vector<unsigned char>{
+			static_cast<unsigned char>('X'),
+			static_cast<unsigned char>('A') }));
+	}
+
+	{
+		const auto encoded = u8"AB"_utf8_sv.to_utf8_owned()
+			.to_encoded<unicode_ranges_test_details::opted_in_nonempty_ascii_encoder>();
+		assert((encoded == std::basic_string<unsigned char>{
+			static_cast<unsigned char>('A'),
+			static_cast<unsigned char>('B') }));
+	}
+
+	{
+		unicode_ranges_test_details::empty_input_flush_decoder decoder{};
+		const auto decoded = utf8_string::from_encoded(
+			std::basic_string_view<unsigned char>{},
+			decoder);
+		assert(decoded.empty());
+		assert(!decoder.decode_called);
+		assert(decoder.flush_called);
+	}
 
 	static_assert(std::ranges::view<decltype(utf8_text.chars())>);
 	static_assert(std::ranges::range<decltype(utf8_text.chars())>);

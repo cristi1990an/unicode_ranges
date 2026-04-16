@@ -4,6 +4,7 @@
 #include <algorithm>
 
 #include "utf32_string_view.hpp"
+#include "encoding.hpp"
 
 namespace unicode_ranges
 {
@@ -193,6 +194,50 @@ public:
 
 			return from_code_points_unchecked(std::move(utf32_code_points));
 		}
+	}
+
+	template <typename Decoder>
+	static constexpr auto from_encoded(
+		std::basic_string_view<typename decoder_traits<Decoder>::code_unit_type> input,
+		Decoder& decoder,
+		const Allocator& alloc = Allocator())
+		-> from_encoded_result<Decoder, basic_utf32_string>
+	{
+		base_type output{ alloc };
+		details::container_append_writer<char32_t, base_type> code_unit_writer{ output };
+		details::utf32_scalar_writer<decltype(code_unit_writer)> scalar_writer{ code_unit_writer };
+
+		if constexpr (std::same_as<typename decoder_traits<Decoder>::decode_error, void>)
+		{
+			details::decode_whole_input_to_utf32(decoder, input, code_unit_writer, scalar_writer);
+			details::validate_utf_result(output);
+			return from_code_points_unchecked(std::move(output));
+		}
+		else
+		{
+			auto result = details::decode_whole_input_to_utf32(decoder, input, code_unit_writer, scalar_writer);
+			if (!result)
+			{
+				return std::unexpected(result.error());
+			}
+
+			details::validate_utf_result(output);
+			return from_code_points_unchecked(std::move(output));
+		}
+	}
+
+	template <typename Decoder>
+		requires decoder_traits<Decoder>::allow_implicit_construction_requested
+	static constexpr auto from_encoded(
+		std::basic_string_view<typename decoder_traits<Decoder>::code_unit_type> input,
+		const Allocator& alloc = Allocator())
+		-> from_encoded_result<Decoder, basic_utf32_string>
+	{
+		static_assert(std::default_initializable<Decoder>,
+			"implicitly constructed decoders must be default constructible");
+
+		Decoder decoder{};
+		return from_encoded(input, decoder, alloc);
 	}
 
 private:
@@ -719,6 +764,150 @@ public:
 	constexpr basic_utf32_string& append(std::initializer_list<utf32_char> ilist)
 	{
 		return append_range(ilist);
+	}
+
+	template <
+		typename Encoder,
+		typename OutputAllocator = std::allocator<typename encoder_traits<Encoder>::code_unit_type>>
+	[[nodiscard]]
+	constexpr auto to_encoded(Encoder& encoder, const OutputAllocator& alloc = OutputAllocator()) const
+		-> to_encoded_result<Encoder, OutputAllocator>
+	{
+		using output_string = std::basic_string<
+			typename encoder_traits<Encoder>::code_unit_type,
+			std::char_traits<typename encoder_traits<Encoder>::code_unit_type>,
+			OutputAllocator>;
+
+		output_string output{ alloc };
+		details::container_append_writer<typename encoder_traits<Encoder>::code_unit_type, output_string> writer{ output };
+		if constexpr (std::same_as<typename encoder_traits<Encoder>::encode_error, void>)
+		{
+			details::encode_whole_input(encoder, this->as_view(), writer);
+			return output;
+		}
+		else
+		{
+			auto result = details::encode_whole_input(encoder, this->as_view(), writer);
+			if (!result)
+			{
+				return std::unexpected(result.error());
+			}
+
+			return output;
+		}
+	}
+
+	template <
+		typename Encoder,
+		typename OutputAllocator = std::allocator<typename encoder_traits<Encoder>::code_unit_type>>
+		requires encoder_traits<Encoder>::allow_implicit_construction_requested
+	[[nodiscard]]
+	constexpr auto to_encoded(const OutputAllocator& alloc = OutputAllocator()) const
+		-> to_encoded_result<Encoder, OutputAllocator>
+	{
+		static_assert(std::default_initializable<Encoder>,
+			"implicitly constructed encoders must be default constructible");
+
+		Encoder encoder{};
+		return to_encoded(encoder, alloc);
+	}
+
+	template <typename Encoder, typename Out>
+	constexpr auto encode_to(Out&& out, Encoder& encoder) const
+		-> std::expected<void, encode_to_error<Encoder>>
+		requires std::ranges::range<Out>
+			&& std::ranges::output_range<Out, typename encoder_traits<Encoder>::code_unit_type>
+	{
+		using unit_type = typename encoder_traits<Encoder>::code_unit_type;
+		auto first = std::ranges::begin(out);
+		auto last = std::ranges::end(out);
+		details::bounded_output_state<unit_type, decltype(first), decltype(last)> state{
+			.current = std::move(first),
+			.end = std::move(last)
+		};
+		details::bounded_output_writer<unit_type, decltype(state.current), decltype(state.end)> writer{ state };
+
+		if constexpr (std::same_as<typename encoder_traits<Encoder>::encode_error, void>)
+		{
+			details::encode_whole_input(encoder, this->as_view(), writer);
+			if (writer.overflowed())
+			{
+				return std::unexpected(encode_to_error<Encoder>::overflow());
+			}
+
+			return {};
+		}
+		else
+		{
+			auto result = details::encode_whole_input(encoder, this->as_view(), writer);
+			if (writer.overflowed())
+			{
+				return std::unexpected(encode_to_error<Encoder>::overflow());
+			}
+
+			if (!result)
+			{
+				return std::unexpected(encode_to_error<Encoder>::encoding(result.error()));
+			}
+
+			return {};
+		}
+	}
+
+	template <typename Encoder, typename Out>
+		requires encoder_traits<Encoder>::allow_implicit_construction_requested
+			&& std::ranges::range<Out>
+			&& std::ranges::output_range<Out, typename encoder_traits<Encoder>::code_unit_type>
+	constexpr auto encode_to(Out&& out) const
+		-> std::expected<void, encode_to_error<Encoder>>
+	{
+		static_assert(std::default_initializable<Encoder>,
+			"implicitly constructed encoders must be default constructible");
+
+		Encoder encoder{};
+		return encode_to(std::forward<Out>(out), encoder);
+	}
+
+	template <typename Encoder, typename Container>
+	constexpr auto encode_append_to(Container& container, Encoder& encoder) const
+		-> std::conditional_t<
+			std::same_as<typename encoder_traits<Encoder>::encode_error, void>,
+			void,
+			std::expected<void, typename encoder_traits<Encoder>::encode_error>>
+		requires details::sequence_like_append_container<Container, typename encoder_traits<Encoder>::code_unit_type>
+	{
+		details::container_append_writer<typename encoder_traits<Encoder>::code_unit_type, Container> writer{ container };
+		if constexpr (std::same_as<typename encoder_traits<Encoder>::encode_error, void>)
+		{
+			details::encode_whole_input(encoder, this->as_view(), writer);
+		}
+		else
+		{
+			return details::encode_whole_input(encoder, this->as_view(), writer);
+		}
+	}
+
+	template <typename Encoder, typename Container>
+		requires encoder_traits<Encoder>::allow_implicit_construction_requested
+			&& details::sequence_like_append_container<Container, typename encoder_traits<Encoder>::code_unit_type>
+	constexpr auto encode_append_to(Container& container) const
+		-> std::conditional_t<
+			std::same_as<typename encoder_traits<Encoder>::encode_error, void>,
+			void,
+			std::expected<void, typename encoder_traits<Encoder>::encode_error>>
+	{
+		static_assert(std::default_initializable<Encoder>,
+			"implicitly constructed encoders must be default constructible");
+
+		Encoder encoder{};
+		if constexpr (std::same_as<typename encoder_traits<Encoder>::encode_error, void>)
+		{
+			encode_append_to(container, encoder);
+		}
+		else
+		{
+			return encode_append_to(container, encoder);
+		}
 	}
 
 	constexpr basic_utf32_string& assign(std::initializer_list<utf32_char> ilist)
