@@ -1,8 +1,10 @@
 #ifndef UTF8_RANGES_ENCODING_HPP
 #define UTF8_RANGES_ENCODING_HPP
 
+#include <algorithm>
 #include <cstdlib>
 #include <exception>
+#include <memory>
 #include <optional>
 #include <span>
 #include <typeinfo>
@@ -271,7 +273,13 @@ inline constexpr bool allow_implicit_construction_requested_v =
 		bool overflowed = false;
 	};
 
-	template <typename Unit, typename Iterator, typename Sentinel>
+	template <
+		typename Unit,
+		typename Iterator,
+		typename Sentinel,
+		bool = std::contiguous_iterator<Iterator>
+			&& std::sized_sentinel_for<Sentinel, Iterator>
+			&& std::same_as<std::remove_cv_t<std::iter_value_t<Iterator>>, Unit>>
 	class bounded_output_writer
 	{
 	public:
@@ -321,6 +329,124 @@ inline constexpr bool allow_implicit_construction_requested_v =
 				&& std::same_as<std::remove_cv_t<std::ranges::range_value_t<R>>, Unit>)
 			{
 				append(std::span<const Unit>{ std::ranges::data(units), std::ranges::size(units) });
+			}
+			else
+			{
+				for (auto&& unit : units)
+				{
+					push(static_cast<Unit>(unit));
+				}
+			}
+		}
+
+		[[nodiscard]]
+		constexpr bool overflowed() const noexcept
+		{
+			return state_->overflowed;
+		}
+
+	private:
+		bounded_output_state<Unit, Iterator, Sentinel>* state_ = nullptr;
+	};
+
+	template <typename Unit, typename Iterator, typename Sentinel>
+	class bounded_output_writer<Unit, Iterator, Sentinel, true>
+	{
+	public:
+		using unit_type = Unit;
+
+		constexpr explicit bounded_output_writer(bounded_output_state<Unit, Iterator, Sentinel>& state) noexcept
+			: state_(&state)
+		{
+		}
+
+		constexpr void reserve(std::size_t) const noexcept
+		{
+		}
+
+		constexpr void push(Unit unit) const
+		{
+			if (state_->overflowed) [[unlikely]]
+			{
+				return;
+			}
+
+			if (state_->current == state_->end) [[unlikely]]
+			{
+				state_->overflowed = true;
+				return;
+			}
+
+			*state_->current = unit;
+			++state_->current;
+		}
+
+		constexpr void append(std::span<const Unit> units) const
+		{
+			if (state_->overflowed) [[unlikely]]
+			{
+				return;
+			}
+
+			if (units.empty()) [[unlikely]]
+			{
+				return;
+			}
+
+			const auto available = static_cast<std::size_t>(state_->end - state_->current);
+			const auto to_write = (std::min)(available, units.size());
+
+			if (to_write != 0)
+			{
+				std::char_traits<Unit>::copy(std::to_address(state_->current), units.data(), to_write);
+				state_->current += static_cast<typename std::iterator_traits<Iterator>::difference_type>(to_write);
+			}
+
+			if (to_write != units.size()) [[unlikely]]
+			{
+				state_->overflowed = true;
+			}
+		}
+
+		template <std::ranges::input_range R>
+			requires std::convertible_to<std::ranges::range_reference_t<R>, Unit>
+		constexpr void append(R&& units) const
+		{
+			if constexpr (
+				std::ranges::contiguous_range<R>
+				&& std::ranges::sized_range<R>
+				&& std::same_as<std::remove_cv_t<std::ranges::range_value_t<R>>, Unit>)
+			{
+				append(std::span<const Unit>{ std::ranges::data(units), std::ranges::size(units) });
+			}
+			else if constexpr (std::ranges::sized_range<R>)
+			{
+				if (state_->overflowed) [[unlikely]]
+				{
+					return;
+				}
+
+				const auto available = static_cast<std::size_t>(state_->end - state_->current);
+				const auto requested = static_cast<std::size_t>(std::ranges::size(units));
+				const auto to_write = (std::min)(available, requested);
+				auto* out = std::to_address(state_->current);
+				std::size_t written = 0;
+				for (auto&& unit : units)
+				{
+					if (written == to_write) [[unlikely]]
+					{
+						break;
+					}
+
+					*out++ = static_cast<Unit>(unit);
+					++written;
+				}
+
+				state_->current += static_cast<typename std::iterator_traits<Iterator>::difference_type>(written);
+				if (written != requested) [[unlikely]]
+				{
+					state_->overflowed = true;
+				}
 			}
 			else
 			{
