@@ -630,7 +630,7 @@ inline constexpr bool allow_implicit_construction_requested_v =
 		}
 
 	private:
-		CodeUnitWriter writer_;
+		UTF8_RANGES_NO_UNIQUE_ADDRESS CodeUnitWriter writer_;
 	};
 
 	template <typename CodeUnitWriter>
@@ -686,7 +686,7 @@ inline constexpr bool allow_implicit_construction_requested_v =
 		}
 
 	private:
-		CodeUnitWriter writer_;
+		UTF8_RANGES_NO_UNIQUE_ADDRESS CodeUnitWriter writer_;
 	};
 
 	template <typename CodeUnitWriter>
@@ -740,7 +740,7 @@ inline constexpr bool allow_implicit_construction_requested_v =
 		}
 
 	private:
-		CodeUnitWriter writer_;
+		UTF8_RANGES_NO_UNIQUE_ADDRESS CodeUnitWriter writer_;
 	};
 
 	template <typename Decoder, typename ScalarWriter>
