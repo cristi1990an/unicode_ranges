@@ -27,7 +27,7 @@ namespace unicode_ranges_test_details
 
 struct explicit_opt_out_ascii_encoder
 {
-	using code_unit_type = unsigned char;
+	using code_unit_type = char8_t;
 	static constexpr bool allow_implicit_construction = false;
 
 	template <typename Writer>
@@ -42,7 +42,7 @@ struct explicit_opt_out_ascii_encoder
 
 struct opted_in_nonempty_ascii_encoder
 {
-	using code_unit_type = unsigned char;
+	using code_unit_type = char8_t;
 	static constexpr bool allow_implicit_construction = true;
 
 	int state = 0;
@@ -64,7 +64,7 @@ struct opted_in_nonempty_ascii_encoder
 
 struct empty_input_flush_decoder
 {
-	using code_unit_type = unsigned char;
+	using code_unit_type = char8_t;
 
 	bool decode_called = false;
 	bool flush_called = false;
@@ -174,20 +174,20 @@ inline void run_unicode_ranges_tests()
 	static_assert(requires(const utf8_string& text)
 		{
 			text.template to_encoded<encodings::ascii_strict>();
-			text.template encode_to<encodings::ascii_strict>(std::span<unsigned char>{});
+			text.template encode_to<encodings::ascii_strict>(std::span<char8_t>{});
 		});
 	static_assert(requires(const utf8_string& text)
 		{
 			text.template to_encoded<unicode_ranges_test_details::opted_in_nonempty_ascii_encoder>();
 		});
 	static_assert(std::same_as<
-		decltype(utf8_string::from_encoded<encodings::ascii_strict>(std::basic_string_view<unsigned char>{})),
+		decltype(utf8_string::from_encoded<encodings::ascii_strict>(std::u8string_view{})),
 		std::expected<utf8_string, encodings::ascii_strict::decode_error>>);
 	static_assert(std::same_as<
-		decltype(utf16_string::from_encoded<encodings::ascii_strict>(std::basic_string_view<unsigned char>{})),
+		decltype(utf16_string::from_encoded<encodings::ascii_strict>(std::u8string_view{})),
 		std::expected<utf16_string, encodings::ascii_strict::decode_error>>);
 	static_assert(std::same_as<
-		decltype(utf32_string::from_encoded<encodings::ascii_strict>(std::basic_string_view<unsigned char>{})),
+		decltype(utf32_string::from_encoded<encodings::ascii_strict>(std::u8string_view{})),
 		std::expected<utf32_string, encodings::ascii_strict::decode_error>>);
 	constexpr utf8_char latin1_ch = "é"_u8c;
 	constexpr auto utf8_text = "Aé€"_utf8_sv;
@@ -359,9 +359,9 @@ inline void run_unicode_ranges_tests()
 #endif
 
 	{
-		const std::array<unsigned char, 2> ascii_bytes{ static_cast<unsigned char>('H'), static_cast<unsigned char>('i') };
-		const std::basic_string_view<unsigned char> encoded_view{ ascii_bytes.data(), ascii_bytes.size() };
-		const std::basic_string<unsigned char> expected_bytes{ ascii_bytes.begin(), ascii_bytes.end() };
+		const std::array<char8_t, 2> ascii_bytes{ static_cast<char8_t>('H'), static_cast<char8_t>('i') };
+		const std::u8string_view encoded_view{ ascii_bytes.data(), ascii_bytes.size() };
+		const std::u8string expected_bytes{ ascii_bytes.begin(), ascii_bytes.end() };
 
 		auto decoded8 = utf8_string::from_encoded<encodings::ascii_strict>(encoded_view);
 		assert(decoded8.has_value());
@@ -393,79 +393,79 @@ inline void run_unicode_ranges_tests()
 	}
 
 	{
-		const std::array<unsigned char, 1> invalid_bytes{ 0xFFu };
+		const std::array<char8_t, 1> invalid_bytes{ static_cast<char8_t>(0xFFu) };
 		const auto result = utf8_string::from_encoded<encodings::ascii_strict>(
-			std::basic_string_view<unsigned char>{ invalid_bytes.data(), invalid_bytes.size() });
+			std::u8string_view{ invalid_bytes.data(), invalid_bytes.size() });
 		assert(!result.has_value());
 		assert(result.error() == encodings::ascii_strict::decode_error::invalid_input);
 	}
 
 	{
 		encodings::ascii_lossy encoder{};
-		std::vector<unsigned char> bytes{ static_cast<unsigned char>('>') };
+		std::vector<char8_t> bytes{ static_cast<char8_t>('>') };
 		u8"Caf\u00E9"_utf8_sv.to_utf8_owned().encode_append_to(bytes, encoder);
-		assert((bytes == std::vector<unsigned char>{
-			static_cast<unsigned char>('>'),
-			static_cast<unsigned char>('C'),
-			static_cast<unsigned char>('a'),
-			static_cast<unsigned char>('f'),
-			static_cast<unsigned char>('?') }));
+		assert((bytes == std::vector<char8_t>{
+			static_cast<char8_t>('>'),
+			static_cast<char8_t>('C'),
+			static_cast<char8_t>('a'),
+			static_cast<char8_t>('f'),
+			static_cast<char8_t>('?') }));
 		assert(encoder.replacement_count == 1);
 	}
 
 	{
 		encodings::ascii_lossy decoder{};
-		const std::array<unsigned char, 2> encoded_bytes{ static_cast<unsigned char>('A'), 0xFFu };
+		const std::array<char8_t, 2> encoded_bytes{ static_cast<char8_t>('A'), static_cast<char8_t>(0xFFu) };
 		const auto decoded = utf8_string::from_encoded(
-			std::basic_string_view<unsigned char>{ encoded_bytes.data(), encoded_bytes.size() },
+			std::u8string_view{ encoded_bytes.data(), encoded_bytes.size() },
 			decoder);
 		assert(decoded.base() == u8"A\uFFFD");
 		assert(decoder.replacement_count == 1);
 	}
 
 	{
-		std::array<unsigned char, 1> buffer{};
+		std::array<char8_t, 1> buffer{};
 		encodings::ascii_strict encoder{};
-		const auto result = u8"AB"_utf8_sv.to_utf8_owned().encode_to(std::span<unsigned char>{ buffer }, encoder);
+		const auto result = u8"AB"_utf8_sv.to_utf8_owned().encode_to(std::span<char8_t>{ buffer }, encoder);
 		assert(!result.has_value());
 		assert(result.error().kind == encode_to_error_kind::overflow);
-		assert(buffer[0] == static_cast<unsigned char>('A'));
+		assert(buffer[0] == static_cast<char8_t>('A'));
 	}
 
 	{
-		std::array<unsigned char, 4> buffer{};
+		std::array<char8_t, 4> buffer{};
 		encodings::ascii_strict encoder{};
-		const auto result = u"A\u00E9"_utf16_sv.to_utf16_owned().encode_to(std::span<unsigned char>{ buffer }, encoder);
+		const auto result = u"A\u00E9"_utf16_sv.to_utf16_owned().encode_to(std::span<char8_t>{ buffer }, encoder);
 		assert(!result.has_value());
 		assert(result.error().kind == encode_to_error_kind::encoding_error);
 		assert(result.error().error.has_value());
 		assert(*result.error().error == encodings::ascii_strict::encode_error::unrepresentable_scalar);
-		assert(buffer[0] == static_cast<unsigned char>('A'));
+		assert(buffer[0] == static_cast<char8_t>('A'));
 	}
 
 	{
-		std::vector<unsigned char> bytes{ static_cast<unsigned char>('X') };
+		std::vector<char8_t> bytes{ static_cast<char8_t>('X') };
 		encodings::ascii_strict encoder{};
 		const auto result = u"A\u00E9"_utf16_sv.to_utf16_owned().encode_append_to(bytes, encoder);
 		assert(!result.has_value());
 		assert(result.error() == encodings::ascii_strict::encode_error::unrepresentable_scalar);
-		assert((bytes == std::vector<unsigned char>{
-			static_cast<unsigned char>('X'),
-			static_cast<unsigned char>('A') }));
+		assert((bytes == std::vector<char8_t>{
+			static_cast<char8_t>('X'),
+			static_cast<char8_t>('A') }));
 	}
 
 	{
 		const auto encoded = u8"AB"_utf8_sv.to_utf8_owned()
 			.to_encoded<unicode_ranges_test_details::opted_in_nonempty_ascii_encoder>();
-		assert((encoded == std::basic_string<unsigned char>{
-			static_cast<unsigned char>('A'),
-			static_cast<unsigned char>('B') }));
+		assert((encoded == std::u8string{
+			static_cast<char8_t>('A'),
+			static_cast<char8_t>('B') }));
 	}
 
 	{
 		unicode_ranges_test_details::empty_input_flush_decoder decoder{};
 		const auto decoded = utf8_string::from_encoded(
-			std::basic_string_view<unsigned char>{},
+			std::u8string_view{},
 			decoder);
 		assert(decoded.empty());
 		assert(!decoder.decode_called);

@@ -1236,7 +1236,7 @@ namespace encodings
 
 struct ascii_strict
 {
-	using code_unit_type = unsigned char;
+	using code_unit_type = char8_t;
 
 	enum class encode_error
 	{
@@ -1282,7 +1282,7 @@ struct ascii_strict
 		const auto bytes = input.base();
 		for (char8_t byte : bytes)
 		{
-			if (static_cast<unsigned char>(byte) > 0x7F)
+			if (static_cast<std::uint8_t>(byte) > 0x7F)
 			{
 				return std::unexpected(encode_error::unrepresentable_scalar);
 			}
@@ -1312,7 +1312,7 @@ struct ascii_strict
 
 struct ascii_lossy
 {
-	using code_unit_type = unsigned char;
+	using code_unit_type = char8_t;
 
 	std::size_t replacement_count = 0;
 
