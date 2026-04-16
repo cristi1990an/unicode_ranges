@@ -2,6 +2,8 @@
 
 `basic_utf8_string<Allocator>`, `basic_utf16_string<Allocator>`, and `basic_utf32_string<Allocator>` are validated owning string types.
 
+The boundary encoding families `from_encoded(...)`, `to_encoded(...)`, `encode_to(...)`, and `encode_append_to(...)` are documented separately in [Boundary Encodings](encodings.md).
+
 The aliases exported from [`unicode_ranges/core.hpp`](https://github.com/cristi1990an/unicode_ranges/blob/main/unicode_ranges/core.hpp) are:
 
 - `utf8_string = basic_utf8_string<>`

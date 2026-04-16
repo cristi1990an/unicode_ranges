@@ -72,4 +72,5 @@ Each named API family gets its own entry with:
 - [Characters](chars.md)
 - [String Views](string-views.md)
 - [Owning Strings](owning-strings.md)
+- [Boundary Encodings](encodings.md)
 - [Views, Literals, and Formatting](views-literals-formatting.md)
