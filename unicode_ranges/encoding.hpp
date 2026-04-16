@@ -1548,7 +1548,7 @@ struct windows_1252
 	constexpr auto encode_from_utf8(utf8_string_view input, Writer out) -> std::expected<void, encode_error>
 	{
 		out.reserve(input.base().size());
-		for (const auto ch : input)
+		for (const auto ch : input.chars())
 		{
 			const auto byte = windows_1252_details::encode_windows_1252(static_cast<char32_t>(ch.as_scalar()));
 			if (!byte) [[unlikely]]
