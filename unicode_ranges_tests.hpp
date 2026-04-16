@@ -426,7 +426,7 @@ inline void run_unicode_ranges_tests()
 	{
 		std::array<char8_t, 1> buffer{};
 		encodings::ascii_strict encoder{};
-		const auto result = u8"AB"_utf8_sv.to_utf8_owned().encode_to(std::span<char8_t>{ buffer }, encoder);
+		[[maybe_unused]] const auto result = u8"AB"_utf8_sv.to_utf8_owned().encode_to(std::span<char8_t>{ buffer }, encoder);
 		assert(!result.has_value());
 		assert(result.error().kind == encode_to_error_kind::overflow);
 		assert(buffer[0] == static_cast<char8_t>('A'));
@@ -435,7 +435,7 @@ inline void run_unicode_ranges_tests()
 	{
 		std::array<char8_t, 4> buffer{};
 		encodings::ascii_strict encoder{};
-		const auto result = u"A\u00E9"_utf16_sv.to_utf16_owned().encode_to(std::span<char8_t>{ buffer }, encoder);
+		[[maybe_unused]] const auto result = u"A\u00E9"_utf16_sv.to_utf16_owned().encode_to(std::span<char8_t>{ buffer }, encoder);
 		assert(!result.has_value());
 		assert(result.error().kind == encode_to_error_kind::encoding_error);
 		assert(result.error().error.has_value());
@@ -446,7 +446,7 @@ inline void run_unicode_ranges_tests()
 	{
 		std::vector<char8_t> bytes{ static_cast<char8_t>('X') };
 		encodings::ascii_strict encoder{};
-		const auto result = u"A\u00E9"_utf16_sv.to_utf16_owned().encode_append_to(bytes, encoder);
+		[[maybe_unused]] const auto result = u"A\u00E9"_utf16_sv.to_utf16_owned().encode_append_to(bytes, encoder);
 		assert(!result.has_value());
 		assert(result.error() == encodings::ascii_strict::encode_error::unrepresentable_scalar);
 		assert((bytes == std::vector<char8_t>{
