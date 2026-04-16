@@ -29,25 +29,25 @@ To keep the longer synopsis blocks manageable, many sections spell out the UTF-8
 
 ```cpp
 static constexpr std::expected<basic_utf8_string, utf8_error>
-from_bytes(std::string_view bytes, const Allocator& alloc = Allocator()) noexcept;
+from_bytes(std::string_view bytes, const Allocator& alloc = Allocator());
 
 static constexpr std::expected<basic_utf8_string, utf16_error>
-from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator()) noexcept; // when sizeof(wchar_t) == 2
+from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator()); // when sizeof(wchar_t) == 2
 
 static constexpr std::expected<basic_utf8_string, unicode_scalar_error>
-from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator()) noexcept; // when sizeof(wchar_t) == 4
+from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator()); // when sizeof(wchar_t) == 4
 
 static constexpr std::expected<basic_utf8_string, utf8_error>
 from_bytes(base_type&& bytes) noexcept;
 
 static constexpr std::expected<basic_utf16_string, utf8_error>
-from_bytes(std::string_view bytes, const Allocator& alloc = Allocator()) noexcept;
+from_bytes(std::string_view bytes, const Allocator& alloc = Allocator());
 
 static constexpr std::expected<basic_utf16_string, utf16_error>
-from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator()) noexcept; // when sizeof(wchar_t) == 2
+from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator()); // when sizeof(wchar_t) == 2
 
 static constexpr std::expected<basic_utf16_string, unicode_scalar_error>
-from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator()) noexcept; // when sizeof(wchar_t) == 4
+from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator()); // when sizeof(wchar_t) == 4
 
 static constexpr std::expected<basic_utf16_string, utf16_error>
 from_bytes(base_type&& bytes) noexcept;
@@ -84,11 +84,11 @@ Linear in the source length.
 
 ### Exceptions
 
-None.
+May throw allocator or container exceptions when construction or transcoding needs storage.
 
 ### `noexcept`
 
-All listed overloads are `noexcept`.
+Only the moved-string overloads are `noexcept`.
 
 ## Unchecked Factory Functions
 
@@ -96,15 +96,15 @@ All listed overloads are `noexcept`.
 
 ```cpp
 static constexpr basic_utf8_string from_bytes_unchecked(base_type&& bytes) noexcept;
-static constexpr basic_utf8_string from_bytes_unchecked(std::string_view bytes, const Allocator& alloc = Allocator()) noexcept;
-static constexpr basic_utf8_string from_bytes_unchecked(std::wstring_view bytes, const Allocator& alloc = Allocator()) noexcept;
+static constexpr basic_utf8_string from_bytes_unchecked(std::string_view bytes, const Allocator& alloc = Allocator());
+static constexpr basic_utf8_string from_bytes_unchecked(std::wstring_view bytes, const Allocator& alloc = Allocator());
 
 static constexpr basic_utf16_string from_code_units_unchecked(base_type code_units) noexcept;
-static constexpr basic_utf16_string from_code_units_unchecked(base_type code_units, const Allocator& alloc) noexcept;
-static constexpr basic_utf16_string from_code_units_unchecked(std::u16string_view code_units, const Allocator& alloc = Allocator()) noexcept;
+static constexpr basic_utf16_string from_code_units_unchecked(base_type code_units, const Allocator& alloc);
+static constexpr basic_utf16_string from_code_units_unchecked(std::u16string_view code_units, const Allocator& alloc = Allocator());
 static constexpr basic_utf16_string from_bytes_unchecked(base_type&& bytes) noexcept;
-static constexpr basic_utf16_string from_bytes_unchecked(std::string_view bytes, const Allocator& alloc = Allocator()) noexcept;
-static constexpr basic_utf16_string from_bytes_unchecked(std::wstring_view bytes, const Allocator& alloc = Allocator()) noexcept;
+static constexpr basic_utf16_string from_bytes_unchecked(std::string_view bytes, const Allocator& alloc = Allocator());
+static constexpr basic_utf16_string from_bytes_unchecked(std::wstring_view bytes, const Allocator& alloc = Allocator());
 ```
 
 ### Behavior
@@ -136,7 +136,55 @@ May throw allocator or container exceptions.
 
 ### `noexcept`
 
-The factory functions are declared `noexcept`, but any allocator failure inside the underlying standard-library container is still fatal in the usual way for `noexcept` code.
+- Pure ownership-taking overloads such as `from_bytes_unchecked(base_type&&)` and `from_code_units_unchecked(base_type)` are `noexcept`.
+- Borrowed-input and allocator-taking overloads are not `noexcept`, because they may allocate while constructing the owning string.
+
+## Lossy Factory Functions
+
+### Synopsis
+
+```cpp
+static constexpr basic_utf8_string from_bytes_lossy(std::string_view bytes, const Allocator& alloc = Allocator());
+static constexpr basic_utf8_string from_bytes_lossy(std::u8string_view bytes, const Allocator& alloc = Allocator());
+static constexpr basic_utf8_string from_bytes_lossy(base_type&& bytes);
+
+static constexpr basic_utf16_string from_code_units_lossy(std::u16string_view code_units, const Allocator& alloc = Allocator());
+static constexpr basic_utf16_string from_code_units_lossy(base_type&& code_units) noexcept;
+
+static constexpr basic_utf32_string from_code_points_lossy(std::u32string_view code_points, const Allocator& alloc = Allocator());
+static constexpr basic_utf32_string from_code_points_lossy(base_type&& code_points) noexcept;
+```
+
+### Behavior
+
+- These factories repair malformed input by replacing invalid sequences or invalid scalar values with `U+FFFD`.
+- Borrowed-input overloads build a new validated owning string.
+- Owned `&&` overloads repair in place whenever the target encoding allows it without reallocating.
+
+### Overload differences
+
+| Overload | Meaning | Example |
+| --- | --- | --- |
+| `from_bytes_lossy(std::string_view bytes, alloc)` | repair malformed UTF-8 bytes while constructing a validated UTF-8 string | `auto text = utf8_string::from_bytes_lossy("A\xFF");` |
+| `from_bytes_lossy(base_type&& bytes)` | take ownership of a UTF-8 string and repair it, potentially reallocating if malformed input expands | `auto text = utf8_string::from_bytes_lossy(std::u8string{u8"A\xFF"});` |
+| `from_code_units_lossy(std::u16string_view code_units, alloc)` | repair malformed UTF-16 code units while constructing a validated UTF-16 string | `auto text = utf16_string::from_code_units_lossy(std::u16string_view{ u"A\uD800B" });` |
+| `from_code_units_lossy(base_type&& code_units)` | take ownership of a UTF-16 string and repair it in place | `auto text = utf16_string::from_code_units_lossy(std::u16string{ u"A\uD800B" });` |
+| `from_code_points_lossy(std::u32string_view code_points, alloc)` | repair invalid UTF-32 scalar values while constructing a validated UTF-32 string | `auto text = utf32_string::from_code_points_lossy(std::u32string_view{ U"A\U0000D800B" });` |
+| `from_code_points_lossy(base_type&& code_points)` | take ownership of a UTF-32 string and repair it in place | `auto text = utf32_string::from_code_points_lossy(std::u32string{ U"A\U0000D800B" });` |
+
+### Complexity
+
+Linear in the source length.
+
+### Exceptions
+
+Borrowed-input overloads may throw allocator or container exceptions. The UTF-8 owned overload may also throw if malformed repair expands and requires reallocation.
+
+### `noexcept`
+
+- Borrowed-input and allocator-taking lossy overloads are not `noexcept`.
+- `utf16_string::from_code_units_lossy(base_type&&)` and `utf32_string::from_code_points_lossy(base_type&&)` are `noexcept` because those repairs are width-preserving and stay in place.
+- `utf8_string::from_bytes_lossy(base_type&&)` is not `noexcept`, because malformed UTF-8 may expand when replaced with `U+FFFD`.
 
 ## Constructors
 

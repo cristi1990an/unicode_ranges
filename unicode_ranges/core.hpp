@@ -1967,6 +1967,253 @@ namespace details
 		return validate_unicode_scalars<char32_t>(value);
 	}
 
+	template<typename CharT>
+	inline constexpr auto analyze_lossy_utf8(std::basic_string_view<CharT> value) noexcept
+		-> std::pair<std::size_t, bool>
+	{
+		std::size_t output_size = 0;
+		bool has_expanding_sequence = false;
+		std::size_t index = 0;
+		while (index < value.size())
+		{
+			const auto remaining = std::basic_string_view<CharT>{ value.data() + index, value.size() - index };
+			const auto ascii_run = ascii_prefix_length(remaining);
+			output_size += ascii_run;
+			index += ascii_run;
+			if (index == value.size())
+			{
+				break;
+			}
+
+			const auto width = lossy_utf8_sequence_width(remaining);
+			const auto traits = utf8_lead_validation_table[static_cast<std::uint8_t>(value[index])];
+			if (traits.size != 0 && width == traits.size)
+			{
+				output_size += width;
+			}
+			else
+			{
+				output_size += encoding_constants::three_code_unit_count;
+				has_expanding_sequence = has_expanding_sequence || width < encoding_constants::three_code_unit_count;
+			}
+
+			index += width;
+		}
+
+		return { output_size, has_expanding_sequence };
+	}
+
+	template<typename CharT>
+	inline constexpr std::size_t write_lossy_utf8_bytes(
+		std::basic_string_view<CharT> bytes,
+		char8_t* buffer) noexcept
+	{
+		std::size_t write_index = 0;
+		std::size_t read_index = 0;
+		while (read_index < bytes.size())
+		{
+			const auto remaining = std::basic_string_view<CharT>{ bytes.data() + read_index, bytes.size() - read_index };
+			const auto ascii_run = ascii_prefix_length(remaining);
+			for (std::size_t i = 0; i != ascii_run; ++i)
+			{
+				buffer[write_index + i] = static_cast<char8_t>(remaining[i]);
+			}
+
+			write_index += ascii_run;
+			read_index += ascii_run;
+			if (read_index == bytes.size())
+			{
+				break;
+			}
+
+			const auto width = lossy_utf8_sequence_width(remaining);
+			const auto traits = utf8_lead_validation_table[static_cast<std::uint8_t>(bytes[read_index])];
+			if (traits.size != 0 && width == traits.size)
+			{
+				for (std::size_t i = 0; i != width; ++i)
+				{
+					buffer[write_index + i] = static_cast<char8_t>(bytes[read_index + i]);
+				}
+
+				write_index += width;
+			}
+			else
+			{
+				write_index += encode_unicode_scalar_utf8_unchecked(
+					encoding_constants::replacement_character_scalar,
+					buffer + write_index);
+			}
+
+			read_index += width;
+		}
+
+		return write_index;
+	}
+
+	template<typename CharT>
+	inline constexpr std::size_t write_lossy_utf16_code_units(
+		std::basic_string_view<CharT> code_units,
+		char16_t* buffer) noexcept
+	{
+		std::size_t write_index = 0;
+		std::size_t read_index = 0;
+		while (read_index < code_units.size())
+		{
+			const auto remaining = std::basic_string_view<CharT>{ code_units.data() + read_index, code_units.size() - read_index };
+			const auto ascii_run = ascii_prefix_length(remaining);
+			for (std::size_t i = 0; i != ascii_run; ++i)
+			{
+				buffer[write_index + i] = static_cast<char16_t>(remaining[i]);
+			}
+
+			write_index += ascii_run;
+			read_index += ascii_run;
+			if (read_index == code_units.size())
+			{
+				break;
+			}
+
+			const auto first = static_cast<std::uint16_t>(code_units[read_index]);
+			if (first < 0xD800u || first > 0xDFFFu)
+			{
+				buffer[write_index++] = static_cast<char16_t>(first);
+				++read_index;
+				continue;
+			}
+
+			if (first <= 0xDBFFu && read_index + 1 < code_units.size())
+			{
+				const auto second = static_cast<std::uint16_t>(code_units[read_index + 1]);
+				if (is_utf16_low_surrogate(second))
+				{
+					buffer[write_index++] = static_cast<char16_t>(first);
+					buffer[write_index++] = static_cast<char16_t>(second);
+					read_index += encoding_constants::utf16_surrogate_code_unit_count;
+					continue;
+				}
+			}
+
+			buffer[write_index++] = static_cast<char16_t>(encoding_constants::replacement_character_scalar);
+			++read_index;
+		}
+
+		return write_index;
+	}
+
+	template<typename CharT>
+	inline constexpr std::size_t write_lossy_utf32_code_points(
+		std::basic_string_view<CharT> code_points,
+		char32_t* buffer) noexcept
+	{
+		for (std::size_t index = 0; index != code_points.size(); ++index)
+		{
+			const auto scalar = static_cast<std::uint32_t>(code_points[index]);
+			buffer[index] = is_valid_unicode_scalar(scalar)
+				? static_cast<char32_t>(scalar)
+				: static_cast<char32_t>(encoding_constants::replacement_character_scalar);
+		}
+
+		return code_points.size();
+	}
+
+	template <typename Allocator, typename CharT>
+	inline constexpr auto copy_lossy_utf8_bytes(
+		std::basic_string_view<CharT> bytes,
+		const Allocator& alloc) -> utf8_base_string<Allocator>
+	{
+		utf8_base_string<Allocator> result{ alloc };
+		const auto [output_size, _] = analyze_lossy_utf8(bytes);
+		result.resize_and_overwrite(output_size,
+			[&](char8_t* buffer, std::size_t) noexcept
+			{
+				return write_lossy_utf8_bytes(bytes, buffer);
+			});
+
+		return result;
+	}
+
+	template <typename Allocator>
+	inline constexpr void repair_utf8_bytes_inplace(utf8_base_string<Allocator>& bytes)
+	{
+		const auto original_size = bytes.size();
+		const auto [output_size, has_expanding_sequence] = analyze_lossy_utf8(std::u8string_view{ bytes });
+		if (!has_expanding_sequence)
+		{
+			bytes.resize_and_overwrite(original_size,
+				[&](char8_t* buffer, std::size_t) noexcept
+				{
+					return write_lossy_utf8_bytes(std::u8string_view{ buffer, original_size }, buffer);
+				});
+			return;
+		}
+
+		if (output_size > original_size)
+		{
+			bytes.resize_and_overwrite(output_size,
+				[&](char8_t* buffer, std::size_t) noexcept
+				{
+					auto* shifted_input = buffer + (output_size - original_size);
+					std::char_traits<char8_t>::move(shifted_input, buffer, original_size);
+					return write_lossy_utf8_bytes(std::u8string_view{ shifted_input, original_size }, buffer);
+				});
+			return;
+		}
+
+		bytes = copy_lossy_utf8_bytes(std::u8string_view{ bytes }, bytes.get_allocator());
+	}
+
+	template <typename Allocator>
+	inline constexpr auto copy_lossy_utf16_code_units(
+		std::u16string_view code_units,
+		const Allocator& alloc) -> utf16_base_string<Allocator>
+	{
+		utf16_base_string<Allocator> result{ alloc };
+		result.resize_and_overwrite(code_units.size(),
+			[&](char16_t* buffer, std::size_t) noexcept
+			{
+				return write_lossy_utf16_code_units(code_units, buffer);
+			});
+
+		return result;
+	}
+
+	template <typename Allocator>
+	inline constexpr void repair_utf16_code_units_inplace(utf16_base_string<Allocator>& code_units)
+	{
+		const auto original_size = code_units.size();
+		code_units.resize_and_overwrite(original_size,
+			[&](char16_t* buffer, std::size_t) noexcept
+			{
+				return write_lossy_utf16_code_units(std::u16string_view{ buffer, original_size }, buffer);
+			});
+	}
+
+	template <typename Allocator>
+	inline constexpr auto copy_lossy_utf32_code_points(
+		std::u32string_view code_points,
+		const Allocator& alloc) -> utf32_base_string<Allocator>
+	{
+		utf32_base_string<Allocator> result{ alloc };
+		result.resize_and_overwrite(code_points.size(),
+			[&](char32_t* buffer, std::size_t) noexcept
+			{
+				return write_lossy_utf32_code_points(code_points, buffer);
+			});
+
+		return result;
+	}
+
+	template <typename Allocator>
+	inline constexpr void repair_utf32_code_points_inplace(utf32_base_string<Allocator>& code_points)
+	{
+		const auto original_size = code_points.size();
+		code_points.resize_and_overwrite(original_size,
+			[&](char32_t* buffer, std::size_t) noexcept
+			{
+				return write_lossy_utf32_code_points(std::u32string_view{ buffer, original_size }, buffer);
+			});
+	}
+
 	template <typename Allocator>
 	inline constexpr auto copy_validated_utf8_bytes(
 		std::string_view bytes,

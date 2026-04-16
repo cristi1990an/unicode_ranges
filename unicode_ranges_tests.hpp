@@ -14,6 +14,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <utility>
 
 using namespace unicode_ranges;
 using namespace unicode_ranges::literals;
@@ -27,8 +28,28 @@ using namespace unicode_ranges::literals;
 	std::abort();
 }
 
-#define UTF8_RANGES_TEST_ASSERT(expr) ((expr) ? static_cast<void>(0) : utf8_ranges_test_assert_fail(#expr, __FILE__, __LINE__))
+#if defined(_MSC_VER)
+#define UTF8_RANGES_TEST_NOINLINE __declspec(noinline)
+#elif defined(__GNUC__) || defined(__clang__)
+#define UTF8_RANGES_TEST_NOINLINE __attribute__((noinline))
+#else
+#define UTF8_RANGES_TEST_NOINLINE
+#endif
 
+template <typename Predicate>
+UTF8_RANGES_TEST_NOINLINE inline void utf8_ranges_test_assert(
+	Predicate&& predicate,
+	const char* expression,
+	const char* file,
+	int line)
+{
+	if (!std::invoke(std::forward<Predicate>(predicate)))
+	{
+		utf8_ranges_test_assert_fail(expression, file, line);
+	}
+}
+
+#define UTF8_RANGES_TEST_ASSERT(expr) utf8_ranges_test_assert([&]() -> bool { return (expr); }, #expr, __FILE__, __LINE__)
 #if defined(_GLIBCXX_USE_CXX11_ABI) && _GLIBCXX_USE_CXX11_ABI == 0
 #define UTF8_RANGES_ENABLE_CONSTEXPR_STRINGS 0
 #else
@@ -337,6 +358,35 @@ inline void run_unicode_ranges_tests()
 	static_assert(std::same_as<decltype(utf32_text.to_uppercase()), utf32_string>);
 	static_assert(std::same_as<decltype(utf32_text.case_fold()), utf32_string>);
 	static_assert(std::same_as<decltype(utf32_text.normalize(normalization_form::nfc)), utf32_string>);
+	static_assert(std::same_as<decltype(utf8_string::from_bytes_lossy(std::string_view{})), utf8_string>);
+	static_assert(std::same_as<decltype(utf16_string::from_code_units_lossy(std::u16string_view{})), utf16_string>);
+	static_assert(std::same_as<decltype(utf32_string::from_code_points_lossy(std::u32string_view{})), utf32_string>);
+	static_assert(!noexcept(utf8_string::from_bytes(std::string_view{})));
+	static_assert(noexcept(utf8_string::from_bytes(std::declval<utf8_string::base_type&&>())));
+	static_assert(!noexcept(utf8_string::from_bytes_unchecked(std::string_view{})));
+	static_assert(noexcept(utf8_string::from_bytes_unchecked(std::declval<utf8_string::base_type&&>())));
+	static_assert(!noexcept(utf8_string::from_bytes_lossy(std::string_view{})));
+	static_assert(!noexcept(utf8_string::from_bytes_lossy(std::declval<utf8_string::base_type&&>())));
+	static_assert(!noexcept(utf16_string::from_bytes(std::string_view{})));
+	static_assert(noexcept(utf16_string::from_bytes(std::declval<utf16_string::base_type&&>())));
+	static_assert(!noexcept(utf16_string::from_bytes_unchecked(std::string_view{})));
+	static_assert(!noexcept(utf16_string::from_code_units_unchecked(std::u16string_view{})));
+	static_assert(!noexcept(utf16_string::from_code_units_unchecked(
+		std::declval<utf16_string::base_type>(),
+		std::declval<const std::allocator<char16_t>&>())));
+	static_assert(noexcept(utf16_string::from_bytes_unchecked(std::declval<utf16_string::base_type&&>())));
+	static_assert(!noexcept(utf16_string::from_code_units_lossy(std::u16string_view{})));
+	static_assert(noexcept(utf16_string::from_code_units_lossy(std::declval<utf16_string::base_type&&>())));
+	static_assert(!noexcept(utf32_string::from_bytes(std::string_view{})));
+	static_assert(noexcept(utf32_string::from_bytes(std::declval<utf32_string::base_type&&>())));
+	static_assert(!noexcept(utf32_string::from_bytes_unchecked(std::string_view{})));
+	static_assert(!noexcept(utf32_string::from_code_points_unchecked(std::u32string_view{})));
+	static_assert(!noexcept(utf32_string::from_code_points_unchecked(
+		std::declval<utf32_string::base_type>(),
+		std::declval<const std::allocator<char32_t>&>())));
+	static_assert(noexcept(utf32_string::from_bytes_unchecked(std::declval<utf32_string::base_type&&>())));
+	static_assert(!noexcept(utf32_string::from_code_points_lossy(std::u32string_view{})));
+	static_assert(noexcept(utf32_string::from_code_points_lossy(std::declval<utf32_string::base_type&&>())));
 	static_assert(std::same_as<decltype(utf32_text.replace_all(U"\u00E9"_u32c, U"!"_u32c)), utf32_string>);
 	static_assert(std::same_as<decltype(utf32_text.replace_n(1, U"\u00E9"_u32c, U"!"_u32c)), utf32_string>);
 	static_assert([] {
@@ -5742,6 +5792,29 @@ static_assert([] {
 		UTF8_RANGES_TEST_ASSERT(decoded == expected);
 	}
 	{
+		const std::string input{ "A\xFF\xE2\x28\xA1", 5 };
+		const auto repaired = utf8_string::from_bytes_lossy(input);
+		UTF8_RANGES_TEST_ASSERT(repaired.base() == u8"A\uFFFD\uFFFD(\uFFFD");
+	}
+	{
+		utf8_string::base_type input;
+		input.push_back(static_cast<char8_t>('A'));
+		input.push_back(static_cast<char8_t>(0xFFu));
+		input.push_back(static_cast<char8_t>(0xE2u));
+		input.push_back(static_cast<char8_t>(0x28u));
+		input.push_back(static_cast<char8_t>(0xA1u));
+		const auto repaired = utf8_string::from_bytes_lossy(std::move(input));
+		UTF8_RANGES_TEST_ASSERT(repaired.base() == u8"A\uFFFD\uFFFD(\uFFFD");
+	}
+	{
+		utf8_string::base_type input;
+		input.push_back(static_cast<char8_t>(0xF0u));
+		input.push_back(static_cast<char8_t>(0x9Fu));
+		input.push_back(static_cast<char8_t>(0x92u));
+		const auto repaired = utf8_string::from_bytes_lossy(std::move(input));
+		UTF8_RANGES_TEST_ASSERT(repaired.base() == u8"\uFFFD");
+	}
+	{
 		const std::u16string input{
 			static_cast<char16_t>(u'A'),
 			static_cast<char16_t>(0xD800),
@@ -5827,6 +5900,50 @@ static_assert([] {
 			ch.encode_utf8<char>(std::back_inserter(decoded));
 		}
 		UTF8_RANGES_TEST_ASSERT(decoded == "A�B�😀");
+	}
+	{
+		const std::u16string input{
+			static_cast<char16_t>(u'A'),
+			static_cast<char16_t>(0xD800),
+			static_cast<char16_t>(u'B'),
+			static_cast<char16_t>(0xDC00),
+			static_cast<char16_t>(0xD83D),
+			static_cast<char16_t>(0xDE00)
+		};
+		const auto repaired = utf16_string::from_code_units_lossy(std::u16string_view{ input });
+		UTF8_RANGES_TEST_ASSERT(repaired.to_utf8().base() == u8"A\uFFFDB\uFFFD\U0001F600");
+	}
+	{
+		std::u16string input{
+			static_cast<char16_t>(u'A'),
+			static_cast<char16_t>(0xD800),
+			static_cast<char16_t>(u'B'),
+			static_cast<char16_t>(0xDC00),
+			static_cast<char16_t>(0xD83D),
+			static_cast<char16_t>(0xDE00)
+		};
+		const auto repaired = utf16_string::from_code_units_lossy(std::move(input));
+		UTF8_RANGES_TEST_ASSERT(repaired.to_utf8().base() == u8"A\uFFFDB\uFFFD\U0001F600");
+	}
+	{
+		const std::u32string input{
+			U'A',
+			static_cast<char32_t>(0xD800u),
+			U'B',
+			static_cast<char32_t>(0x110000u)
+		};
+		const auto repaired = utf32_string::from_code_points_lossy(std::u32string_view{ input });
+		UTF8_RANGES_TEST_ASSERT(repaired.base() == U"A\uFFFDB\uFFFD");
+	}
+	{
+		std::u32string input{
+			U'A',
+			static_cast<char32_t>(0xD800u),
+			U'B',
+			static_cast<char32_t>(0x110000u)
+		};
+		const auto repaired = utf32_string::from_code_points_lossy(std::move(input));
+		UTF8_RANGES_TEST_ASSERT(repaired.base() == U"A\uFFFDB\uFFFD");
 	}
 	{
 		utf16_string s{ utf16_text };

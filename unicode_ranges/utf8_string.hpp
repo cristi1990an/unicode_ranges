@@ -24,7 +24,7 @@ class basic_utf8_string : public details::utf8_string_crtp<basic_utf8_string<All
 	using difference_type = std::ptrdiff_t;
 	static constexpr size_type npos = static_cast<size_type>(-1);
 
-	static constexpr auto from_bytes(std::string_view bytes, const Allocator& alloc = Allocator()) noexcept
+	static constexpr auto from_bytes(std::string_view bytes, const Allocator& alloc = Allocator())
 		-> std::expected<basic_utf8_string, utf8_error>
 	{
 		if (auto validated = details::copy_validated_utf8_bytes(bytes, alloc); validated) [[likely]]
@@ -38,7 +38,7 @@ class basic_utf8_string : public details::utf8_string_crtp<basic_utf8_string<All
 		}
 	}
 
-	static constexpr auto from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator()) noexcept
+	static constexpr auto from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator())
 		-> std::expected<basic_utf8_string, utf16_error>
 		requires (sizeof(wchar_t) == 2)
 	{
@@ -53,7 +53,7 @@ class basic_utf8_string : public details::utf8_string_crtp<basic_utf8_string<All
 		}
 	}
 
-	static constexpr auto from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator()) noexcept
+	static constexpr auto from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator())
 		-> std::expected<basic_utf8_string, unicode_scalar_error>
 		requires (sizeof(wchar_t) == 4)
 	{
@@ -85,7 +85,26 @@ class basic_utf8_string : public details::utf8_string_crtp<basic_utf8_string<All
 		return from_base_unchecked(std::move(bytes));
 	}
 
-	static constexpr auto from_bytes_unchecked(std::string_view bytes, const Allocator& alloc = Allocator()) noexcept
+	static constexpr auto from_bytes_lossy(std::string_view bytes, const Allocator& alloc = Allocator())
+		-> basic_utf8_string
+	{
+		return from_base_unchecked(details::copy_lossy_utf8_bytes(bytes, alloc));
+	}
+
+	static constexpr auto from_bytes_lossy(equivalent_string_view bytes, const Allocator& alloc = Allocator())
+		-> basic_utf8_string
+	{
+		return from_base_unchecked(details::copy_lossy_utf8_bytes(bytes, alloc));
+	}
+
+	static constexpr auto from_bytes_lossy(base_type&& bytes)
+		-> basic_utf8_string
+	{
+		details::repair_utf8_bytes_inplace(bytes);
+		return from_base_unchecked(std::move(bytes));
+	}
+
+	static constexpr auto from_bytes_unchecked(std::string_view bytes, const Allocator& alloc = Allocator())
 		-> basic_utf8_string
 	{
 		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf8(bytes).has_value());
@@ -105,7 +124,7 @@ class basic_utf8_string : public details::utf8_string_crtp<basic_utf8_string<All
 		return from_base_unchecked(std::move(result));
 	}
 
-	static constexpr auto from_bytes_unchecked(std::wstring_view bytes, const Allocator& alloc = Allocator()) noexcept
+	static constexpr auto from_bytes_unchecked(std::wstring_view bytes, const Allocator& alloc = Allocator())
 		-> basic_utf8_string
 	{
 		if constexpr (sizeof(wchar_t) == 2)

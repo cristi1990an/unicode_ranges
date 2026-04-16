@@ -24,7 +24,7 @@ public:
 	using difference_type = std::ptrdiff_t;
 	static constexpr size_type npos = static_cast<size_type>(-1);
 
-	static constexpr auto from_bytes(std::string_view bytes, const Allocator& alloc = Allocator()) noexcept
+	static constexpr auto from_bytes(std::string_view bytes, const Allocator& alloc = Allocator())
 		-> std::expected<basic_utf16_string, utf8_error>
 	{
 		if (auto transcoded = details::transcode_utf8_to_utf16_checked(bytes, alloc); transcoded) [[likely]]
@@ -38,7 +38,7 @@ public:
 		}
 	}
 
-	static constexpr auto from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator()) noexcept
+	static constexpr auto from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator())
 		-> std::expected<basic_utf16_string, utf16_error>
 		requires (sizeof(wchar_t) == 2)
 	{
@@ -53,7 +53,7 @@ public:
 		}
 	}
 
-	static constexpr auto from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator()) noexcept
+	static constexpr auto from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator())
 		-> std::expected<basic_utf16_string, unicode_scalar_error>
 		requires (sizeof(wchar_t) == 4)
 	{
@@ -85,14 +85,14 @@ public:
 		return basic_utf16_string{ std::move(code_units) };
 	}
 
-	static constexpr basic_utf16_string from_code_units_unchecked(base_type code_units, const Allocator& alloc) noexcept
+	static constexpr basic_utf16_string from_code_units_unchecked(base_type code_units, const Allocator& alloc)
 	{
 		return from_code_units_unchecked(equivalent_string_view{ code_units }, alloc);
 	}
 
 	static constexpr basic_utf16_string from_code_units_unchecked(
 		equivalent_string_view code_units,
-		const Allocator& alloc = Allocator()) noexcept
+		const Allocator& alloc = Allocator())
 	{
 		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf16(code_units).has_value());
 
@@ -106,7 +106,20 @@ public:
 		return from_code_units_unchecked(std::move(bytes));
 	}
 
-	static constexpr auto from_bytes_unchecked(std::string_view bytes, const Allocator& alloc = Allocator()) noexcept
+	static constexpr basic_utf16_string from_code_units_lossy(
+		equivalent_string_view code_units,
+		const Allocator& alloc = Allocator())
+	{
+		return from_code_units_unchecked(details::copy_lossy_utf16_code_units(code_units, alloc));
+	}
+
+	static constexpr basic_utf16_string from_code_units_lossy(base_type&& code_units) noexcept
+	{
+		details::repair_utf16_code_units_inplace(code_units);
+		return from_code_units_unchecked(std::move(code_units));
+	}
+
+	static constexpr auto from_bytes_unchecked(std::string_view bytes, const Allocator& alloc = Allocator())
 		-> basic_utf16_string
 	{
 		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf8(bytes).has_value());
@@ -132,7 +145,7 @@ public:
 		return from_code_units_unchecked(std::move(utf16_code_units));
 	}
 
-	static constexpr auto from_bytes_unchecked(std::wstring_view bytes, const Allocator& alloc = Allocator()) noexcept
+	static constexpr auto from_bytes_unchecked(std::wstring_view bytes, const Allocator& alloc = Allocator())
 		-> basic_utf16_string
 	{
 		if constexpr (sizeof(wchar_t) == 2)
