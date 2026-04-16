@@ -476,9 +476,13 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		basic_utf32_string<std::pmr::polymorphic_allocator<char32_t>>>);
 	static_assert(encoder<encodings::ascii_strict>);
 	static_assert(encoder<encodings::ascii_lossy>);
+	static_assert(encoder<encodings::windows_1252>);
 	static_assert(decoder<encodings::ascii_strict>);
 	static_assert(decoder<encodings::ascii_lossy>);
+	static_assert(decoder<encodings::windows_1252>);
 	static_assert(encoder_traits<encodings::ascii_strict>::allow_implicit_construction_requested);
+	static_assert(encoder_traits<encodings::windows_1252>::allow_implicit_construction_requested);
+	static_assert(decoder_traits<encodings::windows_1252>::allow_implicit_construction_requested);
 	static_assert(!encoder_traits<encodings::ascii_lossy>::allow_implicit_construction_requested);
 	static_assert(encoder_traits<unicode_ranges_test_details::opted_in_nonempty_ascii_encoder>::allow_implicit_construction_requested);
 	static_assert(!encoder_traits<unicode_ranges_test_details::explicit_opt_out_ascii_encoder>::allow_implicit_construction_requested);
@@ -506,6 +510,18 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 	static_assert(std::same_as<
 		decltype(utf32_string::from_encoded<encodings::ascii_strict>(std::u8string_view{})),
 		std::expected<utf32_string, encodings::ascii_strict::decode_error>>);
+	static_assert(std::same_as<
+		decltype(utf8_string::from_encoded<encodings::windows_1252>(std::u8string_view{})),
+		utf8_string>);
+	static_assert(std::same_as<
+		decltype(utf16_string::from_encoded<encodings::windows_1252>(std::u8string_view{})),
+		utf16_string>);
+	static_assert(std::same_as<
+		decltype(utf32_string::from_encoded<encodings::windows_1252>(std::u8string_view{})),
+		utf32_string>);
+	static_assert(std::same_as<
+		decltype(utf8_string{}.to_encoded<encodings::windows_1252>()),
+		std::expected<std::u8string, encodings::windows_1252::encode_error>>);
 	static_assert(std::same_as<
 		decltype(utf8_string::from_encoded<unicode_ranges_test_details::opted_in_nonempty_ascii_decoder>(std::u8string_view{})),
 		utf8_string>);
@@ -739,6 +755,41 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		auto encoded = text.to_encoded<encodings::ascii_strict>();
 		UTF8_RANGES_TEST_ASSERT(!encoded.has_value());
 		UTF8_RANGES_TEST_ASSERT(encoded.error() == encodings::ascii_strict::encode_error::unrepresentable_scalar);
+	}
+
+	{
+		const std::array<char8_t, 4> encoded_bytes{
+			static_cast<char8_t>('A'),
+			static_cast<char8_t>(0x80u),
+			static_cast<char8_t>(0x9Fu),
+			static_cast<char8_t>(0x81u)
+		};
+		const std::u8string_view encoded_view{ encoded_bytes.data(), encoded_bytes.size() };
+		const std::u8string expected_bytes{ encoded_bytes.begin(), encoded_bytes.end() };
+
+		const auto decoded8 = utf8_string::from_encoded<encodings::windows_1252>(encoded_view);
+		UTF8_RANGES_TEST_ASSERT(decoded8.base() == u8"A\u20AC\u0178\u0081");
+		const auto encoded8 = decoded8.to_encoded<encodings::windows_1252>();
+		UTF8_RANGES_TEST_ASSERT(encoded8.has_value());
+		UTF8_RANGES_TEST_ASSERT(*encoded8 == expected_bytes);
+
+		const auto decoded16 = utf16_string::from_encoded<encodings::windows_1252>(encoded_view);
+		UTF8_RANGES_TEST_ASSERT(decoded16.base() == u"A\u20AC\u0178\u0081");
+		const auto encoded16 = decoded16.to_encoded<encodings::windows_1252>();
+		UTF8_RANGES_TEST_ASSERT(encoded16.has_value());
+		UTF8_RANGES_TEST_ASSERT(*encoded16 == expected_bytes);
+
+		const auto decoded32 = utf32_string::from_encoded<encodings::windows_1252>(encoded_view);
+		UTF8_RANGES_TEST_ASSERT(decoded32.base() == U"A\u20AC\u0178\u0081");
+		const auto encoded32 = decoded32.to_encoded<encodings::windows_1252>();
+		UTF8_RANGES_TEST_ASSERT(encoded32.has_value());
+		UTF8_RANGES_TEST_ASSERT(*encoded32 == expected_bytes);
+	}
+
+	{
+		const auto result = u8"\u009F"_utf8_sv.to_utf8_owned().to_encoded<encodings::windows_1252>();
+		UTF8_RANGES_TEST_ASSERT(!result.has_value());
+		UTF8_RANGES_TEST_ASSERT(result.error() == encodings::windows_1252::encode_error::unrepresentable_scalar);
 	}
 
 	{

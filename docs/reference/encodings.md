@@ -52,6 +52,8 @@ struct codec_contract_violation : std::logic_error {};
 
 - `encoder_traits` and `decoder_traits` normalize codec objects into the surface the library actually calls.
 - The traits layer always provides `flush(...)` even when the codec object does not define it.
+- Decoder `code_unit_type` must be usable with `std::basic_string_view<code_unit_type>`.
+- `to_encoded(...)` additionally requires an encoded `code_unit_type` that can back `std::basic_string<code_unit_type, std::char_traits<code_unit_type>, ...>`.
 - `from_encoded_result` and `to_encoded_result` follow the optional-error-alias rule:
   - no `decode_error` / `encode_error` alias means a direct UTF value or direct encoded string
   - defining the alias switches the corresponding family to `std::expected`
@@ -117,6 +119,8 @@ void decode_to_utf32(std::basic_string_view<char8_t> input, Writer out);
 
 - Codec objects are real mutable objects. Any runtime state lives on the object itself.
 - Writer parameters are taken by value. The writer is a cheap non-owning handle over external sink state.
+- Decoder `code_unit_type` therefore has to be a valid `std::basic_string_view` element type.
+- Encoders intended for `to_encoded(...)` must use a `code_unit_type` that is also valid for `std::basic_string` with `std::char_traits<code_unit_type>`.
 - If `encode_error` or `decode_error` is defined, the corresponding primitive hook, bulk hooks, and `flush(...)` must return `std::expected<..., error_type>` instead of the infallible form.
 - `allow_implicit_construction` is optional.
   - if omitted, empty default-constructible codecs are treated as implicitly constructible
@@ -213,11 +217,15 @@ constexpr auto to_encoded(
 
 ```cpp
 template <typename Encoder, typename Out>
+    requires std::ranges::range<Out>
+          && std::ranges::output_range<Out, typename encoder_traits<Encoder>::code_unit_type>
 constexpr auto encode_to(Out&& out, Encoder& encoder) const
     -> std::expected<void, encode_to_error<Encoder>>;
 
 template <typename Encoder, typename Out>
     requires encoder_traits<Encoder>::allow_implicit_construction_requested
+          && std::ranges::range<Out>
+          && std::ranges::output_range<Out, typename encoder_traits<Encoder>::code_unit_type>
 constexpr auto encode_to(Out&& out) const
     -> std::expected<void, encode_to_error<Encoder>>;
 ```
@@ -241,6 +249,7 @@ constexpr auto encode_append_to(Container& container) const
 - `to_encoded(...)` builds a growable encoded string result
 - `encode_to(...)` targets bounded raw sinks such as iterator/sentinel-backed outputs and reports overflow through `encode_to_error<Encoder>`
 - `encode_append_to(...)` appends after the destination container's existing contents and never reports overflow
+- `encode_append_to(...)` only participates for sequence-like append containers whose `value_type` can be constructed from the encoder's `code_unit_type`
 - partial output written before overflow or codec failure is preserved
 - if a growable destination container throws while appending, that exception propagates normally
 
@@ -261,3 +270,15 @@ constexpr auto encode_append_to(Container& container) const
 - replaces unrepresentable scalars and invalid bytes with replacement output
 - tracks replacement counts on the codec object
 - does not opt into implicit construction, because callers typically care about the mutated codec object afterwards
+
+### `encodings::windows_1252`
+
+- `code_unit_type = char8_t`
+- defines `encode_error`, but decoding is infallible
+- follows the WHATWG Windows-1252 index, not the older undefined-hole vendor mapping
+- encodes ASCII and the Windows-1252 repertoire, and reports other scalars as ordinary encode errors
+- decodes bytes `0x81`, `0x8D`, `0x8F`, `0x90`, and `0x9D` to the corresponding C1 control code points, matching WHATWG
+- enables implicit construction
+
+Source table:
+- WHATWG index: <https://encoding.spec.whatwg.org/index-windows-1252.txt>

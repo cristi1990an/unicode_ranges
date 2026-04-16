@@ -2,6 +2,7 @@
 #define UTF8_RANGES_ENCODING_HPP
 
 #include <algorithm>
+#include <array>
 #include <cstdlib>
 #include <exception>
 #include <memory>
@@ -181,21 +182,21 @@ inline constexpr bool allow_implicit_construction_requested_v =
 	{
 		using unit_type = Unit;
 
-		constexpr void reserve(std::size_t) noexcept
+		constexpr void reserve(std::size_t) const noexcept
 		{
 		}
 
-		constexpr void push(Unit) noexcept
+		constexpr void push(Unit) const noexcept
 		{
 		}
 
-		constexpr void append(std::span<const Unit>) noexcept
+		constexpr void append(std::span<const Unit>) const noexcept
 		{
 		}
 
 		template <std::ranges::input_range R>
 			requires std::convertible_to<std::ranges::range_reference_t<R>, Unit>
-		constexpr void append(R&&) noexcept
+		constexpr void append(R&&) const noexcept
 		{
 		}
 	};
@@ -204,21 +205,21 @@ inline constexpr bool allow_implicit_construction_requested_v =
 	{
 		using unit_type = char32_t;
 
-		constexpr void reserve(std::size_t) noexcept
+		constexpr void reserve(std::size_t) const noexcept
 		{
 		}
 
-		constexpr void push(char32_t) noexcept
+		constexpr void push(char32_t) const noexcept
 		{
 		}
 
-		constexpr void append(std::span<const char32_t>) noexcept
+		constexpr void append(std::span<const char32_t>) const noexcept
 		{
 		}
 
 		template <std::ranges::input_range R>
 			requires std::convertible_to<std::ranges::range_reference_t<R>, char32_t>
-		constexpr void append(R&&) noexcept
+		constexpr void append(R&&) const noexcept
 		{
 		}
 	};
@@ -1360,6 +1361,82 @@ concept decoder =
 namespace encodings
 {
 
+namespace windows_1252_details
+{
+
+// WHATWG Windows-1252 index:
+// https://encoding.spec.whatwg.org/index-windows-1252.txt
+inline constexpr std::array<char32_t, 32> windows_1252_decode_table{
+	0x20AC, 0x0081, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021,
+	0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0x008D, 0x017D, 0x008F,
+	0x0090, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014,
+	0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x009D, 0x017E, 0x0178
+};
+
+constexpr char32_t decode_windows_1252(char8_t byte) noexcept
+{
+	const auto value = static_cast<std::uint8_t>(byte);
+	if (value < 0x80)
+	{
+		return value;
+	}
+
+	if (value < 0xA0)
+	{
+		return windows_1252_decode_table[value - 0x80];
+	}
+
+	return value;
+}
+
+constexpr auto encode_windows_1252(char32_t scalar) noexcept -> std::optional<char8_t>
+{
+	if (scalar <= 0x7F || (scalar >= 0x00A0 && scalar <= 0x00FF))
+	{
+		return static_cast<char8_t>(scalar);
+	}
+
+	switch (scalar)
+	{
+	case 0x20AC: return static_cast<char8_t>(0x80);
+	case 0x0081: return static_cast<char8_t>(0x81);
+	case 0x201A: return static_cast<char8_t>(0x82);
+	case 0x0192: return static_cast<char8_t>(0x83);
+	case 0x201E: return static_cast<char8_t>(0x84);
+	case 0x2026: return static_cast<char8_t>(0x85);
+	case 0x2020: return static_cast<char8_t>(0x86);
+	case 0x2021: return static_cast<char8_t>(0x87);
+	case 0x02C6: return static_cast<char8_t>(0x88);
+	case 0x2030: return static_cast<char8_t>(0x89);
+	case 0x0160: return static_cast<char8_t>(0x8A);
+	case 0x2039: return static_cast<char8_t>(0x8B);
+	case 0x0152: return static_cast<char8_t>(0x8C);
+	case 0x008D: return static_cast<char8_t>(0x8D);
+	case 0x017D: return static_cast<char8_t>(0x8E);
+	case 0x008F: return static_cast<char8_t>(0x8F);
+	case 0x0090: return static_cast<char8_t>(0x90);
+	case 0x2018: return static_cast<char8_t>(0x91);
+	case 0x2019: return static_cast<char8_t>(0x92);
+	case 0x201C: return static_cast<char8_t>(0x93);
+	case 0x201D: return static_cast<char8_t>(0x94);
+	case 0x2022: return static_cast<char8_t>(0x95);
+	case 0x2013: return static_cast<char8_t>(0x96);
+	case 0x2014: return static_cast<char8_t>(0x97);
+	case 0x02DC: return static_cast<char8_t>(0x98);
+	case 0x2122: return static_cast<char8_t>(0x99);
+	case 0x0161: return static_cast<char8_t>(0x9A);
+	case 0x203A: return static_cast<char8_t>(0x9B);
+	case 0x0153: return static_cast<char8_t>(0x9C);
+	case 0x009D: return static_cast<char8_t>(0x9D);
+	case 0x017E: return static_cast<char8_t>(0x9E);
+	case 0x0178: return static_cast<char8_t>(0x9F);
+	default:
+		return std::nullopt;
+	}
+}
+
+} // namespace windows_1252_details
+
 struct ascii_strict
 {
 	using code_unit_type = char8_t;
@@ -1433,6 +1510,67 @@ struct ascii_strict
 
 		out.append(input | std::views::transform([](code_unit_type byte) { return static_cast<char8_t>(byte); }));
 		return {};
+	}
+};
+
+struct windows_1252
+{
+	using code_unit_type = char8_t;
+
+	enum class encode_error
+	{
+		unrepresentable_scalar
+	};
+
+	static constexpr bool allow_implicit_construction = true;
+
+	template <typename Writer>
+	constexpr auto encode_one(char32_t scalar, Writer out) -> std::expected<void, encode_error>
+	{
+		const auto byte = windows_1252_details::encode_windows_1252(scalar);
+		if (!byte) [[unlikely]]
+		{
+			return std::unexpected(encode_error::unrepresentable_scalar);
+		}
+
+		out.push(*byte);
+		return {};
+	}
+
+	template <typename Writer>
+	constexpr std::size_t decode_one(std::basic_string_view<code_unit_type> input, Writer out)
+	{
+		out.push(windows_1252_details::decode_windows_1252(input.front()));
+		return 1;
+	}
+
+	template <typename Writer>
+	constexpr auto encode_from_utf8(utf8_string_view input, Writer out) -> std::expected<void, encode_error>
+	{
+		out.reserve(input.base().size());
+		for (const auto ch : input)
+		{
+			const auto byte = windows_1252_details::encode_windows_1252(static_cast<char32_t>(ch.as_scalar()));
+			if (!byte) [[unlikely]]
+			{
+				return std::unexpected(encode_error::unrepresentable_scalar);
+			}
+
+			out.push(*byte);
+		}
+
+		return {};
+	}
+
+	template <typename Writer>
+	constexpr void decode_to_utf8(std::basic_string_view<code_unit_type> input, Writer out)
+	{
+		unicode_ranges::details::utf8_scalar_writer<Writer> scalar_out{ out };
+		scalar_out.reserve(input.size());
+		for (const code_unit_type byte : input)
+		{
+			scalar_out.push(windows_1252_details::decode_windows_1252(byte));
+		}
 	}
 };
 
