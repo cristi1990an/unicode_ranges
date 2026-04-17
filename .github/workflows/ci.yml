@@ -834,14 +834,25 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Publish comparative benchmark summary
+        shell: pwsh
         run: |
-          {
-            echo "## Comparative benchmarks (${{ matrix.name }}, ${{ matrix.opt_name || matrix.configuration }})"
-            echo
-            echo "_Current baselines: unicode_ranges and simdutf (pinned to v7.7.0 singleheader release asset)._"
-            echo "_Unsupported rows are reported explicitly when a library or public API surface does not cover the benchmark contract._"
-            echo
-            echo '```text'
-            cat comparative-benchmark-results.txt
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          $summaryLines = @(
+            "## Comparative benchmarks (${{ matrix.name }}, ${{ matrix.opt_name || matrix.configuration }})"
+            ""
+            "_Current baselines: unicode_ranges and simdutf (pinned to v7.7.0 singleheader release asset)._"
+            "_Unsupported rows are reported explicitly when a library or public API surface does not cover the benchmark contract._"
+            ""
+            "```text"
+          )
+
+          if (Test-Path -LiteralPath comparative-benchmark-results.txt) {
+            $summaryLines += Get-Content -LiteralPath comparative-benchmark-results.txt
+          } else {
+            $summaryLines += "comparative-benchmark-results.txt was not generated."
+          }
+
+          $summaryLines += "```"
+
+          if ($env:GITHUB_STEP_SUMMARY) {
+            $summaryLines -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          }
