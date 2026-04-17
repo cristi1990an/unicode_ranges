@@ -1,6 +1,10 @@
 #ifndef UTF8_RANGES_COMPARATIVE_BENCHMARKS_FAMILIES_UTF_VALIDATION_HPP
 #define UTF8_RANGES_COMPARATIVE_BENCHMARKS_FAMILIES_UTF_VALIDATION_HPP
 
+#include "../config.hpp"
+#if UTF8_RANGES_COMPARATIVE_WITH_SIMDUTF
+#include "../adapters/simdutf.hpp"
+#endif
 #include "../adapters/unicode_ranges.hpp"
 #include "../corpora.hpp"
 
@@ -29,6 +33,16 @@ inline std::vector<scenario> make_utf_validation_scenarios()
 						return adapters::validate_utf8_public_factory(input);
 					}
 				}
+#if UTF8_RANGES_COMPARATIVE_WITH_SIMDUTF
+				,
+				implementation_case{
+					.library = library_id::simdutf,
+					.run = [&input]() -> std::size_t
+					{
+						return adapters::validate_utf8_simdutf(input);
+					}
+				}
+#endif
 			}
 		});
 	}

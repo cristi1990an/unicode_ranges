@@ -1,0 +1,22 @@
+{
+  "simdutf": {
+    "display_name": "simdutf",
+    "version": "v7.7.0",
+    "source": {
+      "kind": "github_release_asset_zip",
+      "repo": "simdutf/simdutf",
+      "tag": "v7.7.0",
+      "asset": "singleheader.zip"
+    },
+    "layout": {
+      "expected_files": [
+        "simdutf.h",
+        "simdutf.cpp"
+      ]
+    },
+    "documentation": {
+      "readme": "https://github.com/simdutf/simdutf/blob/v7.7.0/README.md",
+      "release_asset": "https://github.com/simdutf/simdutf/releases/download/v7.7.0/singleheader.zip"
+    }
+  }
+}

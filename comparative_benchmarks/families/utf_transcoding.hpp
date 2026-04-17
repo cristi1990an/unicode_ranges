@@ -1,6 +1,10 @@
 #ifndef UTF8_RANGES_COMPARATIVE_BENCHMARKS_FAMILIES_UTF_TRANSCODING_HPP
 #define UTF8_RANGES_COMPARATIVE_BENCHMARKS_FAMILIES_UTF_TRANSCODING_HPP
 
+#include "../config.hpp"
+#if UTF8_RANGES_COMPARATIVE_WITH_SIMDUTF
+#include "../adapters/simdutf.hpp"
+#endif
 #include "../adapters/unicode_ranges.hpp"
 #include "../corpora.hpp"
 
@@ -34,6 +38,16 @@ inline std::vector<scenario> make_utf_transcoding_scenarios()
 						return adapters::utf8_to_utf16_owned(input);
 					}
 				}
+#if UTF8_RANGES_COMPARATIVE_WITH_SIMDUTF
+				,
+				implementation_case{
+					.library = library_id::simdutf,
+					.run = [&input]() -> std::size_t
+					{
+						return adapters::utf8_to_utf16_owned_simdutf(input);
+					}
+				}
+#endif
 			}
 		});
 
@@ -52,6 +66,16 @@ inline std::vector<scenario> make_utf_transcoding_scenarios()
 						return adapters::utf8_to_utf32_owned(input);
 					}
 				}
+#if UTF8_RANGES_COMPARATIVE_WITH_SIMDUTF
+				,
+				implementation_case{
+					.library = library_id::simdutf,
+					.run = [&input]() -> std::size_t
+					{
+						return adapters::utf8_to_utf32_owned_simdutf(input);
+					}
+				}
+#endif
 			}
 		});
 	}

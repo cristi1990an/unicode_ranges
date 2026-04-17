@@ -73,6 +73,10 @@
     <TreatWarningAsError Condition="'$(TreatWarningAsError)'==''">false</TreatWarningAsError>
   </PropertyGroup>
   <PropertyGroup>
+    <SimdutfRoot Condition="'$(SimdutfRoot)'==''">$(SIMDUTF_ROOT)</SimdutfRoot>
+    <SimdutfAvailable Condition="Exists('$(SimdutfRoot)\\simdutf.h') And Exists('$(SimdutfRoot)\\simdutf.cpp')">true</SimdutfAvailable>
+  </PropertyGroup>
+  <PropertyGroup>
     <OutDir>$(Platform)\$(Configuration)\</OutDir>
     <IntDir>build_artifacts\$(Platform)\$(Configuration)\comparative_benchmarks\</IntDir>
   </PropertyGroup>
@@ -86,6 +90,8 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
+      <AdditionalIncludeDirectories Condition="'$(SimdutfAvailable)'=='true'">$(SimdutfRoot);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions Condition="'$(SimdutfAvailable)'=='true'">UTF8_RANGES_COMPARATIVE_WITH_SIMDUTF=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
@@ -104,6 +110,8 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
+      <AdditionalIncludeDirectories Condition="'$(SimdutfAvailable)'=='true'">$(SimdutfRoot);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions Condition="'$(SimdutfAvailable)'=='true'">UTF8_RANGES_COMPARATIVE_WITH_SIMDUTF=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
@@ -120,6 +128,8 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
+      <AdditionalIncludeDirectories Condition="'$(SimdutfAvailable)'=='true'">$(SimdutfRoot);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions Condition="'$(SimdutfAvailable)'=='true'">UTF8_RANGES_COMPARATIVE_WITH_SIMDUTF=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
@@ -138,6 +148,8 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
+      <AdditionalIncludeDirectories Condition="'$(SimdutfAvailable)'=='true'">$(SimdutfRoot);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions Condition="'$(SimdutfAvailable)'=='true'">UTF8_RANGES_COMPARATIVE_WITH_SIMDUTF=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
@@ -147,6 +159,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="comparative_benchmarks.cpp" />
+    <ClCompile Include="comparative_benchmarks\third_party\simdutf_amalgamation.cpp" Condition="'$(SimdutfAvailable)'=='true'" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

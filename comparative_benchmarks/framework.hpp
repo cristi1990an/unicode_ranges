@@ -230,7 +230,7 @@ inline int run_suite(int argc, char** argv, const std::vector<scenario>& scenari
 	const auto options = parse_options(argc, argv);
 	const auto cases = expand_cases(scenarios);
 
-	std::cout << "unicode_ranges comparative benchmark scaffold\n";
+	std::cout << "unicode_ranges comparative benchmark suite\n";
 	std::cout << "min duration: " << options.min_duration.count() << " ms";
 	std::cout << ", samples: " << options.sample_count << " (median)";
 	if (!options.filter.empty())

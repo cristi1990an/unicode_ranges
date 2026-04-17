@@ -39,6 +39,23 @@ Examples:
 - owning-result normalization and lazy normalization view are different benchmarks
 - default grapheme segmentation and locale-tailored segmentation are different benchmarks
 
+### Prefer the closest realistic public API
+
+Rows should use the closest documented public API that a competent user would
+actually choose for the task.
+
+That means:
+
+- do not reject a comparison just because another library only has a near-match
+  with slightly different edge-case behavior outside the benchmarked corpus
+- do not compare against a fundamentally different API shape when that shape
+  clearly bakes in a performance advantage unrelated to the benchmark goal
+- do not use obscure internal hooks or unnatural setup code that ordinary users
+  would not write
+
+When exact equivalence is impossible, the row should document the remaining
+difference and use the most defensible public approximation.
+
 ### Separate raw and convenience paths
 
 Whenever possible, a benchmark family should have two tracks:
@@ -270,19 +287,25 @@ This matters especially for:
 
 This page started as the design charter and now also reflects the initial scaffold on the `feature/comparative-benchmarks` branch.
 
-Current scaffold:
+Current comparative suite:
 
 - a dedicated comparative benchmark runner: `comparative_benchmarks.cpp`
 - a shared benchmark model and harness under `comparative_benchmarks/`
 - initial corpus layout for UTF-8 validation and UTF-8 transcoding rows
 - initial `unicode_ranges` baseline adapters for strict UTF-8 validation and strict UTF-8 owned transcoding
-- CI jobs that build and run the scaffold on GCC, Clang, and MSVC
+- initial third-party baseline: `simdutf`
+  - pinned to release `v7.7.0`
+  - fetched dynamically in CI from the published `singleheader.zip` asset
+  - wired for strict UTF-8 validation and strict UTF-8 owned transcoding
+- comparative dependencies are defined in `comparative_benchmarks/dependencies.json`
+  and fetched through `tools/fetch_comparative_dependency.ps1`
+- a manifest-driven dependency fetch script for external comparative baselines
+- CI jobs that fetch, build, and run the comparative suite on GCC, Clang, and MSVC
 
 It still does not imply:
 
 - vendored third-party dependencies
-- third-party benchmark adapters
-- cross-library benchmark numbers
-- dependency acquisition logic for external competitors
+- broad cross-library coverage beyond the first `simdutf` baseline
+- benchmark rows for normalization, case mapping, segmentation, or boundary encodings
 
-Those are the next implementation phases on this branch.
+The next implementation phases on this branch are additional external baselines and additional benchmark families.

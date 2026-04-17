@@ -708,7 +708,7 @@ jobs:
           path: benchmark-results.txt
 
   comparative_benchmarks:
-    name: Comparative benchmarks scaffold (${{ matrix.name }}, ${{ matrix.opt_name }}, C++23)
+    name: Comparative benchmarks (${{ matrix.name }}, ${{ matrix.opt_name || matrix.configuration }}, C++23)
     runs-on: ${{ matrix.runs_on }}
     strategy:
       fail-fast: false
@@ -759,15 +759,30 @@ jobs:
         if: matrix.install_kind == 'msvc'
         uses: microsoft/setup-msbuild@v2
 
+      - name: Fetch comparative dependencies
+        if: matrix.install_kind != 'msvc'
+        run: |
+          deps_root="$(pwd)/build/comparative-deps"
+          simdutf_root="$(pwsh -NoProfile -File ./tools/fetch_comparative_dependency.ps1 -Name simdutf -DestinationRoot "$deps_root")"
+          echo "SIMDUTF_ROOT=$simdutf_root" >> "$GITHUB_ENV"
+
+      - name: Fetch comparative dependencies (MSVC)
+        if: matrix.install_kind == 'msvc'
+        shell: powershell
+        run: |
+          $depsRoot = Join-Path $PWD "build/comparative-deps"
+          $simdutfRoot = .\tools\fetch_comparative_dependency.ps1 -Name simdutf -DestinationRoot $depsRoot
+          "SIMDUTF_ROOT=$simdutfRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Show compiler version
         if: matrix.install_kind != 'msvc'
         run: ${{ matrix.cxx }} --version
 
       - name: Build comparative benchmark runner
         if: matrix.install_kind != 'msvc'
-        run: ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} comparative_benchmarks.cpp -o ${{ matrix.output }}
+        run: ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} -DUTF8_RANGES_COMPARATIVE_WITH_SIMDUTF=1 -I"${SIMDUTF_ROOT}" comparative_benchmarks.cpp comparative_benchmarks/third_party/simdutf_amalgamation.cpp -o ${{ matrix.output }}
 
-      - name: Run comparative benchmark scaffold
+      - name: Run comparative benchmark suite
         if: matrix.install_kind != 'msvc'
         run: ./${{ matrix.output }} --quick > comparative-benchmark-results.txt
 
@@ -778,7 +793,7 @@ jobs:
           msbuild comparative_benchmarks.vcxproj /t:Clean;Build /p:Configuration=${{ matrix.configuration }} /p:Platform=x64 /p:PlatformToolset=v143 /p:TreatWarningAsError=true
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Run comparative benchmark scaffold (MSVC)
+      - name: Run comparative benchmark suite (MSVC)
         if: matrix.install_kind == 'msvc'
         shell: powershell
         run: |
@@ -788,9 +803,9 @@ jobs:
       - name: Publish comparative benchmark summary
         run: |
           {
-            echo "## Comparative benchmark scaffold (${{ matrix.name }}, ${{ matrix.opt_name || matrix.configuration }})"
+            echo "## Comparative benchmarks (${{ matrix.name }}, ${{ matrix.opt_name || matrix.configuration }})"
             echo
-            echo "_Current phase: benchmark-row and corpus scaffolding only. Third-party adapters are not wired yet._"
+            echo "_Current baselines: unicode_ranges and simdutf (pinned to v7.7.0 singleheader release asset)._"
             echo
             echo '```text'
             cat comparative-benchmark-results.txt
