@@ -301,6 +301,8 @@ struct append_range_tracking_container
 	using value_type = char8_t;
 
 	std::vector<value_type> storage{};
+	std::size_t logical_capacity = 0;
+	std::vector<std::size_t> reserve_requests{};
 	int push_back_calls = 0;
 	int append_range_calls = 0;
 
@@ -309,9 +311,21 @@ struct append_range_tracking_container
 		return storage.size();
 	}
 
+	constexpr auto capacity() const noexcept -> std::size_t
+	{
+		return logical_capacity;
+	}
+
 	constexpr auto end() noexcept
 	{
 		return storage.end();
+	}
+
+	constexpr void reserve(std::size_t new_capacity)
+	{
+		reserve_requests.push_back(new_capacity);
+		logical_capacity = (std::max)(logical_capacity, new_capacity);
+		storage.reserve(logical_capacity);
 	}
 
 	constexpr void push_back(value_type value)
@@ -336,12 +350,18 @@ struct reserve_push_tracking_container
 	using value_type = char8_t;
 
 	std::vector<value_type> storage{};
-	int reserve_calls = 0;
+	std::size_t logical_capacity = 0;
+	std::vector<std::size_t> reserve_requests{};
 	int push_back_calls = 0;
 
 	constexpr auto size() const noexcept -> std::size_t
 	{
 		return storage.size();
+	}
+
+	constexpr auto capacity() const noexcept -> std::size_t
+	{
+		return logical_capacity;
 	}
 
 	constexpr auto end() noexcept
@@ -351,8 +371,9 @@ struct reserve_push_tracking_container
 
 	constexpr void reserve(std::size_t new_capacity)
 	{
-		++reserve_calls;
-		storage.reserve(new_capacity);
+		reserve_requests.push_back(new_capacity);
+		logical_capacity = (std::max)(logical_capacity, new_capacity);
+		storage.reserve(logical_capacity);
 	}
 
 	constexpr void push_back(value_type value)
@@ -366,7 +387,9 @@ struct resize_and_overwrite_tracking_container
 {
 	using value_type = char8_t;
 
-	std::u8string storage{};
+	std::vector<value_type> storage{};
+	std::size_t logical_capacity = 0;
+	std::vector<std::size_t> reserve_requests{};
 	int push_back_calls = 0;
 	int resize_and_overwrite_calls = 0;
 
@@ -375,9 +398,21 @@ struct resize_and_overwrite_tracking_container
 		return storage.size();
 	}
 
+	constexpr auto capacity() const noexcept -> std::size_t
+	{
+		return logical_capacity;
+	}
+
 	constexpr auto end() noexcept
 	{
 		return storage.end();
+	}
+
+	constexpr void reserve(std::size_t new_capacity)
+	{
+		reserve_requests.push_back(new_capacity);
+		logical_capacity = (std::max)(logical_capacity, new_capacity);
+		storage.reserve(logical_capacity);
 	}
 
 	constexpr void push_back(value_type value)
@@ -390,7 +425,147 @@ struct resize_and_overwrite_tracking_container
 	constexpr void resize_and_overwrite(std::size_t new_size, Operation operation)
 	{
 		++resize_and_overwrite_calls;
-		storage.resize_and_overwrite(new_size, operation);
+		storage.resize(new_size);
+		storage.resize(operation(storage.data(), new_size));
+	}
+};
+
+struct string_like_append_tracking_container
+{
+	using value_type = char8_t;
+
+	std::vector<value_type> storage{};
+	std::size_t logical_capacity = 0;
+	std::vector<std::size_t> reserve_requests{};
+	int append_calls = 0;
+
+	constexpr auto size() const noexcept -> std::size_t
+	{
+		return storage.size();
+	}
+
+	constexpr auto capacity() const noexcept -> std::size_t
+	{
+		return logical_capacity;
+	}
+
+	constexpr auto end() noexcept
+	{
+		return storage.end();
+	}
+
+	constexpr void reserve(std::size_t new_capacity)
+	{
+		reserve_requests.push_back(new_capacity);
+		logical_capacity = (std::max)(logical_capacity, new_capacity);
+		storage.reserve(logical_capacity);
+	}
+
+	constexpr void push_back(value_type value)
+	{
+		storage.push_back(value);
+	}
+
+	constexpr void append(const value_type* data, std::size_t count)
+	{
+		++append_calls;
+		storage.insert(storage.end(), data, data + count);
+	}
+};
+
+struct insert_range_tracking_container
+{
+	using value_type = char8_t;
+
+	std::vector<value_type> storage{};
+	std::size_t logical_capacity = 0;
+	std::vector<std::size_t> reserve_requests{};
+	int insert_range_calls = 0;
+
+	constexpr auto size() const noexcept -> std::size_t
+	{
+		return storage.size();
+	}
+
+	constexpr auto capacity() const noexcept -> std::size_t
+	{
+		return logical_capacity;
+	}
+
+	constexpr auto end() noexcept
+	{
+		return storage.end();
+	}
+
+	constexpr void reserve(std::size_t new_capacity)
+	{
+		reserve_requests.push_back(new_capacity);
+		logical_capacity = (std::max)(logical_capacity, new_capacity);
+		storage.reserve(logical_capacity);
+	}
+
+	constexpr void push_back(value_type value)
+	{
+		storage.push_back(value);
+	}
+
+	template <std::ranges::input_range R>
+	constexpr void insert_range(std::vector<value_type>::iterator position, R&& range)
+	{
+		(void)position;
+		++insert_range_calls;
+		for (auto&& value : range)
+		{
+			storage.push_back(static_cast<value_type>(value));
+		}
+	}
+};
+
+struct iterator_pair_insert_tracking_container
+{
+	using value_type = char8_t;
+
+	std::vector<value_type> storage{};
+	std::size_t logical_capacity = 0;
+	std::vector<std::size_t> reserve_requests{};
+	int insert_pair_calls = 0;
+
+	constexpr auto size() const noexcept -> std::size_t
+	{
+		return storage.size();
+	}
+
+	constexpr auto capacity() const noexcept -> std::size_t
+	{
+		return logical_capacity;
+	}
+
+	constexpr auto end() noexcept
+	{
+		return storage.end();
+	}
+
+	constexpr void reserve(std::size_t new_capacity)
+	{
+		reserve_requests.push_back(new_capacity);
+		logical_capacity = (std::max)(logical_capacity, new_capacity);
+		storage.reserve(logical_capacity);
+	}
+
+	constexpr void push_back(value_type value)
+	{
+		storage.push_back(value);
+	}
+
+	template <typename Iterator>
+	constexpr void insert(std::vector<value_type>::iterator position, Iterator first, Iterator last)
+	{
+		(void)position;
+		++insert_pair_calls;
+		for (; first != last; ++first)
+		{
+			storage.push_back(static_cast<value_type>(*first));
+		}
 	}
 };
 
@@ -929,39 +1104,113 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 	{
 		unicode_ranges_test_details::append_range_tracking_container container{};
 		details::container_append_writer<char8_t, unicode_ranges_test_details::append_range_tracking_container> writer{ container };
-		const std::u8string_view input{ u8"AB" };
-		writer.append(input | std::views::transform([](char8_t ch) { return ch; }));
-		UTF8_RANGES_TEST_ASSERT(container.append_range_calls == 1);
+		for (const std::u8string_view input : {
+				std::u8string_view{ u8"A" },
+				std::u8string_view{ u8"B" },
+				std::u8string_view{ u8"C" } })
+		{
+			writer.append(input | std::views::transform([](char8_t ch) { return ch; }));
+		}
+
+		UTF8_RANGES_TEST_ASSERT(container.append_range_calls == 3);
 		UTF8_RANGES_TEST_ASSERT(container.push_back_calls == 0);
+		UTF8_RANGES_TEST_ASSERT((container.reserve_requests == std::vector<std::size_t>{ 1, 2, 4 }));
 		UTF8_RANGES_TEST_ASSERT((container.storage == std::vector<char8_t>{
 			static_cast<char8_t>('A'),
-			static_cast<char8_t>('B') }));
+			static_cast<char8_t>('B'),
+			static_cast<char8_t>('C') }));
 	}
 
 	{
 		unicode_ranges_test_details::reserve_push_tracking_container container{};
 		details::container_append_writer<char8_t, unicode_ranges_test_details::reserve_push_tracking_container> writer{ container };
-		const std::u8string_view input{ u8"CD" };
-		writer.append(input | std::views::transform([](char8_t ch) { return ch; }));
-		UTF8_RANGES_TEST_ASSERT(container.reserve_calls == 1);
-		UTF8_RANGES_TEST_ASSERT(container.push_back_calls == 2);
+		writer.push(static_cast<char8_t>('C'));
+		writer.push(static_cast<char8_t>('D'));
+		writer.push(static_cast<char8_t>('E'));
+
+		UTF8_RANGES_TEST_ASSERT((container.reserve_requests == std::vector<std::size_t>{ 1, 2, 4 }));
+		UTF8_RANGES_TEST_ASSERT(container.push_back_calls == 3);
 		UTF8_RANGES_TEST_ASSERT((container.storage == std::vector<char8_t>{
 			static_cast<char8_t>('C'),
-			static_cast<char8_t>('D') }));
+			static_cast<char8_t>('D'),
+			static_cast<char8_t>('E') }));
 	}
 
 	{
 		unicode_ranges_test_details::resize_and_overwrite_tracking_container container{};
 		details::container_append_writer<char8_t, unicode_ranges_test_details::resize_and_overwrite_tracking_container> writer{ container };
-		const std::array<char8_t, 2> input{
-			static_cast<char8_t>('E'),
-			static_cast<char8_t>('F') };
-		writer.append(std::span<const char8_t>{ input });
-		UTF8_RANGES_TEST_ASSERT(container.resize_and_overwrite_calls == 1);
+		for (const std::array<char8_t, 1> input : {
+				std::array<char8_t, 1>{ static_cast<char8_t>('F') },
+				std::array<char8_t, 1>{ static_cast<char8_t>('G') },
+				std::array<char8_t, 1>{ static_cast<char8_t>('H') } })
+		{
+			writer.append(std::span<const char8_t>{ input });
+		}
+
+		UTF8_RANGES_TEST_ASSERT(container.resize_and_overwrite_calls == 3);
 		UTF8_RANGES_TEST_ASSERT(container.push_back_calls == 0);
-		UTF8_RANGES_TEST_ASSERT((container.storage == std::u8string{
-			static_cast<char8_t>('E'),
-			static_cast<char8_t>('F') }));
+		UTF8_RANGES_TEST_ASSERT((container.reserve_requests == std::vector<std::size_t>{ 1, 2, 4 }));
+		UTF8_RANGES_TEST_ASSERT((container.storage == std::vector<char8_t>{
+			static_cast<char8_t>('F'),
+			static_cast<char8_t>('G'),
+			static_cast<char8_t>('H') }));
+	}
+
+	{
+		unicode_ranges_test_details::string_like_append_tracking_container container{};
+		details::container_append_writer<char8_t, unicode_ranges_test_details::string_like_append_tracking_container> writer{ container };
+		for (const std::array<char8_t, 1> input : {
+				std::array<char8_t, 1>{ static_cast<char8_t>('I') },
+				std::array<char8_t, 1>{ static_cast<char8_t>('J') },
+				std::array<char8_t, 1>{ static_cast<char8_t>('K') } })
+		{
+			writer.append(std::span<const char8_t>{ input });
+		}
+
+		UTF8_RANGES_TEST_ASSERT(container.append_calls == 3);
+		UTF8_RANGES_TEST_ASSERT((container.reserve_requests == std::vector<std::size_t>{ 1, 2, 4 }));
+		UTF8_RANGES_TEST_ASSERT((container.storage == std::vector<char8_t>{
+			static_cast<char8_t>('I'),
+			static_cast<char8_t>('J'),
+			static_cast<char8_t>('K') }));
+	}
+
+	{
+		unicode_ranges_test_details::insert_range_tracking_container container{};
+		details::container_append_writer<char8_t, unicode_ranges_test_details::insert_range_tracking_container> writer{ container };
+		for (const std::u8string_view input : {
+				std::u8string_view{ u8"L" },
+				std::u8string_view{ u8"M" },
+				std::u8string_view{ u8"N" } })
+		{
+			writer.append(input | std::views::transform([](char8_t ch) { return ch; }));
+		}
+
+		UTF8_RANGES_TEST_ASSERT(container.insert_range_calls == 3);
+		UTF8_RANGES_TEST_ASSERT((container.reserve_requests == std::vector<std::size_t>{ 1, 2, 4 }));
+		UTF8_RANGES_TEST_ASSERT((container.storage == std::vector<char8_t>{
+			static_cast<char8_t>('L'),
+			static_cast<char8_t>('M'),
+			static_cast<char8_t>('N') }));
+	}
+
+	{
+		unicode_ranges_test_details::iterator_pair_insert_tracking_container container{};
+		details::container_append_writer<char8_t, unicode_ranges_test_details::iterator_pair_insert_tracking_container> writer{ container };
+		for (const std::u8string_view input : {
+				std::u8string_view{ u8"O" },
+				std::u8string_view{ u8"P" },
+				std::u8string_view{ u8"Q" } })
+		{
+			writer.append(input | std::views::transform([](char8_t ch) { return ch; }));
+		}
+
+		UTF8_RANGES_TEST_ASSERT(container.insert_pair_calls == 3);
+		UTF8_RANGES_TEST_ASSERT((container.reserve_requests == std::vector<std::size_t>{ 1, 2, 4 }));
+		UTF8_RANGES_TEST_ASSERT((container.storage == std::vector<char8_t>{
+			static_cast<char8_t>('O'),
+			static_cast<char8_t>('P'),
+			static_cast<char8_t>('Q') }));
 	}
 
 #if UTF8_RANGES_ENABLE_CODEC_CONTRACT_CHECKS

@@ -5,6 +5,7 @@
 #include <array>
 #include <cstdlib>
 #include <exception>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <span>
@@ -496,6 +497,13 @@ inline constexpr bool allow_implicit_construction_requested_v =
 		container.reserve(size);
 	};
 
+	template <typename Container>
+	concept has_capacity =
+		requires(const Container& container)
+	{
+		{ container.capacity() } -> std::convertible_to<std::size_t>;
+	};
+
 	template <typename Container, typename Range>
 	concept has_append_range =
 		requires(Container& container, Range&& range)
@@ -564,18 +572,13 @@ inline constexpr bool allow_implicit_construction_requested_v =
 
 		constexpr void reserve(std::size_t additional_units) const
 		{
-			if constexpr (has_reserve<Container>)
-			{
-				container_->reserve(container_->size() + additional_units);
-			}
-			else
-			{
-				(void)additional_units;
-			}
+			ensure_amortized_capacity(additional_units);
 		}
 
 		constexpr void push(Unit unit) const
 		{
+			ensure_amortized_capacity(1);
+
 			if constexpr (has_push_back<Container, value_type>)
 			{
 				container_->push_back(static_cast<value_type>(unit));
@@ -603,6 +606,8 @@ inline constexpr bool allow_implicit_construction_requested_v =
 			{
 				return;
 			}
+
+			ensure_amortized_capacity(units.size());
 
 			if constexpr (has_resize_and_overwrite<Container, Unit>)
 			{
@@ -632,11 +637,6 @@ inline constexpr bool allow_implicit_construction_requested_v =
 			}
 			else
 			{
-				if constexpr (has_reserve<Container>)
-				{
-					container_->reserve(container_->size() + units.size());
-				}
-
 				for (const Unit unit : units)
 				{
 					push(unit);
@@ -660,8 +660,9 @@ inline constexpr bool allow_implicit_construction_requested_v =
 				&& has_resize_and_overwrite<Container, Unit>
 				&& std::same_as<std::remove_cv_t<std::ranges::range_value_t<R>>, Unit>)
 			{
-				const auto old_size = container_->size();
 				const auto range_size = static_cast<std::size_t>(std::ranges::size(units));
+				ensure_amortized_capacity(range_size);
+				const auto old_size = container_->size();
 				container_->resize_and_overwrite(old_size + range_size,
 					[&](Unit* buffer, std::size_t) noexcept
 					{
@@ -676,21 +677,36 @@ inline constexpr bool allow_implicit_construction_requested_v =
 			}
 			else if constexpr (has_append_range<Container, R>)
 			{
+				if constexpr (std::ranges::sized_range<R>)
+				{
+					ensure_amortized_capacity(static_cast<std::size_t>(std::ranges::size(units)));
+				}
+
 				container_->append_range(std::forward<R>(units));
 			}
 			else if constexpr (has_insert_range_at_end<Container, R>)
 			{
+				if constexpr (std::ranges::sized_range<R>)
+				{
+					ensure_amortized_capacity(static_cast<std::size_t>(std::ranges::size(units)));
+				}
+
 				container_->insert_range(container_->end(), std::forward<R>(units));
 			}
 			else if constexpr (has_insert_iterator_pair_at_end<Container, std::ranges::iterator_t<R>>)
 			{
+				if constexpr (std::ranges::sized_range<R>)
+				{
+					ensure_amortized_capacity(static_cast<std::size_t>(std::ranges::size(units)));
+				}
+
 				container_->insert(container_->end(), std::ranges::begin(units), std::ranges::end(units));
 			}
 			else
 			{
-				if constexpr (std::ranges::sized_range<R> && has_reserve<Container>)
+				if constexpr (std::ranges::sized_range<R>)
 				{
-					container_->reserve(container_->size() + static_cast<std::size_t>(std::ranges::size(units)));
+					ensure_amortized_capacity(static_cast<std::size_t>(std::ranges::size(units)));
 				}
 
 				for (auto&& unit : units)
@@ -701,6 +717,49 @@ inline constexpr bool allow_implicit_construction_requested_v =
 		}
 
 	private:
+		static constexpr auto saturating_add(std::size_t lhs, std::size_t rhs) noexcept -> std::size_t
+		{
+			constexpr auto max_value = (std::numeric_limits<std::size_t>::max)();
+			return rhs > max_value - lhs ? max_value : lhs + rhs;
+		}
+
+		static constexpr auto doubled_capacity(std::size_t capacity) noexcept -> std::size_t
+		{
+			constexpr auto max_value = (std::numeric_limits<std::size_t>::max)();
+			return capacity > max_value / 2 ? max_value : capacity * 2;
+		}
+
+		constexpr void ensure_amortized_capacity(std::size_t additional_units) const
+		{
+			if constexpr (has_reserve<Container> && has_capacity<Container>)
+			{
+				if (additional_units == 0) [[unlikely]]
+				{
+					return;
+				}
+
+				const auto current_size = static_cast<std::size_t>(container_->size());
+				const auto current_capacity = static_cast<std::size_t>(container_->capacity());
+				const auto required_size = saturating_add(current_size, additional_units);
+				if (required_size <= current_capacity)
+				{
+					return;
+				}
+
+				auto target_capacity = doubled_capacity(current_capacity);
+				if (target_capacity < required_size)
+				{
+					target_capacity = required_size;
+				}
+
+				container_->reserve(target_capacity);
+			}
+			else
+			{
+				(void)additional_units;
+			}
+		}
+
 		Container* container_ = nullptr;
 	};
 
