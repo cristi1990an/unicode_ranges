@@ -75,6 +75,12 @@
   <PropertyGroup>
     <SimdutfRoot Condition="'$(SimdutfRoot)'==''">$(SIMDUTF_ROOT)</SimdutfRoot>
     <SimdutfAvailable Condition="Exists('$(SimdutfRoot)\\simdutf.h') And Exists('$(SimdutfRoot)\\simdutf.cpp')">true</SimdutfAvailable>
+    <UtfcppRoot Condition="'$(UtfcppRoot)'==''">$(UTFCPP_ROOT)</UtfcppRoot>
+    <UtfcppAvailable Condition="Exists('$(UtfcppRoot)\\source\\utf8.h')">true</UtfcppAvailable>
+    <ComparativeIncludeDirectories Condition="'$(SimdutfAvailable)'=='true'">$(SimdutfRoot);$(ComparativeIncludeDirectories)</ComparativeIncludeDirectories>
+    <ComparativePreprocessorDefinitions Condition="'$(SimdutfAvailable)'=='true'">UTF8_RANGES_COMPARATIVE_WITH_SIMDUTF=1;$(ComparativePreprocessorDefinitions)</ComparativePreprocessorDefinitions>
+    <ComparativeIncludeDirectories Condition="'$(UtfcppAvailable)'=='true'">$(UtfcppRoot)\source;$(ComparativeIncludeDirectories)</ComparativeIncludeDirectories>
+    <ComparativePreprocessorDefinitions Condition="'$(UtfcppAvailable)'=='true'">UTF8_RANGES_COMPARATIVE_WITH_UTFCPP=1;$(ComparativePreprocessorDefinitions)</ComparativePreprocessorDefinitions>
   </PropertyGroup>
   <PropertyGroup>
     <OutDir>$(Platform)\$(Configuration)\</OutDir>
@@ -90,8 +96,8 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
-      <AdditionalIncludeDirectories Condition="'$(SimdutfAvailable)'=='true'">$(SimdutfRoot);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions Condition="'$(SimdutfAvailable)'=='true'">UTF8_RANGES_COMPARATIVE_WITH_SIMDUTF=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ComparativeIncludeDirectories)%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>$(ComparativePreprocessorDefinitions)%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
@@ -110,8 +116,8 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
-      <AdditionalIncludeDirectories Condition="'$(SimdutfAvailable)'=='true'">$(SimdutfRoot);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions Condition="'$(SimdutfAvailable)'=='true'">UTF8_RANGES_COMPARATIVE_WITH_SIMDUTF=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ComparativeIncludeDirectories)%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>$(ComparativePreprocessorDefinitions)%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
@@ -128,8 +134,8 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
-      <AdditionalIncludeDirectories Condition="'$(SimdutfAvailable)'=='true'">$(SimdutfRoot);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions Condition="'$(SimdutfAvailable)'=='true'">UTF8_RANGES_COMPARATIVE_WITH_SIMDUTF=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ComparativeIncludeDirectories)%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>$(ComparativePreprocessorDefinitions)%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
@@ -148,8 +154,8 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
-      <AdditionalIncludeDirectories Condition="'$(SimdutfAvailable)'=='true'">$(SimdutfRoot);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions Condition="'$(SimdutfAvailable)'=='true'">UTF8_RANGES_COMPARATIVE_WITH_SIMDUTF=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ComparativeIncludeDirectories)%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>$(ComparativePreprocessorDefinitions)%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>

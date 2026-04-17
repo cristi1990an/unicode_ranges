@@ -9,6 +9,9 @@
 #if UTF8_RANGES_COMPARATIVE_WITH_SIMDUTF
 #include "../adapters/simdutf.hpp"
 #endif
+#if UTF8_RANGES_COMPARATIVE_WITH_UTFCPP
+#include "../adapters/utfcpp.hpp"
+#endif
 #include "../adapters/unicode_ranges.hpp"
 #include "../corpora.hpp"
 
@@ -55,6 +58,21 @@ inline std::vector<scenario> make_utf_transcoding_scenarios()
 					library_id::simdutf,
 					"simdutf dependency was not fetched for this runner")
 #endif
+#if UTF8_RANGES_COMPARATIVE_WITH_UTFCPP
+				,
+				implementation_case{
+					.library = library_id::utfcpp,
+					.run = [&input]() -> std::size_t
+					{
+						return adapters::utf8_to_utf16_owned_utfcpp(input);
+					}
+				}
+#else
+				,
+				make_unsupported_case(
+					library_id::utfcpp,
+					"utfcpp dependency was not fetched for this runner")
+#endif
 			}
 		});
 
@@ -86,6 +104,21 @@ inline std::vector<scenario> make_utf_transcoding_scenarios()
 					library_id::simdutf,
 					"simdutf dependency was not fetched for this runner")
 #endif
+#if UTF8_RANGES_COMPARATIVE_WITH_UTFCPP
+				,
+				implementation_case{
+					.library = library_id::utfcpp,
+					.run = [&input]() -> std::size_t
+					{
+						return adapters::utf8_to_utf32_owned_utfcpp(input);
+					}
+				}
+#else
+				,
+				make_unsupported_case(
+					library_id::utfcpp,
+					"utfcpp dependency was not fetched for this runner")
+#endif
 			}
 		});
 
@@ -116,6 +149,23 @@ inline std::vector<scenario> make_utf_transcoding_scenarios()
 					library_id::simdutf,
 					"simdutf dependency was not fetched for this runner")
 #endif
+#if UTF8_RANGES_COMPARATIVE_WITH_UTFCPP
+				,
+				implementation_case{
+					.library = library_id::utfcpp,
+					.run = [&input, utf16_buffer]() -> std::size_t
+					{
+						return adapters::utf8_to_utf16_buffer_utfcpp(
+							input,
+							std::span<char16_t>{ utf16_buffer->data(), utf16_buffer->size() });
+					}
+				}
+#else
+				,
+				make_unsupported_case(
+					library_id::utfcpp,
+					"utfcpp dependency was not fetched for this runner")
+#endif
 			}
 		});
 
@@ -145,6 +195,23 @@ inline std::vector<scenario> make_utf_transcoding_scenarios()
 				make_unsupported_case(
 					library_id::simdutf,
 					"simdutf dependency was not fetched for this runner")
+#endif
+#if UTF8_RANGES_COMPARATIVE_WITH_UTFCPP
+				,
+				implementation_case{
+					.library = library_id::utfcpp,
+					.run = [&input, utf32_buffer]() -> std::size_t
+					{
+						return adapters::utf8_to_utf32_buffer_utfcpp(
+							input,
+							std::span<char32_t>{ utf32_buffer->data(), utf32_buffer->size() });
+					}
+				}
+#else
+				,
+				make_unsupported_case(
+					library_id::utfcpp,
+					"utfcpp dependency was not fetched for this runner")
 #endif
 			}
 		});

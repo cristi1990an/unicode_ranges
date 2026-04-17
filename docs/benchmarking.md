@@ -294,12 +294,17 @@ Current comparative suite:
 - a shared benchmark model and harness under `comparative_benchmarks/`
 - initial corpus layout for UTF-8 validation and UTF-8 transcoding rows
 - initial `unicode_ranges` baseline adapters for strict UTF-8 validation and strict UTF-8 owned transcoding
-- initial third-party baseline: `simdutf`
-  - pinned to release `v7.7.0`
-  - fetched dynamically in CI from the published `singleheader.zip` asset
-  - wired for strict UTF-8 validation and strict UTF-8 owned transcoding
+- initial third-party baselines:
+  - `simdutf`
+    - pinned to release `v7.7.0`
+    - fetched dynamically in CI from the published `singleheader.zip` asset
+    - wired for strict UTF-8 validation and strict UTF-8 transcoding
+  - `utfcpp`
+    - pinned to tag `v4.0.9`
+    - fetched dynamically in CI through a shallow tag clone
+    - wired for strict UTF-8 validation and strict UTF-8 transcoding
 - strict UTF-8 caller-buffer transcoding rows are present too
-  - `simdutf` is currently the first supported baseline there
+  - `simdutf` and `utfcpp` are currently the supported external baselines there
   - `unicode_ranges` is reported as unsupported for those rows because it does
     not currently expose a public caller-buffer UTF transcoding API
 - comparative dependencies are defined in `comparative_benchmarks/dependencies.json`
@@ -310,7 +315,7 @@ Current comparative suite:
 It still does not imply:
 
 - vendored third-party dependencies
-- broad cross-library coverage beyond the first `simdutf` baseline
+- broad cross-library coverage beyond the initial `simdutf` and `utfcpp` baselines
 - benchmark rows for normalization, case mapping, segmentation, or boundary encodings
 
 The next implementation phases on this branch are additional external baselines and additional benchmark families.

@@ -18,5 +18,23 @@
       "readme": "https://github.com/simdutf/simdutf/blob/v7.7.0/README.md",
       "release_asset": "https://github.com/simdutf/simdutf/releases/download/v7.7.0/singleheader.zip"
     }
+  },
+  "utfcpp": {
+    "display_name": "utfcpp",
+    "version": "v4.0.9",
+    "source": {
+      "kind": "git_clone",
+      "repo_url": "https://github.com/nemtrif/utfcpp.git",
+      "tag": "v4.0.9"
+    },
+    "layout": {
+      "expected_files": [
+        "source/utf8.h"
+      ]
+    },
+    "documentation": {
+      "readme": "https://github.com/nemtrif/utfcpp/blob/v4.0.9/README.md",
+      "api_reference": "https://github.com/nemtrif/utfcpp/blob/v4.0.9/API_REFERENCE.md"
+    }
   }
 }
