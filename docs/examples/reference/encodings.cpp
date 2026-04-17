@@ -20,7 +20,8 @@ int main()
 	encodings::ascii_strict strict{};
 	auto wrote_bounded = decoded->encode_to(std::span<char8_t>{ bounded }, strict);
 	assert(wrote_bounded);
-	assert(std::u8string_view{ bounded.data(), bounded.size() } == u8"Hello");
+	const std::u8string_view bounded_view{ bounded.data(), bounded.size() };
+	assert(bounded_view == u8"Hello");
 
 	const std::array<char8_t, 8> windows_input{
 		static_cast<char8_t>('P'),
@@ -38,7 +39,8 @@ int main()
 	assert(windows->base() == u8"Price: \u20AC");
 	auto windows_encoded = windows.to_encoded<encodings::windows_1252>();
 	assert(windows_encoded);
-	assert(*windows_encoded == std::u8string{ windows_input.begin(), windows_input.end() });
+	const std::u8string expected_windows_bytes{ windows_input.begin(), windows_input.end() };
+	assert(*windows_encoded == expected_windows_bytes);
 
 	std::vector<char8_t> lossy_bytes{ static_cast<char8_t>('>') };
 	encodings::ascii_lossy lossy{};
