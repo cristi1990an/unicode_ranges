@@ -1002,6 +1002,18 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 	}
 
 	{
+		const std::array<char8_t, 2> latin1_extended_bytes{
+			static_cast<char8_t>(0xA0u),
+			static_cast<char8_t>(0xFFu)
+		};
+		unicode_ranges_test_details::expect_single_byte_round_trip<encodings::iso_8859_1>(
+			std::u8string_view{ latin1_extended_bytes.data(), latin1_extended_bytes.size() },
+			u8"\u00A0\u00FF",
+			u"\u00A0\u00FF",
+			U"\u00A0\u00FF");
+	}
+
+	{
 		unicode_ranges_test_details::expect_single_byte_encode_error<encodings::iso_8859_1>(
 			u8"\u20AC"_utf8_sv,
 			encodings::iso_8859_1::encode_error::unrepresentable_scalar);

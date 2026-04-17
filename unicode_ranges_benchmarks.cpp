@@ -30,6 +30,7 @@ struct benchmark_options
 {
 	std::chrono::milliseconds min_duration{ 250 };
 	std::size_t min_iterations = 2;
+	std::size_t sample_count = 3;
 	std::string_view filter{};
 	bool list_only = false;
 };
@@ -74,6 +75,11 @@ benchmark_options parse_options(int argc, char** argv)
 			options.min_duration = std::chrono::milliseconds{
 				static_cast<std::chrono::milliseconds::rep>(std::strtoll(arg.substr("--min-ms="sv.size()).data(), nullptr, 10))
 			};
+		}
+		else if (arg.starts_with("--samples="))
+		{
+			options.sample_count = (std::max)(std::size_t{ 1 }, static_cast<std::size_t>(
+				std::strtoull(arg.substr("--samples="sv.size()).data(), nullptr, 10)));
 		}
 	}
 
@@ -181,32 +187,71 @@ benchmark_result run_case(const benchmark_case& c, const benchmark_options& opti
 {
 	using clock = std::chrono::steady_clock;
 
-	std::size_t iterations = 0;
-	const auto start = clock::now();
-	do
+	std::vector<double> ns_samples{};
+	std::vector<double> mib_samples{};
+	std::vector<std::size_t> iteration_samples{};
+	ns_samples.reserve(options.sample_count);
+	mib_samples.reserve(options.sample_count);
+	iteration_samples.reserve(options.sample_count);
+
+	for (std::size_t sample = 0; sample != options.sample_count; ++sample)
 	{
-		for (std::size_t i = 0; i != c.batch_size; ++i)
+		std::size_t iterations = 0;
+		const auto start = clock::now();
+		do
 		{
-			benchmark_sink ^= c.run() + 0x9E3779B97F4A7C15ull;
+			for (std::size_t i = 0; i != c.batch_size; ++i)
+			{
+				benchmark_sink ^= c.run() + 0x9E3779B97F4A7C15ull;
+			}
+
+			iterations += c.batch_size;
+		}
+		while (iterations < options.min_iterations || clock::now() - start < options.min_duration);
+
+		const auto elapsed = std::chrono::duration<double>(clock::now() - start).count();
+		ns_samples.push_back((elapsed * 1'000'000'000.0) / static_cast<double>(iterations));
+		mib_samples.push_back(c.bytes_per_iteration == 0
+			? 0.0
+			: (static_cast<double>(c.bytes_per_iteration) * static_cast<double>(iterations))
+				/ elapsed
+				/ (1024.0 * 1024.0));
+		iteration_samples.push_back(iterations);
+	}
+
+	const auto median_double = [](std::vector<double> values) -> double
+	{
+		const auto middle = values.begin() + static_cast<std::ptrdiff_t>(values.size() / 2);
+		std::nth_element(values.begin(), middle, values.end());
+		if ((values.size() & 1u) != 0)
+		{
+			return *middle;
 		}
 
-		iterations += c.batch_size;
-	}
-	while (iterations < options.min_iterations || clock::now() - start < options.min_duration);
+		const auto upper = *middle;
+		const auto lower = *std::max_element(values.begin(), middle);
+		return (lower + upper) / 2.0;
+	};
 
-	const auto elapsed = std::chrono::duration<double>(clock::now() - start).count();
-	const auto ns_per_iteration = (elapsed * 1'000'000'000.0) / static_cast<double>(iterations);
-	const auto mib_per_second = c.bytes_per_iteration == 0
-		? 0.0
-		: (static_cast<double>(c.bytes_per_iteration) * static_cast<double>(iterations))
-			/ elapsed
-			/ (1024.0 * 1024.0);
+	const auto median_size_t = [](std::vector<std::size_t> values) -> std::size_t
+	{
+		const auto middle = values.begin() + static_cast<std::ptrdiff_t>(values.size() / 2);
+		std::nth_element(values.begin(), middle, values.end());
+		if ((values.size() & 1u) != 0)
+		{
+			return *middle;
+		}
+
+		const auto upper = *middle;
+		const auto lower = *std::max_element(values.begin(), middle);
+		return (lower + upper) / 2;
+	};
 
 	return benchmark_result{
 		c.name,
-		ns_per_iteration,
-		mib_per_second,
-		iterations
+		median_double(std::move(ns_samples)),
+		median_double(std::move(mib_samples)),
+		median_size_t(std::move(iteration_samples))
 	};
 }
 
@@ -378,9 +423,15 @@ int main(int argc, char** argv)
 	const auto boundary_ascii_encoding_storage = repeat_text(
 		u8"ASCII boundary payload 0123456789 "sv,
 		4096);
+	const auto boundary_latin1_encoding_storage = repeat_text(
+		u8"Caf\u00E9 d\u00E9j\u00E0 vu \u00C5ngstr\u00F6m \u00FF "sv,
+		2048);
 	const auto boundary_windows_1252_encoding_storage = repeat_text(
 		u8"Price: \u20AC Caf\u00E9 \u2014 na\u00EFve \u201Cquotes\u201D "sv,
 		2048);
+	const auto boundary_windows_1252_large_encoding_storage = repeat_text(
+		u8"Price: \u20AC Caf\u00E9 \u2014 na\u00EFve \u201Cquotes\u201D "sv,
+		8192);
 	const auto utf8_grapheme_storage = repeat_text(
 		u8"e\u0301 \U0001F469\u200D\U0001F4BB \U0001F1F7\U0001F1F4 "sv,
 		2048);
@@ -437,8 +488,12 @@ int main(int argc, char** argv)
 	const auto utf32_char_count_text = utf32_string_view::from_code_points_unchecked(utf32_char_count_storage);
 	const auto boundary_ascii_encoding_text =
 		utf8_string_view::from_bytes_unchecked(boundary_ascii_encoding_storage).to_utf8_owned();
+	const auto boundary_latin1_encoding_text =
+		utf8_string_view::from_bytes_unchecked(boundary_latin1_encoding_storage).to_utf8_owned();
 	const auto boundary_windows_1252_encoding_text =
 		utf8_string_view::from_bytes_unchecked(boundary_windows_1252_encoding_storage).to_utf8_owned();
+	const auto boundary_windows_1252_large_encoding_text =
+		utf8_string_view::from_bytes_unchecked(boundary_windows_1252_large_encoding_storage).to_utf8_owned();
 	const auto utf8_ascii_upper_text = utf8_string_view::from_bytes_unchecked(utf8_ascii_upper_storage);
 	const auto utf8_ascii_lower_text = utf8_string_view::from_bytes_unchecked(utf8_ascii_lower_storage);
 	const auto utf16_ascii_upper_text = utf16_string_view::from_code_units_unchecked(utf16_ascii_upper_storage);
@@ -544,8 +599,12 @@ int main(int argc, char** argv)
 
 	const auto boundary_ascii_expected = boundary_ascii_encoding_text.to_encoded<encodings::ascii_strict>();
 	assert(boundary_ascii_expected.has_value());
+	const auto boundary_latin1_expected = boundary_latin1_encoding_text.to_encoded<encodings::iso_8859_1>();
+	assert(boundary_latin1_expected.has_value());
 	const auto boundary_windows_1252_expected = boundary_windows_1252_encoding_text.to_encoded<encodings::windows_1252>();
 	assert(boundary_windows_1252_expected.has_value());
+	const auto boundary_windows_1252_large_expected = boundary_windows_1252_large_encoding_text.to_encoded<encodings::windows_1252>();
+	assert(boundary_windows_1252_large_expected.has_value());
 
 	std::vector<std::uint32_t> utf8_char_scalars;
 	utf8_char_scalars.reserve(utf8_chars.size());
@@ -1216,6 +1275,82 @@ int main(int argc, char** argv)
 		}
 	});
 	cases.push_back({
+		"encoding.to_encoded.iso_8859_1",
+		boundary_latin1_expected->size(),
+		4,
+		[&]() -> std::size_t
+		{
+			auto result = boundary_latin1_encoding_text.to_encoded<encodings::iso_8859_1>();
+			assert(result.has_value());
+			return checksum(*result);
+		}
+	});
+	cases.push_back({
+		"encoding.encode_to.iso_8859_1",
+		boundary_latin1_expected->size(),
+		4,
+		[&]() -> std::size_t
+		{
+			std::vector<char8_t> bytes(boundary_latin1_expected->size());
+			encodings::iso_8859_1 encoder{};
+			auto result = boundary_latin1_encoding_text.encode_to(std::span<char8_t>{ bytes.data(), bytes.size() }, encoder);
+			assert(result.has_value());
+			return checksum(std::u8string_view{ bytes.data(), bytes.size() });
+		}
+	});
+	cases.push_back({
+		"encoding.encode_append_to.iso_8859_1",
+		boundary_latin1_expected->size(),
+		4,
+		[&]() -> std::size_t
+		{
+			std::vector<char8_t> bytes{};
+			bytes.reserve(boundary_latin1_expected->size());
+			encodings::iso_8859_1 encoder{};
+			auto result = boundary_latin1_encoding_text.encode_append_to(bytes, encoder);
+			assert(result.has_value());
+			return checksum(std::u8string_view{ bytes.data(), bytes.size() });
+		}
+	});
+	cases.push_back({
+		"encoding.to_encoded.windows_1252.large",
+		boundary_windows_1252_large_expected->size(),
+		1,
+		[&]() -> std::size_t
+		{
+			auto result = boundary_windows_1252_large_encoding_text.to_encoded<encodings::windows_1252>();
+			assert(result.has_value());
+			return checksum(*result);
+		}
+	});
+	cases.push_back({
+		"encoding.encode_to.windows_1252.large",
+		boundary_windows_1252_large_expected->size(),
+		1,
+		[&]() -> std::size_t
+		{
+			std::vector<char8_t> bytes(boundary_windows_1252_large_expected->size());
+			encodings::windows_1252 encoder{};
+			auto result = boundary_windows_1252_large_encoding_text.encode_to(std::span<char8_t>{ bytes.data(), bytes.size() }, encoder);
+			assert(result.has_value());
+			return checksum(std::u8string_view{ bytes.data(), bytes.size() });
+		}
+	});
+	cases.push_back({
+		"encoding.encode_append_to.windows_1252.large",
+		boundary_windows_1252_large_expected->size(),
+		1,
+		[&]() -> std::size_t
+		{
+			std::vector<char8_t> bytes{};
+			bytes.reserve(boundary_windows_1252_large_expected->size());
+			encodings::windows_1252 encoder{};
+			auto result = boundary_windows_1252_large_encoding_text.encode_append_to(bytes, encoder);
+			assert(result.has_value());
+			return checksum(std::u8string_view{ bytes.data(), bytes.size() });
+		}
+	});
+	cases.push_back({
 		"utf32.to_lowercase.large.view",
 		utf32_parallel_large_storage.size() * sizeof(char32_t),
 		1,
@@ -1593,6 +1728,7 @@ int main(int argc, char** argv)
 
 	std::cout << "unicode_ranges benchmark suite\n";
 	std::cout << "min duration: " << options.min_duration.count() << " ms";
+	std::cout << ", samples: " << options.sample_count << " (median)";
 	if (!options.filter.empty())
 	{
 		std::cout << ", filter: " << options.filter;
@@ -1604,7 +1740,7 @@ int main(int argc, char** argv)
 		<< std::right
 		<< std::setw(14) << "ns/op"
 		<< std::setw(14) << "MiB/s"
-		<< std::setw(12) << "iters"
+		<< std::setw(12) << "iters/smp"
 		<< '\n';
 	std::cout << std::string(80, '-') << '\n';
 
