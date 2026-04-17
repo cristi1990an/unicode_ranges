@@ -375,6 +375,12 @@ int main(int argc, char** argv)
 	const auto utf8_validate_storage = repeat_text(
 		u8"ASCII caf\u00E9 \u03A9mega \U0001F600 done "sv,
 		4096);
+	const auto boundary_ascii_encoding_storage = repeat_text(
+		u8"ASCII boundary payload 0123456789 "sv,
+		4096);
+	const auto boundary_windows_1252_encoding_storage = repeat_text(
+		u8"Price: \u20AC Caf\u00E9 \u2014 na\u00EFve \u201Cquotes\u201D "sv,
+		2048);
 	const auto utf8_grapheme_storage = repeat_text(
 		u8"e\u0301 \U0001F469\u200D\U0001F4BB \U0001F1F7\U0001F1F4 "sv,
 		2048);
@@ -429,6 +435,10 @@ int main(int argc, char** argv)
 	const auto utf8_char_count_text = utf8_string_view::from_bytes_unchecked(utf8_char_count_storage);
 	const auto utf16_char_count_text = utf16_string_view::from_code_units_unchecked(utf16_char_count_storage);
 	const auto utf32_char_count_text = utf32_string_view::from_code_points_unchecked(utf32_char_count_storage);
+	const auto boundary_ascii_encoding_text =
+		utf8_string_view::from_bytes_unchecked(boundary_ascii_encoding_storage).to_utf8_owned();
+	const auto boundary_windows_1252_encoding_text =
+		utf8_string_view::from_bytes_unchecked(boundary_windows_1252_encoding_storage).to_utf8_owned();
 	const auto utf8_ascii_upper_text = utf8_string_view::from_bytes_unchecked(utf8_ascii_upper_storage);
 	const auto utf8_ascii_lower_text = utf8_string_view::from_bytes_unchecked(utf8_ascii_lower_storage);
 	const auto utf16_ascii_upper_text = utf16_string_view::from_code_units_unchecked(utf16_ascii_upper_storage);
@@ -532,6 +542,11 @@ int main(int argc, char** argv)
 	assert(utf32_parallel_large_text.to_utf16().to_utf32() == utf32_parallel_large_text);
 	assert(!utf32_parallel_large_text.case_fold().empty());
 
+	const auto boundary_ascii_expected = boundary_ascii_encoding_text.to_encoded<encodings::ascii_strict>();
+	assert(boundary_ascii_expected.has_value());
+	const auto boundary_windows_1252_expected = boundary_windows_1252_encoding_text.to_encoded<encodings::windows_1252>();
+	assert(boundary_windows_1252_expected.has_value());
+
 	std::vector<std::uint32_t> utf8_char_scalars;
 	utf8_char_scalars.reserve(utf8_chars.size());
 	for (const auto ch : utf8_chars)
@@ -556,7 +571,7 @@ int main(int argc, char** argv)
 	}
 
 	std::vector<benchmark_case> cases;
-	cases.reserve(80);
+	cases.reserve(96);
 
 	cases.push_back({
 		"utf8.find.long_needle",
@@ -1122,6 +1137,82 @@ int main(int argc, char** argv)
 		{
 			auto result = utf32_parallel_large_text.to_utf16();
 			return checksum(result.base());
+		}
+	});
+	cases.push_back({
+		"encoding.to_encoded.ascii_strict",
+		boundary_ascii_expected->size(),
+		4,
+		[&]() -> std::size_t
+		{
+			auto result = boundary_ascii_encoding_text.to_encoded<encodings::ascii_strict>();
+			assert(result.has_value());
+			return checksum(*result);
+		}
+	});
+	cases.push_back({
+		"encoding.encode_to.ascii_strict",
+		boundary_ascii_expected->size(),
+		4,
+		[&]() -> std::size_t
+		{
+			std::vector<char8_t> bytes(boundary_ascii_expected->size());
+			encodings::ascii_strict encoder{};
+			auto result = boundary_ascii_encoding_text.encode_to(std::span<char8_t>{ bytes.data(), bytes.size() }, encoder);
+			assert(result.has_value());
+			return checksum(std::u8string_view{ bytes.data(), bytes.size() });
+		}
+	});
+	cases.push_back({
+		"encoding.encode_append_to.ascii_strict",
+		boundary_ascii_expected->size(),
+		4,
+		[&]() -> std::size_t
+		{
+			std::vector<char8_t> bytes{};
+			bytes.reserve(boundary_ascii_expected->size());
+			encodings::ascii_strict encoder{};
+			auto result = boundary_ascii_encoding_text.encode_append_to(bytes, encoder);
+			assert(result.has_value());
+			return checksum(std::u8string_view{ bytes.data(), bytes.size() });
+		}
+	});
+	cases.push_back({
+		"encoding.to_encoded.windows_1252",
+		boundary_windows_1252_expected->size(),
+		4,
+		[&]() -> std::size_t
+		{
+			auto result = boundary_windows_1252_encoding_text.to_encoded<encodings::windows_1252>();
+			assert(result.has_value());
+			return checksum(*result);
+		}
+	});
+	cases.push_back({
+		"encoding.encode_to.windows_1252",
+		boundary_windows_1252_expected->size(),
+		4,
+		[&]() -> std::size_t
+		{
+			std::vector<char8_t> bytes(boundary_windows_1252_expected->size());
+			encodings::windows_1252 encoder{};
+			auto result = boundary_windows_1252_encoding_text.encode_to(std::span<char8_t>{ bytes.data(), bytes.size() }, encoder);
+			assert(result.has_value());
+			return checksum(std::u8string_view{ bytes.data(), bytes.size() });
+		}
+	});
+	cases.push_back({
+		"encoding.encode_append_to.windows_1252",
+		boundary_windows_1252_expected->size(),
+		4,
+		[&]() -> std::size_t
+		{
+			std::vector<char8_t> bytes{};
+			bytes.reserve(boundary_windows_1252_expected->size());
+			encodings::windows_1252 encoder{};
+			auto result = boundary_windows_1252_encoding_text.encode_append_to(bytes, encoder);
+			assert(result.has_value());
+			return checksum(std::u8string_view{ bytes.data(), bytes.size() });
 		}
 	});
 	cases.push_back({

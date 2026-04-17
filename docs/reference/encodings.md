@@ -307,6 +307,14 @@ constexpr auto encode_append_to(Container& container) const
 - tracks replacement counts on the codec object
 - does not opt into implicit construction, because callers typically care about the mutated codec object afterwards
 
+### `encodings::iso_8859_1`
+
+- `code_unit_type = char8_t`
+- defines `encode_error`, but decoding is infallible
+- maps bytes `0x00..0xFF` directly to Unicode `U+0000..U+00FF`
+- encodes only scalars in the Latin-1 range and reports other scalars as ordinary encode errors
+- enables implicit construction
+
 ### `encodings::windows_1252`
 
 - `code_unit_type = char8_t`

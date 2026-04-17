@@ -1649,6 +1649,66 @@ struct windows_1252
 	}
 };
 
+struct iso_8859_1
+{
+	using code_unit_type = char8_t;
+
+	enum class encode_error
+	{
+		unrepresentable_scalar
+	};
+
+	static constexpr bool allow_implicit_construction = true;
+
+	template <typename Writer>
+	constexpr auto encode_one(char32_t scalar, Writer out) -> std::expected<void, encode_error>
+	{
+		if (scalar > 0x00FF)
+		{
+			return std::unexpected(encode_error::unrepresentable_scalar);
+		}
+
+		out.push(static_cast<code_unit_type>(scalar));
+		return {};
+	}
+
+	template <typename Writer>
+	constexpr std::size_t decode_one(std::basic_string_view<code_unit_type> input, Writer out)
+	{
+		out.push(static_cast<char32_t>(static_cast<std::uint8_t>(input.front())));
+		return 1;
+	}
+
+	template <typename Writer>
+	constexpr auto encode_from_utf8(utf8_string_view input, Writer out) -> std::expected<void, encode_error>
+	{
+		out.reserve(input.base().size());
+		for (const auto ch : input.chars())
+		{
+			const auto scalar = static_cast<char32_t>(ch.as_scalar());
+			if (scalar > 0x00FF)
+			{
+				return std::unexpected(encode_error::unrepresentable_scalar);
+			}
+
+			out.push(static_cast<code_unit_type>(scalar));
+		}
+
+		return {};
+	}
+
+	template <typename Writer>
+	constexpr void decode_to_utf8(std::basic_string_view<code_unit_type> input, Writer out)
+	{
+		unicode_ranges::details::utf8_scalar_writer<Writer> scalar_out{ out };
+		scalar_out.reserve(input.size());
+		for (const code_unit_type byte : input)
+		{
+			scalar_out.push(static_cast<char32_t>(static_cast<std::uint8_t>(byte)));
+		}
+	}
+};
+
 struct ascii_lossy
 {
 	using code_unit_type = char8_t;

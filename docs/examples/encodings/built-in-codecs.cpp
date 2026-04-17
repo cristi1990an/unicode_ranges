@@ -32,6 +32,23 @@ int main()
 		return 1;
 	}
 
+	const std::array<char8_t, 2> latin1_bytes{
+		static_cast<char8_t>('C'),
+		static_cast<char8_t>(0xE9u)
+	};
+	const auto latin1_text = utf8_string::from_encoded<encodings::iso_8859_1>(
+		std::u8string_view{ latin1_bytes.data(), latin1_bytes.size() });
+	if (latin1_text.base() != u8"C\u00E9")
+	{
+		return 1;
+	}
+
+	const auto latin1_round_trip = latin1_text.to_encoded<encodings::iso_8859_1>();
+	if (!latin1_round_trip || *latin1_round_trip != std::u8string{ latin1_bytes.begin(), latin1_bytes.end() })
+	{
+		return 1;
+	}
+
 	const auto strict_ascii = utf8_string::from_encoded<encodings::ascii_strict>(u8"Hello");
 	if (!strict_ascii || strict_ascii->base() != u8"Hello")
 	{
