@@ -842,7 +842,7 @@ jobs:
             "_Current baselines: unicode_ranges and simdutf (pinned to v7.7.0 singleheader release asset)._"
             "_Unsupported rows are reported explicitly when a library or public API surface does not cover the benchmark contract._"
             ""
-            "```text"
+            '```text'
           )
 
           if (Test-Path -LiteralPath comparative-benchmark-results.txt) {
@@ -851,7 +851,7 @@ jobs:
             $summaryLines += "comparative-benchmark-results.txt was not generated."
           }
 
-          $summaryLines += "```"
+          $summaryLines += '```'
 
           if ($env:GITHUB_STEP_SUMMARY) {
             $summaryLines -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
