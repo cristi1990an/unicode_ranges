@@ -1,10 +1,10 @@
 #include <algorithm>
 #include <array>
-#include <cassert>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <cstdio>
 #include <functional>
 #include <iomanip>
 #include <iostream>
@@ -23,6 +23,21 @@ using namespace unicode_ranges::literals;
 
 namespace
 {
+
+[[noreturn]] void benchmark_assert_fail(const char* expression, const char* file, int line)
+{
+	std::fprintf(stderr, "benchmark assertion failed: %s (%s:%d)\n", expression, file, line);
+	std::abort();
+}
+
+#define UTF8_RANGES_BENCHMARK_ASSERT(expr) \
+	do \
+	{ \
+		if (!(expr)) \
+		{ \
+			benchmark_assert_fail(#expr, __FILE__, __LINE__); \
+		} \
+	} while (false)
 
 volatile std::size_t benchmark_sink = 0;
 
@@ -322,15 +337,15 @@ int main(int argc, char** argv)
 	const auto utf16_span_find_haystack = utf16_string_view::from_code_units_unchecked(utf16_span_find_haystack_storage);
 	const auto utf32_span_find_haystack = utf32_string_view::from_code_points_unchecked(utf32_span_find_haystack_storage);
 
-	assert(utf8_find_haystack.find(utf8_long_needle) == 6);
-	assert(utf8_find_haystack.rfind(utf8_long_needle) == utf8_find_haystack_storage.size() - 17);
-	assert(utf16_find_haystack.find(utf16_long_needle) == 6);
-	assert(utf16_find_haystack.rfind(utf16_long_needle) == utf16_find_haystack_storage.size() - 17);
-	assert(utf32_find_haystack.find(utf32_long_needle) == 6);
-	assert(utf32_find_haystack.rfind(utf32_long_needle) == utf32_find_haystack_storage.size() - 17);
-	assert(utf8_span_find_haystack.find(std::span{ utf8_small_any_of }) == utf8_span_find_haystack_storage.size() - 3);
-	assert(utf16_span_find_haystack.find(std::span{ utf16_small_any_of }) == utf16_span_find_haystack_storage.size() - 1);
-	assert(utf32_span_find_haystack.find(std::span{ utf32_small_any_of }) == utf32_span_find_haystack_storage.size() - 1);
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_find_haystack.find(utf8_long_needle) == 6);
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_find_haystack.rfind(utf8_long_needle) == utf8_find_haystack_storage.size() - 17);
+	UTF8_RANGES_BENCHMARK_ASSERT(utf16_find_haystack.find(utf16_long_needle) == 6);
+	UTF8_RANGES_BENCHMARK_ASSERT(utf16_find_haystack.rfind(utf16_long_needle) == utf16_find_haystack_storage.size() - 17);
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_find_haystack.find(utf32_long_needle) == 6);
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_find_haystack.rfind(utf32_long_needle) == utf32_find_haystack_storage.size() - 17);
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_span_find_haystack.find(std::span{ utf8_small_any_of }) == utf8_span_find_haystack_storage.size() - 3);
+	UTF8_RANGES_BENCHMARK_ASSERT(utf16_span_find_haystack.find(std::span{ utf16_small_any_of }) == utf16_span_find_haystack_storage.size() - 1);
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_span_find_haystack.find(std::span{ utf32_small_any_of }) == utf32_span_find_haystack_storage.size() - 1);
 
 	const auto utf8_replace_same_storage = repeat_text(
 		u8"prefixabcdefghijmiddleabcdefghijsuffix-"sv,
@@ -360,22 +375,22 @@ int main(int argc, char** argv)
 		U"prefixABCDEFGHIJ++middleABCDEFGHIJ++suffix-"sv,
 		1024);
 
-	assert(utf8_string{ utf8_string_view::from_bytes_unchecked(utf8_replace_same_storage) }
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_string{ utf8_string_view::from_bytes_unchecked(utf8_replace_same_storage) }
 		.replace_all(utf8_long_needle, u8"ABCDEFGHIJ"_utf8_sv)
 		== utf8_string_view::from_bytes_unchecked(utf8_replace_same_expected));
-	assert(utf16_string{ utf16_string_view::from_code_units_unchecked(utf16_replace_same_storage) }
+	UTF8_RANGES_BENCHMARK_ASSERT(utf16_string{ utf16_string_view::from_code_units_unchecked(utf16_replace_same_storage) }
 		.replace_all(utf16_long_needle, u"ABCDEFGHIJ"_utf16_sv)
 		== utf16_string_view::from_code_units_unchecked(utf16_replace_same_expected));
-	assert(utf32_string{ utf32_string_view::from_code_points_unchecked(utf32_replace_same_storage) }
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_string{ utf32_string_view::from_code_points_unchecked(utf32_replace_same_storage) }
 		.replace_all(utf32_long_needle, U"ABCDEFGHIJ"_utf32_sv)
 		== utf32_string_view::from_code_points_unchecked(utf32_replace_same_expected));
-	assert(utf8_string{ utf8_string_view::from_bytes_unchecked(utf8_replace_same_storage) }
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_string{ utf8_string_view::from_bytes_unchecked(utf8_replace_same_storage) }
 		.replace_all(utf8_long_needle, u8"ABCDEFGHIJ++"_utf8_sv)
 		== utf8_string_view::from_bytes_unchecked(utf8_replace_grow_expected));
-	assert(utf16_string{ utf16_string_view::from_code_units_unchecked(utf16_replace_same_storage) }
+	UTF8_RANGES_BENCHMARK_ASSERT(utf16_string{ utf16_string_view::from_code_units_unchecked(utf16_replace_same_storage) }
 		.replace_all(utf16_long_needle, u"ABCDEFGHIJ++"_utf16_sv)
 		== utf16_string_view::from_code_units_unchecked(utf16_replace_grow_expected));
-	assert(utf32_string{ utf32_string_view::from_code_points_unchecked(utf32_replace_same_storage) }
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_string{ utf32_string_view::from_code_points_unchecked(utf32_replace_same_storage) }
 		.replace_all(utf32_long_needle, U"ABCDEFGHIJ++"_utf32_sv)
 		== utf32_string_view::from_code_points_unchecked(utf32_replace_grow_expected));
 
@@ -524,68 +539,68 @@ int main(int argc, char** argv)
 	const auto utf32_ascii_suffix = utf32_string_view::from_code_points_unchecked(
 		std::u32string_view{ utf32_ascii_lower_storage.data() + ascii_ignore_case_trim, utf32_ascii_lower_storage.size() - ascii_ignore_case_trim });
 
-	assert(utf8_string_view::from_bytes_unchecked(utf8_ascii_upper_storage).to_ascii_lowercase()
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_string_view::from_bytes_unchecked(utf8_ascii_upper_storage).to_ascii_lowercase()
 		== utf8_string_view::from_bytes_unchecked(utf8_ascii_lower_storage));
-	assert(utf16_string_view::from_code_units_unchecked(utf16_ascii_upper_storage).to_ascii_lowercase()
+	UTF8_RANGES_BENCHMARK_ASSERT(utf16_string_view::from_code_units_unchecked(utf16_ascii_upper_storage).to_ascii_lowercase()
 		== utf16_string_view::from_code_units_unchecked(utf16_ascii_lower_storage));
-	assert(utf32_string_view::from_code_points_unchecked(utf32_ascii_upper_storage).to_ascii_lowercase()
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_string_view::from_code_points_unchecked(utf32_ascii_upper_storage).to_ascii_lowercase()
 		== utf32_string_view::from_code_points_unchecked(utf32_ascii_lower_storage));
-	assert(utf8_ascii_upper_text.eq_ignore_case(utf8_ascii_lower_text));
-	assert(utf16_ascii_upper_text.eq_ignore_case(utf16_ascii_lower_text));
-	assert(utf32_ascii_upper_text.eq_ignore_case(utf32_ascii_lower_text));
-	assert(utf8_ascii_upper_text.compare_ignore_case(utf8_ascii_lower_text) == std::weak_ordering::equivalent);
-	assert(utf16_ascii_upper_text.compare_ignore_case(utf16_ascii_lower_text) == std::weak_ordering::equivalent);
-	assert(utf32_ascii_upper_text.compare_ignore_case(utf32_ascii_lower_text) == std::weak_ordering::equivalent);
-	assert(utf8_ascii_upper_text.starts_with_ignore_case(utf8_ascii_prefix));
-	assert(utf16_ascii_upper_text.starts_with_ignore_case(utf16_ascii_prefix));
-	assert(utf32_ascii_upper_text.starts_with_ignore_case(utf32_ascii_prefix));
-	assert(utf8_ascii_upper_text.ends_with_ignore_case(utf8_ascii_suffix));
-	assert(utf16_ascii_upper_text.ends_with_ignore_case(utf16_ascii_suffix));
-	assert(utf32_ascii_upper_text.ends_with_ignore_case(utf32_ascii_suffix));
-	assert(utf8_string_view::from_bytes_unchecked(utf8_mixed_upper_storage).to_lowercase()
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_ascii_upper_text.eq_ignore_case(utf8_ascii_lower_text));
+	UTF8_RANGES_BENCHMARK_ASSERT(utf16_ascii_upper_text.eq_ignore_case(utf16_ascii_lower_text));
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_ascii_upper_text.eq_ignore_case(utf32_ascii_lower_text));
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_ascii_upper_text.compare_ignore_case(utf8_ascii_lower_text) == std::weak_ordering::equivalent);
+	UTF8_RANGES_BENCHMARK_ASSERT(utf16_ascii_upper_text.compare_ignore_case(utf16_ascii_lower_text) == std::weak_ordering::equivalent);
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_ascii_upper_text.compare_ignore_case(utf32_ascii_lower_text) == std::weak_ordering::equivalent);
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_ascii_upper_text.starts_with_ignore_case(utf8_ascii_prefix));
+	UTF8_RANGES_BENCHMARK_ASSERT(utf16_ascii_upper_text.starts_with_ignore_case(utf16_ascii_prefix));
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_ascii_upper_text.starts_with_ignore_case(utf32_ascii_prefix));
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_ascii_upper_text.ends_with_ignore_case(utf8_ascii_suffix));
+	UTF8_RANGES_BENCHMARK_ASSERT(utf16_ascii_upper_text.ends_with_ignore_case(utf16_ascii_suffix));
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_ascii_upper_text.ends_with_ignore_case(utf32_ascii_suffix));
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_string_view::from_bytes_unchecked(utf8_mixed_upper_storage).to_lowercase()
 		== utf8_string_view::from_bytes_unchecked(utf8_mixed_lower_storage));
-	assert(utf16_string_view::from_code_units_unchecked(utf16_mixed_upper_storage).to_lowercase()
+	UTF8_RANGES_BENCHMARK_ASSERT(utf16_string_view::from_code_units_unchecked(utf16_mixed_upper_storage).to_lowercase()
 		== utf16_string_view::from_code_units_unchecked(utf16_mixed_lower_storage));
-	assert(utf32_string_view::from_code_points_unchecked(utf32_mixed_upper_storage).to_lowercase()
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_string_view::from_code_points_unchecked(utf32_mixed_upper_storage).to_lowercase()
 		== utf32_string_view::from_code_points_unchecked(utf32_mixed_lower_storage));
-	assert(details::validate_utf8(std::u8string_view{ utf8_validate_storage }).has_value());
-	assert(utf8_grapheme_text.grapheme_count() != 0);
-	assert(utf16_grapheme_text.grapheme_count() != 0);
-	assert(utf32_grapheme_text.grapheme_count() != 0);
-	assert(utf8_char_count_text.char_count() != 0);
-	assert(utf16_char_count_text.char_count() != 0);
-	assert(utf32_char_count_text.char_count() != 0);
-	assert(utf8_normalize_nfc_text.to_nfc().is_nfc());
-	assert(utf16_normalize_nfc_text.to_nfc().is_nfc());
-	assert(utf32_normalize_nfc_text.to_nfc().is_nfc());
-	assert(utf8_already_nfc_text.is_nfc());
-	assert(utf16_already_nfc_text.is_nfc());
-	assert(utf32_already_nfc_text.is_nfc());
-	assert(utf8_already_nfc_text.to_nfc() == utf8_already_nfc_text);
-	assert(utf16_already_nfc_text.to_nfc() == utf16_already_nfc_text);
-	assert(utf32_already_nfc_text.to_nfc() == utf32_already_nfc_text);
-	assert(utf8_string_view::from_bytes_unchecked(utf8_mixed_lower_storage).is_nfc());
-	assert(utf16_string_view::from_code_units_unchecked(utf16_mixed_lower_storage).is_nfc());
-	assert(utf32_string_view::from_code_points_unchecked(utf32_mixed_lower_storage).is_nfc());
-	assert(utf8_string_view::from_bytes_unchecked(utf8_mixed_lower_storage).to_nfc()
+	UTF8_RANGES_BENCHMARK_ASSERT(details::validate_utf8(std::u8string_view{ utf8_validate_storage }).has_value());
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_grapheme_text.grapheme_count() != 0);
+	UTF8_RANGES_BENCHMARK_ASSERT(utf16_grapheme_text.grapheme_count() != 0);
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_grapheme_text.grapheme_count() != 0);
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_char_count_text.char_count() != 0);
+	UTF8_RANGES_BENCHMARK_ASSERT(utf16_char_count_text.char_count() != 0);
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_char_count_text.char_count() != 0);
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_normalize_nfc_text.to_nfc().is_nfc());
+	UTF8_RANGES_BENCHMARK_ASSERT(utf16_normalize_nfc_text.to_nfc().is_nfc());
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_normalize_nfc_text.to_nfc().is_nfc());
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_already_nfc_text.is_nfc());
+	UTF8_RANGES_BENCHMARK_ASSERT(utf16_already_nfc_text.is_nfc());
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_already_nfc_text.is_nfc());
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_already_nfc_text.to_nfc() == utf8_already_nfc_text);
+	UTF8_RANGES_BENCHMARK_ASSERT(utf16_already_nfc_text.to_nfc() == utf16_already_nfc_text);
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_already_nfc_text.to_nfc() == utf32_already_nfc_text);
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_string_view::from_bytes_unchecked(utf8_mixed_lower_storage).is_nfc());
+	UTF8_RANGES_BENCHMARK_ASSERT(utf16_string_view::from_code_units_unchecked(utf16_mixed_lower_storage).is_nfc());
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_string_view::from_code_points_unchecked(utf32_mixed_lower_storage).is_nfc());
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_string_view::from_bytes_unchecked(utf8_mixed_lower_storage).to_nfc()
 		== utf8_string_view::from_bytes_unchecked(utf8_mixed_lower_storage));
-	assert(utf16_string_view::from_code_units_unchecked(utf16_mixed_lower_storage).to_nfc()
+	UTF8_RANGES_BENCHMARK_ASSERT(utf16_string_view::from_code_units_unchecked(utf16_mixed_lower_storage).to_nfc()
 		== utf16_string_view::from_code_units_unchecked(utf16_mixed_lower_storage));
-	assert(utf32_string_view::from_code_points_unchecked(utf32_mixed_lower_storage).to_nfc()
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_string_view::from_code_points_unchecked(utf32_mixed_lower_storage).to_nfc()
 		== utf32_string_view::from_code_points_unchecked(utf32_mixed_lower_storage));
-	assert(utf8_string_view::from_bytes_unchecked(utf8_mixed_upper_storage).eq_ignore_case(
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_string_view::from_bytes_unchecked(utf8_mixed_upper_storage).eq_ignore_case(
 		utf8_string_view::from_bytes_unchecked(utf8_mixed_lower_storage)));
-	assert(utf16_string_view::from_code_units_unchecked(utf16_mixed_upper_storage).eq_ignore_case(
+	UTF8_RANGES_BENCHMARK_ASSERT(utf16_string_view::from_code_units_unchecked(utf16_mixed_upper_storage).eq_ignore_case(
 		utf16_string_view::from_code_units_unchecked(utf16_mixed_lower_storage)));
-	assert(utf32_string_view::from_code_points_unchecked(utf32_mixed_upper_storage).eq_ignore_case(
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_string_view::from_code_points_unchecked(utf32_mixed_upper_storage).eq_ignore_case(
 		utf32_string_view::from_code_points_unchecked(utf32_mixed_lower_storage)));
-	assert(utf8_string_view::from_bytes_unchecked(utf8_mixed_upper_storage).to_utf32()
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_string_view::from_bytes_unchecked(utf8_mixed_upper_storage).to_utf32()
 		== utf32_string_view::from_code_points_unchecked(utf32_mixed_upper_storage));
-	assert(utf16_string_view::from_code_units_unchecked(utf16_mixed_upper_storage).to_utf32()
+	UTF8_RANGES_BENCHMARK_ASSERT(utf16_string_view::from_code_units_unchecked(utf16_mixed_upper_storage).to_utf32()
 		== utf32_string_view::from_code_points_unchecked(utf32_mixed_upper_storage));
-	assert(utf32_string_view::from_code_points_unchecked(utf32_mixed_upper_storage).to_utf8()
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_string_view::from_code_points_unchecked(utf32_mixed_upper_storage).to_utf8()
 		== utf8_string_view::from_bytes_unchecked(utf8_mixed_upper_storage));
-	assert(utf32_string_view::from_code_points_unchecked(utf32_mixed_upper_storage).to_utf16()
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_string_view::from_code_points_unchecked(utf32_mixed_upper_storage).to_utf16()
 		== utf16_string_view::from_code_units_unchecked(utf16_mixed_upper_storage));
 
 	const auto utf8_chars = make_utf8_char_vector(u8"AbC-éß🙂 "sv, 4096);
@@ -593,18 +608,18 @@ int main(int argc, char** argv)
 
 	const auto utf32_chars = make_utf32_char_vector(U"AbC-\u00E9\u00DF\U0001F642 "sv, 4096);
 
-	assert(utf32_parallel_large_text.to_utf8().to_utf32() == utf32_parallel_large_text);
-	assert(utf32_parallel_large_text.to_utf16().to_utf32() == utf32_parallel_large_text);
-	assert(!utf32_parallel_large_text.case_fold().empty());
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_parallel_large_text.to_utf8().to_utf32() == utf32_parallel_large_text);
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_parallel_large_text.to_utf16().to_utf32() == utf32_parallel_large_text);
+	UTF8_RANGES_BENCHMARK_ASSERT(!utf32_parallel_large_text.case_fold().empty());
 
 	const auto boundary_ascii_expected = boundary_ascii_encoding_text.to_encoded<encodings::ascii_strict>();
-	assert(boundary_ascii_expected.has_value());
+	UTF8_RANGES_BENCHMARK_ASSERT(boundary_ascii_expected.has_value());
 	const auto boundary_latin1_expected = boundary_latin1_encoding_text.to_encoded<encodings::iso_8859_1>();
-	assert(boundary_latin1_expected.has_value());
+	UTF8_RANGES_BENCHMARK_ASSERT(boundary_latin1_expected.has_value());
 	const auto boundary_windows_1252_expected = boundary_windows_1252_encoding_text.to_encoded<encodings::windows_1252>();
-	assert(boundary_windows_1252_expected.has_value());
+	UTF8_RANGES_BENCHMARK_ASSERT(boundary_windows_1252_expected.has_value());
 	const auto boundary_windows_1252_large_expected = boundary_windows_1252_large_encoding_text.to_encoded<encodings::windows_1252>();
-	assert(boundary_windows_1252_large_expected.has_value());
+	UTF8_RANGES_BENCHMARK_ASSERT(boundary_windows_1252_large_expected.has_value());
 
 	std::vector<std::uint32_t> utf8_char_scalars;
 	utf8_char_scalars.reserve(utf8_chars.size());
@@ -616,17 +631,17 @@ int main(int argc, char** argv)
 	{
 		utf8_string s;
 		s.append_range(utf8_chars);
-		assert(s.char_count() == utf8_chars.size());
+		UTF8_RANGES_BENCHMARK_ASSERT(s.char_count() == utf8_chars.size());
 	}
 	{
 		utf16_string s;
 		s.append_range(utf16_chars);
-		assert(s.char_count() == utf16_chars.size());
+		UTF8_RANGES_BENCHMARK_ASSERT(s.char_count() == utf16_chars.size());
 	}
 	{
 		utf32_string s;
 		s.append_range(utf32_chars);
-		assert(s.char_count() == utf32_chars.size());
+		UTF8_RANGES_BENCHMARK_ASSERT(s.char_count() == utf32_chars.size());
 	}
 
 	std::vector<benchmark_case> cases;
@@ -1205,7 +1220,7 @@ int main(int argc, char** argv)
 		[&]() -> std::size_t
 		{
 			auto result = boundary_ascii_encoding_text.to_encoded<encodings::ascii_strict>();
-			assert(result.has_value());
+			UTF8_RANGES_BENCHMARK_ASSERT(result.has_value());
 			return checksum(*result);
 		}
 	});
@@ -1218,7 +1233,7 @@ int main(int argc, char** argv)
 			std::vector<char8_t> bytes(boundary_ascii_expected->size());
 			encodings::ascii_strict encoder{};
 			auto result = boundary_ascii_encoding_text.encode_to(std::span<char8_t>{ bytes.data(), bytes.size() }, encoder);
-			assert(result.has_value());
+			UTF8_RANGES_BENCHMARK_ASSERT(result.has_value());
 			return checksum(std::u8string_view{ bytes.data(), bytes.size() });
 		}
 	});
@@ -1232,7 +1247,7 @@ int main(int argc, char** argv)
 			bytes.reserve(boundary_ascii_expected->size());
 			encodings::ascii_strict encoder{};
 			auto result = boundary_ascii_encoding_text.encode_append_to(bytes, encoder);
-			assert(result.has_value());
+			UTF8_RANGES_BENCHMARK_ASSERT(result.has_value());
 			return checksum(std::u8string_view{ bytes.data(), bytes.size() });
 		}
 	});
@@ -1243,7 +1258,7 @@ int main(int argc, char** argv)
 		[&]() -> std::size_t
 		{
 			auto result = boundary_windows_1252_encoding_text.to_encoded<encodings::windows_1252>();
-			assert(result.has_value());
+			UTF8_RANGES_BENCHMARK_ASSERT(result.has_value());
 			return checksum(*result);
 		}
 	});
@@ -1256,7 +1271,7 @@ int main(int argc, char** argv)
 			std::vector<char8_t> bytes(boundary_windows_1252_expected->size());
 			encodings::windows_1252 encoder{};
 			auto result = boundary_windows_1252_encoding_text.encode_to(std::span<char8_t>{ bytes.data(), bytes.size() }, encoder);
-			assert(result.has_value());
+			UTF8_RANGES_BENCHMARK_ASSERT(result.has_value());
 			return checksum(std::u8string_view{ bytes.data(), bytes.size() });
 		}
 	});
@@ -1270,7 +1285,7 @@ int main(int argc, char** argv)
 			bytes.reserve(boundary_windows_1252_expected->size());
 			encodings::windows_1252 encoder{};
 			auto result = boundary_windows_1252_encoding_text.encode_append_to(bytes, encoder);
-			assert(result.has_value());
+			UTF8_RANGES_BENCHMARK_ASSERT(result.has_value());
 			return checksum(std::u8string_view{ bytes.data(), bytes.size() });
 		}
 	});
@@ -1281,7 +1296,7 @@ int main(int argc, char** argv)
 		[&]() -> std::size_t
 		{
 			auto result = boundary_latin1_encoding_text.to_encoded<encodings::iso_8859_1>();
-			assert(result.has_value());
+			UTF8_RANGES_BENCHMARK_ASSERT(result.has_value());
 			return checksum(*result);
 		}
 	});
@@ -1294,7 +1309,7 @@ int main(int argc, char** argv)
 			std::vector<char8_t> bytes(boundary_latin1_expected->size());
 			encodings::iso_8859_1 encoder{};
 			auto result = boundary_latin1_encoding_text.encode_to(std::span<char8_t>{ bytes.data(), bytes.size() }, encoder);
-			assert(result.has_value());
+			UTF8_RANGES_BENCHMARK_ASSERT(result.has_value());
 			return checksum(std::u8string_view{ bytes.data(), bytes.size() });
 		}
 	});
@@ -1308,7 +1323,7 @@ int main(int argc, char** argv)
 			bytes.reserve(boundary_latin1_expected->size());
 			encodings::iso_8859_1 encoder{};
 			auto result = boundary_latin1_encoding_text.encode_append_to(bytes, encoder);
-			assert(result.has_value());
+			UTF8_RANGES_BENCHMARK_ASSERT(result.has_value());
 			return checksum(std::u8string_view{ bytes.data(), bytes.size() });
 		}
 	});
@@ -1319,7 +1334,7 @@ int main(int argc, char** argv)
 		[&]() -> std::size_t
 		{
 			auto result = boundary_windows_1252_large_encoding_text.to_encoded<encodings::windows_1252>();
-			assert(result.has_value());
+			UTF8_RANGES_BENCHMARK_ASSERT(result.has_value());
 			return checksum(*result);
 		}
 	});
@@ -1332,7 +1347,7 @@ int main(int argc, char** argv)
 			std::vector<char8_t> bytes(boundary_windows_1252_large_expected->size());
 			encodings::windows_1252 encoder{};
 			auto result = boundary_windows_1252_large_encoding_text.encode_to(std::span<char8_t>{ bytes.data(), bytes.size() }, encoder);
-			assert(result.has_value());
+			UTF8_RANGES_BENCHMARK_ASSERT(result.has_value());
 			return checksum(std::u8string_view{ bytes.data(), bytes.size() });
 		}
 	});
@@ -1346,7 +1361,7 @@ int main(int argc, char** argv)
 			bytes.reserve(boundary_windows_1252_large_expected->size());
 			encodings::windows_1252 encoder{};
 			auto result = boundary_windows_1252_large_encoding_text.encode_append_to(bytes, encoder);
-			assert(result.has_value());
+			UTF8_RANGES_BENCHMARK_ASSERT(result.has_value());
 			return checksum(std::u8string_view{ bytes.data(), bytes.size() });
 		}
 	});
