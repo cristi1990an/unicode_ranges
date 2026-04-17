@@ -108,13 +108,13 @@ int main()
 
 ## Highlights
 
-- Validated UTF-8, UTF-16, and UTF-32 character types
-- Borrowed views and owning strings
-- Scalar and grapheme iteration
-- Search, split, trim, and replace APIs
-- Unicode and ASCII casing
-- Unicode normalization and full case folding
-- `constexpr`-friendly literals and core operations
+- Validated UTF-8, UTF-16, and UTF-32 character wrappers, borrowed views, and owning strings
+- Scalar iteration, grapheme iteration, and lossy views for untrusted input
+- Checked, unchecked, and lossy construction paths at the UTF boundary
+- Search, split, trim, replace, reverse, and boundary-query APIs
+- Unicode casing, ASCII fast paths, normalization, and full case folding
+- Boundary encoding APIs for external formats, with built-in ASCII and Windows-1252 codecs
+- `constexpr`-friendly literals and core operations where practical
 - Formatting, streaming, and hashing support for library types
 - Docs examples under `docs/examples/` are compiled in CI for sanity
 
