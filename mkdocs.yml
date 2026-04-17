@@ -40,6 +40,7 @@ nav:
   - Common Tasks: common-tasks.md
   - Design: design.md
   - Boundary Encodings: extensible-encodings.md
+  - Benchmarking: benchmarking.md
   - Unicode Data: unicode-data.md
   - Error Model: error-model.md
   - Text Operations: text-operations.md
