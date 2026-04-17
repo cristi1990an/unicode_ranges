@@ -810,7 +810,10 @@ jobs:
 
       - name: Build comparative benchmark runner
         if: matrix.install_kind != 'msvc'
-        run: ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} -DUTF8_RANGES_COMPARATIVE_WITH_SIMDUTF=1 -I"${SIMDUTF_ROOT}" comparative_benchmarks.cpp comparative_benchmarks/third_party/simdutf_amalgamation.cpp -o ${{ matrix.output }}
+        run: |
+          ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} -DUTF8_RANGES_COMPARATIVE_WITH_SIMDUTF=1 -I"${SIMDUTF_ROOT}" -c comparative_benchmarks.cpp -o comparative_benchmarks.o
+          ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} ${{ matrix.cxxflags }} -DUTF8_RANGES_COMPARATIVE_WITH_SIMDUTF=1 -I"${SIMDUTF_ROOT}" -Wno-error=overflow -Wno-error=pedantic -c comparative_benchmarks/third_party/simdutf_amalgamation.cpp -o simdutf_amalgamation.o
+          ${{ matrix.cxx }} comparative_benchmarks.o simdutf_amalgamation.o ${{ matrix.cxxflags }} -o ${{ matrix.output }}
 
       - name: Run comparative benchmark suite
         if: matrix.install_kind != 'msvc'
