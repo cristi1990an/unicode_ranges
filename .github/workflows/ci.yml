@@ -774,6 +774,36 @@ jobs:
           $simdutfRoot = .\tools\fetch_comparative_dependency.ps1 -Name simdutf -DestinationRoot $depsRoot
           "SIMDUTF_ROOT=$simdutfRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
+      - name: Show fetched comparative dependency versions
+        shell: pwsh
+        run: |
+          $depsRoot = Join-Path $PWD "build/comparative-deps"
+          $stamps = @(Get-ChildItem -LiteralPath $depsRoot -Recurse -Filter ".utf8_ranges_dependency.json" -ErrorAction SilentlyContinue)
+          if ($stamps.Length -eq 0) {
+            Write-Host "Fetched comparative dependencies: none"
+            if ($env:GITHUB_STEP_SUMMARY) {
+              @(
+                "## Comparative dependencies"
+                ""
+                "No comparative dependencies were fetched."
+              ) -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+            }
+            exit 0
+          }
+
+          $summaryLines = @("## Comparative dependencies", "")
+          Write-Host "Fetched comparative dependencies:"
+          foreach ($stampPath in $stamps | Sort-Object FullName) {
+            $stamp = Get-Content -LiteralPath $stampPath.FullName -Raw | ConvertFrom-Json
+            $line = " - $($stamp.name) $($stamp.version)"
+            Write-Host $line
+            $summaryLines += $line
+          }
+
+          if ($env:GITHUB_STEP_SUMMARY) {
+            $summaryLines -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          }
+
       - name: Show compiler version
         if: matrix.install_kind != 'msvc'
         run: ${{ matrix.cxx }} --version
@@ -806,6 +836,7 @@ jobs:
             echo "## Comparative benchmarks (${{ matrix.name }}, ${{ matrix.opt_name || matrix.configuration }})"
             echo
             echo "_Current baselines: unicode_ranges and simdutf (pinned to v7.7.0 singleheader release asset)._"
+            echo "_Unsupported rows are reported explicitly when a library or public API surface does not cover the benchmark contract._"
             echo
             echo '```text'
             cat comparative-benchmark-results.txt

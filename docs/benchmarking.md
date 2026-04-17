@@ -235,6 +235,7 @@ Each corpus must be shared across libraries for that row.
 - report `ns/op`, throughput, and iteration count
 - report allocation-sensitive rows separately when allocation is part of the benchmarked contract
 - never hide failed rows; if a library cannot express the required semantics, mark the row unsupported
+- unsupported rows should still appear in the suite output with a short reason instead of silently disappearing
 
 ## Result Interpretation
 
@@ -297,6 +298,10 @@ Current comparative suite:
   - pinned to release `v7.7.0`
   - fetched dynamically in CI from the published `singleheader.zip` asset
   - wired for strict UTF-8 validation and strict UTF-8 owned transcoding
+- strict UTF-8 caller-buffer transcoding rows are present too
+  - `simdutf` is currently the first supported baseline there
+  - `unicode_ranges` is reported as unsupported for those rows because it does
+    not currently expose a public caller-buffer UTF transcoding API
 - comparative dependencies are defined in `comparative_benchmarks/dependencies.json`
   and fetched through `tools/fetch_comparative_dependency.ps1`
 - a manifest-driven dependency fetch script for external comparative baselines

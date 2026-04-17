@@ -5,6 +5,7 @@
 #include <functional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace comparative_benchmarks
@@ -116,7 +117,22 @@ struct implementation_case
 {
 	library_id library = library_id::unicode_ranges;
 	std::function<std::size_t()> run{};
+	std::string unsupported_reason{};
+
+	constexpr bool supported() const noexcept
+	{
+		return static_cast<bool>(run);
+	}
 };
+
+inline implementation_case make_unsupported_case(library_id library, std::string reason)
+{
+	return implementation_case{
+		.library = library,
+		.run = {},
+		.unsupported_reason = std::move(reason)
+	};
+}
 
 struct scenario
 {

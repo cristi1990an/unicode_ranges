@@ -50,6 +50,8 @@ struct benchmark_case
 	std::size_t bytes_per_iteration = 0;
 	std::size_t batch_size = 1;
 	std::function<std::size_t()> run{};
+	bool supported = true;
+	std::string notes{};
 };
 
 struct benchmark_result
@@ -134,6 +136,8 @@ inline std::size_t checksum(std::u32string_view text) noexcept
 inline benchmark_result run_case(const benchmark_case& c, const benchmark_options& options)
 {
 	using clock = std::chrono::steady_clock;
+	UTF8_RANGES_COMPARATIVE_BENCHMARK_ASSERT(c.supported);
+	UTF8_RANGES_COMPARATIVE_BENCHMARK_ASSERT(static_cast<bool>(c.run));
 
 	std::vector<double> ns_samples{};
 	std::vector<double> mib_samples{};
@@ -217,7 +221,13 @@ inline std::vector<benchmark_case> expand_cases(const std::vector<scenario>& sce
 				.name = make_case_name(row, implementation.library),
 				.bytes_per_iteration = row.input->bytes.size(),
 				.batch_size = row.batch_size,
-				.run = implementation.run
+				.run = implementation.run,
+				.supported = implementation.supported(),
+				.notes = implementation.supported()
+					? std::string{}
+					: (implementation.unsupported_reason.empty()
+						? std::string{ "unsupported" }
+						: implementation.unsupported_reason)
 			});
 		}
 	}
@@ -243,18 +253,31 @@ inline int run_suite(int argc, char** argv, const std::vector<scenario>& scenari
 	{
 		for (const auto& c : cases)
 		{
-			std::cout << c.name << '\n';
+			if (!options.filter.empty() && c.name.find(options.filter) == std::string::npos)
+			{
+				continue;
+			}
+
+			std::cout << c.name;
+			if (!c.supported)
+			{
+				std::cout << " [unsupported: " << c.notes << ']';
+			}
+			std::cout << '\n';
 		}
 		return 0;
 	}
 
+	constexpr int case_width = 100;
 	std::cout << std::left
-		<< std::setw(60) << "case"
+		<< std::setw(case_width) << "case"
+		<< std::setw(14) << "status"
 		<< std::right << std::setw(14) << "ns/op"
 		<< std::setw(14) << "MiB/s"
 		<< std::setw(12) << "iters/smp"
+		<< "  note"
 		<< '\n';
-	std::cout << std::string(100, '-') << '\n';
+	std::cout << std::string(130, '-') << '\n';
 
 	for (const auto& c : cases)
 	{
@@ -263,12 +286,26 @@ inline int run_suite(int argc, char** argv, const std::vector<scenario>& scenari
 			continue;
 		}
 
+		if (!c.supported)
+		{
+			std::cout << std::left << std::setw(case_width) << c.name
+				<< std::setw(14) << "unsupported"
+				<< std::right << std::setw(14) << "-"
+				<< std::setw(14) << "-"
+				<< std::setw(12) << "-"
+				<< "  " << c.notes
+				<< '\n';
+			continue;
+		}
+
 		const auto result = run_case(c, options);
-		std::cout << std::left << std::setw(60) << result.name
+		std::cout << std::left << std::setw(case_width) << result.name
+			<< std::setw(14) << "ok"
 			<< std::right << std::fixed << std::setprecision(2)
 			<< std::setw(14) << result.nanoseconds_per_iteration
 			<< std::setw(14) << result.mib_per_second
 			<< std::setw(12) << result.iterations
+			<< "  "
 			<< '\n';
 	}
 

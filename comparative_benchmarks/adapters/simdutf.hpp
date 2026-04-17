@@ -5,6 +5,7 @@
 
 #if UTF8_RANGES_COMPARATIVE_WITH_SIMDUTF
 
+#include <span>
 #include <string>
 
 #include <simdutf.h>
@@ -54,6 +55,30 @@ inline std::size_t utf8_to_utf32_owned_simdutf(const corpus& input)
 	UTF8_RANGES_COMPARATIVE_BENCHMARK_ASSERT(conversion.count == result.size());
 
 	return checksum(std::u32string_view{ result });
+}
+
+inline std::size_t utf8_to_utf16_buffer_simdutf(const corpus& input, std::span<char16_t> output)
+{
+	UTF8_RANGES_COMPARATIVE_BENCHMARK_ASSERT(input.valid_utf8);
+	const auto* utf8 = reinterpret_cast<const char*>(input.bytes.data());
+	const auto utf8_size = input.bytes.size();
+	const simdutf::result conversion =
+		simdutf::convert_utf8_to_utf16_with_errors(utf8, utf8_size, output.data());
+	UTF8_RANGES_COMPARATIVE_BENCHMARK_ASSERT(conversion.error == simdutf::SUCCESS);
+	UTF8_RANGES_COMPARATIVE_BENCHMARK_ASSERT(conversion.count <= output.size());
+	return checksum(std::u16string_view{ output.data(), conversion.count });
+}
+
+inline std::size_t utf8_to_utf32_buffer_simdutf(const corpus& input, std::span<char32_t> output)
+{
+	UTF8_RANGES_COMPARATIVE_BENCHMARK_ASSERT(input.valid_utf8);
+	const auto* utf8 = reinterpret_cast<const char*>(input.bytes.data());
+	const auto utf8_size = input.bytes.size();
+	const simdutf::result conversion =
+		simdutf::convert_utf8_to_utf32_with_errors(utf8, utf8_size, output.data());
+	UTF8_RANGES_COMPARATIVE_BENCHMARK_ASSERT(conversion.error == simdutf::SUCCESS);
+	UTF8_RANGES_COMPARATIVE_BENCHMARK_ASSERT(conversion.count <= output.size());
+	return checksum(std::u32string_view{ output.data(), conversion.count });
 }
 
 } // namespace comparative_benchmarks::adapters

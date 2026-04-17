@@ -32,9 +32,8 @@ inline std::vector<scenario> make_utf_validation_scenarios()
 					{
 						return adapters::validate_utf8_public_factory(input);
 					}
-				}
+				},
 #if UTF8_RANGES_COMPARATIVE_WITH_SIMDUTF
-				,
 				implementation_case{
 					.library = library_id::simdutf,
 					.run = [&input]() -> std::size_t
@@ -42,6 +41,10 @@ inline std::vector<scenario> make_utf_validation_scenarios()
 						return adapters::validate_utf8_simdutf(input);
 					}
 				}
+#else
+				make_unsupported_case(
+					library_id::simdutf,
+					"simdutf dependency was not fetched for this runner")
 #endif
 			}
 		});
