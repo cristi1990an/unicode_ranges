@@ -268,13 +268,21 @@ This matters especially for:
 
 ## Current Status
 
-This page is the design charter only.
+This page started as the design charter and now also reflects the initial scaffold on the `feature/comparative-benchmarks` branch.
 
-It does not yet imply:
+Current scaffold:
+
+- a dedicated comparative benchmark runner: `comparative_benchmarks.cpp`
+- a shared benchmark model and harness under `comparative_benchmarks/`
+- initial corpus layout for UTF-8 validation and UTF-8 transcoding rows
+- initial `unicode_ranges` baseline adapters for strict UTF-8 validation and strict UTF-8 owned transcoding
+- CI jobs that build and run the scaffold on GCC, Clang, and MSVC
+
+It still does not imply:
 
 - vendored third-party dependencies
-- benchmark integration code
-- CI result publishing
+- third-party benchmark adapters
 - cross-library benchmark numbers
+- dependency acquisition logic for external competitors
 
-Those will be added in later phases on this branch.
+Those are the next implementation phases on this branch.
