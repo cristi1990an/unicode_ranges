@@ -1436,19 +1436,188 @@ concept decoder =
 namespace encodings
 {
 
-namespace windows_1252_details
+namespace single_byte_details
 {
 
-// WHATWG Windows-1252 index:
-// https://encoding.spec.whatwg.org/index-windows-1252.txt
-inline constexpr std::array<char32_t, 32> windows_1252_decode_table{
-	0x20AC, 0x0081, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021,
-	0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0x008D, 0x017D, 0x008F,
-	0x0090, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014,
-	0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x009D, 0x017E, 0x0178
+struct provenance
+{
+	const char* name;
+	const char* source_url;
 };
 
-constexpr char32_t decode_windows_1252(char8_t byte) noexcept
+constexpr auto make_identity_upper_half_table() noexcept
+{
+	std::array<char32_t, 128> table{};
+	for (std::size_t i = 0; i != table.size(); ++i)
+	{
+		table[i] = static_cast<char32_t>(0x80u + i);
+	}
+
+	return table;
+}
+
+struct iso_8859_1_tag
+{
+};
+
+struct iso_8859_15_tag
+{
+};
+
+struct windows_1251_tag
+{
+};
+
+struct windows_1252_tag
+{
+};
+
+template <typename Tag>
+struct mapping;
+
+template <>
+struct mapping<iso_8859_1_tag>
+{
+	static constexpr provenance table_provenance{
+		"ISO-8859-1 direct identity mapping",
+		"https://encoding.spec.whatwg.org/#single-byte-decoder"
+	};
+
+	static constexpr auto decode_table = make_identity_upper_half_table();
+};
+
+template <>
+struct mapping<iso_8859_15_tag>
+{
+	static constexpr provenance table_provenance{
+		"WHATWG index-iso-8859-15.txt",
+		"https://encoding.spec.whatwg.org/index-iso-8859-15.txt"
+	};
+
+	static constexpr auto decode_table = [] {
+		auto table = make_identity_upper_half_table();
+		table[0xA4 - 0x80] = 0x20AC;
+		table[0xA6 - 0x80] = 0x0160;
+		table[0xA8 - 0x80] = 0x0161;
+		table[0xB4 - 0x80] = 0x017D;
+		table[0xB8 - 0x80] = 0x017E;
+		table[0xBC - 0x80] = 0x0152;
+		table[0xBD - 0x80] = 0x0153;
+		table[0xBE - 0x80] = 0x0178;
+		return table;
+	}();
+};
+
+template <>
+struct mapping<windows_1251_tag>
+{
+	static constexpr provenance table_provenance{
+		"WHATWG index-windows-1251.txt",
+		"https://encoding.spec.whatwg.org/index-windows-1251.txt"
+	};
+
+	static constexpr auto decode_table = [] {
+		auto table = make_identity_upper_half_table();
+		table[0x80 - 0x80] = 0x0402;
+		table[0x81 - 0x80] = 0x0403;
+		table[0x82 - 0x80] = 0x201A;
+		table[0x83 - 0x80] = 0x0453;
+		table[0x84 - 0x80] = 0x201E;
+		table[0x85 - 0x80] = 0x2026;
+		table[0x86 - 0x80] = 0x2020;
+		table[0x87 - 0x80] = 0x2021;
+		table[0x88 - 0x80] = 0x20AC;
+		table[0x89 - 0x80] = 0x2030;
+		table[0x8A - 0x80] = 0x0409;
+		table[0x8B - 0x80] = 0x2039;
+		table[0x8C - 0x80] = 0x040A;
+		table[0x8D - 0x80] = 0x040C;
+		table[0x8E - 0x80] = 0x040B;
+		table[0x8F - 0x80] = 0x040F;
+		table[0x90 - 0x80] = 0x0452;
+		table[0x91 - 0x80] = 0x2018;
+		table[0x92 - 0x80] = 0x2019;
+		table[0x93 - 0x80] = 0x201C;
+		table[0x94 - 0x80] = 0x201D;
+		table[0x95 - 0x80] = 0x2022;
+		table[0x96 - 0x80] = 0x2013;
+		table[0x97 - 0x80] = 0x2014;
+		table[0x98 - 0x80] = 0x0098;
+		table[0x99 - 0x80] = 0x2122;
+		table[0x9A - 0x80] = 0x0459;
+		table[0x9B - 0x80] = 0x203A;
+		table[0x9C - 0x80] = 0x045A;
+		table[0x9D - 0x80] = 0x045C;
+		table[0x9E - 0x80] = 0x045B;
+		table[0x9F - 0x80] = 0x045F;
+		table[0xA1 - 0x80] = 0x040E;
+		table[0xA2 - 0x80] = 0x045E;
+		table[0xA3 - 0x80] = 0x0408;
+		table[0xA5 - 0x80] = 0x0490;
+		table[0xA8 - 0x80] = 0x0401;
+		table[0xAA - 0x80] = 0x0404;
+		table[0xAF - 0x80] = 0x0407;
+		table[0xB2 - 0x80] = 0x0406;
+		table[0xB3 - 0x80] = 0x0456;
+		table[0xB4 - 0x80] = 0x0491;
+		table[0xB8 - 0x80] = 0x0451;
+		table[0xB9 - 0x80] = 0x2116;
+		table[0xBA - 0x80] = 0x0454;
+		table[0xBC - 0x80] = 0x0458;
+		table[0xBD - 0x80] = 0x0405;
+		table[0xBE - 0x80] = 0x0455;
+		table[0xBF - 0x80] = 0x0457;
+		for (std::size_t i = 0xC0; i != 0x100; ++i)
+		{
+			table[i - 0x80] = static_cast<char32_t>(0x0410u + (i - 0xC0u));
+		}
+		return table;
+	}();
+};
+
+template <>
+struct mapping<windows_1252_tag>
+{
+	static constexpr provenance table_provenance{
+		"WHATWG index-windows-1252.txt",
+		"https://encoding.spec.whatwg.org/index-windows-1252.txt"
+	};
+
+	static constexpr auto decode_table = [] {
+		auto table = make_identity_upper_half_table();
+		table[0x80 - 0x80] = 0x20AC;
+		table[0x82 - 0x80] = 0x201A;
+		table[0x83 - 0x80] = 0x0192;
+		table[0x84 - 0x80] = 0x201E;
+		table[0x85 - 0x80] = 0x2026;
+		table[0x86 - 0x80] = 0x2020;
+		table[0x87 - 0x80] = 0x2021;
+		table[0x88 - 0x80] = 0x02C6;
+		table[0x89 - 0x80] = 0x2030;
+		table[0x8A - 0x80] = 0x0160;
+		table[0x8B - 0x80] = 0x2039;
+		table[0x8C - 0x80] = 0x0152;
+		table[0x8E - 0x80] = 0x017D;
+		table[0x91 - 0x80] = 0x2018;
+		table[0x92 - 0x80] = 0x2019;
+		table[0x93 - 0x80] = 0x201C;
+		table[0x94 - 0x80] = 0x201D;
+		table[0x95 - 0x80] = 0x2022;
+		table[0x96 - 0x80] = 0x2013;
+		table[0x97 - 0x80] = 0x2014;
+		table[0x98 - 0x80] = 0x02DC;
+		table[0x99 - 0x80] = 0x2122;
+		table[0x9A - 0x80] = 0x0161;
+		table[0x9B - 0x80] = 0x203A;
+		table[0x9C - 0x80] = 0x0153;
+		table[0x9E - 0x80] = 0x017E;
+		table[0x9F - 0x80] = 0x0178;
+		return table;
+	}();
+};
+
+template <typename Tag>
+constexpr char32_t decode(char8_t byte) noexcept
 {
 	const auto value = static_cast<std::uint8_t>(byte);
 	if (value < 0x80)
@@ -1456,61 +1625,118 @@ constexpr char32_t decode_windows_1252(char8_t byte) noexcept
 		return value;
 	}
 
-	if (value < 0xA0)
-	{
-		return windows_1252_decode_table[value - 0x80];
-	}
-
-	return value;
+	return mapping<Tag>::decode_table[value - 0x80];
 }
 
-constexpr auto encode_windows_1252(char32_t scalar) noexcept -> std::optional<char8_t>
+template <typename Tag>
+constexpr auto encode(char32_t scalar) noexcept -> std::optional<char8_t>
 {
-	if (scalar <= 0x7F || (scalar >= 0x00A0 && scalar <= 0x00FF))
+	if (scalar <= 0x7F)
 	{
 		return static_cast<char8_t>(scalar);
 	}
 
-	switch (scalar)
+	const auto& table = mapping<Tag>::decode_table;
+	for (std::size_t i = 0; i != table.size(); ++i)
 	{
-	case 0x20AC: return static_cast<char8_t>(0x80);
-	case 0x0081: return static_cast<char8_t>(0x81);
-	case 0x201A: return static_cast<char8_t>(0x82);
-	case 0x0192: return static_cast<char8_t>(0x83);
-	case 0x201E: return static_cast<char8_t>(0x84);
-	case 0x2026: return static_cast<char8_t>(0x85);
-	case 0x2020: return static_cast<char8_t>(0x86);
-	case 0x2021: return static_cast<char8_t>(0x87);
-	case 0x02C6: return static_cast<char8_t>(0x88);
-	case 0x2030: return static_cast<char8_t>(0x89);
-	case 0x0160: return static_cast<char8_t>(0x8A);
-	case 0x2039: return static_cast<char8_t>(0x8B);
-	case 0x0152: return static_cast<char8_t>(0x8C);
-	case 0x008D: return static_cast<char8_t>(0x8D);
-	case 0x017D: return static_cast<char8_t>(0x8E);
-	case 0x008F: return static_cast<char8_t>(0x8F);
-	case 0x0090: return static_cast<char8_t>(0x90);
-	case 0x2018: return static_cast<char8_t>(0x91);
-	case 0x2019: return static_cast<char8_t>(0x92);
-	case 0x201C: return static_cast<char8_t>(0x93);
-	case 0x201D: return static_cast<char8_t>(0x94);
-	case 0x2022: return static_cast<char8_t>(0x95);
-	case 0x2013: return static_cast<char8_t>(0x96);
-	case 0x2014: return static_cast<char8_t>(0x97);
-	case 0x02DC: return static_cast<char8_t>(0x98);
-	case 0x2122: return static_cast<char8_t>(0x99);
-	case 0x0161: return static_cast<char8_t>(0x9A);
-	case 0x203A: return static_cast<char8_t>(0x9B);
-	case 0x0153: return static_cast<char8_t>(0x9C);
-	case 0x009D: return static_cast<char8_t>(0x9D);
-	case 0x017E: return static_cast<char8_t>(0x9E);
-	case 0x0178: return static_cast<char8_t>(0x9F);
-	default:
-		return std::nullopt;
+		if (table[i] == scalar)
+		{
+			return static_cast<char8_t>(0x80u + i);
+		}
+	}
+
+	return std::nullopt;
+}
+
+template <typename Tag, typename Error, typename Writer>
+constexpr auto encode_one(char32_t scalar, Writer out, Error error_value) -> std::expected<void, Error>
+{
+	const auto byte = encode<Tag>(scalar);
+	if (!byte) [[unlikely]]
+	{
+		return std::unexpected(error_value);
+	}
+
+	out.push(*byte);
+	return {};
+}
+
+template <typename Tag, typename Writer>
+constexpr std::size_t decode_one(std::basic_string_view<char8_t> input, Writer out)
+{
+	out.push(decode<Tag>(input.front()));
+	return 1;
+}
+
+template <typename Tag, typename Error, typename Writer>
+constexpr auto encode_from_utf8(utf8_string_view input, Writer out, Error error_value)
+	-> std::expected<void, Error>
+{
+	out.reserve(input.base().size());
+	for (const auto ch : input.chars())
+	{
+		const auto byte = encode<Tag>(static_cast<char32_t>(ch.as_scalar()));
+		if (!byte) [[unlikely]]
+		{
+			return std::unexpected(error_value);
+		}
+
+		out.push(*byte);
+	}
+
+	return {};
+}
+
+template <typename Tag, typename Writer>
+constexpr void decode_to_utf8(std::basic_string_view<char8_t> input, Writer out)
+{
+	unicode_ranges::details::utf8_scalar_writer<Writer> scalar_out{ out };
+	scalar_out.reserve(input.size());
+	for (const char8_t byte : input)
+	{
+		scalar_out.push(decode<Tag>(byte));
 	}
 }
 
-} // namespace windows_1252_details
+template <typename Tag>
+struct strict_codec_base
+{
+	using code_unit_type = char8_t;
+
+	enum class encode_error
+	{
+		unrepresentable_scalar
+	};
+
+	static constexpr bool allow_implicit_construction = true;
+	static constexpr provenance table_provenance = mapping<Tag>::table_provenance;
+
+	template <typename Writer>
+	constexpr auto encode_one(char32_t scalar, Writer out) -> std::expected<void, encode_error>
+	{
+		return single_byte_details::encode_one<Tag>(scalar, out, encode_error::unrepresentable_scalar);
+	}
+
+	template <typename Writer>
+	constexpr std::size_t decode_one(std::basic_string_view<code_unit_type> input, Writer out)
+	{
+		return single_byte_details::decode_one<Tag>(input, out);
+	}
+
+	template <typename Writer>
+	constexpr auto encode_from_utf8(utf8_string_view input, Writer out) -> std::expected<void, encode_error>
+	{
+		return single_byte_details::encode_from_utf8<Tag>(input, out, encode_error::unrepresentable_scalar);
+	}
+
+	template <typename Writer>
+	constexpr void decode_to_utf8(std::basic_string_view<code_unit_type> input, Writer out)
+	{
+		single_byte_details::decode_to_utf8<Tag>(input, out);
+	}
+};
+
+} // namespace single_byte_details
 
 struct ascii_strict
 {
@@ -1588,125 +1814,20 @@ struct ascii_strict
 	}
 };
 
-struct windows_1252
+struct windows_1252 : single_byte_details::strict_codec_base<single_byte_details::windows_1252_tag>
 {
-	using code_unit_type = char8_t;
-
-	enum class encode_error
-	{
-		unrepresentable_scalar
-	};
-
-	static constexpr bool allow_implicit_construction = true;
-
-	template <typename Writer>
-	constexpr auto encode_one(char32_t scalar, Writer out) -> std::expected<void, encode_error>
-	{
-		const auto byte = windows_1252_details::encode_windows_1252(scalar);
-		if (!byte) [[unlikely]]
-		{
-			return std::unexpected(encode_error::unrepresentable_scalar);
-		}
-
-		out.push(*byte);
-		return {};
-	}
-
-	template <typename Writer>
-	constexpr std::size_t decode_one(std::basic_string_view<code_unit_type> input, Writer out)
-	{
-		out.push(windows_1252_details::decode_windows_1252(input.front()));
-		return 1;
-	}
-
-	template <typename Writer>
-	constexpr auto encode_from_utf8(utf8_string_view input, Writer out) -> std::expected<void, encode_error>
-	{
-		out.reserve(input.base().size());
-		for (const auto ch : input.chars())
-		{
-			const auto byte = windows_1252_details::encode_windows_1252(static_cast<char32_t>(ch.as_scalar()));
-			if (!byte) [[unlikely]]
-			{
-				return std::unexpected(encode_error::unrepresentable_scalar);
-			}
-
-			out.push(*byte);
-		}
-
-		return {};
-	}
-
-	template <typename Writer>
-	constexpr void decode_to_utf8(std::basic_string_view<code_unit_type> input, Writer out)
-	{
-		unicode_ranges::details::utf8_scalar_writer<Writer> scalar_out{ out };
-		scalar_out.reserve(input.size());
-		for (const code_unit_type byte : input)
-		{
-			scalar_out.push(windows_1252_details::decode_windows_1252(byte));
-		}
-	}
 };
 
-struct iso_8859_1
+struct iso_8859_1 : single_byte_details::strict_codec_base<single_byte_details::iso_8859_1_tag>
 {
-	using code_unit_type = char8_t;
+};
 
-	enum class encode_error
-	{
-		unrepresentable_scalar
-	};
+struct iso_8859_15 : single_byte_details::strict_codec_base<single_byte_details::iso_8859_15_tag>
+{
+};
 
-	static constexpr bool allow_implicit_construction = true;
-
-	template <typename Writer>
-	constexpr auto encode_one(char32_t scalar, Writer out) -> std::expected<void, encode_error>
-	{
-		if (scalar > 0x00FF)
-		{
-			return std::unexpected(encode_error::unrepresentable_scalar);
-		}
-
-		out.push(static_cast<code_unit_type>(scalar));
-		return {};
-	}
-
-	template <typename Writer>
-	constexpr std::size_t decode_one(std::basic_string_view<code_unit_type> input, Writer out)
-	{
-		out.push(static_cast<char32_t>(static_cast<std::uint8_t>(input.front())));
-		return 1;
-	}
-
-	template <typename Writer>
-	constexpr auto encode_from_utf8(utf8_string_view input, Writer out) -> std::expected<void, encode_error>
-	{
-		out.reserve(input.base().size());
-		for (const auto ch : input.chars())
-		{
-			const auto scalar = static_cast<char32_t>(ch.as_scalar());
-			if (scalar > 0x00FF)
-			{
-				return std::unexpected(encode_error::unrepresentable_scalar);
-			}
-
-			out.push(static_cast<code_unit_type>(scalar));
-		}
-
-		return {};
-	}
-
-	template <typename Writer>
-	constexpr void decode_to_utf8(std::basic_string_view<code_unit_type> input, Writer out)
-	{
-		unicode_ranges::details::utf8_scalar_writer<Writer> scalar_out{ out };
-		scalar_out.reserve(input.size());
-		for (const code_unit_type byte : input)
-		{
-			scalar_out.push(static_cast<char32_t>(static_cast<std::uint8_t>(byte)));
-		}
-	}
+struct windows_1251 : single_byte_details::strict_codec_base<single_byte_details::windows_1251_tag>
+{
 };
 
 struct ascii_lossy

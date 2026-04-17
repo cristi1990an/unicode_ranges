@@ -34,9 +34,13 @@ The library currently ships these boundary codecs:
 | `encodings::ascii_strict` | encode + decode | strict ASCII only; non-ASCII input is an ordinary codec error |
 | `encodings::ascii_lossy` | encode + decode | replaces unrepresentable scalars and invalid bytes; tracks replacement count on the codec object |
 | `encodings::iso_8859_1` | encode + decode | strict ISO-8859-1 / Latin-1 mapping; encode is fallible, decode is total |
+| `encodings::iso_8859_15` | encode + decode | strict ISO-8859-15 / Latin-9 mapping; encode is fallible, decode is total |
+| `encodings::windows_1251` | encode + decode | strict WHATWG Windows-1251 mapping; encode is fallible, decode is total |
 | `encodings::windows_1252` | encode + decode | strict WHATWG Windows-1252 mapping; encode is fallible, decode is total |
 
 Use built-ins when they already match your boundary contract. Define custom codecs when you need different replacement behavior, diagnostics, protocol rules, or a different encoding altogether.
+
+The built-in single-byte codecs use documented source mappings. `iso_8859_1` is the direct Latin-1 identity mapping. `iso_8859_15`, `windows_1251`, and `windows_1252` follow the corresponding WHATWG index files.
 
 ## Defining Your Own Codecs
 

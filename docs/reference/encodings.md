@@ -291,6 +291,11 @@ constexpr auto encode_append_to(Container& container) const
 
 ## Built-in Codecs
 
+The built-in single-byte codecs follow documented source mappings rather than ad hoc byte tables. The current built-ins use either:
+
+- direct identity mapping over `U+0000..U+00FF`
+- or a published WHATWG index file
+
 ### `encodings::ascii_strict`
 
 - `code_unit_type = char8_t`
@@ -314,6 +319,33 @@ constexpr auto encode_append_to(Container& container) const
 - maps bytes `0x00..0xFF` directly to Unicode `U+0000..U+00FF`
 - encodes only scalars in the Latin-1 range and reports other scalars as ordinary encode errors
 - enables implicit construction
+
+Source mapping:
+- direct Latin-1 identity mapping
+
+### `encodings::iso_8859_15`
+
+- `code_unit_type = char8_t`
+- defines `encode_error`, but decoding is infallible
+- follows the WHATWG ISO-8859-15 index
+- keeps the Latin-1 shape, but remaps `0xA4`, `0xA6`, `0xA8`, `0xB4`, `0xB8`, `0xBC`, `0xBD`, and `0xBE`
+- encodes only scalars in the ISO-8859-15 repertoire and reports other scalars as ordinary encode errors
+- enables implicit construction
+
+Source table:
+- WHATWG index: <https://encoding.spec.whatwg.org/index-iso-8859-15.txt>
+
+### `encodings::windows_1251`
+
+- `code_unit_type = char8_t`
+- defines `encode_error`, but decoding is infallible
+- follows the WHATWG Windows-1251 index
+- covers the Windows Cyrillic repertoire, including the WHATWG-preserved control and punctuation slots in the `0x80..0x9F` range
+- encodes ASCII and the Windows-1251 repertoire, and reports other scalars as ordinary encode errors
+- enables implicit construction
+
+Source table:
+- WHATWG index: <https://encoding.spec.whatwg.org/index-windows-1251.txt>
 
 ### `encodings::windows_1252`
 

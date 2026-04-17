@@ -49,6 +49,46 @@ int main()
 		return 1;
 	}
 
+	const std::array<char8_t, 4> latin9_bytes{
+		static_cast<char8_t>(0xA4u),
+		static_cast<char8_t>(0xBCu),
+		static_cast<char8_t>(0xBDu),
+		static_cast<char8_t>(0xBEu)
+	};
+	const auto latin9_text = utf8_string::from_encoded<encodings::iso_8859_15>(
+		std::u8string_view{ latin9_bytes.data(), latin9_bytes.size() });
+	if (latin9_text.base() != u8"\u20AC\u0152\u0153\u0178")
+	{
+		return 1;
+	}
+
+	const auto latin9_round_trip = latin9_text.to_encoded<encodings::iso_8859_15>();
+	if (!latin9_round_trip || *latin9_round_trip != std::u8string{ latin9_bytes.begin(), latin9_bytes.end() })
+	{
+		return 1;
+	}
+
+	const std::array<char8_t, 6> windows_1251_bytes{
+		static_cast<char8_t>(0xCFu),
+		static_cast<char8_t>(0xF0u),
+		static_cast<char8_t>(0xE8u),
+		static_cast<char8_t>(0xE2u),
+		static_cast<char8_t>(0xE5u),
+		static_cast<char8_t>(0xF2u)
+	};
+	const auto windows_1251_text = utf8_string::from_encoded<encodings::windows_1251>(
+		std::u8string_view{ windows_1251_bytes.data(), windows_1251_bytes.size() });
+	if (windows_1251_text.base() != u8"\u041F\u0440\u0438\u0432\u0435\u0442")
+	{
+		return 1;
+	}
+
+	const auto windows_1251_round_trip = windows_1251_text.to_encoded<encodings::windows_1251>();
+	if (!windows_1251_round_trip || *windows_1251_round_trip != std::u8string{ windows_1251_bytes.begin(), windows_1251_bytes.end() })
+	{
+		return 1;
+	}
+
 	const auto strict_ascii = utf8_string::from_encoded<encodings::ascii_strict>(u8"Hello");
 	if (!strict_ascii || strict_ascii->base() != u8"Hello")
 	{

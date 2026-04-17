@@ -712,15 +712,23 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 	static_assert(encoder<encodings::ascii_strict>);
 	static_assert(encoder<encodings::ascii_lossy>);
 	static_assert(encoder<encodings::iso_8859_1>);
+	static_assert(encoder<encodings::iso_8859_15>);
+	static_assert(encoder<encodings::windows_1251>);
 	static_assert(encoder<encodings::windows_1252>);
 	static_assert(decoder<encodings::ascii_strict>);
 	static_assert(decoder<encodings::ascii_lossy>);
 	static_assert(decoder<encodings::iso_8859_1>);
+	static_assert(decoder<encodings::iso_8859_15>);
+	static_assert(decoder<encodings::windows_1251>);
 	static_assert(decoder<encodings::windows_1252>);
 	static_assert(encoder_traits<encodings::ascii_strict>::allow_implicit_construction_requested);
 	static_assert(encoder_traits<encodings::iso_8859_1>::allow_implicit_construction_requested);
+	static_assert(encoder_traits<encodings::iso_8859_15>::allow_implicit_construction_requested);
+	static_assert(encoder_traits<encodings::windows_1251>::allow_implicit_construction_requested);
 	static_assert(encoder_traits<encodings::windows_1252>::allow_implicit_construction_requested);
 	static_assert(decoder_traits<encodings::iso_8859_1>::allow_implicit_construction_requested);
+	static_assert(decoder_traits<encodings::iso_8859_15>::allow_implicit_construction_requested);
+	static_assert(decoder_traits<encodings::windows_1251>::allow_implicit_construction_requested);
 	static_assert(decoder_traits<encodings::windows_1252>::allow_implicit_construction_requested);
 	static_assert(!encoder_traits<encodings::ascii_lossy>::allow_implicit_construction_requested);
 	static_assert(encoder_traits<unicode_ranges_test_details::opted_in_nonempty_ascii_encoder>::allow_implicit_construction_requested);
@@ -756,10 +764,22 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		decltype(utf8_string::from_encoded<encodings::iso_8859_1>(std::u8string_view{})),
 		utf8_string>);
 	static_assert(std::same_as<
+		decltype(utf8_string::from_encoded<encodings::iso_8859_15>(std::u8string_view{})),
+		utf8_string>);
+	static_assert(std::same_as<
+		decltype(utf8_string::from_encoded<encodings::windows_1251>(std::u8string_view{})),
+		utf8_string>);
+	static_assert(std::same_as<
 		decltype(utf16_string::from_encoded<encodings::windows_1252>(std::u8string_view{})),
 		utf16_string>);
 	static_assert(std::same_as<
 		decltype(utf16_string::from_encoded<encodings::iso_8859_1>(std::u8string_view{})),
+		utf16_string>);
+	static_assert(std::same_as<
+		decltype(utf16_string::from_encoded<encodings::iso_8859_15>(std::u8string_view{})),
+		utf16_string>);
+	static_assert(std::same_as<
+		decltype(utf16_string::from_encoded<encodings::windows_1251>(std::u8string_view{})),
 		utf16_string>);
 	static_assert(std::same_as<
 		decltype(utf32_string::from_encoded<encodings::windows_1252>(std::u8string_view{})),
@@ -768,11 +788,23 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		decltype(utf32_string::from_encoded<encodings::iso_8859_1>(std::u8string_view{})),
 		utf32_string>);
 	static_assert(std::same_as<
+		decltype(utf32_string::from_encoded<encodings::iso_8859_15>(std::u8string_view{})),
+		utf32_string>);
+	static_assert(std::same_as<
+		decltype(utf32_string::from_encoded<encodings::windows_1251>(std::u8string_view{})),
+		utf32_string>);
+	static_assert(std::same_as<
 		decltype(utf8_string{}.to_encoded<encodings::windows_1252>()),
 		std::expected<std::u8string, encodings::windows_1252::encode_error>>);
 	static_assert(std::same_as<
 		decltype(utf8_string{}.to_encoded<encodings::iso_8859_1>()),
 		std::expected<std::u8string, encodings::iso_8859_1::encode_error>>);
+	static_assert(std::same_as<
+		decltype(utf8_string{}.to_encoded<encodings::iso_8859_15>()),
+		std::expected<std::u8string, encodings::iso_8859_15::encode_error>>);
+	static_assert(std::same_as<
+		decltype(utf8_string{}.to_encoded<encodings::windows_1251>()),
+		std::expected<std::u8string, encodings::windows_1251::encode_error>>);
 	static_assert(std::same_as<
 		decltype(utf8_string::from_encoded<unicode_ranges_test_details::opted_in_nonempty_ascii_decoder>(std::u8string_view{})),
 		utf8_string>);
@@ -1017,6 +1049,64 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		unicode_ranges_test_details::expect_single_byte_encode_error<encodings::iso_8859_1>(
 			u8"\u20AC"_utf8_sv,
 			encodings::iso_8859_1::encode_error::unrepresentable_scalar);
+	}
+
+	{
+		const std::array<char8_t, 8> latin9_bytes{
+			static_cast<char8_t>(0xA4u),
+			static_cast<char8_t>(0xA6u),
+			static_cast<char8_t>(0xA8u),
+			static_cast<char8_t>(0xB4u),
+			static_cast<char8_t>(0xB8u),
+			static_cast<char8_t>(0xBCu),
+			static_cast<char8_t>(0xBDu),
+			static_cast<char8_t>(0xBEu)
+		};
+		unicode_ranges_test_details::expect_single_byte_round_trip<encodings::iso_8859_15>(
+			std::u8string_view{ latin9_bytes.data(), latin9_bytes.size() },
+			u8"\u20AC\u0160\u0161\u017D\u017E\u0152\u0153\u0178",
+			u"\u20AC\u0160\u0161\u017D\u017E\u0152\u0153\u0178",
+			U"\u20AC\u0160\u0161\u017D\u017E\u0152\u0153\u0178");
+	}
+
+	{
+		unicode_ranges_test_details::expect_single_byte_encode_error<encodings::iso_8859_15>(
+			u8"\u00A4"_utf8_sv,
+			encodings::iso_8859_15::encode_error::unrepresentable_scalar);
+	}
+
+	{
+		const std::array<char8_t, 6> windows_1251_word{
+			static_cast<char8_t>(0xCFu),
+			static_cast<char8_t>(0xF0u),
+			static_cast<char8_t>(0xE8u),
+			static_cast<char8_t>(0xE2u),
+			static_cast<char8_t>(0xE5u),
+			static_cast<char8_t>(0xF2u)
+		};
+		unicode_ranges_test_details::expect_single_byte_round_trip<encodings::windows_1251>(
+			std::u8string_view{ windows_1251_word.data(), windows_1251_word.size() },
+			u8"\u041F\u0440\u0438\u0432\u0435\u0442",
+			u"\u041F\u0440\u0438\u0432\u0435\u0442",
+			U"\u041F\u0440\u0438\u0432\u0435\u0442");
+	}
+
+	{
+		const std::array<char8_t, 2> windows_1251_special_bytes{
+			static_cast<char8_t>(0x88u),
+			static_cast<char8_t>(0x98u)
+		};
+		unicode_ranges_test_details::expect_single_byte_round_trip<encodings::windows_1251>(
+			std::u8string_view{ windows_1251_special_bytes.data(), windows_1251_special_bytes.size() },
+			u8"\u20AC\u0098",
+			u"\u20AC\u0098",
+			U"\u20AC\u0098");
+	}
+
+	{
+		unicode_ranges_test_details::expect_single_byte_encode_error<encodings::windows_1251>(
+			u8"\u0100"_utf8_sv,
+			encodings::windows_1251::encode_error::unrepresentable_scalar);
 	}
 
 	{
