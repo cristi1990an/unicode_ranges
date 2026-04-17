@@ -119,7 +119,7 @@ struct implementation_case
 	std::function<std::size_t()> run{};
 	std::string unsupported_reason{};
 
-	constexpr bool supported() const noexcept
+	bool supported() const noexcept
 	{
 		return static_cast<bool>(run);
 	}
