@@ -594,21 +594,21 @@ void expect_single_byte_round_trip(
 	const auto decoded8 = utf8_string::from_encoded<Codec>(encoded);
 	const auto& decoded8_value = unwrap_success(decoded8);
 	UTF8_RANGES_TEST_ASSERT(decoded8_value.base() == expected_utf8);
-	const auto encoded8 = decoded8_value.to_encoded<Codec>();
+		const auto encoded8 = decoded8_value.template to_encoded<Codec>();
 	const auto& encoded8_value = unwrap_success(encoded8);
 	UTF8_RANGES_TEST_ASSERT(encoded8_value == expected_bytes);
 
 	const auto decoded16 = utf16_string::from_encoded<Codec>(encoded);
 	const auto& decoded16_value = unwrap_success(decoded16);
 	UTF8_RANGES_TEST_ASSERT(decoded16_value.base() == expected_utf16);
-	const auto encoded16 = decoded16_value.to_encoded<Codec>();
+		const auto encoded16 = decoded16_value.template to_encoded<Codec>();
 	const auto& encoded16_value = unwrap_success(encoded16);
 	UTF8_RANGES_TEST_ASSERT(encoded16_value == expected_bytes);
 
 	const auto decoded32 = utf32_string::from_encoded<Codec>(encoded);
 	const auto& decoded32_value = unwrap_success(decoded32);
 	UTF8_RANGES_TEST_ASSERT(decoded32_value.base() == expected_utf32);
-	const auto encoded32 = decoded32_value.to_encoded<Codec>();
+		const auto encoded32 = decoded32_value.template to_encoded<Codec>();
 	const auto& encoded32_value = unwrap_success(encoded32);
 	UTF8_RANGES_TEST_ASSERT(encoded32_value == expected_bytes);
 }
