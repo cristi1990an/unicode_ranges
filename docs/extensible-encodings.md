@@ -111,7 +111,44 @@ Once the alias exists, the matching hooks must switch to `std::expected` return 
 - `flush(...)`
 - any whole-input bulk hook you provide
 
+Additional rules:
+
+- `encode_error` and `decode_error` must be non-`void` types
+- if `encode_error` exists, `encode_one(...)`, `flush(...)`, and any `encode_from_utf*` hook must return `std::expected<..., encode_error>`
+- if `decode_error` exists, `decode_one(...)`, `flush(...)`, and any `decode_to_utf*` hook must return `std::expected<..., decode_error>`
+- `using encode_error = void;` and `using decode_error = void;` are not valid; omit the alias entirely for infallible codecs
+
 If the alias is absent, those hooks use the direct success form instead.
+
+Example:
+
+```cpp
+// Infallible encoder: no encode_error alias, plain success returns.
+struct ascii_encoder {
+    using code_unit_type = char8_t;
+
+    template <typename Writer>
+    void encode_one(char32_t scalar, Writer out);
+
+    template <typename Writer>
+    void flush(Writer out);
+};
+
+// Fallible encoder: encode_error exists, matching hooks return expected.
+struct strict_legacy_encoder {
+    using code_unit_type = char8_t;
+
+    enum class encode_error {
+        unrepresentable_scalar
+    };
+
+    template <typename Writer>
+    std::expected<void, encode_error> encode_one(char32_t scalar, Writer out);
+
+    template <typename Writer>
+    std::expected<void, encode_error> flush(Writer out);
+};
+```
 
 ### Implicit Construction
 
@@ -122,7 +159,7 @@ Rules:
 - if `allow_implicit_construction` is omitted, an empty default-constructible codec may still be treated as implicitly constructible
 - explicit `false` opts out even for empty default-constructible codecs
 - explicit `true` opts in even for non-empty codecs
-- if `allow_implicit_construction` is `true` but the codec is not default-constructible, the convenience overloads fail with a static assertion
+- if `allow_implicit_construction` is `true` but the codec is not default-constructible, the convenience overloads fail with a static assertion because the library must default-construct a temporary codec object internally
 
 This matters because the generated no-object APIs internally create a temporary codec object and do not return it to you afterwards.
 

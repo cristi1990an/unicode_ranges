@@ -121,12 +121,48 @@ void decode_to_utf32(std::basic_string_view<char8_t> input, Writer out);
 - Writer parameters are taken by value. The writer is a cheap non-owning handle over external sink state.
 - Decoder `code_unit_type` therefore has to be a valid `std::basic_string_view` element type.
 - Encoders intended for `to_encoded(...)` must use a `code_unit_type` that is also valid for `std::basic_string` with `std::char_traits<code_unit_type>`.
-- If `encode_error` or `decode_error` is defined, the corresponding primitive hook, bulk hooks, and `flush(...)` must return `std::expected<..., error_type>` instead of the infallible form.
+- If `encode_error` or `decode_error` is defined, that alias must be a non-`void` type.
+- If `encode_error` is defined, `encode_one(...)`, `flush(...)`, and any `encode_from_utf*` hook the codec provides must return `std::expected<..., encode_error>` instead of the infallible form.
+- If `decode_error` is defined, `decode_one(...)`, `flush(...)`, and any `decode_to_utf*` hook the codec provides must return `std::expected<..., decode_error>` instead of the infallible form.
+- `using encode_error = void;` and `using decode_error = void;` are not valid; omit the alias entirely for infallible codecs.
 - `allow_implicit_construction` is optional.
   - if omitted, empty default-constructible codecs are treated as implicitly constructible
   - explicit `false` opts out
   - explicit `true` opts in even for non-empty codecs
-- If `allow_implicit_construction` is `true` but the codec is not default-constructible, the no-object convenience overloads fail with a static assertion
+- If `allow_implicit_construction` is `true` but the codec is not default-constructible, the no-object convenience overloads fail with a static assertion because the library must default-construct a temporary codec internally
+
+Example:
+
+```cpp
+// Infallible encoder: no encode_error alias, hooks return plain success values.
+struct ascii_encoder {
+    using code_unit_type = char8_t;
+
+    template <typename Writer>
+    void encode_one(char32_t scalar, Writer out);
+
+    template <typename Writer>
+    void flush(Writer out);
+};
+
+// Fallible encoder: encode_error exists and the matching hooks switch to expected.
+struct strict_legacy_encoder {
+    using code_unit_type = char8_t;
+
+    enum class encode_error {
+        unrepresentable_scalar
+    };
+
+    template <typename Writer>
+    std::expected<void, encode_error> encode_one(char32_t scalar, Writer out);
+
+    template <typename Writer>
+    std::expected<void, encode_error> flush(Writer out);
+
+    template <typename Writer>
+    std::expected<void, encode_error> encode_from_utf8(utf8_string_view input, Writer out);
+};
+```
 
 ### Whole-input contract
 

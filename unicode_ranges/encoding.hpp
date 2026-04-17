@@ -137,6 +137,14 @@ template <typename T>
 using codec_decode_error_t = typename T::decode_error;
 
 template <typename T>
+inline constexpr bool has_encode_error_alias_v =
+	requires { typename T::encode_error; };
+
+template <typename T>
+inline constexpr bool has_decode_error_alias_v =
+	requires { typename T::decode_error; };
+
+template <typename T>
 inline constexpr bool has_explicit_allow_implicit_construction_v =
 	requires { T::allow_implicit_construction; };
 
@@ -1193,6 +1201,10 @@ struct encoder_traits
 	using code_unit_type = typename Encoder::code_unit_type;
 	using encode_error = details::detected_t<Encoder, details::codec_encode_error_t>;
 
+	static_assert(
+		!details::has_encode_error_alias_v<Encoder> || !std::same_as<encode_error, void>,
+		"if an encoder defines encode_error, it must be a non-void type; omit the alias entirely for infallible encoders");
+
 	static constexpr bool has_explicit_allow_implicit_construction =
 		details::has_explicit_allow_implicit_construction_v<Encoder>;
 	static constexpr bool allow_implicit_construction_requested =
@@ -1290,6 +1302,10 @@ struct decoder_traits
 {
 	using code_unit_type = typename Decoder::code_unit_type;
 	using decode_error = details::detected_t<Decoder, details::codec_decode_error_t>;
+
+	static_assert(
+		!details::has_decode_error_alias_v<Decoder> || !std::same_as<decode_error, void>,
+		"if a decoder defines decode_error, it must be a non-void type; omit the alias entirely for infallible decoders");
 
 	static constexpr bool has_explicit_allow_implicit_construction =
 		details::has_explicit_allow_implicit_construction_v<Decoder>;
