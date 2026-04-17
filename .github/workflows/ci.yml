@@ -820,7 +820,7 @@ jobs:
         if: matrix.install_kind == 'msvc'
         shell: powershell
         run: |
-          msbuild comparative_benchmarks.vcxproj /t:Clean;Build /p:Configuration=${{ matrix.configuration }} /p:Platform=x64 /p:PlatformToolset=v143 /p:TreatWarningAsError=true
+          msbuild comparative_benchmarks.vcxproj "/t:Clean;Build" /p:Configuration=${{ matrix.configuration }} /p:Platform=x64 /p:PlatformToolset=v143 /p:TreatWarningAsError=true
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run comparative benchmark suite (MSVC)
