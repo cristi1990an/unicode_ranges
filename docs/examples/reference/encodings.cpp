@@ -28,9 +28,27 @@ int main()
 		return 1;
 	}
 
+	const std::array<char8_t, 8> windows_input{
+		static_cast<char8_t>('P'),
+		static_cast<char8_t>('r'),
+		static_cast<char8_t>('i'),
+		static_cast<char8_t>('c'),
+		static_cast<char8_t>('e'),
+		static_cast<char8_t>(':'),
+		static_cast<char8_t>(' '),
+		static_cast<char8_t>(0x80u)
+	};
+	auto windows = utf8_string::from_encoded<encodings::windows_1252>(
+		std::u8string_view{ windows_input.data(), windows_input.size() });
+	auto windows_encoded = windows.to_encoded<encodings::windows_1252>();
+	if (!windows_encoded || *windows_encoded != std::u8string{ windows_input.begin(), windows_input.end() })
+	{
+		return 1;
+	}
+
 	std::vector<char8_t> lossy_bytes{ static_cast<char8_t>('>') };
 	encodings::ascii_lossy lossy{};
 	u8"Caf\u00E9"_utf8_sv.to_utf8_owned().encode_append_to(lossy_bytes, lossy);
 
-	return lossy.replacement_count == 1 ? 0 : 1;
+	return windows.base() == u8"Price: \u20AC" && lossy.replacement_count == 1 ? 0 : 1;
 }

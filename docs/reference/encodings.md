@@ -2,7 +2,7 @@
 
 The boundary-encoding API extends the validated UTF string types at external encode and decode boundaries without changing the library's core model.
 
-This page documents the implemented public surface. For the design rationale and open-ended discussion, see [Extensible Encodings (Proposal)](../extensible-encodings.md).
+This page documents the exact public surface. For the higher-level guide to built-in codecs, custom codec requirements, guarantees, and error handling, see [Boundary Encodings](../extensible-encodings.md).
 
 ```cpp
 --8<-- "examples/reference/encodings.cpp"

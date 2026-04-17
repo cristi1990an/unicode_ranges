@@ -34,6 +34,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install docs example toolchain
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 22
+          sudo apt-get install -y clang-22 libc++-22-dev libc++abi-22-dev
+
+      - name: Compile docs examples
+        run: bash tools/compile_docs_examples.sh clang++-22 build/docs-examples -O0 -Wall -Wextra -Werror -pedantic -stdlib=libc++ -pthread
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
