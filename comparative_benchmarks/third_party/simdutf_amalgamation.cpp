@@ -4,6 +4,8 @@
 #elif defined(__GNUC__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wextra-semi"
+#pragma GCC diagnostic ignored "-Woverflow"
+#pragma GCC diagnostic ignored "-Wpedantic"
 #endif
 
 #include <simdutf.cpp>
