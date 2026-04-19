@@ -1681,10 +1681,16 @@ namespace details
 			&& byte <= encoding_constants::utf8_continuation_max;
 	}
 
+	struct utf8_sequence_validation_result
+	{
+		std::size_t size = 0;
+		utf8_error_code code = utf8_error_code::invalid_sequence;
+	};
+
 	template<typename CharT>
-	inline constexpr auto validate_utf8_sequence_at(
+	inline constexpr auto validate_utf8_sequence_at_raw(
 		std::basic_string_view<CharT> value,
-		std::size_t index) noexcept -> std::expected<std::size_t, utf8_error>
+		std::size_t index) noexcept -> utf8_sequence_validation_result
 	{
 		const std::uint8_t lead = static_cast<std::uint8_t>(value[index]);
 		const auto traits = utf8_lead_validation_table[lead];
@@ -1696,61 +1702,86 @@ namespace details
 
 		if (traits.size == 0) [[unlikely]]
 		{
-			return std::unexpected(utf8_error{
-				.code = utf8_error_code::invalid_lead_byte,
-				.first_invalid_byte_index = index
-			});
+			return utf8_sequence_validation_result{
+				.size = 0,
+				.code = utf8_error_code::invalid_lead_byte
+			};
 		}
 
 		if (remaining < traits.size) [[unlikely]]
 		{
-			return std::unexpected(utf8_error{
-				.code = utf8_error_code::truncated_sequence,
-				.first_invalid_byte_index = index
-			});
+			return utf8_sequence_validation_result{
+				.size = 0,
+				.code = utf8_error_code::truncated_sequence
+			};
 		}
 
 		if (traits.size == encoding_constants::single_code_unit_count)
 		{
-			return encoding_constants::single_code_unit_count;
+			return utf8_sequence_validation_result{
+				.size = encoding_constants::single_code_unit_count
+			};
 		}
 
 		const auto second = byte_at(1);
 		if (second < traits.second_min || second > traits.second_max) [[unlikely]]
 		{
-			return std::unexpected(utf8_error{
-				.code = utf8_error_code::invalid_sequence,
-				.first_invalid_byte_index = index
-			});
+			return utf8_sequence_validation_result{
+				.size = 0,
+				.code = utf8_error_code::invalid_sequence
+			};
 		}
 
 		if (traits.size == encoding_constants::two_code_unit_count)
 		{
-			return encoding_constants::two_code_unit_count;
+			return utf8_sequence_validation_result{
+				.size = encoding_constants::two_code_unit_count
+			};
 		}
 
 		if (!is_utf8_continuation_byte(byte_at(2))) [[unlikely]]
 		{
-			return std::unexpected(utf8_error{
-				.code = utf8_error_code::invalid_sequence,
-				.first_invalid_byte_index = index
-			});
+			return utf8_sequence_validation_result{
+				.size = 0,
+				.code = utf8_error_code::invalid_sequence
+			};
 		}
 
 		if (traits.size == encoding_constants::three_code_unit_count)
 		{
-			return encoding_constants::three_code_unit_count;
+			return utf8_sequence_validation_result{
+				.size = encoding_constants::three_code_unit_count
+			};
 		}
 
 		if (!is_utf8_continuation_byte(byte_at(3))) [[unlikely]]
 		{
-			return std::unexpected(utf8_error{
-				.code = utf8_error_code::invalid_sequence,
-				.first_invalid_byte_index = index
-			});
+			return utf8_sequence_validation_result{
+				.size = 0,
+				.code = utf8_error_code::invalid_sequence
+			};
 		}
 
-		return encoding_constants::max_utf8_code_units;
+		return utf8_sequence_validation_result{
+			.size = encoding_constants::max_utf8_code_units
+		};
+	}
+
+	template<typename CharT>
+	inline constexpr auto validate_utf8_sequence_at(
+		std::basic_string_view<CharT> value,
+		std::size_t index) noexcept -> std::expected<std::size_t, utf8_error>
+	{
+		const auto result = validate_utf8_sequence_at_raw(value, index);
+		if (result.size != 0) [[likely]]
+		{
+			return result.size;
+		}
+
+		return std::unexpected(utf8_error{
+			.code = result.code,
+			.first_invalid_byte_index = index
+		});
 	}
 
 	template<typename CharT>
@@ -1873,13 +1904,16 @@ namespace details
 				break;
 			}
 
-			const auto expected_size = validate_utf8_sequence_at(value, index);
-			if (!expected_size) [[unlikely]]
+			const auto sequence = validate_utf8_sequence_at_raw(value, index);
+			if (sequence.size == 0) [[unlikely]]
 			{
-				return std::unexpected(expected_size.error());
+				return std::unexpected(utf8_error{
+					.code = sequence.code,
+					.first_invalid_byte_index = index
+				});
 			}
 
-			index += *expected_size;
+			index += sequence.size;
 		}
 
 		return {};
@@ -2238,20 +2272,23 @@ namespace details
 						continue;
 					}
 
-					const auto sequence_length = validate_utf8_sequence_at(bytes, read_index);
-					if (!sequence_length) [[unlikely]]
+					const auto sequence = validate_utf8_sequence_at_raw(bytes, read_index);
+					if (sequence.size == 0) [[unlikely]]
 					{
-						error = sequence_length.error();
+						error = utf8_error{
+							.code = sequence.code,
+							.first_invalid_byte_index = read_index
+						};
 						return std::size_t{ 0 };
 					}
 
-					for (std::size_t i = 0; i != *sequence_length; ++i)
+					for (std::size_t i = 0; i != sequence.size; ++i)
 					{
 						buffer[write_index + i] = static_cast<char8_t>(bytes[read_index + i]);
 					}
 
-					write_index += *sequence_length;
-					read_index += *sequence_length;
+					write_index += sequence.size;
+					read_index += sequence.size;
 				}
 
 				return write_index;
@@ -2265,6 +2302,56 @@ namespace details
 		return result;
 	}
 
+	template <bool Validate, typename CharT>
+	requires (sizeof(CharT) == 1)
+	inline constexpr std::size_t transcode_utf8_to_utf16_runtime_kernel(
+		std::basic_string_view<CharT> bytes,
+		char16_t* buffer,
+		std::optional<utf8_error>* error) noexcept
+	{
+		std::size_t write_index = 0;
+		std::size_t read_index = 0;
+		while (read_index < bytes.size())
+		{
+			const auto remaining = std::basic_string_view<CharT>{ bytes.data() + read_index, bytes.size() - read_index };
+			const auto ascii_run = ascii_prefix_length(remaining);
+			if (ascii_run != 0)
+			{
+				copy_ascii_bytes_to_utf16(buffer + write_index, remaining.substr(0, ascii_run));
+				write_index += ascii_run;
+				read_index += ascii_run;
+				continue;
+			}
+
+			std::size_t count = 0;
+			if constexpr (Validate)
+			{
+				const auto sequence = validate_utf8_sequence_at_raw(bytes, read_index);
+				if (sequence.size == 0) [[unlikely]]
+				{
+					UTF8_RANGES_DEBUG_ASSERT(error != nullptr);
+					*error = utf8_error{
+						.code = sequence.code,
+						.first_invalid_byte_index = read_index
+					};
+					return std::size_t{ 0 };
+				}
+
+				count = sequence.size;
+			}
+			else
+			{
+				count = utf8_byte_count_from_lead(static_cast<std::uint8_t>(bytes[read_index]));
+			}
+
+			const auto scalar = decode_valid_utf8_char(bytes.data() + read_index, count);
+			write_index += encode_unicode_scalar_utf16_unchecked(scalar, buffer + write_index);
+			read_index += count;
+		}
+
+		return write_index;
+	}
+
 	template <typename CharT, typename Allocator>
 	requires (sizeof(CharT) == 1)
 	inline constexpr auto transcode_valid_utf8_to_utf16_unchecked(
@@ -2275,6 +2362,11 @@ namespace details
 		result.resize_and_overwrite(bytes.size(),
 			[&](char16_t* buffer, std::size_t) noexcept
 			{
+				if (!std::is_constant_evaluated())
+				{
+					return transcode_utf8_to_utf16_runtime_kernel<false>(bytes, buffer, nullptr);
+				}
+
 				std::size_t write_index = 0;
 				std::size_t read_index = 0;
 				while (read_index < bytes.size())
@@ -2311,6 +2403,11 @@ namespace details
 		result.resize_and_overwrite(bytes.size(),
 			[&](char16_t* buffer, std::size_t) noexcept
 			{
+				if (!std::is_constant_evaluated())
+				{
+					return transcode_utf8_to_utf16_runtime_kernel<true>(bytes, buffer, &error);
+				}
+
 				std::size_t write_index = 0;
 				std::size_t read_index = 0;
 				while (read_index < bytes.size())
@@ -2325,16 +2422,19 @@ namespace details
 						continue;
 					}
 
-					const auto sequence_length = validate_utf8_sequence_at(bytes, read_index);
-					if (!sequence_length) [[unlikely]]
+					const auto sequence = validate_utf8_sequence_at_raw(bytes, read_index);
+					if (sequence.size == 0) [[unlikely]]
 					{
-						error = sequence_length.error();
+						error = utf8_error{
+							.code = sequence.code,
+							.first_invalid_byte_index = read_index
+						};
 						return std::size_t{ 0 };
 					}
 
-					const auto scalar = decode_valid_utf8_char(bytes.data() + read_index, *sequence_length);
+					const auto scalar = decode_valid_utf8_char(bytes.data() + read_index, sequence.size);
 					write_index += encode_unicode_scalar_utf16_unchecked(scalar, buffer + write_index);
-					read_index += *sequence_length;
+					read_index += sequence.size;
 				}
 
 				return write_index;
@@ -2476,15 +2576,18 @@ namespace details
 			std::size_t count = 0;
 			if constexpr (Validate)
 			{
-				const auto sequence_length = validate_utf8_sequence_at(bytes, read_index);
-				if (!sequence_length) [[unlikely]]
+				const auto sequence = validate_utf8_sequence_at_raw(bytes, read_index);
+				if (sequence.size == 0) [[unlikely]]
 				{
 					UTF8_RANGES_DEBUG_ASSERT(error != nullptr);
-					*error = sequence_length.error();
+					*error = utf8_error{
+						.code = sequence.code,
+						.first_invalid_byte_index = read_index
+					};
 					return std::size_t{ 0 };
 				}
 
-				count = *sequence_length;
+				count = sequence.size;
 			}
 			else
 			{
