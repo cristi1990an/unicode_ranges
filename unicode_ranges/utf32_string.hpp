@@ -123,26 +123,7 @@ public:
 		-> basic_utf32_string
 	{
 		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf8(bytes).has_value());
-
-		base_type utf32_code_points{ alloc };
-		utf32_code_points.resize_and_overwrite(bytes.size(),
-			[&](char32_t* buffer, std::size_t) noexcept
-			{
-				std::size_t write_index = 0;
-				std::size_t read_index = 0;
-				while (read_index < bytes.size())
-				{
-					const auto count = details::utf8_byte_count_from_lead(static_cast<std::uint8_t>(bytes[read_index]));
-					const auto scalar = details::decode_valid_utf8_char(
-						std::basic_string_view<char>{ bytes.data() + read_index, count });
-					write_index += details::encode_unicode_scalar_utf32_unchecked(scalar, buffer + write_index);
-					read_index += count;
-				}
-
-				return write_index;
-			});
-
-		return from_code_points_unchecked(std::move(utf32_code_points));
+		return from_code_points_unchecked(details::transcode_valid_utf8_to_utf32_unchecked(bytes, alloc));
 	}
 
 	static constexpr auto from_bytes_unchecked(std::wstring_view bytes, const Allocator& alloc = Allocator())

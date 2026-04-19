@@ -1057,9 +1057,8 @@ namespace unicode_ranges
 	template <typename Allocator>
 	constexpr basic_utf32_string<Allocator> utf8_string_crtp<Derived, View>::to_utf32(const Allocator& alloc) const
 	{
-		basic_utf32_string<Allocator> result{ alloc };
-		result.append_range(chars());
-		return result;
+		return basic_utf32_string<Allocator>::from_code_points_unchecked(
+			details::transcode_valid_utf8_to_utf32_unchecked(byte_view(), alloc));
 	}
 	template <typename Derived, typename View>
 	template <typename Allocator>
@@ -1888,7 +1887,7 @@ namespace unicode_ranges
 	constexpr basic_utf32_string<Allocator>::basic_utf32_string(utf8_string_view view, const Allocator& alloc)
 		: base_(alloc)
 	{
-		append_range(view.chars());
+		append_range(views::utf8_view::from_bytes_unchecked(view.base()));
 	}
 	template <typename Allocator>
 	constexpr basic_utf32_string<Allocator>::basic_utf32_string(utf16_string_view view, const Allocator& alloc)
@@ -2055,7 +2054,7 @@ namespace unicode_ranges
 	template <typename Allocator>
 	constexpr basic_utf32_string<Allocator>& basic_utf32_string<Allocator>::operator+=(utf8_string_view sv)
 	{
-		return append_range(sv.chars());
+		return append_range(views::utf8_view::from_bytes_unchecked(sv.base()));
 	}
 	template <typename Allocator>
 	constexpr basic_utf32_string<Allocator>& basic_utf32_string<Allocator>::operator+=(utf16_string_view sv)

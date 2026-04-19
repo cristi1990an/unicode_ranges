@@ -2265,6 +2265,42 @@ namespace details
 		return result;
 	}
 
+	template <typename CharT, typename Allocator>
+	requires (sizeof(CharT) == 1)
+	inline constexpr auto transcode_valid_utf8_to_utf16_unchecked(
+		std::basic_string_view<CharT> bytes,
+		const Allocator& alloc) -> utf16_base_string<Allocator>
+	{
+		utf16_base_string<Allocator> result{ alloc };
+		result.resize_and_overwrite(bytes.size(),
+			[&](char16_t* buffer, std::size_t) noexcept
+			{
+				std::size_t write_index = 0;
+				std::size_t read_index = 0;
+				while (read_index < bytes.size())
+				{
+					const auto remaining = std::basic_string_view<CharT>{ bytes.data() + read_index, bytes.size() - read_index };
+					const auto ascii_run = ascii_prefix_length(remaining);
+					if (ascii_run != 0)
+					{
+						copy_ascii_bytes_to_utf16(buffer + write_index, remaining.substr(0, ascii_run));
+						write_index += ascii_run;
+						read_index += ascii_run;
+						continue;
+					}
+
+					const auto count = utf8_byte_count_from_lead(static_cast<std::uint8_t>(bytes[read_index]));
+					const auto scalar = decode_valid_utf8_char(bytes.data() + read_index, count);
+					write_index += encode_unicode_scalar_utf16_unchecked(scalar, buffer + write_index);
+					read_index += count;
+				}
+
+				return write_index;
+			});
+
+		return result;
+	}
+
 	template <typename Allocator>
 	inline constexpr auto transcode_utf8_to_utf16_checked(
 		std::string_view bytes,
@@ -2409,6 +2445,45 @@ namespace details
 		{
 			return std::unexpected(*error);
 		}
+
+		return result;
+	}
+
+	template <typename CharT, typename Allocator>
+	requires (sizeof(CharT) == 1)
+	inline constexpr auto transcode_valid_utf8_to_utf32_unchecked(
+		std::basic_string_view<CharT> bytes,
+		const Allocator& alloc) -> utf32_base_string<Allocator>
+	{
+		utf32_base_string<Allocator> result{ alloc };
+		result.resize_and_overwrite(bytes.size(),
+			[&](char32_t* buffer, std::size_t) noexcept
+			{
+				std::size_t write_index = 0;
+				std::size_t read_index = 0;
+				while (read_index < bytes.size())
+				{
+					const auto remaining = std::basic_string_view<CharT>{ bytes.data() + read_index, bytes.size() - read_index };
+					const auto ascii_run = ascii_prefix_length(remaining);
+					if (ascii_run != 0)
+					{
+						for (std::size_t i = 0; i != ascii_run; ++i)
+						{
+							buffer[write_index + i] = static_cast<char32_t>(static_cast<std::uint8_t>(remaining[i]));
+						}
+
+						write_index += ascii_run;
+						read_index += ascii_run;
+						continue;
+					}
+
+					const auto count = utf8_byte_count_from_lead(static_cast<std::uint8_t>(bytes[read_index]));
+					buffer[write_index++] = static_cast<char32_t>(decode_valid_utf8_char(bytes.data() + read_index, count));
+					read_index += count;
+				}
+
+				return write_index;
+			});
 
 		return result;
 	}
