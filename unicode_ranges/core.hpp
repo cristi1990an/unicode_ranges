@@ -92,6 +92,7 @@
 #include "unicode_tables.hpp"
 #include "internal/simdutf_haswell_utf8_validate.hpp"
 #include "internal/simdutf_haswell_utf8_to_utf16.hpp"
+#include "internal/simdutf_haswell_utf8_to_utf32.hpp"
 
 namespace unicode_ranges
 {
@@ -2769,6 +2770,13 @@ namespace details
 				{
 					if constexpr (std::is_same_v<CharT, char8_t>)
 					{
+						if (internal::simdutf_haswell_runtime_available())
+						{
+							return internal::simdutf_haswell_utf8_to_utf32::convert_valid(
+								std::u8string_view{ bytes.data(), bytes.size() },
+								buffer);
+						}
+
 						return transcode_valid_utf8_to_utf32_runtime_u8(
 							std::u8string_view{ bytes.data(), bytes.size() },
 							buffer);
@@ -2818,6 +2826,22 @@ namespace details
 			{
 				if (!std::is_constant_evaluated())
 				{
+					if (internal::simdutf_haswell_runtime_available())
+					{
+						if (const auto validation = validate_utf8(bytes); !validation) [[unlikely]]
+						{
+							error = validation.error();
+							return std::size_t{ 0 };
+						}
+
+						return internal::simdutf_haswell_utf8_to_utf32::convert_valid(
+							std::u8string_view{
+								reinterpret_cast<const char8_t*>(bytes.data()),
+								bytes.size()
+							},
+							buffer);
+					}
+
 					return transcode_utf8_to_utf32_runtime_kernel<true>(bytes, buffer, &error);
 				}
 

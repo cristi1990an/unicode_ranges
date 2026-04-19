@@ -116,6 +116,18 @@ struct base
 		_mm256_storeu_si256(reinterpret_cast<__m256i*>(ptr + 16), second);
 	}
 
+	UTF8_RANGES_SIMDUTF_REALLY_INLINE void store_ascii_as_utf32(char32_t* ptr) const
+	{
+		_mm256_storeu_si256(reinterpret_cast<__m256i*>(ptr),
+			_mm256_cvtepu8_epi32(_mm256_castsi256_si128(*this)));
+		_mm256_storeu_si256(reinterpret_cast<__m256i*>(ptr + 8),
+			_mm256_cvtepu8_epi32(_mm256_castsi256_si128(_mm256_srli_si256(*this, 8))));
+		_mm256_storeu_si256(reinterpret_cast<__m256i*>(ptr + 16),
+			_mm256_cvtepu8_epi32(_mm256_extractf128_si256(*this, 1)));
+		_mm256_storeu_si256(reinterpret_cast<__m256i*>(ptr + 24),
+			_mm256_cvtepu8_epi32(_mm_srli_si128(_mm256_extractf128_si256(*this, 1), 8)));
+	}
+
 	UTF8_RANGES_SIMDUTF_REALLY_INLINE Child operator |(const Child other) const
 	{
 		return _mm256_or_si256(*this, other);
@@ -347,6 +359,12 @@ struct simd8x64
 	{
 		this->chunks[0].store_ascii_as_utf16(ptr + sizeof(simd8<T>) * 0);
 		this->chunks[1].store_ascii_as_utf16(ptr + sizeof(simd8<T>) * 1);
+	}
+
+	UTF8_RANGES_SIMDUTF_REALLY_INLINE void store_ascii_as_utf32(char32_t* ptr) const
+	{
+		this->chunks[0].store_ascii_as_utf32(ptr + sizeof(simd8<T>) * 0);
+		this->chunks[1].store_ascii_as_utf32(ptr + sizeof(simd8<T>) * 1);
 	}
 
 	UTF8_RANGES_SIMDUTF_REALLY_INLINE std::uint64_t lt(const T m) const
