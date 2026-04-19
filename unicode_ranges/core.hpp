@@ -1251,7 +1251,8 @@ namespace details
 		std::size_t index = 0;
 		while (index + 16 <= bytes.size())
 		{
-			const auto block = _mm_loadu_si128(reinterpret_cast<const __m128i*>(data + index));
+			__m128i block;
+			std::memcpy(&block, data + index, 16);
 			const auto lower = _mm_unpacklo_epi8(block, zero);
 			const auto upper = _mm_unpackhi_epi8(block, zero);
 			_mm_storeu_si128(reinterpret_cast<__m128i*>(out + index), lower);
