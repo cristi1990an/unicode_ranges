@@ -2449,6 +2449,55 @@ namespace details
 		return result;
 	}
 
+	template <bool Validate>
+	inline constexpr std::size_t transcode_utf8_to_utf32_runtime_kernel(
+		std::basic_string_view<std::uint8_t> bytes,
+		char32_t* buffer,
+		std::optional<utf8_error>* error) noexcept
+	{
+		std::size_t write_index = 0;
+		std::size_t read_index = 0;
+		while (read_index < bytes.size())
+		{
+			const auto remaining = bytes.substr(read_index);
+			const auto ascii_run = ascii_prefix_length(remaining);
+			if (ascii_run != 0)
+			{
+				for (std::size_t i = 0; i != ascii_run; ++i)
+				{
+					buffer[write_index + i] = static_cast<char32_t>(remaining[i]);
+				}
+
+				write_index += ascii_run;
+				read_index += ascii_run;
+				continue;
+			}
+
+			std::size_t count = 0;
+			if constexpr (Validate)
+			{
+				const auto sequence_length = validate_utf8_sequence_at(bytes, read_index);
+				if (!sequence_length) [[unlikely]]
+				{
+					UTF8_RANGES_DEBUG_ASSERT(error != nullptr);
+					*error = sequence_length.error();
+					return std::size_t{ 0 };
+				}
+
+				count = *sequence_length;
+			}
+			else
+			{
+				count = utf8_byte_count_from_lead(bytes[read_index]);
+			}
+
+			buffer[write_index++] = static_cast<char32_t>(decode_valid_utf8_char(bytes.data() + read_index, count));
+			read_index += count;
+		}
+
+		return write_index;
+	}
+
 	template <typename CharT, typename Allocator>
 	requires (sizeof(CharT) == 1)
 	inline constexpr auto transcode_valid_utf8_to_utf32_unchecked(
@@ -2459,6 +2508,17 @@ namespace details
 		result.resize_and_overwrite(bytes.size(),
 			[&](char32_t* buffer, std::size_t) noexcept
 			{
+				if (!std::is_constant_evaluated())
+				{
+					return transcode_utf8_to_utf32_runtime_kernel<false>(
+						std::basic_string_view<std::uint8_t>{
+							reinterpret_cast<const std::uint8_t*>(bytes.data()),
+							bytes.size()
+						},
+						buffer,
+						nullptr);
+				}
+
 				std::size_t write_index = 0;
 				std::size_t read_index = 0;
 				while (read_index < bytes.size())
@@ -2498,6 +2558,17 @@ namespace details
 		result.resize_and_overwrite(bytes.size(),
 			[&](char32_t* buffer, std::size_t) noexcept
 			{
+				if (!std::is_constant_evaluated())
+				{
+					return transcode_utf8_to_utf32_runtime_kernel<true>(
+						std::basic_string_view<std::uint8_t>{
+							reinterpret_cast<const std::uint8_t*>(bytes.data()),
+							bytes.size()
+						},
+						buffer,
+						&error);
+				}
+
 				std::size_t write_index = 0;
 				std::size_t read_index = 0;
 				while (read_index < bytes.size())
