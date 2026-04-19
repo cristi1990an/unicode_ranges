@@ -1919,34 +1919,6 @@ namespace details
 		return {};
 	}
 
-	inline constexpr std::expected<void, utf8_error> validate_utf8(std::u8string_view value) noexcept
-	{
-		std::size_t index = 0;
-		while (index < value.size())
-		{
-			const auto remaining = std::u8string_view{ value.data() + index, value.size() - index };
-			const auto ascii_run = ascii_prefix_length(remaining);
-			index += ascii_run;
-			if (index == value.size())
-			{
-				break;
-			}
-
-			const auto sequence = validate_utf8_sequence_at_raw(value, index);
-			if (sequence.size == 0) [[unlikely]]
-			{
-				return std::unexpected(utf8_error{
-					.code = sequence.code,
-					.first_invalid_byte_index = index
-				});
-			}
-
-			index += sequence.size;
-		}
-
-		return {};
-	}
-
 	template<typename CharT>
 	inline constexpr std::expected<void, utf16_error> validate_utf16(std::basic_string_view<CharT> value) noexcept
 	{
@@ -2404,41 +2376,6 @@ namespace details
 					if (ascii_run != 0)
 					{
 						copy_ascii_bytes_to_utf16(buffer + write_index, remaining.substr(0, ascii_run));
-						write_index += ascii_run;
-						read_index += ascii_run;
-						continue;
-					}
-
-					const auto count = utf8_byte_count_from_lead(static_cast<std::uint8_t>(bytes[read_index]));
-					const auto scalar = decode_valid_utf8_char(bytes.data() + read_index, count);
-					write_index += encode_unicode_scalar_utf16_unchecked(scalar, buffer + write_index);
-					read_index += count;
-				}
-
-				return write_index;
-			});
-
-		return result;
-	}
-
-	template <typename Allocator>
-	inline constexpr auto transcode_valid_utf8_to_utf16_unchecked(
-		std::u8string_view bytes,
-		const Allocator& alloc) -> utf16_base_string<Allocator>
-	{
-		utf16_base_string<Allocator> result{ alloc };
-		result.resize_and_overwrite(bytes.size(),
-			[&](char16_t* buffer, std::size_t) noexcept
-			{
-				std::size_t write_index = 0;
-				std::size_t read_index = 0;
-				while (read_index < bytes.size())
-				{
-					const auto remaining = std::u8string_view{ bytes.data() + read_index, bytes.size() - read_index };
-					const auto ascii_run = ascii_prefix_length(remaining);
-					if (ascii_run != 0)
-					{
-						copy_ascii_utf8_to_utf16(buffer + write_index, remaining.substr(0, ascii_run));
 						write_index += ascii_run;
 						read_index += ascii_run;
 						continue;
