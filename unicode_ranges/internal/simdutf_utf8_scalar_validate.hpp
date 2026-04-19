@@ -60,14 +60,14 @@ inline std::expected<void, utf8_error> simdutf_scalar_validate_utf8(
 		if ((byte & 0b11100000) == 0b11000000)
 		{
 			next_pos = pos + 2;
-			if (next_pos > len)
+			if (next_pos > len) [[unlikely]]
 			{
 				return std::unexpected(utf8_error{
 					.code = utf8_error_code::truncated_sequence,
 					.first_invalid_byte_index = pos
 				});
 			}
-			if ((data[pos + 1] & 0b11000000) != 0b10000000)
+			if ((data[pos + 1] & 0b11000000) != 0b10000000) [[unlikely]]
 			{
 				return std::unexpected(utf8_error{
 					.code = utf8_error_code::truncated_sequence,
@@ -77,7 +77,7 @@ inline std::expected<void, utf8_error> simdutf_scalar_validate_utf8(
 
 			code_point = (byte & 0b00011111) << 6
 				| (data[pos + 1] & 0b00111111);
-			if ((code_point < 0x80) || (0x7ff < code_point))
+			if ((code_point < 0x80) || (0x7ff < code_point)) [[unlikely]]
 			{
 				return std::unexpected(utf8_error{
 					.code = utf8_error_code::invalid_sequence,
@@ -88,7 +88,7 @@ inline std::expected<void, utf8_error> simdutf_scalar_validate_utf8(
 		else if ((byte & 0b11110000) == 0b11100000)
 		{
 			next_pos = pos + 3;
-			if (next_pos > len)
+			if (next_pos > len) [[unlikely]]
 			{
 				return std::unexpected(utf8_error{
 					.code = utf8_error_code::truncated_sequence,
@@ -96,7 +96,7 @@ inline std::expected<void, utf8_error> simdutf_scalar_validate_utf8(
 				});
 			}
 			if ((data[pos + 1] & 0b11000000) != 0b10000000
-				|| (data[pos + 2] & 0b11000000) != 0b10000000)
+				|| (data[pos + 2] & 0b11000000) != 0b10000000) [[unlikely]]
 			{
 				return std::unexpected(utf8_error{
 					.code = utf8_error_code::truncated_sequence,
@@ -107,14 +107,14 @@ inline std::expected<void, utf8_error> simdutf_scalar_validate_utf8(
 			code_point = (byte & 0b00001111) << 12
 				| (data[pos + 1] & 0b00111111) << 6
 				| (data[pos + 2] & 0b00111111);
-			if ((code_point < 0x800) || (0xffff < code_point))
+			if ((code_point < 0x800) || (0xffff < code_point)) [[unlikely]]
 			{
 				return std::unexpected(utf8_error{
 					.code = utf8_error_code::invalid_sequence,
 					.first_invalid_byte_index = pos
 				});
 			}
-			if (0xd7ff < code_point && code_point < 0xe000)
+			if (0xd7ff < code_point && code_point < 0xe000) [[unlikely]]
 			{
 				return std::unexpected(utf8_error{
 					.code = utf8_error_code::invalid_sequence,
@@ -125,7 +125,7 @@ inline std::expected<void, utf8_error> simdutf_scalar_validate_utf8(
 		else if ((byte & 0b11111000) == 0b11110000)
 		{
 			next_pos = pos + 4;
-			if (next_pos > len)
+			if (next_pos > len) [[unlikely]]
 			{
 				return std::unexpected(utf8_error{
 					.code = utf8_error_code::truncated_sequence,
@@ -134,7 +134,7 @@ inline std::expected<void, utf8_error> simdutf_scalar_validate_utf8(
 			}
 			if ((data[pos + 1] & 0b11000000) != 0b10000000
 				|| (data[pos + 2] & 0b11000000) != 0b10000000
-				|| (data[pos + 3] & 0b11000000) != 0b10000000)
+				|| (data[pos + 3] & 0b11000000) != 0b10000000) [[unlikely]]
 			{
 				return std::unexpected(utf8_error{
 					.code = utf8_error_code::truncated_sequence,
@@ -147,7 +147,7 @@ inline std::expected<void, utf8_error> simdutf_scalar_validate_utf8(
 				| (data[pos + 1] & 0b00111111) << 12
 				| (data[pos + 2] & 0b00111111) << 6
 				| (data[pos + 3] & 0b00111111);
-			if (code_point <= 0xffff || 0x10ffff < code_point)
+			if (code_point <= 0xffff || 0x10ffff < code_point) [[unlikely]]
 			{
 				return std::unexpected(utf8_error{
 					.code = utf8_error_code::invalid_sequence,
@@ -155,7 +155,7 @@ inline std::expected<void, utf8_error> simdutf_scalar_validate_utf8(
 				});
 			}
 		}
-		else
+		else [[unlikely]]
 		{
 			return std::unexpected(utf8_error{
 				.code = ((byte & 0b11000000) == 0b10000000)
