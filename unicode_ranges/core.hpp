@@ -2317,7 +2317,14 @@ namespace details
 			const auto ascii_run = ascii_prefix_length(remaining);
 			if (ascii_run != 0)
 			{
-				copy_ascii_bytes_to_utf16(buffer + write_index, remaining.substr(0, ascii_run));
+				if constexpr (std::is_same_v<CharT, char8_t>)
+				{
+					copy_ascii_utf8_to_utf16(buffer + write_index, std::u8string_view{ bytes.data() + read_index, ascii_run });
+				}
+				else
+				{
+					copy_ascii_bytes_to_utf16(buffer + write_index, remaining.substr(0, ascii_run));
+				}
 				write_index += ascii_run;
 				read_index += ascii_run;
 				continue;
@@ -2375,7 +2382,14 @@ namespace details
 					const auto ascii_run = ascii_prefix_length(remaining);
 					if (ascii_run != 0)
 					{
-						copy_ascii_bytes_to_utf16(buffer + write_index, remaining.substr(0, ascii_run));
+						if constexpr (std::is_same_v<CharT, char8_t>)
+						{
+							copy_ascii_utf8_to_utf16(buffer + write_index, std::u8string_view{ bytes.data() + read_index, ascii_run });
+						}
+						else
+						{
+							copy_ascii_bytes_to_utf16(buffer + write_index, remaining.substr(0, ascii_run));
+						}
 						write_index += ascii_run;
 						read_index += ascii_run;
 						continue;
