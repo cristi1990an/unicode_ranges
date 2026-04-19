@@ -17,7 +17,7 @@
 #include <expected>
 #include <string_view>
 
-namespace unicode_ranges::details::internal
+namespace details::internal
 {
 
 template <typename CharT>
@@ -171,6 +171,6 @@ inline std::expected<void, utf8_error> simdutf_scalar_validate_utf8(
 	return {};
 }
 
-} // namespace unicode_ranges::details::internal
+} // namespace details::internal
 
 #endif // UTF8_RANGES_INTERNAL_SIMDUTF_UTF8_SCALAR_VALIDATE_HPP

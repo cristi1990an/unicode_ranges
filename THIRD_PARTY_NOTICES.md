@@ -41,13 +41,23 @@ Rules:
 - Project: `simdutf`
 - Upstream: <https://github.com/simdutf/simdutf>
 - Upstream version: `v7.7.0`
-- Original file: `src/scalar/utf8.h`
+- Original files:
+  - `src/scalar/utf8.h`
+  - `include/simdutf/portability.h`
+  - `src/simdutf/haswell/begin.h`
+  - `src/simdutf/haswell/simd.h`
+  - `src/generic/buf_block_reader.h`
+  - `src/generic/utf8_validation/utf8_lookup4_algorithm.h`
+  - `src/generic/utf8_validation/utf8_validator.h`
 - Original license: `MIT OR Apache-2.0`
 - Repository file:
   - `unicode_ranges/internal/simdutf_utf8_scalar_validate.hpp`
+  - `unicode_ranges/internal/simdutf_haswell_utf8_validate.hpp`
 - Adaptation summary:
   - reduced to runtime UTF-8 validation
-  - mapped errors into `unicode_ranges::utf8_error`
+  - scalar path maps errors into `unicode_ranges::utf8_error`
+  - AVX2 path is success/fail only and falls back to the scalar validator for
+    exact error reporting
   - removed unrelated APIs and supporting types not needed by the import
 
 ## Comparative benchmark dependencies

@@ -90,6 +90,7 @@
 #endif
 
 #include "unicode_tables.hpp"
+#include "internal/simdutf_haswell_utf8_validate.hpp"
 
 namespace unicode_ranges
 {
@@ -1920,6 +1921,16 @@ namespace details
 		{
 			if constexpr (sizeof(CharT) == 1)
 			{
+				if (internal::simdutf_haswell_runtime_available())
+				{
+					if (internal::simdutf_haswell_validation::validate_utf8(
+						reinterpret_cast<const char*>(value.data()),
+						value.size()))
+					{
+						return {};
+					}
+				}
+
 				return internal::simdutf_scalar_validate_utf8(value);
 			}
 		}
