@@ -208,13 +208,14 @@ namespace unicode_ranges
 	constexpr basic_utf16_string<Allocator>::basic_utf16_string(utf8_string_view view, const Allocator& alloc)
 		: base_(alloc)
 	{
-		append_range(views::utf8_view::from_bytes_unchecked(view.base()));
+		base_ = details::transcode_valid_utf8_to_utf16_unchecked(view.base(), alloc);
 	}
 
 	template <typename Allocator>
 	constexpr basic_utf16_string<Allocator>& basic_utf16_string<Allocator>::operator+=(utf8_string_view sv)
 	{
-		return append_range(views::utf8_view::from_bytes_unchecked(sv.base()));
+		const auto appended = details::transcode_valid_utf8_to_utf16_unchecked(sv.base(), base_.get_allocator());
+		return append_code_units(equivalent_string_view{ appended });
 	}
 
 	namespace details

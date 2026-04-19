@@ -1887,7 +1887,7 @@ namespace unicode_ranges
 	constexpr basic_utf32_string<Allocator>::basic_utf32_string(utf8_string_view view, const Allocator& alloc)
 		: base_(alloc)
 	{
-		append_range(views::utf8_view::from_bytes_unchecked(view.base()));
+		base_ = details::transcode_valid_utf8_to_utf32_unchecked(view.base(), alloc);
 	}
 	template <typename Allocator>
 	constexpr basic_utf32_string<Allocator>::basic_utf32_string(utf16_string_view view, const Allocator& alloc)
@@ -2054,7 +2054,8 @@ namespace unicode_ranges
 	template <typename Allocator>
 	constexpr basic_utf32_string<Allocator>& basic_utf32_string<Allocator>::operator+=(utf8_string_view sv)
 	{
-		return append_range(views::utf8_view::from_bytes_unchecked(sv.base()));
+		const auto appended = details::transcode_valid_utf8_to_utf32_unchecked(sv.base(), base_.get_allocator());
+		return append_code_points(equivalent_string_view{ appended });
 	}
 	template <typename Allocator>
 	constexpr basic_utf32_string<Allocator>& basic_utf32_string<Allocator>::operator+=(utf16_string_view sv)
