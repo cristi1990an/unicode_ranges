@@ -126,3 +126,15 @@ python -m mkdocs serve
 ```
 
 Then open `http://127.0.0.1:8000/`.
+
+## License
+
+This repository is dual-licensed under:
+
+- `MIT`
+- `Apache-2.0`
+
+See `LICENSE`, `LICENSE-MIT`, and `LICENSE-APACHE`.
+
+Third-party dependency notices and the provenance-header policy for any future
+copied source files are documented in `THIRD_PARTY_NOTICES.md`.
