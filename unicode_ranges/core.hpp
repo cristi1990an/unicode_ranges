@@ -2549,9 +2549,10 @@ namespace details
 		return result;
 	}
 
-	template <bool Validate>
+	template <bool Validate, typename CharT>
+	requires (sizeof(CharT) == 1)
 	inline constexpr std::size_t transcode_utf8_to_utf32_runtime_kernel(
-		std::basic_string_view<std::uint8_t> bytes,
+		std::basic_string_view<CharT> bytes,
 		char32_t* buffer,
 		std::optional<utf8_error>* error) noexcept
 	{
@@ -2559,13 +2560,13 @@ namespace details
 		std::size_t read_index = 0;
 		while (read_index < bytes.size())
 		{
-			const auto remaining = bytes.substr(read_index);
+			const auto remaining = std::basic_string_view<CharT>{ bytes.data() + read_index, bytes.size() - read_index };
 			const auto ascii_run = ascii_prefix_length(remaining);
 			if (ascii_run != 0)
 			{
 				for (std::size_t i = 0; i != ascii_run; ++i)
 				{
-					buffer[write_index + i] = static_cast<char32_t>(remaining[i]);
+					buffer[write_index + i] = static_cast<char32_t>(static_cast<std::uint8_t>(remaining[i]));
 				}
 
 				write_index += ascii_run;
@@ -2591,7 +2592,7 @@ namespace details
 			}
 			else
 			{
-				count = utf8_byte_count_from_lead(bytes[read_index]);
+				count = utf8_byte_count_from_lead(static_cast<std::uint8_t>(bytes[read_index]));
 			}
 
 			buffer[write_index++] = static_cast<char32_t>(decode_valid_utf8_char(bytes.data() + read_index, count));
@@ -2613,13 +2614,7 @@ namespace details
 			{
 				if (!std::is_constant_evaluated())
 				{
-					return transcode_utf8_to_utf32_runtime_kernel<false>(
-						std::basic_string_view<std::uint8_t>{
-							reinterpret_cast<const std::uint8_t*>(bytes.data()),
-							bytes.size()
-						},
-						buffer,
-						nullptr);
+					return transcode_utf8_to_utf32_runtime_kernel<false>(bytes, buffer, nullptr);
 				}
 
 				std::size_t write_index = 0;
@@ -2663,13 +2658,7 @@ namespace details
 			{
 				if (!std::is_constant_evaluated())
 				{
-					return transcode_utf8_to_utf32_runtime_kernel<true>(
-						std::basic_string_view<std::uint8_t>{
-							reinterpret_cast<const std::uint8_t*>(bytes.data()),
-							bytes.size()
-						},
-						buffer,
-						&error);
+					return transcode_utf8_to_utf32_runtime_kernel<true>(bytes, buffer, &error);
 				}
 
 				std::size_t write_index = 0;
