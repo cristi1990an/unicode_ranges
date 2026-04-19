@@ -1289,6 +1289,14 @@ namespace details
 		copy_ascii_utf8_to_utf16_runtime(out, bytes);
 	}
 
+	inline constexpr void copy_ascii_utf8_to_utf32_scalar(char32_t* out, std::u8string_view bytes) noexcept
+	{
+		for (std::size_t index = 0; index != bytes.size(); ++index)
+		{
+			out[index] = static_cast<char32_t>(static_cast<std::uint8_t>(bytes[index]));
+		}
+	}
+
 	template <typename CharT>
 	requires (sizeof(CharT) >= 2)
 	inline constexpr void copy_ascii_code_units_to_utf8_scalar(char8_t* out, std::basic_string_view<CharT> code_units) noexcept
@@ -2645,6 +2653,60 @@ namespace details
 		return write_index;
 	}
 
+	inline constexpr std::size_t transcode_valid_utf8_to_utf32_runtime_u8(
+		std::u8string_view bytes,
+		char32_t* buffer) noexcept
+	{
+		std::size_t write_index = 0;
+		std::size_t read_index = 0;
+		while (read_index < bytes.size())
+		{
+			const auto remaining = std::u8string_view{ bytes.data() + read_index, bytes.size() - read_index };
+			const auto ascii_run = ascii_prefix_length(remaining);
+			if (ascii_run != 0)
+			{
+				copy_ascii_utf8_to_utf32_scalar(buffer + write_index, remaining.substr(0, ascii_run));
+				write_index += ascii_run;
+				read_index += ascii_run;
+				continue;
+			}
+
+			const auto byte = [&](std::size_t offset) noexcept -> std::uint32_t
+			{
+				return static_cast<std::uint8_t>(bytes[read_index + offset]);
+			};
+
+			const auto lead = byte(0);
+			if ((lead & encoding_constants::utf8_two_byte_prefix_mask) == encoding_constants::utf8_two_byte_prefix_value)
+			{
+				buffer[write_index++] =
+					((lead & encoding_constants::utf8_two_byte_payload_mask) << encoding_constants::utf8_two_byte_lead_shift) |
+					(byte(1) & encoding_constants::utf8_continuation_payload_mask);
+				read_index += encoding_constants::two_code_unit_count;
+				continue;
+			}
+
+			if ((lead & encoding_constants::utf8_three_byte_prefix_mask) == encoding_constants::utf8_three_byte_prefix_value)
+			{
+				buffer[write_index++] =
+					((lead & encoding_constants::utf8_three_byte_payload_mask) << encoding_constants::utf8_three_byte_lead_shift) |
+					((byte(1) & encoding_constants::utf8_continuation_payload_mask) << encoding_constants::utf8_continuation_payload_bits) |
+					(byte(2) & encoding_constants::utf8_continuation_payload_mask);
+				read_index += encoding_constants::three_code_unit_count;
+				continue;
+			}
+
+			buffer[write_index++] =
+				((lead & encoding_constants::utf8_four_byte_payload_mask) << encoding_constants::utf8_four_byte_lead_shift) |
+				((byte(1) & encoding_constants::utf8_continuation_payload_mask) << encoding_constants::utf8_three_byte_lead_shift) |
+				((byte(2) & encoding_constants::utf8_continuation_payload_mask) << encoding_constants::utf8_continuation_payload_bits) |
+				(byte(3) & encoding_constants::utf8_continuation_payload_mask);
+			read_index += encoding_constants::max_utf8_code_units;
+		}
+
+		return write_index;
+	}
+
 	template <typename CharT, typename Allocator>
 	requires (sizeof(CharT) == 1)
 	inline constexpr auto transcode_valid_utf8_to_utf32_unchecked(
@@ -2657,6 +2719,13 @@ namespace details
 			{
 				if (!std::is_constant_evaluated())
 				{
+					if constexpr (std::is_same_v<CharT, char8_t>)
+					{
+						return transcode_valid_utf8_to_utf32_runtime_u8(
+							std::u8string_view{ bytes.data(), bytes.size() },
+							buffer);
+					}
+
 					return transcode_utf8_to_utf32_runtime_kernel<false>(bytes, buffer, nullptr);
 				}
 
