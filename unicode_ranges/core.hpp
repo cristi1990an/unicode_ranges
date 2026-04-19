@@ -2332,7 +2332,15 @@ namespace details
 			{
 				if constexpr (std::is_same_v<CharT, char8_t>)
 				{
-					copy_ascii_utf8_to_utf16(buffer + write_index, std::u8string_view{ bytes.data() + read_index, ascii_run });
+					const auto ascii_bytes = std::u8string_view{ bytes.data() + read_index, ascii_run };
+					if (ascii_run < 16) [[unlikely]]
+					{
+						copy_ascii_utf8_to_utf16_scalar(buffer + write_index, ascii_bytes);
+					}
+					else
+					{
+						copy_ascii_utf8_to_utf16(buffer + write_index, ascii_bytes);
+					}
 				}
 				else
 				{
@@ -2397,7 +2405,15 @@ namespace details
 					{
 						if constexpr (std::is_same_v<CharT, char8_t>)
 						{
-							copy_ascii_utf8_to_utf16(buffer + write_index, std::u8string_view{ bytes.data() + read_index, ascii_run });
+							const auto ascii_bytes = std::u8string_view{ bytes.data() + read_index, ascii_run };
+							if (ascii_run < 16) [[unlikely]]
+							{
+								copy_ascii_utf8_to_utf16_scalar(buffer + write_index, ascii_bytes);
+							}
+							else
+							{
+								copy_ascii_utf8_to_utf16(buffer + write_index, ascii_bytes);
+							}
 						}
 						else
 						{
