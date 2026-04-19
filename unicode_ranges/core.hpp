@@ -1203,6 +1203,12 @@ namespace details
 	inline void copy_ascii_bytes_to_utf16_runtime(char16_t* out, std::basic_string_view<CharT> bytes) noexcept
 	{
 #if UTF8_RANGES_HAS_SSE2_INTRINSICS
+		if (bytes.size() < 16) [[unlikely]]
+		{
+			copy_ascii_bytes_to_utf16_scalar(out, bytes);
+			return;
+		}
+
 		const auto* data = reinterpret_cast<const char*>(bytes.data());
 		const auto zero = _mm_setzero_si128();
 		std::size_t index = 0;
@@ -1246,6 +1252,12 @@ namespace details
 	inline void copy_ascii_utf8_to_utf16_runtime(char16_t* out, std::u8string_view bytes) noexcept
 	{
 #if UTF8_RANGES_HAS_SSE2_INTRINSICS
+		if (bytes.size() < 16) [[unlikely]]
+		{
+			copy_ascii_utf8_to_utf16_scalar(out, bytes);
+			return;
+		}
+
 		const auto* data = reinterpret_cast<const char*>(bytes.data());
 		const auto zero = _mm_setzero_si128();
 		std::size_t index = 0;
