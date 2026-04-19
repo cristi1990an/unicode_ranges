@@ -108,6 +108,14 @@ struct base
 	UTF8_RANGES_SIMDUTF_REALLY_INLINE base(const __m256i _value) : value(_value) {}
 	UTF8_RANGES_SIMDUTF_REALLY_INLINE operator const __m256i& () const { return this->value; }
 
+	UTF8_RANGES_SIMDUTF_REALLY_INLINE void store_ascii_as_utf16(char16_t* ptr) const
+	{
+		__m256i first = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(*this));
+		__m256i second = _mm256_cvtepu8_epi16(_mm256_extractf128_si256(*this, 1));
+		_mm256_storeu_si256(reinterpret_cast<__m256i*>(ptr), first);
+		_mm256_storeu_si256(reinterpret_cast<__m256i*>(ptr + 16), second);
+	}
+
 	UTF8_RANGES_SIMDUTF_REALLY_INLINE Child operator |(const Child other) const
 	{
 		return _mm256_or_si256(*this, other);
@@ -213,6 +221,32 @@ struct base8_numeric : base8<T>
 };
 
 template <>
+struct simd8<std::int8_t> : base8_numeric<std::int8_t>
+{
+	UTF8_RANGES_SIMDUTF_REALLY_INLINE simd8() : base8_numeric<std::int8_t>() {}
+	UTF8_RANGES_SIMDUTF_REALLY_INLINE simd8(const __m256i _value) : base8_numeric<std::int8_t>(_value) {}
+	UTF8_RANGES_SIMDUTF_REALLY_INLINE simd8(std::int8_t _value) : simd8(splat(_value)) {}
+	UTF8_RANGES_SIMDUTF_REALLY_INLINE simd8(const std::int8_t values[32]) : simd8(load(values)) {}
+
+	UTF8_RANGES_SIMDUTF_REALLY_INLINE operator simd8<std::uint8_t>() const;
+
+	UTF8_RANGES_SIMDUTF_REALLY_INLINE bool is_ascii() const
+	{
+		return _mm256_movemask_epi8(*this) == 0;
+	}
+
+	UTF8_RANGES_SIMDUTF_REALLY_INLINE simd8<bool> operator >(const simd8<std::int8_t> other) const
+	{
+		return _mm256_cmpgt_epi8(*this, other);
+	}
+
+	UTF8_RANGES_SIMDUTF_REALLY_INLINE simd8<bool> operator <(const simd8<std::int8_t> other) const
+	{
+		return _mm256_cmpgt_epi8(other, *this);
+	}
+};
+
+template <>
 struct simd8<std::uint8_t> : base8_numeric<std::uint8_t>
 {
 	UTF8_RANGES_SIMDUTF_REALLY_INLINE simd8() : base8_numeric<std::uint8_t>() {}
@@ -279,6 +313,11 @@ struct simd8<std::uint8_t> : base8_numeric<std::uint8_t>
 	}
 };
 
+UTF8_RANGES_SIMDUTF_REALLY_INLINE simd8<std::int8_t>::operator simd8<std::uint8_t>() const
+{
+	return this->value;
+}
+
 template <typename T>
 struct simd8x64
 {
@@ -297,6 +336,30 @@ struct simd8x64
 	UTF8_RANGES_SIMDUTF_REALLY_INLINE simd8<T> reduce_or() const
 	{
 		return this->chunks[0] | this->chunks[1];
+	}
+
+	UTF8_RANGES_SIMDUTF_REALLY_INLINE bool is_ascii() const
+	{
+		return this->reduce_or().is_ascii();
+	}
+
+	UTF8_RANGES_SIMDUTF_REALLY_INLINE void store_ascii_as_utf16(char16_t* ptr) const
+	{
+		this->chunks[0].store_ascii_as_utf16(ptr + sizeof(simd8<T>) * 0);
+		this->chunks[1].store_ascii_as_utf16(ptr + sizeof(simd8<T>) * 1);
+	}
+
+	UTF8_RANGES_SIMDUTF_REALLY_INLINE std::uint64_t lt(const T m) const
+	{
+		const simd8<T> mask = simd8<T>::splat(m);
+		return simd8x64<bool>(this->chunks[0] < mask, this->chunks[1] < mask).to_bitmask();
+	}
+
+	UTF8_RANGES_SIMDUTF_REALLY_INLINE std::uint64_t to_bitmask() const
+	{
+		std::uint64_t r_lo = static_cast<std::uint32_t>(this->chunks[0].to_bitmask());
+		std::uint64_t r_hi = this->chunks[1].to_bitmask();
+		return r_lo | (r_hi << 32);
 	}
 };
 
