@@ -864,3 +864,9 @@ jobs:
           if ($env:GITHUB_STEP_SUMMARY) {
             $summaryLines -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
           }
+
+      - name: Upload comparative benchmark artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: comparative-benchmark-results-${{ matrix.output || format('msvc_{0}', matrix.configuration) }}
+          path: comparative-benchmark-results.txt
