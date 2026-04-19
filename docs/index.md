@@ -25,6 +25,7 @@ The design goal is not "maximum abstraction". It is predictable Unicode handling
 - [Common Tasks](common-tasks.md): validate input, iterate scalars versus graphemes, normalize, case-map, and convert encodings.
 - [Design](design.md): ownership, indexing, boundaries, and what the library treats as a character.
 - [Boundary Encodings](extensible-encodings.md): built-in codecs, custom encoder/decoder requirements, generated APIs, and boundary-specific error handling.
+- [Benchmarking](benchmarking.md): the cross-library benchmark charter, comparison rules, toolchain matrix, and planned benchmark families.
 - [Text Operations](text-operations.md): search, split, trim, replace, reverse, and boundary queries.
 - [Casing and Normalization](casing-and-normalization.md): Unicode casing, case folding, and normalization forms.
 - [Reference](reference/index.md): grouped API reference by type family.
