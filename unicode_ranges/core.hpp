@@ -176,6 +176,8 @@ struct utf32_error
 	std::size_t first_invalid_code_point_index = 0;
 };
 
+#include "internal/simdutf_utf8_scalar_validate.hpp"
+
 enum class unicode_scalar_error_code
 {
 	invalid_scalar
@@ -1914,6 +1916,14 @@ namespace details
 	template<typename CharT>
 	inline constexpr std::expected<void, utf8_error> validate_utf8(std::basic_string_view<CharT> value) noexcept
 	{
+		if (!std::is_constant_evaluated())
+		{
+			if constexpr (sizeof(CharT) == 1)
+			{
+				return internal::simdutf_scalar_validate_utf8(value);
+			}
+		}
+
 		std::size_t index = 0;
 		while (index < value.size())
 		{

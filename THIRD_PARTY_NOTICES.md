@@ -5,12 +5,11 @@ components keep their own licenses.
 
 ## Current state
 
-- No third-party source files are currently copied into the tracked
-  `unicode_ranges/` library sources.
-- Comparative benchmark dependencies are fetched separately and are not vendored
-  into the main library sources.
-- If copied or adapted third-party source code is added later, the affected
-  files must carry an explicit provenance header as described below.
+- Comparative benchmark dependencies are fetched separately.
+- A copied/adapted third-party validation slice is now present in the tracked
+  library sources.
+- Any additional copied or adapted third-party source files must carry an
+  explicit provenance header as described below.
 
 ## Provenance header format for copied or adapted source files
 
@@ -34,6 +33,22 @@ Rules:
 - Record the exact upstream version, tag, or commit used as the source.
 - Preserve any required upstream copyright and license notices.
 - Update the `Changes for unicode_ranges` line when materially editing the file.
+
+## Copied or adapted source files currently in the repository
+
+### simdutf validation slice
+
+- Project: `simdutf`
+- Upstream: <https://github.com/simdutf/simdutf>
+- Upstream version: `v7.7.0`
+- Original file: `src/scalar/utf8.h`
+- Original license: `MIT OR Apache-2.0`
+- Repository file:
+  - `unicode_ranges/internal/simdutf_utf8_scalar_validate.hpp`
+- Adaptation summary:
+  - reduced to runtime UTF-8 validation
+  - mapped errors into `unicode_ranges::utf8_error`
+  - removed unrelated APIs and supporting types not needed by the import
 
 ## Comparative benchmark dependencies
 
