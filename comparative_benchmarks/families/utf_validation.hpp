@@ -8,6 +8,9 @@
 #if UTF8_RANGES_COMPARATIVE_WITH_UTFCPP
 #include "../adapters/utfcpp.hpp"
 #endif
+#if UTF8_RANGES_COMPARATIVE_WITH_UNI_ALGO
+#include "../adapters/uni_algo.hpp"
+#endif
 #include "../adapters/unicode_ranges.hpp"
 #include "../corpora.hpp"
 
@@ -63,6 +66,21 @@ inline std::vector<scenario> make_utf_validation_scenarios()
 				make_unsupported_case(
 					library_id::utfcpp,
 					"utfcpp dependency was not fetched for this runner")
+#endif
+#if UTF8_RANGES_COMPARATIVE_WITH_UNI_ALGO
+				,
+				implementation_case{
+					.library = library_id::uni_algo,
+					.run = [&input]() -> std::size_t
+					{
+						return adapters::validate_utf8_uni_algo(input);
+					}
+				}
+#else
+				,
+				make_unsupported_case(
+					library_id::uni_algo,
+					"uni-algo dependency was not fetched for this runner")
 #endif
 			}
 		});

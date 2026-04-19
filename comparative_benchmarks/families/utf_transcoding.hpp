@@ -12,6 +12,9 @@
 #if UTF8_RANGES_COMPARATIVE_WITH_UTFCPP
 #include "../adapters/utfcpp.hpp"
 #endif
+#if UTF8_RANGES_COMPARATIVE_WITH_UNI_ALGO
+#include "../adapters/uni_algo.hpp"
+#endif
 #include "../adapters/unicode_ranges.hpp"
 #include "../corpora.hpp"
 
@@ -73,6 +76,21 @@ inline std::vector<scenario> make_utf_transcoding_scenarios()
 					library_id::utfcpp,
 					"utfcpp dependency was not fetched for this runner")
 #endif
+#if UTF8_RANGES_COMPARATIVE_WITH_UNI_ALGO
+				,
+				implementation_case{
+					.library = library_id::uni_algo,
+					.run = [&input]() -> std::size_t
+					{
+						return adapters::utf8_to_utf16_owned_uni_algo(input);
+					}
+				}
+#else
+				,
+				make_unsupported_case(
+					library_id::uni_algo,
+					"uni-algo dependency was not fetched for this runner")
+#endif
 			}
 		});
 
@@ -118,6 +136,21 @@ inline std::vector<scenario> make_utf_transcoding_scenarios()
 				make_unsupported_case(
 					library_id::utfcpp,
 					"utfcpp dependency was not fetched for this runner")
+#endif
+#if UTF8_RANGES_COMPARATIVE_WITH_UNI_ALGO
+				,
+				implementation_case{
+					.library = library_id::uni_algo,
+					.run = [&input]() -> std::size_t
+					{
+						return adapters::utf8_to_utf32_owned_uni_algo(input);
+					}
+				}
+#else
+				,
+				make_unsupported_case(
+					library_id::uni_algo,
+					"uni-algo dependency was not fetched for this runner")
 #endif
 			}
 		});
@@ -166,6 +199,10 @@ inline std::vector<scenario> make_utf_transcoding_scenarios()
 					library_id::utfcpp,
 					"utfcpp dependency was not fetched for this runner")
 #endif
+				,
+				make_unsupported_case(
+					library_id::uni_algo,
+					"no public caller-buffer UTF-8 to UTF-16 transcoding API")
 			}
 		});
 
@@ -213,6 +250,10 @@ inline std::vector<scenario> make_utf_transcoding_scenarios()
 					library_id::utfcpp,
 					"utfcpp dependency was not fetched for this runner")
 #endif
+				,
+				make_unsupported_case(
+					library_id::uni_algo,
+					"no public caller-buffer UTF-8 to UTF-32 transcoding API")
 			}
 		});
 	}

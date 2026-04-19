@@ -98,7 +98,7 @@ No single library overlaps the full `unicode_ranges` surface. Comparisons are th
 | [simdutf](https://github.com/simdutf/simdutf) | UTF validation, UTF transcoding | strongest raw UTF codec baseline; not a normalization or segmentation library |
 | [ICU](https://unicode-org.github.io/icu/userguide/) | normalization, case mapping, segmentation, legacy encoding conversion | broadest feature overlap; use converter APIs for boundary encodings |
 | [Boost.Text](https://tzlaine.github.io/text/doc/html/index.html) | transcoding, normalization, segmentation, case mapping | broad algorithm overlap in modern C++ |
-| [uni-algo](https://github.com/uni-algo/uni-algo) | conversion, normalization, case mapping, segmentation | strong safe-Unicode algorithm baseline |
+| [uni-algo](https://github.com/uni-algo/uni-algo) | conversion, normalization, case mapping, segmentation | strong safe-Unicode algorithm baseline; strict conversion and validation APIs are public in `conv.h` |
 | [utf8proc](https://github.com/JuliaStrings/utf8proc) | UTF-8 normalization, case folding | useful narrow baseline for UTF-8-only Unicode algorithms |
 | [utfcpp](https://github.com/nemtrif/utfcpp) | UTF-8 validation, iteration, UTF conversion | useful UTF-only C++ baseline |
 | [libiconv](https://www.gnu.org/s/libiconv/) | legacy encoding conversion | important baseline once non-UTF boundary encodings expand |
@@ -303,8 +303,14 @@ Current comparative suite:
     - pinned to tag `v4.0.9`
     - fetched dynamically in CI through a shallow tag clone
     - wired for strict UTF-8 validation and strict UTF-8 transcoding
+  - `uni-algo`
+    - pinned to tag `v1.0.0`
+    - fetched dynamically in CI through a shallow tag clone
+    - wired for strict UTF-8 validation and strict UTF-8 owned transcoding
+    - reported as unsupported for current caller-buffer rows because its public conversion API materializes owned strings
 - strict UTF-8 caller-buffer transcoding rows are present too
   - `simdutf` and `utfcpp` are currently the supported external baselines there
+  - `uni-algo` is reported as unsupported there because the public API does not expose caller-buffer UTF transcoding
   - `unicode_ranges` is reported as unsupported for those rows because it does
     not currently expose a public caller-buffer UTF transcoding API
 - comparative dependencies are defined in `comparative_benchmarks/dependencies.json`
@@ -315,7 +321,7 @@ Current comparative suite:
 It still does not imply:
 
 - vendored third-party dependencies
-- broad cross-library coverage beyond the initial `simdutf` and `utfcpp` baselines
+- broad cross-library coverage beyond the initial `simdutf`, `utfcpp`, and `uni-algo` baselines
 - benchmark rows for normalization, case mapping, segmentation, or boundary encodings
 
 The next implementation phases on this branch are additional external baselines and additional benchmark families.

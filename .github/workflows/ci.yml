@@ -765,8 +765,10 @@ jobs:
           deps_root="$(pwd)/build/comparative-deps"
           simdutf_root="$(pwsh -NoProfile -File ./tools/fetch_comparative_dependency.ps1 -Name simdutf -DestinationRoot "$deps_root")"
           utfcpp_root="$(pwsh -NoProfile -File ./tools/fetch_comparative_dependency.ps1 -Name utfcpp -DestinationRoot "$deps_root")"
+          uni_algo_root="$(pwsh -NoProfile -File ./tools/fetch_comparative_dependency.ps1 -Name uni_algo -DestinationRoot "$deps_root")"
           echo "SIMDUTF_ROOT=$simdutf_root" >> "$GITHUB_ENV"
           echo "UTFCPP_ROOT=$utfcpp_root" >> "$GITHUB_ENV"
+          echo "UNI_ALGO_ROOT=$uni_algo_root" >> "$GITHUB_ENV"
 
       - name: Fetch comparative dependencies (MSVC)
         if: matrix.install_kind == 'msvc'
@@ -775,8 +777,10 @@ jobs:
           $depsRoot = Join-Path $PWD "build/comparative-deps"
           $simdutfRoot = .\tools\fetch_comparative_dependency.ps1 -Name simdutf -DestinationRoot $depsRoot
           $utfcppRoot = .\tools\fetch_comparative_dependency.ps1 -Name utfcpp -DestinationRoot $depsRoot
+          $uniAlgoRoot = .\tools\fetch_comparative_dependency.ps1 -Name uni_algo -DestinationRoot $depsRoot
           "SIMDUTF_ROOT=$simdutfRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "UTFCPP_ROOT=$utfcppRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "UNI_ALGO_ROOT=$uniAlgoRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Show fetched comparative dependency versions
         shell: pwsh
@@ -815,7 +819,7 @@ jobs:
       - name: Build comparative benchmark runner
         if: matrix.install_kind != 'msvc'
         run: |
-          ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} -DUTF8_RANGES_COMPARATIVE_WITH_SIMDUTF=1 -DUTF8_RANGES_COMPARATIVE_WITH_UTFCPP=1 -I"${SIMDUTF_ROOT}" -I"${UTFCPP_ROOT}/source" -c comparative_benchmarks.cpp -o comparative_benchmarks.o
+          ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} -DUTF8_RANGES_COMPARATIVE_WITH_SIMDUTF=1 -DUTF8_RANGES_COMPARATIVE_WITH_UTFCPP=1 -DUTF8_RANGES_COMPARATIVE_WITH_UNI_ALGO=1 -I"${SIMDUTF_ROOT}" -I"${UTFCPP_ROOT}/source" -I"${UNI_ALGO_ROOT}/include" -c comparative_benchmarks.cpp -o comparative_benchmarks.o
           ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} ${{ matrix.cxxflags }} -DUTF8_RANGES_COMPARATIVE_WITH_SIMDUTF=1 -I"${SIMDUTF_ROOT}" -Wno-error=overflow -Wno-error=pedantic -c comparative_benchmarks/third_party/simdutf_amalgamation.cpp -o simdutf_amalgamation.o
           ${{ matrix.cxx }} comparative_benchmarks.o simdutf_amalgamation.o ${{ matrix.cxxflags }} -o ${{ matrix.output }}
 
@@ -843,7 +847,7 @@ jobs:
           $summaryLines = @(
             "## Comparative benchmarks (${{ matrix.name }}, ${{ matrix.opt_name || matrix.configuration }})"
             ""
-            "_Current baselines: unicode_ranges, simdutf (v7.7.0), and utfcpp (v4.0.9)._"
+            "_Current baselines: unicode_ranges, simdutf (v7.7.0), utfcpp (v4.0.9), and uni-algo (v1.0.0)._"
             "_Unsupported rows are reported explicitly when a library or public API surface does not cover the benchmark contract._"
             ""
             '```text'

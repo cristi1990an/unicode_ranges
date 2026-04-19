@@ -77,10 +77,14 @@
     <SimdutfAvailable Condition="Exists('$(SimdutfRoot)\\simdutf.h') And Exists('$(SimdutfRoot)\\simdutf.cpp')">true</SimdutfAvailable>
     <UtfcppRoot Condition="'$(UtfcppRoot)'==''">$(UTFCPP_ROOT)</UtfcppRoot>
     <UtfcppAvailable Condition="Exists('$(UtfcppRoot)\\source\\utf8.h')">true</UtfcppAvailable>
+    <UniAlgoRoot Condition="'$(UniAlgoRoot)'==''">$(UNI_ALGO_ROOT)</UniAlgoRoot>
+    <UniAlgoAvailable Condition="Exists('$(UniAlgoRoot)\\include\\uni_algo\\conv.h')">true</UniAlgoAvailable>
     <ComparativeIncludeDirectories Condition="'$(SimdutfAvailable)'=='true'">$(SimdutfRoot);$(ComparativeIncludeDirectories)</ComparativeIncludeDirectories>
     <ComparativePreprocessorDefinitions Condition="'$(SimdutfAvailable)'=='true'">UTF8_RANGES_COMPARATIVE_WITH_SIMDUTF=1;$(ComparativePreprocessorDefinitions)</ComparativePreprocessorDefinitions>
     <ComparativeIncludeDirectories Condition="'$(UtfcppAvailable)'=='true'">$(UtfcppRoot)\source;$(ComparativeIncludeDirectories)</ComparativeIncludeDirectories>
     <ComparativePreprocessorDefinitions Condition="'$(UtfcppAvailable)'=='true'">UTF8_RANGES_COMPARATIVE_WITH_UTFCPP=1;$(ComparativePreprocessorDefinitions)</ComparativePreprocessorDefinitions>
+    <ComparativeIncludeDirectories Condition="'$(UniAlgoAvailable)'=='true'">$(UniAlgoRoot)\include;$(ComparativeIncludeDirectories)</ComparativeIncludeDirectories>
+    <ComparativePreprocessorDefinitions Condition="'$(UniAlgoAvailable)'=='true'">UTF8_RANGES_COMPARATIVE_WITH_UNI_ALGO=1;$(ComparativePreprocessorDefinitions)</ComparativePreprocessorDefinitions>
   </PropertyGroup>
   <PropertyGroup>
     <OutDir>$(Platform)\$(Configuration)\</OutDir>
