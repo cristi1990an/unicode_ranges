@@ -6,7 +6,7 @@ components keep their own licenses.
 ## Current state
 
 - Comparative benchmark dependencies are fetched separately.
-- A copied/adapted third-party validation slice is now present in the tracked
+- No copied or adapted third-party source files are currently tracked in the
   library sources.
 - Any additional copied or adapted third-party source files must carry an
   explicit provenance header as described below.
@@ -36,41 +36,8 @@ Rules:
 
 ## Copied or adapted source files currently in the repository
 
-### simdutf validation slice
-
-- Project: `simdutf`
-- Upstream: <https://github.com/simdutf/simdutf>
-- Upstream version: `v7.7.0`
-- Original files:
-  - `src/scalar/utf8.h`
-  - `include/simdutf/portability.h`
-  - `src/simdutf/haswell/begin.h`
-  - `src/simdutf/haswell/simd.h`
-  - `src/generic/buf_block_reader.h`
-  - `src/generic/utf8_validation/utf8_lookup4_algorithm.h`
-  - `src/generic/utf8_validation/utf8_validator.h`
-  - `src/haswell/avx2_convert_utf8_to_utf16.cpp`
-  - `src/haswell/avx2_convert_utf8_to_utf32.cpp`
-  - `src/tables/utf8_to_utf16_tables.h`
-  - `src/generic/utf8_to_utf16/valid_utf8_to_utf16.h`
-  - `src/generic/utf8_to_utf32/valid_utf8_to_utf32.h`
-- Original license: `MIT OR Apache-2.0`
-- Repository file:
-  - `unicode_ranges/internal/simdutf_utf8_scalar_validate.hpp`
-  - `unicode_ranges/internal/simdutf_haswell_utf8_validate.hpp`
-  - `unicode_ranges/internal/simdutf_utf8_to_utf16_tables.hpp`
-  - `unicode_ranges/internal/simdutf_haswell_utf8_to_utf16.hpp`
-  - `unicode_ranges/internal/simdutf_haswell_utf8_to_utf32.hpp`
-- Adaptation summary:
-  - reduced to runtime UTF-8 validation
-  - scalar path maps errors into `unicode_ranges::utf8_error`
-  - AVX2 path is success/fail only and falls back to the scalar validator for
-    exact error reporting
-  - AVX2 valid UTF-8 to UTF-16 conversion is imported for the runtime
-    trusted-valid path and reused by the checked path after validation succeeds
-  - AVX2 valid UTF-8 to UTF-32 conversion is imported for the runtime
-    trusted-valid path and reused by the checked path after validation succeeds
-  - removed unrelated APIs and supporting types not needed by the import
+There are currently no copied or adapted third-party source files tracked in
+the repository.
 
 ## Comparative benchmark dependencies
 

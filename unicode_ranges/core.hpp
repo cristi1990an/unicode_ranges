@@ -90,9 +90,6 @@
 #endif
 
 #include "unicode_tables.hpp"
-#include "internal/simdutf_haswell_utf8_validate.hpp"
-#include "internal/simdutf_haswell_utf8_to_utf16.hpp"
-#include "internal/simdutf_haswell_utf8_to_utf32.hpp"
 
 namespace unicode_ranges
 {
@@ -178,8 +175,6 @@ struct utf32_error
 	utf32_error_code code{};
 	std::size_t first_invalid_code_point_index = 0;
 };
-
-#include "internal/simdutf_utf8_scalar_validate.hpp"
 
 enum class unicode_scalar_error_code
 {
@@ -1919,24 +1914,6 @@ namespace details
 	template<typename CharT>
 	inline constexpr std::expected<void, utf8_error> validate_utf8(std::basic_string_view<CharT> value) noexcept
 	{
-		if (!std::is_constant_evaluated())
-		{
-			if constexpr (sizeof(CharT) == 1)
-			{
-				if (internal::simdutf_haswell_runtime_available())
-				{
-					if (internal::simdutf_haswell_validation::validate_utf8(
-						reinterpret_cast<const char*>(value.data()),
-						value.size()))
-					{
-						return {};
-					}
-				}
-
-				return internal::simdutf_scalar_validate_utf8(value);
-			}
-		}
-
 		std::size_t index = 0;
 		while (index < value.size())
 		{
@@ -2423,16 +2400,6 @@ namespace details
 			{
 				if (!std::is_constant_evaluated())
 				{
-					if constexpr (std::is_same_v<CharT, char8_t>)
-					{
-						if (internal::simdutf_haswell_runtime_available())
-						{
-							return internal::simdutf_haswell_utf8_to_utf16::convert_valid(
-								std::u8string_view{ bytes.data(), bytes.size() },
-								buffer);
-						}
-					}
-
 					return transcode_utf8_to_utf16_runtime_kernel<false>(bytes, buffer, nullptr);
 				}
 
@@ -2489,22 +2456,6 @@ namespace details
 			{
 				if (!std::is_constant_evaluated())
 				{
-					if (internal::simdutf_haswell_runtime_available())
-					{
-						if (const auto validation = validate_utf8(bytes); !validation) [[unlikely]]
-						{
-							error = validation.error();
-							return std::size_t{ 0 };
-						}
-
-						return internal::simdutf_haswell_utf8_to_utf16::convert_valid(
-							std::u8string_view{
-								reinterpret_cast<const char8_t*>(bytes.data()),
-								bytes.size()
-							},
-							buffer);
-					}
-
 					return transcode_utf8_to_utf16_runtime_kernel<true>(bytes, buffer, &error);
 				}
 
@@ -2770,13 +2721,6 @@ namespace details
 				{
 					if constexpr (std::is_same_v<CharT, char8_t>)
 					{
-						if (internal::simdutf_haswell_runtime_available())
-						{
-							return internal::simdutf_haswell_utf8_to_utf32::convert_valid(
-								std::u8string_view{ bytes.data(), bytes.size() },
-								buffer);
-						}
-
 						return transcode_valid_utf8_to_utf32_runtime_u8(
 							std::u8string_view{ bytes.data(), bytes.size() },
 							buffer);
@@ -2826,22 +2770,6 @@ namespace details
 			{
 				if (!std::is_constant_evaluated())
 				{
-					if (internal::simdutf_haswell_runtime_available())
-					{
-						if (const auto validation = validate_utf8(bytes); !validation) [[unlikely]]
-						{
-							error = validation.error();
-							return std::size_t{ 0 };
-						}
-
-						return internal::simdutf_haswell_utf8_to_utf32::convert_valid(
-							std::u8string_view{
-								reinterpret_cast<const char8_t*>(bytes.data()),
-								bytes.size()
-							},
-							buffer);
-					}
-
 					return transcode_utf8_to_utf32_runtime_kernel<true>(bytes, buffer, &error);
 				}
 
