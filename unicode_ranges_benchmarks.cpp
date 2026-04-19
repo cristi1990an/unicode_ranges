@@ -1158,6 +1158,50 @@ int main(int argc, char** argv)
 		}
 	});
 	cases.push_back({
+		"utf8.to_utf16.ascii.factory",
+		utf8_ascii_upper_storage.size(),
+		8,
+		[&]() -> std::size_t
+		{
+			auto result = utf16_string::from_bytes(
+				std::string_view{ reinterpret_cast<const char*>(utf8_ascii_upper_storage.data()), utf8_ascii_upper_storage.size() });
+			UTF8_RANGES_BENCHMARK_ASSERT(result.has_value());
+			return checksum(result->base());
+		}
+	});
+	cases.push_back({
+		"utf8.to_utf16.ascii.view",
+		utf8_ascii_upper_storage.size(),
+		8,
+		[&]() -> std::size_t
+		{
+			auto result = utf8_string_view::from_bytes_unchecked(utf8_ascii_upper_storage).to_utf16();
+			return checksum(result.base());
+		}
+	});
+	cases.push_back({
+		"utf8.to_utf32.ascii.factory",
+		utf8_ascii_upper_storage.size(),
+		8,
+		[&]() -> std::size_t
+		{
+			auto result = utf32_string::from_bytes(
+				std::string_view{ reinterpret_cast<const char*>(utf8_ascii_upper_storage.data()), utf8_ascii_upper_storage.size() });
+			UTF8_RANGES_BENCHMARK_ASSERT(result.has_value());
+			return checksum(result->base());
+		}
+	});
+	cases.push_back({
+		"utf8.to_utf32.ascii.view",
+		utf8_ascii_upper_storage.size(),
+		8,
+		[&]() -> std::size_t
+		{
+			auto result = utf8_string_view::from_bytes_unchecked(utf8_ascii_upper_storage).to_utf32();
+			return checksum(result.base());
+		}
+	});
+	cases.push_back({
 		"utf8.to_utf16.mixed.factory",
 		utf8_mixed_upper_storage.size(),
 		8,
