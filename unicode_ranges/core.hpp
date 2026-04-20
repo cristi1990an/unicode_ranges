@@ -708,8 +708,9 @@ namespace details
 		// The calling thread participates as the last worker to avoid spinning up an
 		// extra thread just to sit idle waiting for joins.
 		const auto background_worker_count = worker_count - 1;
+		static_assert(runtime_parallel_max_worker_count >= 2);
 #if UTF8_RANGES_HAS_JTHREAD
-		auto workers = std::make_unique<std::jthread[]>(background_worker_count);
+		std::array<std::jthread, runtime_parallel_max_worker_count - 1> workers{};
 		for (std::size_t worker_index = 0; worker_index != background_worker_count; ++worker_index)
 		{
 			workers[worker_index] = std::jthread([&, worker_index]
@@ -719,7 +720,7 @@ namespace details
 		}
 		fn(background_worker_count);
 #else
-		auto workers = std::make_unique<std::thread[]>(background_worker_count);
+		std::array<std::thread, runtime_parallel_max_worker_count - 1> workers{};
 		std::size_t started_workers = 0;
 		try
 		{
