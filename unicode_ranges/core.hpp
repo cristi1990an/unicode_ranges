@@ -79,6 +79,7 @@
 
 #if defined(_MSC_VER) && !defined(__clang__)
 #define UTF8_RANGES_NO_UNIQUE_ADDRESS [[msvc::no_unique_address]]
+#define UTF8_RANGES_FORCEINLINE __forceinline
 #elif defined(__has_cpp_attribute)
 #if __has_cpp_attribute(no_unique_address)
 #define UTF8_RANGES_NO_UNIQUE_ADDRESS [[no_unique_address]]
@@ -87,6 +88,14 @@
 #endif
 #else
 #define UTF8_RANGES_NO_UNIQUE_ADDRESS
+#endif
+
+#ifndef UTF8_RANGES_FORCEINLINE
+#if defined(__clang__) || defined(__GNUC__)
+#define UTF8_RANGES_FORCEINLINE inline __attribute__((always_inline))
+#else
+#define UTF8_RANGES_FORCEINLINE inline
+#endif
 #endif
 
 #include "unicode_tables.hpp"
@@ -555,7 +564,7 @@ namespace details
 	}
 
 	template <typename CharT>
-	inline constexpr std::size_t ascii_prefix_length(std::basic_string_view<CharT> value) noexcept
+	UTF8_RANGES_FORCEINLINE constexpr std::size_t ascii_prefix_length(std::basic_string_view<CharT> value) noexcept
 	{
 		if (std::is_constant_evaluated())
 		{
@@ -566,9 +575,20 @@ namespace details
 	}
 
 	template <typename CharT>
-	inline constexpr bool is_ascii_only(std::basic_string_view<CharT> value) noexcept
+	UTF8_RANGES_FORCEINLINE constexpr bool is_ascii_only(std::basic_string_view<CharT> value) noexcept
 	{
 		return ascii_prefix_length(value) == value.size();
+	}
+
+	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr bool simdutf_runtime_enabled_for_target() noexcept
+	{
+#if defined(_M_IX86) || defined(__i386__)
+		// The current compiled simdutf bridge regresses the 32-bit x86 benchmark rows.
+		return false;
+#else
+		return true;
+#endif
 	}
 
 	// Runtime-only thresholding for the UTF-32 parallel paths. These are intentionally
@@ -1916,7 +1936,7 @@ namespace details
 	template<typename CharT>
 	inline constexpr std::expected<void, utf8_error> validate_utf8(std::basic_string_view<CharT> value) noexcept
 	{
-		if (!std::is_constant_evaluated())
+		if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
 		{
 			if constexpr (std::same_as<CharT, char>)
 			{
@@ -2293,7 +2313,7 @@ namespace details
 		result.resize_and_overwrite(bytes.size(),
 			[&](char8_t* buffer, std::size_t) noexcept
 			{
-				if (!std::is_constant_evaluated())
+				if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
 				{
 					if (auto validated = simdutf_validate_utf8_runtime(bytes); !validated) [[unlikely]]
 					{
@@ -2414,6 +2434,54 @@ namespace details
 		return write_index;
 	}
 
+	template <typename Allocator>
+	UTF8_RANGES_FORCEINLINE auto copy_ascii_utf8_to_utf16_owned(
+		std::u8string_view bytes,
+		const Allocator& alloc) -> utf16_base_string<Allocator>
+	{
+		utf16_base_string<Allocator> result{ alloc };
+		result.resize_and_overwrite(bytes.size(),
+			[&](char16_t* buffer, std::size_t) noexcept
+			{
+				if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+				{
+					return simdutf_convert_valid_utf8_to_utf16_runtime(bytes, buffer);
+				}
+
+				if (bytes.size() < 16) [[unlikely]]
+				{
+					copy_ascii_utf8_to_utf16_scalar(buffer, bytes);
+				}
+				else
+				{
+					copy_ascii_utf8_to_utf16(buffer, bytes);
+				}
+
+				return bytes.size();
+			});
+		return result;
+	}
+
+	template <typename Allocator>
+	UTF8_RANGES_FORCEINLINE auto copy_ascii_utf8_to_utf32_owned(
+		std::u8string_view bytes,
+		const Allocator& alloc) -> utf32_base_string<Allocator>
+	{
+		utf32_base_string<Allocator> result{ alloc };
+		result.resize_and_overwrite(bytes.size(),
+			[&](char32_t* buffer, std::size_t) noexcept
+			{
+				if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+				{
+					return simdutf_convert_valid_utf8_to_utf32_runtime(bytes, buffer);
+				}
+
+				copy_ascii_utf8_to_utf32_scalar(buffer, bytes);
+				return bytes.size();
+			});
+		return result;
+	}
+
 	template <typename CharT, typename Allocator>
 	requires (sizeof(CharT) == 1)
 	inline constexpr auto transcode_valid_utf8_to_utf16_unchecked(
@@ -2424,16 +2492,24 @@ namespace details
 		{
 			if constexpr (std::same_as<CharT, char8_t>)
 			{
-				utf16_base_string<Allocator> result{ alloc };
 				const auto input = std::u8string_view{ bytes.data(), bytes.size() };
-				const auto output_size = simdutf_utf16_length_from_valid_utf8_runtime(input);
-				result.resize_and_overwrite(output_size,
-					[&](char16_t* buffer, std::size_t) noexcept
-					{
-						return simdutf_convert_valid_utf8_to_utf16_runtime(input, buffer);
-					});
+				if (is_ascii_only(input))
+				{
+					return copy_ascii_utf8_to_utf16_owned(input, alloc);
+				}
 
-				return result;
+				if (simdutf_runtime_enabled_for_target())
+				{
+					utf16_base_string<Allocator> result{ alloc };
+					const auto output_size = simdutf_utf16_length_from_valid_utf8_runtime(input);
+					result.resize_and_overwrite(output_size,
+						[&](char16_t* buffer, std::size_t) noexcept
+						{
+							return simdutf_convert_valid_utf8_to_utf16_runtime(input, buffer);
+						});
+
+					return result;
+				}
 			}
 		}
 
@@ -2497,8 +2573,14 @@ namespace details
 		result.resize_and_overwrite(bytes.size(),
 			[&](char16_t* buffer, std::size_t) noexcept
 			{
-				if (!std::is_constant_evaluated())
+				if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
 				{
+					if (is_ascii_only(bytes))
+					{
+						copy_ascii_bytes_to_utf16(buffer, bytes);
+						return bytes.size();
+					}
+
 					const auto converted = simdutf_convert_utf8_to_utf16_checked_runtime(bytes, buffer);
 					if (converted) [[likely]]
 					{
@@ -2767,16 +2849,24 @@ namespace details
 		{
 			if constexpr (std::same_as<CharT, char8_t>)
 			{
-				utf32_base_string<Allocator> result{ alloc };
 				const auto input = std::u8string_view{ bytes.data(), bytes.size() };
-				const auto output_size = simdutf_utf32_length_from_valid_utf8_runtime(input);
-				result.resize_and_overwrite(output_size,
-					[&](char32_t* buffer, std::size_t) noexcept
-					{
-						return simdutf_convert_valid_utf8_to_utf32_runtime(input, buffer);
-					});
+				if (is_ascii_only(input))
+				{
+					return copy_ascii_utf8_to_utf32_owned(input, alloc);
+				}
 
-				return result;
+				if (simdutf_runtime_enabled_for_target())
+				{
+					utf32_base_string<Allocator> result{ alloc };
+					const auto output_size = simdutf_utf32_length_from_valid_utf8_runtime(input);
+					result.resize_and_overwrite(output_size,
+						[&](char32_t* buffer, std::size_t) noexcept
+						{
+							return simdutf_convert_valid_utf8_to_utf32_runtime(input, buffer);
+						});
+
+					return result;
+				}
 			}
 		}
 
@@ -2835,7 +2925,7 @@ namespace details
 		result.resize_and_overwrite(bytes.size(),
 			[&](char32_t* buffer, std::size_t) noexcept
 			{
-				if (!std::is_constant_evaluated())
+				if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
 				{
 					const auto converted = simdutf_convert_utf8_to_utf32_checked_runtime(bytes, buffer);
 					if (converted) [[likely]]

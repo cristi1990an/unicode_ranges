@@ -125,13 +125,15 @@ jobs:
 
       - name: Build and run tests for all Unicode versions
         run: |
+          compile_lto_flags="-flto"
+          link_lto_flags="-flto"
           for version in $UNICODE_TEST_VERSIONS; do
             pwsh ./tools/update_unicode_data.ps1 -Version "$version"
             pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
             output="unicode_ranges_macos_o2_${version//./_}"
             runtime_obj="${output}_runtime.o"
-            clang++ -std=c++23 -O2 -Wall -Wextra -Werror -pedantic -pthread -I"${SIMDUTF_ROOT}" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
-            clang++ -std=c++23 -O2 -Wall -Wextra -Werror -pedantic -pthread -I"${SIMDUTF_ROOT}" source.cpp "$runtime_obj" -o "$output"
+            clang++ -std=c++23 -O2 -Wall -Wextra -Werror -pedantic -pthread $compile_lto_flags -I"${SIMDUTF_ROOT}" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
+            clang++ -std=c++23 -O2 -Wall -Wextra -Werror -pedantic -pthread $link_lto_flags -I"${SIMDUTF_ROOT}" source.cpp "$runtime_obj" -o "$output"
             "./$output"
           done
 
@@ -355,7 +357,7 @@ jobs:
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
           sudo ./llvm.sh 22
-          sudo apt-get install -y ${{ matrix.packages }}
+          sudo apt-get install -y ${{ matrix.packages }} lld-22
 
       - name: Show compiler version
         run: |
@@ -371,13 +373,22 @@ jobs:
 
       - name: Build and run tests for all Unicode versions
         run: |
+          compile_lto_flags=""
+          link_lto_flags=""
+          if [ -z "${{ matrix.sanitizer_flags }}" ] && [ "${{ matrix.opt_name }}" != "O0" ]; then
+            compile_lto_flags="-flto"
+            link_lto_flags="-flto"
+            if [ "${{ matrix.install_kind }}" = "clang" ]; then
+              link_lto_flags="${link_lto_flags} -fuse-ld=lld"
+            fi
+          fi
           for version in $UNICODE_TEST_VERSIONS; do
             pwsh ./tools/update_unicode_data.ps1 -Version "$version"
             pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
             output="${{ matrix.output }}_${version//./_}"
             runtime_obj="${output}_runtime.o"
-            ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
-            ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 source.cpp "$runtime_obj" -o "$output"
+            ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} $compile_lto_flags -I"${SIMDUTF_ROOT}" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
+            ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} $link_lto_flags -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 source.cpp "$runtime_obj" -o "$output"
             "./$output"
             if [ -n "${{ matrix.sanitizer_flags }}" ]; then
               forced_output="${output}_forced_parallel"
@@ -449,13 +460,19 @@ jobs:
 
       - name: Build and run tests for all Unicode versions
         run: |
+          compile_lto_flags=""
+          link_lto_flags=""
+          if [ -z "${{ matrix.sanitizer_flags }}" ]; then
+            compile_lto_flags="-flto"
+            link_lto_flags="-flto"
+          fi
           for version in $UNICODE_TEST_VERSIONS; do
             pwsh ./tools/update_unicode_data.ps1 -Version "$version"
             pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
             output="${{ matrix.output }}_${version//./_}"
             runtime_obj="${output}_runtime.o"
-            g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
-            g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 source.cpp "$runtime_obj" -o "$output"
+            g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} $compile_lto_flags -I"${SIMDUTF_ROOT}" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
+            g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} $link_lto_flags -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 source.cpp "$runtime_obj" -o "$output"
             "./$output"
             if [ -n "${{ matrix.sanitizer_flags }}" ]; then
               forced_output="${output}_forced_parallel"
@@ -508,7 +525,7 @@ jobs:
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
           sudo ./llvm.sh 22
-          sudo apt-get install -y ${{ matrix.packages }}
+          sudo apt-get install -y ${{ matrix.packages }} lld-22
 
       - name: Show tool versions
         run: |
@@ -525,6 +542,11 @@ jobs:
 
       - name: Build and run ICU-enabled tests for all Unicode versions
         run: |
+          compile_lto_flags="-flto"
+          link_lto_flags="-flto"
+          if [ "${{ matrix.install_kind }}" = "clang" ]; then
+            link_lto_flags="${link_lto_flags} -fuse-ld=lld"
+          fi
           for version in $UNICODE_TEST_VERSIONS; do
             pwsh ./tools/update_unicode_data.ps1 -Version "$version"
             pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
@@ -533,6 +555,7 @@ jobs:
             ${{ matrix.cxx }} -std=c++23 -O2 -Wall -Wextra -Werror -pedantic \
               -DUTF8_RANGES_ENABLE_ICU=1 \
               ${{ matrix.cxxflags }} \
+              $compile_lto_flags \
               -I"${SIMDUTF_ROOT}" \
               $(pkg-config --cflags icu-uc) \
               -Wno-error=overflow -Wno-error=pedantic \
@@ -541,6 +564,7 @@ jobs:
             ${{ matrix.cxx }} -std=c++23 -O2 -Wall -Wextra -Werror -pedantic \
               -DUTF8_RANGES_ENABLE_ICU=1 \
               ${{ matrix.cxxflags }} \
+              $link_lto_flags \
               -I"${SIMDUTF_ROOT}" \
               $(pkg-config --cflags icu-uc) \
               source.cpp "$runtime_obj" \
@@ -585,7 +609,7 @@ jobs:
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
           sudo ./llvm.sh 22
-          sudo apt-get install -y ${{ matrix.packages }}
+          sudo apt-get install -y ${{ matrix.packages }} lld-22
 
       - name: Show compiler version
         run: |
@@ -764,8 +788,13 @@ jobs:
 
       - name: Build benchmark runner
         run: |
-          ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} -I"${SIMDUTF_ROOT}" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o unicode_ranges_runtime.o
-          ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} -I"${SIMDUTF_ROOT}" unicode_ranges_benchmarks.cpp unicode_ranges_runtime.o -o ${{ matrix.output }}
+          compile_lto_flags="-flto"
+          link_lto_flags="-flto"
+          if [ "${{ matrix.install_kind }}" = "clang" ]; then
+            link_lto_flags="${link_lto_flags} -fuse-ld=lld"
+          fi
+          ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $compile_lto_flags -I"${SIMDUTF_ROOT}" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o unicode_ranges_runtime.o
+          ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $link_lto_flags -I"${SIMDUTF_ROOT}" unicode_ranges_benchmarks.cpp unicode_ranges_runtime.o -o ${{ matrix.output }}
 
       - name: Run benchmark suite
         run: ./${{ matrix.output }} --min-ms=300 > benchmark-results.txt
@@ -834,7 +863,7 @@ jobs:
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
           sudo ./llvm.sh 22
-          sudo apt-get install -y ${{ matrix.packages }}
+          sudo apt-get install -y ${{ matrix.packages }} lld-22
 
       - name: Setup MSBuild
         if: matrix.install_kind == 'msvc'
@@ -900,9 +929,14 @@ jobs:
       - name: Build comparative benchmark runner
         if: matrix.install_kind != 'msvc'
         run: |
-          ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} -DUTF8_RANGES_COMPARATIVE_WITH_SIMDUTF=1 -DUTF8_RANGES_COMPARATIVE_WITH_UTFCPP=1 -DUTF8_RANGES_COMPARATIVE_WITH_UNI_ALGO=1 -I"${SIMDUTF_ROOT}" -I"${UTFCPP_ROOT}/source" -I"${UNI_ALGO_ROOT}/include" -c comparative_benchmarks.cpp -o comparative_benchmarks.o
-          ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} -I"${SIMDUTF_ROOT}" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o unicode_ranges_runtime.o
-          ${{ matrix.cxx }} comparative_benchmarks.o unicode_ranges_runtime.o ${{ matrix.cxxflags }} -o ${{ matrix.output }}
+          compile_lto_flags="-flto"
+          link_lto_flags="-flto"
+          if [ "${{ matrix.install_kind }}" = "clang" ]; then
+            link_lto_flags="${link_lto_flags} -fuse-ld=lld"
+          fi
+          ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $compile_lto_flags -DUTF8_RANGES_COMPARATIVE_WITH_SIMDUTF=1 -DUTF8_RANGES_COMPARATIVE_WITH_UTFCPP=1 -DUTF8_RANGES_COMPARATIVE_WITH_UNI_ALGO=1 -I"${SIMDUTF_ROOT}" -I"${UTFCPP_ROOT}/source" -I"${UNI_ALGO_ROOT}/include" -c comparative_benchmarks.cpp -o comparative_benchmarks.o
+          ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $compile_lto_flags -I"${SIMDUTF_ROOT}" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o unicode_ranges_runtime.o
+          ${{ matrix.cxx }} $link_lto_flags comparative_benchmarks.o unicode_ranges_runtime.o ${{ matrix.cxxflags }} -o ${{ matrix.output }}
 
       - name: Run comparative benchmark suite
         if: matrix.install_kind != 'msvc'
