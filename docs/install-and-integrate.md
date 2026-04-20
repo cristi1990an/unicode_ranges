@@ -1,23 +1,30 @@
 # Install And Integrate
 
-`unicode_ranges` is a header-only library. Today, the supported consumption model is "bring the sources into your tree and add the repository root as an include directory."
+`unicode_ranges` is a source-first library with a required compiled runtime translation unit. Today, the supported consumption model is:
+
+1. bring this repository into your tree
+2. compile `unicode_ranges.cpp` exactly once
+3. place a pinned `simdutf` singleheader release on the include path
 
 ## Current packaging status
 
 - There is no first-party package-manager distribution yet.
 - There is no first-party CMake package or `install()` export yet.
 - There may be no tagged release that matches the commit you want to consume.
+- Runtime UTF validation and UTF-8 <-> UTF-16/UTF-32 transcoding require pinned `simdutf` `v7.7.0`.
 
 So the practical choices right now are:
 
 1. Vendor a snapshot of the repository into your source tree.
 2. Add the repository as a git submodule.
-3. Fetch the repository in CMake, then expose it as an interface include path yourself.
+3. Fetch the repository in CMake, then build a small static library target yourself.
 
 ## What your build needs
 
 - C++23 enabled
 - the repository root on the include path
+- a `simdutf` singleheader release root on the include path
+- `unicode_ranges.cpp` compiled exactly once
 - `#include "unicode_ranges.hpp"` in user code
 
 The public umbrella header lives at the repository root:
@@ -28,31 +35,42 @@ The public umbrella header lives at the repository root:
 
 ## Recommended: vendor or submodule
 
-If you vendor the repository or add it as a submodule, point your include path at the checked-out root:
+If you vendor the repository or add it as a submodule, point your include path at the checked-out repository root and at a pinned `simdutf` singleheader release:
 
 ```text
 your_project/
   third_party/
     unicode_ranges/
+      unicode_ranges.cpp
       unicode_ranges.hpp
       unicode_ranges/
+    simdutf/
+      simdutf.h
+      simdutf.cpp
 ```
 
 Then compile with:
 
-- include directory: `third_party/unicode_ranges`
+- include directories:
+  - `third_party/unicode_ranges`
+  - `third_party/simdutf`
 - language mode: C++23
+- one compiled runtime TU:
+  - `third_party/unicode_ranges/unicode_ranges.cpp`
 
-## CMake: manual interface target
+## CMake: manual target
 
-Because the repository does not yet ship a first-party CMake package, the simplest CMake integration is an interface target:
+Because the repository does not yet ship a first-party CMake package, the simplest CMake integration is a small static library target:
 
 ```cmake
-add_library(unicode_ranges INTERFACE)
-target_include_directories(unicode_ranges INTERFACE
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/unicode_ranges
+add_library(unicode_ranges STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/unicode_ranges/unicode_ranges.cpp
 )
-target_compile_features(unicode_ranges INTERFACE cxx_std_23)
+target_include_directories(unicode_ranges PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/unicode_ranges
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/simdutf
+)
+target_compile_features(unicode_ranges PUBLIC cxx_std_23)
 ```
 
 Then consume it normally:
@@ -63,12 +81,12 @@ target_link_libraries(your_target PRIVATE unicode_ranges)
 
 ## Optional ICU-backed locale casing
 
-The default library build stays dependency-free and exposes only locale-independent Unicode casing.
+The default library build depends only on pinned `simdutf` and exposes only locale-independent Unicode casing.
 
-If you want ICU-backed locale-sensitive casing overloads such as `to_lowercase("tr"_locale)`, `to_uppercase("tr"_locale)`, or `case_fold("tr"_locale)`, enable ICU explicitly in your build. For a header-only library, the cleanest model is:
+If you want ICU-backed locale-sensitive casing overloads such as `to_lowercase("tr"_locale)`, `to_uppercase("tr"_locale)`, or `case_fold("tr"_locale)`, enable ICU on the `unicode_ranges` target itself:
 
-- find and link ICU in the consuming target
-- define `UTF8_RANGES_ENABLE_ICU=1` on the same target
+- find and link ICU in the library target
+- define `UTF8_RANGES_ENABLE_ICU=1` on the library target
 - let the extra overloads appear only in that configuration
 
 Example:
@@ -76,26 +94,29 @@ Example:
 ```cmake
 option(UNICODE_RANGES_WITH_ICU "Enable ICU-backed locale casing overloads" OFF)
 
-add_library(unicode_ranges INTERFACE)
-target_include_directories(unicode_ranges INTERFACE
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/unicode_ranges
+add_library(unicode_ranges STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/unicode_ranges/unicode_ranges.cpp
 )
-target_compile_features(unicode_ranges INTERFACE cxx_std_23)
+target_include_directories(unicode_ranges PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/unicode_ranges
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/simdutf
+)
+target_compile_features(unicode_ranges PUBLIC cxx_std_23)
 
 if(UNICODE_RANGES_WITH_ICU)
     find_package(ICU REQUIRED COMPONENTS uc)
-    target_compile_definitions(unicode_ranges INTERFACE UTF8_RANGES_ENABLE_ICU=1)
-    target_link_libraries(unicode_ranges INTERFACE ICU::uc)
+    target_compile_definitions(unicode_ranges PUBLIC UTF8_RANGES_ENABLE_ICU=1)
+    target_link_libraries(unicode_ranges PUBLIC ICU::uc)
 endif()
 ```
 
-This keeps the default build small and dependency-free while making the locale-sensitive overloads disappear entirely when ICU is not available.
+This keeps the default build small while making the locale-sensitive overloads disappear entirely when ICU is not available.
 
 When ICU is enabled, locale-aware casing follows ICU locale resolution behavior. `locale_id` is a raw null-terminated locale-name token, while `_locale` gives you a compile-time checked literal form. The locale-aware overloads pass the token through to ICU, which may canonicalize it or fall back to a more general locale instead of failing. Use `is_available_locale(...)` if you want to require that the current ICU data set explicitly exposes a locale before calling a locale-aware casing overload.
 
 ## CMake: FetchContent
 
-If you prefer to fetch sources at configure time, keep the same interface-target pattern:
+If you prefer to fetch sources at configure time, fetch both repositories and keep the same small-library pattern:
 
 ```cmake
 include(FetchContent)
@@ -106,13 +127,23 @@ FetchContent_Declare(
     GIT_TAG main
 )
 
-FetchContent_MakeAvailable(unicode_ranges_src)
-
-add_library(unicode_ranges INTERFACE)
-target_include_directories(unicode_ranges INTERFACE
-    ${unicode_ranges_src_SOURCE_DIR}
+FetchContent_Declare(
+    simdutf_src
+    URL https://github.com/simdutf/simdutf/releases/download/v7.7.0/singleheader.zip
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
-target_compile_features(unicode_ranges INTERFACE cxx_std_23)
+
+FetchContent_MakeAvailable(unicode_ranges_src)
+FetchContent_MakeAvailable(simdutf_src)
+
+add_library(unicode_ranges STATIC
+    ${unicode_ranges_src_SOURCE_DIR}/unicode_ranges.cpp
+)
+target_include_directories(unicode_ranges PUBLIC
+    ${unicode_ranges_src_SOURCE_DIR}
+    ${simdutf_src_SOURCE_DIR}
+)
+target_compile_features(unicode_ranges PUBLIC cxx_std_23)
 ```
 
 This is a source-fetch recipe, not a first-party packaged install.

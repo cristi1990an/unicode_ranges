@@ -73,6 +73,10 @@
     <TreatWarningAsError Condition="'$(TreatWarningAsError)'==''">false</TreatWarningAsError>
   </PropertyGroup>
   <PropertyGroup>
+    <SimdutfRoot Condition="'$(SimdutfRoot)'==''">$(SIMDUTF_ROOT)</SimdutfRoot>
+    <SimdutfRoot Condition="'$(SimdutfRoot)'=='' And Exists('$(ProjectDir).local\\comparative-deps-assets\\simdutf\\simdutf.h')">$(ProjectDir).local\comparative-deps-assets\simdutf</SimdutfRoot>
+  </PropertyGroup>
+  <PropertyGroup>
     <OutDir>$(Platform)\$(Configuration)\</OutDir>
     <IntDir>build_artifacts\$(Platform)\$(Configuration)\unicode_ranges_benchmarks\</IntDir>
   </PropertyGroup>
@@ -86,6 +90,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
+      <AdditionalIncludeDirectories>$(SimdutfRoot);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
@@ -104,6 +109,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
+      <AdditionalIncludeDirectories>$(SimdutfRoot);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
@@ -120,6 +126,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
+      <AdditionalIncludeDirectories>$(SimdutfRoot);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
@@ -138,6 +145,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
+      <AdditionalIncludeDirectories>$(SimdutfRoot);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
@@ -165,6 +173,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="unicode_ranges_benchmarks.cpp" />
+    <ClCompile Include="unicode_ranges.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

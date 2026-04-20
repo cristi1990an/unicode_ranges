@@ -15,8 +15,14 @@ PROFDATA="${OUTPUT_DIR}/unicode_ranges.profdata"
 REPORT_TXT="${OUTPUT_DIR}/report.txt"
 SUMMARY_TXT="${OUTPUT_DIR}/summary.txt"
 HTML_DIR="${OUTPUT_DIR}/html"
+SIMDUTF_ROOT="${SIMDUTF_ROOT:-.local/comparative-deps-assets/simdutf}"
 
 mkdir -p "${OUTPUT_DIR}"
+
+if [[ ! -f "${SIMDUTF_ROOT}/simdutf.h" || ! -f "${SIMDUTF_ROOT}/simdutf.cpp" ]]; then
+	echo "SIMDUTF_ROOT must point to a simdutf singleheader release containing simdutf.h and simdutf.cpp." >&2
+	exit 1
+fi
 
 "${CXX}" \
 	-std=c++23 \
@@ -27,12 +33,33 @@ mkdir -p "${OUTPUT_DIR}"
 	-pedantic \
 	-pthread \
 	-stdlib=libc++ \
+	-I"${SIMDUTF_ROOT}" \
+	-DUTF8_RANGES_ENABLE_TEST_HOOKS=1 \
+	-DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 \
+	-fprofile-instr-generate \
+	-fcoverage-mapping \
+	-fno-inline \
+	-c \
+	unicode_ranges.cpp \
+	-o "${OUTPUT_DIR}/unicode_ranges_runtime.o"
+
+"${CXX}" \
+	-std=c++23 \
+	-O0 \
+	-Wall \
+	-Wextra \
+	-Werror \
+	-pedantic \
+	-pthread \
+	-stdlib=libc++ \
+	-I"${SIMDUTF_ROOT}" \
 	-DUTF8_RANGES_ENABLE_TEST_HOOKS=1 \
 	-DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 \
 	-fprofile-instr-generate \
 	-fcoverage-mapping \
 	-fno-inline \
 	source.cpp \
+	"${OUTPUT_DIR}/unicode_ranges_runtime.o" \
 	-o "${OUTPUT_DIR}/${BINARY}"
 
 LLVM_PROFILE_FILE="${PROFRAW}" "${OUTPUT_DIR}/${BINARY}"
@@ -46,12 +73,14 @@ LLVM_PROFILE_FILE="${PROFRAW}" "${OUTPUT_DIR}/${BINARY}"
 	-pedantic \
 	-pthread \
 	-stdlib=libc++ \
+	-I"${SIMDUTF_ROOT}" \
 	-DUTF8_RANGES_ENABLE_TEST_HOOKS=1 \
 	-DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 \
 	-fprofile-instr-generate \
 	-fcoverage-mapping \
 	-fno-inline \
 	unicode_ranges_benchmarks.cpp \
+	"${OUTPUT_DIR}/unicode_ranges_runtime.o" \
 	-o "${OUTPUT_DIR}/${BENCH_BINARY}"
 
 LLVM_PROFILE_FILE="${PROFRAW_BENCH}" "${OUTPUT_DIR}/${BENCH_BINARY}" --quick --filter=large.view

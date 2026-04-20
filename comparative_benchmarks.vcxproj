@@ -74,6 +74,7 @@
   </PropertyGroup>
   <PropertyGroup>
     <SimdutfRoot Condition="'$(SimdutfRoot)'==''">$(SIMDUTF_ROOT)</SimdutfRoot>
+    <SimdutfRoot Condition="'$(SimdutfRoot)'=='' And Exists('$(ProjectDir).local\\comparative-deps-assets\\simdutf\\simdutf.h')">$(ProjectDir).local\comparative-deps-assets\simdutf</SimdutfRoot>
     <SimdutfAvailable Condition="Exists('$(SimdutfRoot)\\simdutf.h') And Exists('$(SimdutfRoot)\\simdutf.cpp')">true</SimdutfAvailable>
     <UtfcppRoot Condition="'$(UtfcppRoot)'==''">$(UTFCPP_ROOT)</UtfcppRoot>
     <UtfcppAvailable Condition="Exists('$(UtfcppRoot)\\source\\utf8.h')">true</UtfcppAvailable>
@@ -169,7 +170,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="comparative_benchmarks.cpp" />
-    <ClCompile Include="comparative_benchmarks\third_party\simdutf_amalgamation.cpp" Condition="'$(SimdutfAvailable)'=='true'" />
+    <ClCompile Include="unicode_ranges.cpp" Condition="'$(SimdutfAvailable)'=='true'" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

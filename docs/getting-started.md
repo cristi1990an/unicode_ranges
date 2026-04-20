@@ -19,10 +19,11 @@ If you have not wired the library into your build yet, start with [Install And I
 
 Short version:
 
-- the library is header-only
 - today, the normal consumption path is vendoring, a git submodule, or source-fetching in CMake
+- compile `unicode_ranges.cpp` exactly once in your build
+- put a pinned `simdutf` singleheader release (`v7.7.0`) on the include path
 - there is not yet a first-party package-manager or CMake package integration
-- your build needs C++23 and the repository root on the include path
+- your build needs C++23, the repository root on the include path, and the `simdutf` include root
 
 ## Include the library
 

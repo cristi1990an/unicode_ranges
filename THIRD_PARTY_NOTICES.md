@@ -5,6 +5,7 @@ components keep their own licenses.
 
 ## Current state
 
+- `simdutf` is a pinned runtime dependency and is also reused by the comparative benchmark suite.
 - Comparative benchmark dependencies are fetched separately.
 - No copied or adapted third-party source files are currently tracked in the
   library sources.
@@ -39,16 +40,17 @@ Rules:
 There are currently no copied or adapted third-party source files tracked in
 the repository.
 
-## Comparative benchmark dependencies
+## Runtime and comparative benchmark dependencies
 
-These projects are used by the comparative benchmark suite through dynamic fetch
-steps and local benchmark adapters.
+These projects are used either by the shipped library runtime, the comparative
+benchmark suite, or both. They are consumed through pinned release/tag fetches
+instead of tracked source copies.
 
 ### simdutf
 
 - Project: `simdutf`
 - Upstream: <https://github.com/simdutf/simdutf>
-- Version used by the comparative benchmark suite: `v7.7.0`
+- Version used by the library runtime and comparative benchmark suite: `v7.7.0`
 - License: `MIT OR Apache-2.0`
 - Local metadata:
   - `comparative_benchmarks/dependencies.json`

@@ -45,7 +45,7 @@ Typical workflow:
 
 ## Why tables are checked in
 
-The library is header-only and aims to be easy to consume without a build-time generator dependency. Checking in the generated tables keeps usage simple for downstream users while still allowing the Unicode pipeline to remain explicit and reproducible.
+The library aims to stay easy to consume without a build-time generator dependency. Checking in the generated tables keeps usage simple for downstream users while still allowing the Unicode pipeline to remain explicit and reproducible.
 
 ## Notes on semantics
 

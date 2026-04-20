@@ -187,6 +187,8 @@ struct unicode_scalar_error
 	std::size_t first_invalid_element_index = 0;
 };
 
+#include "internal/simdutf_runtime.hpp"
+
 enum class normalization_form
 {
 	nfc,
@@ -1914,6 +1916,18 @@ namespace details
 	template<typename CharT>
 	inline constexpr std::expected<void, utf8_error> validate_utf8(std::basic_string_view<CharT> value) noexcept
 	{
+		if (!std::is_constant_evaluated())
+		{
+			if constexpr (std::same_as<CharT, char>)
+			{
+				return details::simdutf_validate_utf8_runtime(std::string_view{ value.data(), value.size() });
+			}
+			else if constexpr (std::same_as<CharT, char8_t>)
+			{
+				return details::simdutf_validate_utf8_runtime(std::u8string_view{ value.data(), value.size() });
+			}
+		}
+
 		std::size_t index = 0;
 		while (index < value.size())
 		{
@@ -2279,6 +2293,18 @@ namespace details
 		result.resize_and_overwrite(bytes.size(),
 			[&](char8_t* buffer, std::size_t) noexcept
 			{
+				if (!std::is_constant_evaluated())
+				{
+					if (auto validated = simdutf_validate_utf8_runtime(bytes); !validated) [[unlikely]]
+					{
+						error = validated.error();
+						return std::size_t{ 0 };
+					}
+
+					std::memcpy(buffer, bytes.data(), bytes.size());
+					return bytes.size();
+				}
+
 				std::size_t write_index = 0;
 				std::size_t read_index = 0;
 				while (read_index < bytes.size())
@@ -2394,6 +2420,23 @@ namespace details
 		std::basic_string_view<CharT> bytes,
 		const Allocator& alloc) -> utf16_base_string<Allocator>
 	{
+		if (!std::is_constant_evaluated())
+		{
+			if constexpr (std::same_as<CharT, char8_t>)
+			{
+				utf16_base_string<Allocator> result{ alloc };
+				const auto input = std::u8string_view{ bytes.data(), bytes.size() };
+				const auto output_size = simdutf_utf16_length_from_valid_utf8_runtime(input);
+				result.resize_and_overwrite(output_size,
+					[&](char16_t* buffer, std::size_t) noexcept
+					{
+						return simdutf_convert_valid_utf8_to_utf16_runtime(input, buffer);
+					});
+
+				return result;
+			}
+		}
+
 		utf16_base_string<Allocator> result{ alloc };
 		result.resize_and_overwrite(bytes.size(),
 			[&](char16_t* buffer, std::size_t) noexcept
@@ -2456,7 +2499,14 @@ namespace details
 			{
 				if (!std::is_constant_evaluated())
 				{
-					return transcode_utf8_to_utf16_runtime_kernel<true>(bytes, buffer, &error);
+					const auto converted = simdutf_convert_utf8_to_utf16_checked_runtime(bytes, buffer);
+					if (converted) [[likely]]
+					{
+						return *converted;
+					}
+
+					error = converted.error();
+					return std::size_t{ 0 };
 				}
 
 				std::size_t write_index = 0;
@@ -2713,6 +2763,23 @@ namespace details
 		std::basic_string_view<CharT> bytes,
 		const Allocator& alloc) -> utf32_base_string<Allocator>
 	{
+		if (!std::is_constant_evaluated())
+		{
+			if constexpr (std::same_as<CharT, char8_t>)
+			{
+				utf32_base_string<Allocator> result{ alloc };
+				const auto input = std::u8string_view{ bytes.data(), bytes.size() };
+				const auto output_size = simdutf_utf32_length_from_valid_utf8_runtime(input);
+				result.resize_and_overwrite(output_size,
+					[&](char32_t* buffer, std::size_t) noexcept
+					{
+						return simdutf_convert_valid_utf8_to_utf32_runtime(input, buffer);
+					});
+
+				return result;
+			}
+		}
+
 		utf32_base_string<Allocator> result{ alloc };
 		result.resize_and_overwrite(bytes.size(),
 			[&](char32_t* buffer, std::size_t) noexcept
@@ -2770,7 +2837,14 @@ namespace details
 			{
 				if (!std::is_constant_evaluated())
 				{
-					return transcode_utf8_to_utf32_runtime_kernel<true>(bytes, buffer, &error);
+					const auto converted = simdutf_convert_utf8_to_utf32_checked_runtime(bytes, buffer);
+					if (converted) [[likely]]
+					{
+						return *converted;
+					}
+
+					error = converted.error();
+					return std::size_t{ 0 };
 				}
 
 				std::size_t write_index = 0;

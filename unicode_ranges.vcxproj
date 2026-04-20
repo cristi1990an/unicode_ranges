@@ -76,6 +76,10 @@
     <TreatWarningAsError Condition="'$(TreatWarningAsError)'==''">false</TreatWarningAsError>
   </PropertyGroup>
   <PropertyGroup>
+    <SimdutfRoot Condition="'$(SimdutfRoot)'==''">$(SIMDUTF_ROOT)</SimdutfRoot>
+    <SimdutfRoot Condition="'$(SimdutfRoot)'=='' And Exists('$(ProjectDir).local\\comparative-deps-assets\\simdutf\\simdutf.h')">$(ProjectDir).local\comparative-deps-assets\simdutf</SimdutfRoot>
+  </PropertyGroup>
+  <PropertyGroup>
     <OutDir>$(Platform)\$(Configuration)\</OutDir>
     <IntDir>build_artifacts\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
@@ -89,6 +93,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
+      <AdditionalIncludeDirectories>$(SimdutfRoot);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 /bigobj $(Utf8RangesClangClExtraOptions) %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
@@ -107,6 +112,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
+      <AdditionalIncludeDirectories>$(SimdutfRoot);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 /bigobj $(Utf8RangesClangClExtraOptions) %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
@@ -123,6 +129,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
+      <AdditionalIncludeDirectories>$(SimdutfRoot);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 /bigobj $(Utf8RangesClangClExtraOptions) %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
@@ -141,6 +148,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
+      <AdditionalIncludeDirectories>$(SimdutfRoot);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 /bigobj $(Utf8RangesClangClExtraOptions) %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
@@ -165,9 +173,11 @@
     <ClInclude Include="unicode_ranges.hpp" />
     <ClInclude Include="unicode_ranges\utf16_views.hpp" />
     <ClInclude Include="unicode_ranges\utf8_views.hpp" />
+    <ClInclude Include="unicode_ranges\internal\simdutf_runtime.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source.cpp" />
+    <ClCompile Include="unicode_ranges.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
