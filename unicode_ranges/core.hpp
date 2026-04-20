@@ -596,7 +596,10 @@ namespace details
 #if UINTPTR_MAX > 0xFFFFFFFFu
 	inline constexpr std::size_t runtime_parallel_min_total_bytes = 1u << 20;
 	inline constexpr std::size_t runtime_parallel_min_bytes_per_worker = 1u << 18;
-	inline constexpr std::size_t runtime_parallel_max_worker_count = (std::numeric_limits<std::size_t>::max)();
+	// The UTF-32 parallel paths should never try to scale to an unbounded worker
+	// count. A modest cap keeps scheduling overhead in check and makes the worker
+	// array size provably bounded for aggressive whole-program optimizers.
+	inline constexpr std::size_t runtime_parallel_max_worker_count = 64;
 #else
 	// 32-bit runners have noticeably higher thread/setup pressure relative to the
 	// UTF-32 workloads we parallelize here, so they use a stricter activation policy.
@@ -704,22 +707,23 @@ namespace details
 
 		// The calling thread participates as the last worker to avoid spinning up an
 		// extra thread just to sit idle waiting for joins.
+		const auto background_worker_count = worker_count - 1;
 #if UTF8_RANGES_HAS_JTHREAD
-		auto workers = std::make_unique<std::jthread[]>(worker_count - 1);
-		for (std::size_t worker_index = 0; worker_index + 1 < worker_count; ++worker_index)
+		auto workers = std::make_unique<std::jthread[]>(background_worker_count);
+		for (std::size_t worker_index = 0; worker_index != background_worker_count; ++worker_index)
 		{
 			workers[worker_index] = std::jthread([&, worker_index]
 				{
 					fn(worker_index);
 				});
 		}
-		fn(worker_count - 1);
+		fn(background_worker_count);
 #else
-		auto workers = std::make_unique<std::thread[]>(worker_count - 1);
+		auto workers = std::make_unique<std::thread[]>(background_worker_count);
 		std::size_t started_workers = 0;
 		try
 		{
-			for (std::size_t worker_index = 0; worker_index + 1 < worker_count; ++worker_index)
+			for (std::size_t worker_index = 0; worker_index != background_worker_count; ++worker_index)
 			{
 				workers[worker_index] = std::thread([&, worker_index]
 					{
@@ -739,7 +743,7 @@ namespace details
 			}
 			throw;
 		}
-		fn(worker_count - 1);
+		fn(background_worker_count);
 		for (std::size_t worker_index = 0; worker_index != started_workers; ++worker_index)
 		{
 			if (workers[worker_index].joinable())
