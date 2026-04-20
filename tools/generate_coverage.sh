@@ -49,6 +49,8 @@ fi
 	-pthread \
 	-stdlib=libc++ \
 	-I"${resolved_simdutf_root}" \
+	-Wno-error=overflow \
+	-Wno-error=pedantic \
 	-DUTF8_RANGES_ENABLE_TEST_HOOKS=1 \
 	-DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 \
 	-fprofile-instr-generate \

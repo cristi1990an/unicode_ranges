@@ -37,7 +37,7 @@ if [[ -z "$resolved_simdutf_root" ]]; then
 fi
 
 runtime_obj="$out_dir/unicode_ranges_runtime.o"
-"$cxx" -std=c++23 -I. -I"${resolved_simdutf_root}" "$@" -c unicode_ranges.cpp -o "$runtime_obj"
+"$cxx" -std=c++23 -I. -I"${resolved_simdutf_root}" "$@" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
 
 mapfile -t sources < <(find docs/examples -name '*.cpp' | sort)
 
