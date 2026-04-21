@@ -18,7 +18,7 @@ Existing C and C++ text handling often starts from raw byte buffers, raw code-un
 
 The design goal is not "maximum abstraction". It is predictable Unicode handling with clear invariants, explicit failure modes, and no repeated worry about whether the current value is valid text.
 
-The public surface is still header-first, but the runtime UTF hot paths are now implemented in `unicode_ranges.cpp` and use pinned `simdutf` (`v7.7.0`). Consumers should compile that file once and keep the `simdutf` singleheader release on the include path.
+The public surface is still header-first, but the runtime UTF hot paths now live in the compiled `unicode_ranges` library target, built from `unicode_ranges.cpp` and backed by pinned `simdutf` (`v7.7.0`). Consumers should link that library target, or an equivalent library in their own build, and keep the `simdutf` singleheader release on the include path.
 
 ## New users: start here
 

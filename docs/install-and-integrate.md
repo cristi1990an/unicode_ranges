@@ -1,9 +1,9 @@
 # Install And Integrate
 
-`unicode_ranges` is a source-first library with a required compiled runtime translation unit. Today, the supported consumption model is:
+`unicode_ranges` is now a compiled library with a header-first public API. The supported integration model is:
 
 1. bring this repository into your tree
-2. compile `unicode_ranges.cpp` exactly once
+2. build and link the `unicode_ranges` library target, or an equivalent library target in your own build
 3. place a pinned `simdutf` singleheader release on the include path
 
 ## Current packaging status
@@ -12,6 +12,7 @@
 - There is no first-party CMake package or `install()` export yet.
 - There may be no tagged release that matches the commit you want to consume.
 - Runtime UTF validation and UTF-8 <-> UTF-16/UTF-32 transcoding require pinned `simdutf` `v7.7.0`.
+- The repository itself now ships a first-party Visual Studio static-library project, `unicode_ranges.vcxproj`, plus separate test and benchmark executables that link it.
 
 So the practical choices right now are:
 
@@ -24,7 +25,7 @@ So the practical choices right now are:
 - C++23 enabled
 - the repository root on the include path
 - a `simdutf` singleheader release root on the include path
-- `unicode_ranges.cpp` compiled exactly once
+- `unicode_ranges.cpp` compiled into your `unicode_ranges` library target
 - `#include "unicode_ranges.hpp"` in user code
 
 The public umbrella header lives at the repository root:
@@ -49,18 +50,30 @@ your_project/
       simdutf.cpp
 ```
 
-Then compile with:
+Then build with:
 
 - include directories:
   - `third_party/unicode_ranges`
   - `third_party/simdutf`
 - language mode: C++23
-- one compiled runtime TU:
-  - `third_party/unicode_ranges/unicode_ranges.cpp`
+- one compiled library target:
+  - compile `third_party/unicode_ranges/unicode_ranges.cpp` into `unicode_ranges`
+  - link your executable or test target against that library
+
+## Visual Studio
+
+The repository now contains a first-party Visual Studio library project:
+
+- `unicode_ranges.vcxproj`: static library
+- `unicode_ranges_tests.vcxproj`: test runner linked against the library
+- `unicode_ranges_benchmarks.vcxproj`: benchmark runner linked against the library
+- `comparative_benchmarks.vcxproj`: comparative benchmark runner linked against the library
+
+If you are consuming the repository directly from Visual Studio, build `unicode_ranges.vcxproj` and link it into your own executable or test project the same way the repo's test/benchmark projects do.
 
 ## CMake: manual target
 
-Because the repository does not yet ship a first-party CMake package, the simplest CMake integration is a small static library target:
+Because the repository does not yet ship a first-party CMake package, the simplest CMake integration is still a small static library target:
 
 ```cmake
 add_library(unicode_ranges STATIC
@@ -116,7 +129,7 @@ When ICU is enabled, locale-aware casing follows ICU locale resolution behavior.
 
 ## CMake: FetchContent
 
-If you prefer to fetch sources at configure time, fetch both repositories and keep the same small-library pattern:
+If you prefer to fetch sources at configure time, fetch both repositories and keep the same compiled-library pattern:
 
 ```cmake
 include(FetchContent)
@@ -146,7 +159,7 @@ target_include_directories(unicode_ranges PUBLIC
 target_compile_features(unicode_ranges PUBLIC cxx_std_23)
 ```
 
-This is a source-fetch recipe, not a first-party packaged install.
+This is still a source-fetch recipe, not a first-party packaged install.
 
 ## Toolchains exercised in CI
 

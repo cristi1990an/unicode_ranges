@@ -4,7 +4,7 @@
 
 It provides validated character types, borrowed string views, owning strings, grapheme-aware iteration, Unicode casing, normalization, and conversion between UTF-8, UTF-16, and UTF-32.
 
-The public API remains header-first, but runtime UTF validation and runtime UTF-8 <-> UTF-16/UTF-32 transcoding now go through a compiled translation unit, `unicode_ranges.cpp`, backed by pinned `simdutf` (`v7.7.0`). Consumers should compile that file exactly once and place the `simdutf` singleheader release (`simdutf.h` + `simdutf.cpp`) on the include path.
+`unicode_ranges` is now a compiled library. The public API stays header-first, but runtime UTF validation and runtime UTF-8 <-> UTF-16/UTF-32 transcoding are provided by the `unicode_ranges` library target built from `unicode_ranges.cpp`, backed by pinned `simdutf` (`v7.7.0`). Consumers should link the library target, or produce an equivalent static/shared library in their own build, and place the `simdutf` singleheader release (`simdutf.h` + `simdutf.cpp`) on the include path.
 
 ## Why this library exists
 

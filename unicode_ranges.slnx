@@ -4,5 +4,7 @@
     <Platform Name="x86" />
   </Configurations>
   <Project Path="unicode_ranges.vcxproj" Id="145ebcbd-1896-42ae-ad89-d25964826d92" />
+  <Project Path="unicode_ranges_tests.vcxproj" Id="a2f92f06-9e7c-4a27-95c8-599b7f665cc6" />
   <Project Path="unicode_ranges_benchmarks.vcxproj" Id="2f72119e-6618-4d65-bf77-1205e17fa567" />
+  <Project Path="comparative_benchmarks.vcxproj" Id="a70befac-835b-4b06-b90b-7f9f908d3025" />
 </Solution>

@@ -54,9 +54,9 @@ jobs:
           {
             ./tools/update_unicode_data.ps1 -Version $version
             ./tools/regenerate_unicode_tables.ps1 -DataRoot (Join-Path $PWD "tools/unicode_data/$version") -UnicodeVersion $version
-            msbuild unicode_ranges.vcxproj "/t:Clean;Build" /p:Configuration=${{ matrix.configuration }} /p:Platform=x64 /p:PlatformToolset=v143 /p:TreatWarningAsError=true
+            msbuild unicode_ranges_tests.vcxproj "/t:Clean;Build" /p:Configuration=${{ matrix.configuration }} /p:Platform=x64 /p:PlatformToolset=v143 /p:TreatWarningAsError=true
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            .\x64\${{ matrix.configuration }}\unicode_ranges.exe
+            .\x64\${{ matrix.configuration }}\unicode_ranges_tests.exe
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
@@ -94,9 +94,9 @@ jobs:
           {
             ./tools/update_unicode_data.ps1 -Version $version
             ./tools/regenerate_unicode_tables.ps1 -DataRoot (Join-Path $PWD "tools/unicode_data/$version") -UnicodeVersion $version
-            msbuild unicode_ranges.vcxproj "/t:Clean;Build" /p:Configuration=${{ matrix.configuration }} /p:Platform=x64 /p:PlatformToolset=ClangCL /p:TreatWarningAsError=true
+            msbuild unicode_ranges_tests.vcxproj "/t:Clean;Build" /p:Configuration=${{ matrix.configuration }} /p:Platform=x64 /p:PlatformToolset=ClangCL /p:TreatWarningAsError=true
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            .\x64\${{ matrix.configuration }}\unicode_ranges.exe
+            .\x64\${{ matrix.configuration }}\unicode_ranges_tests.exe
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
@@ -130,8 +130,10 @@ jobs:
             pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
             output="unicode_ranges_macos_o2_${version//./_}"
             runtime_obj="${output}_runtime.o"
+            runtime_lib="lib${output}.a"
             clang++ -std=c++23 -O2 -Wall -Wextra -Werror -pedantic -pthread -I"${SIMDUTF_ROOT}" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
-            clang++ -std=c++23 -O2 -Wall -Wextra -Werror -pedantic -pthread -I"${SIMDUTF_ROOT}" source.cpp "$runtime_obj" -o "$output"
+            ar rcs "$runtime_lib" "$runtime_obj"
+            clang++ -std=c++23 -O2 -Wall -Wextra -Werror -pedantic -pthread -I"${SIMDUTF_ROOT}" source.cpp "$runtime_lib" -o "$output"
             "./$output"
           done
 
@@ -376,17 +378,18 @@ jobs:
             pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
             output="${{ matrix.output }}_${version//./_}"
             runtime_obj="${output}_runtime.o"
-            ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
-            ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 source.cpp "$runtime_obj" -o "$output"
+            runtime_lib="lib${output}.a"
+            ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
+            ar rcs "$runtime_lib" "$runtime_obj"
+            ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 source.cpp "$runtime_lib" -o "$output"
             "./$output"
             if [ -n "${{ matrix.sanitizer_flags }}" ]; then
               forced_output="${output}_forced_parallel"
-              ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 source.cpp "$runtime_obj" -o "$forced_output"
-              "./$forced_output"
-            fi
-            if [ "${{ matrix.sanitizer_name }}" = ", TSan" ]; then
-              forced_output="${output}_forced_parallel"
-              ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 source.cpp "$runtime_obj" -o "$forced_output"
+              forced_runtime_obj="${forced_output}_runtime.o"
+              forced_runtime_lib="lib${forced_output}.a"
+              ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$forced_runtime_obj"
+              ar rcs "$forced_runtime_lib" "$forced_runtime_obj"
+              ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 source.cpp "$forced_runtime_lib" -o "$forced_output"
               "./$forced_output"
             fi
           done
@@ -454,12 +457,18 @@ jobs:
             pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
             output="${{ matrix.output }}_${version//./_}"
             runtime_obj="${output}_runtime.o"
-            g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
-            g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 source.cpp "$runtime_obj" -o "$output"
+            runtime_lib="lib${output}.a"
+            g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
+            ar rcs "$runtime_lib" "$runtime_obj"
+            g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 source.cpp "$runtime_lib" -o "$output"
             "./$output"
             if [ -n "${{ matrix.sanitizer_flags }}" ]; then
               forced_output="${output}_forced_parallel"
-              g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 source.cpp "$runtime_obj" -o "$forced_output"
+              forced_runtime_obj="${forced_output}_runtime.o"
+              forced_runtime_lib="lib${forced_output}.a"
+              g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$forced_runtime_obj"
+              ar rcs "$forced_runtime_lib" "$forced_runtime_obj"
+              g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 source.cpp "$forced_runtime_lib" -o "$forced_output"
               "./$forced_output"
             fi
           done
@@ -530,6 +539,7 @@ jobs:
             pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
             output="${{ matrix.output }}_${version//./_}"
             runtime_obj="${output}_runtime.o"
+            runtime_lib="lib${output}.a"
             ${{ matrix.cxx }} -std=c++23 -O2 -Wall -Wextra -Werror -pedantic \
               -DUTF8_RANGES_ENABLE_ICU=1 \
               ${{ matrix.cxxflags }} \
@@ -538,12 +548,13 @@ jobs:
               -Wno-error=overflow -Wno-error=pedantic \
               -c unicode_ranges.cpp \
               -o "$runtime_obj"
+            ar rcs "$runtime_lib" "$runtime_obj"
             ${{ matrix.cxx }} -std=c++23 -O2 -Wall -Wextra -Werror -pedantic \
               -DUTF8_RANGES_ENABLE_ICU=1 \
               ${{ matrix.cxxflags }} \
               -I"${SIMDUTF_ROOT}" \
               $(pkg-config --cflags icu-uc) \
-              source.cpp "$runtime_obj" \
+              source.cpp "$runtime_lib" \
               -o "$output" \
               $(pkg-config --libs icu-uc)
             "./$output"
@@ -774,7 +785,8 @@ jobs:
             link_lto_flags="-flto=thin"
           fi
           ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $compile_lto_flags -I"${SIMDUTF_ROOT}" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o unicode_ranges_runtime.o
-          ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $link_lto_flags -I"${SIMDUTF_ROOT}" unicode_ranges_benchmarks.cpp unicode_ranges_runtime.o -o ${{ matrix.output }}
+          ar rcs libunicode_ranges.a unicode_ranges_runtime.o
+          ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $link_lto_flags -I"${SIMDUTF_ROOT}" unicode_ranges_benchmarks.cpp libunicode_ranges.a -o ${{ matrix.output }}
 
       - name: Run benchmark suite
         run: ./${{ matrix.output }} --min-ms=300 > benchmark-results.txt
@@ -917,7 +929,8 @@ jobs:
           fi
           ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $compile_lto_flags -DUTF8_RANGES_COMPARATIVE_WITH_SIMDUTF=1 -DUTF8_RANGES_COMPARATIVE_WITH_UTFCPP=1 -DUTF8_RANGES_COMPARATIVE_WITH_UNI_ALGO=1 -I"${SIMDUTF_ROOT}" -I"${UTFCPP_ROOT}/source" -I"${UNI_ALGO_ROOT}/include" -c comparative_benchmarks.cpp -o comparative_benchmarks.o
           ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $compile_lto_flags -I"${SIMDUTF_ROOT}" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o unicode_ranges_runtime.o
-          ${{ matrix.cxx }} $link_lto_flags comparative_benchmarks.o unicode_ranges_runtime.o ${{ matrix.cxxflags }} -o ${{ matrix.output }}
+          ar rcs libunicode_ranges.a unicode_ranges_runtime.o
+          ${{ matrix.cxx }} $link_lto_flags comparative_benchmarks.o libunicode_ranges.a ${{ matrix.cxxflags }} -o ${{ matrix.output }}
 
       - name: Run comparative benchmark suite
         if: matrix.install_kind != 'msvc'

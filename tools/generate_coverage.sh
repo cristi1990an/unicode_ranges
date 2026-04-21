@@ -60,6 +60,8 @@ fi
 	unicode_ranges.cpp \
 	-o "${OUTPUT_DIR}/unicode_ranges_runtime.o"
 
+ar rcs "${OUTPUT_DIR}/libunicode_ranges.a" "${OUTPUT_DIR}/unicode_ranges_runtime.o"
+
 "${CXX}" \
 	-std=c++23 \
 	-O0 \
@@ -75,8 +77,7 @@ fi
 	-fprofile-instr-generate \
 	-fcoverage-mapping \
 	-fno-inline \
-	source.cpp \
-	"${OUTPUT_DIR}/unicode_ranges_runtime.o" \
+	source.cpp "${OUTPUT_DIR}/libunicode_ranges.a" \
 	-o "${OUTPUT_DIR}/${BINARY}"
 
 LLVM_PROFILE_FILE="${PROFRAW}" "${OUTPUT_DIR}/${BINARY}"
@@ -96,8 +97,7 @@ LLVM_PROFILE_FILE="${PROFRAW}" "${OUTPUT_DIR}/${BINARY}"
 	-fprofile-instr-generate \
 	-fcoverage-mapping \
 	-fno-inline \
-	unicode_ranges_benchmarks.cpp \
-	"${OUTPUT_DIR}/unicode_ranges_runtime.o" \
+	unicode_ranges_benchmarks.cpp "${OUTPUT_DIR}/libunicode_ranges.a" \
 	-o "${OUTPUT_DIR}/${BENCH_BINARY}"
 
 LLVM_PROFILE_FILE="${PROFRAW_BENCH}" "${OUTPUT_DIR}/${BENCH_BINARY}" --quick --filter=large.view

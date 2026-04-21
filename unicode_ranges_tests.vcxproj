@@ -21,9 +21,12 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{A70BEFAC-835B-4B06-B90B-7F9F908D3025}</ProjectGuid>
-    <RootNamespace>comparativebenchmarks</RootNamespace>
+    <ProjectGuid>{A2F92F06-9E7C-4A27-95C8-599B7F665CC6}</ProjectGuid>
+    <RootNamespace>unicoderangestests</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <PropertyGroup>
+    <Utf8RangesClangClExtraOptions Condition="'$(PlatformToolset)'=='ClangCL'">/clang:-Xclang /clang:-fexperimental-assignment-tracking=disabled</Utf8RangesClangClExtraOptions>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -73,23 +76,8 @@
     <TreatWarningAsError Condition="'$(TreatWarningAsError)'==''">false</TreatWarningAsError>
   </PropertyGroup>
   <PropertyGroup>
-    <SimdutfRoot Condition="'$(SimdutfRoot)'==''">$(SIMDUTF_ROOT)</SimdutfRoot>
-    <SimdutfRoot Condition="'$(SimdutfRoot)'=='' And Exists('$(ProjectDir).local\\comparative-deps-assets\\simdutf\\simdutf.h')">$(ProjectDir).local\comparative-deps-assets\simdutf</SimdutfRoot>
-    <SimdutfAvailable Condition="Exists('$(SimdutfRoot)\\simdutf.h') And Exists('$(SimdutfRoot)\\simdutf.cpp')">true</SimdutfAvailable>
-    <UtfcppRoot Condition="'$(UtfcppRoot)'==''">$(UTFCPP_ROOT)</UtfcppRoot>
-    <UtfcppAvailable Condition="Exists('$(UtfcppRoot)\\source\\utf8.h')">true</UtfcppAvailable>
-    <UniAlgoRoot Condition="'$(UniAlgoRoot)'==''">$(UNI_ALGO_ROOT)</UniAlgoRoot>
-    <UniAlgoAvailable Condition="Exists('$(UniAlgoRoot)\\include\\uni_algo\\conv.h')">true</UniAlgoAvailable>
-    <ComparativeIncludeDirectories Condition="'$(SimdutfAvailable)'=='true'">$(SimdutfRoot);$(ComparativeIncludeDirectories)</ComparativeIncludeDirectories>
-    <ComparativePreprocessorDefinitions Condition="'$(SimdutfAvailable)'=='true'">UTF8_RANGES_COMPARATIVE_WITH_SIMDUTF=1;$(ComparativePreprocessorDefinitions)</ComparativePreprocessorDefinitions>
-    <ComparativeIncludeDirectories Condition="'$(UtfcppAvailable)'=='true'">$(UtfcppRoot)\source;$(ComparativeIncludeDirectories)</ComparativeIncludeDirectories>
-    <ComparativePreprocessorDefinitions Condition="'$(UtfcppAvailable)'=='true'">UTF8_RANGES_COMPARATIVE_WITH_UTFCPP=1;$(ComparativePreprocessorDefinitions)</ComparativePreprocessorDefinitions>
-    <ComparativeIncludeDirectories Condition="'$(UniAlgoAvailable)'=='true'">$(UniAlgoRoot)\include;$(ComparativeIncludeDirectories)</ComparativeIncludeDirectories>
-    <ComparativePreprocessorDefinitions Condition="'$(UniAlgoAvailable)'=='true'">UTF8_RANGES_COMPARATIVE_WITH_UNI_ALGO=1;$(ComparativePreprocessorDefinitions)</ComparativePreprocessorDefinitions>
-  </PropertyGroup>
-  <PropertyGroup>
     <OutDir>$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>build_artifacts\$(Platform)\$(Configuration)\comparative_benchmarks\</IntDir>
+    <IntDir>build_artifacts\$(Platform)\$(Configuration)\unicode_ranges_tests\</IntDir>
   </PropertyGroup>
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -101,9 +89,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(ComparativeIncludeDirectories)%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>$(ComparativePreprocessorDefinitions)%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/utf-8 /bigobj $(Utf8RangesClangClExtraOptions) %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -121,9 +107,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(ComparativeIncludeDirectories)%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>$(ComparativePreprocessorDefinitions)%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/utf-8 /bigobj $(Utf8RangesClangClExtraOptions) %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -139,9 +123,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(ComparativeIncludeDirectories)%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>$(ComparativePreprocessorDefinitions)%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/utf-8 /bigobj $(Utf8RangesClangClExtraOptions) %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -159,9 +141,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(ComparativeIncludeDirectories)%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>$(ComparativePreprocessorDefinitions)%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/utf-8 /bigobj $(Utf8RangesClangClExtraOptions) %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -169,7 +149,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="comparative_benchmarks.cpp" />
+    <ClInclude Include="unicode_ranges_tests.hpp" />
+    <ClInclude Include="unicode_ranges.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="source.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="unicode_ranges.vcxproj">

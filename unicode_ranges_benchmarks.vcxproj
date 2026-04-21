@@ -173,7 +173,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="unicode_ranges_benchmarks.cpp" />
-    <ClCompile Include="unicode_ranges.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="unicode_ranges.vcxproj">
+      <Project>{145EBCBD-1896-42AE-AD89-D25964826D92}</Project>
+      <LinkLibraryDependencies>true</LinkLibraryDependencies>
+      <UseLibraryDependencyInputs>false</UseLibraryDependencyInputs>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
