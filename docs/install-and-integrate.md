@@ -100,7 +100,7 @@ The repository now ships a first-party CMake build, install, and package-export 
 - package config: `unicode_rangesConfig.cmake`
 - install export under `lib/cmake/unicode_ranges`
 
-The first-party CMake build also exposes linked test and benchmark executables. The benchmark target is currently generated only when ICU is available to that build, because the benchmark suite exercises ICU-backed operations as part of its sanity assertions.
+The first-party CMake build also exposes linked test and benchmark executables.
 
 If you add the repository with `add_subdirectory(...)`, just link the target:
 

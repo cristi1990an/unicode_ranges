@@ -734,25 +734,34 @@ jobs:
           sudo apt-get install -y ${{ matrix.packages }}
 
       - name: Show compiler version
-        run: ${{ matrix.cxx }} --version
+        run: |
+          ${{ matrix.cxx }} --version
+          cmake --version
 
-      - name: Build benchmark runner
+      - name: Configure and build benchmark runner (CMake)
         run: |
           compile_lto_flags="-flto=auto"
-          link_lto_flags="-flto=auto"
+          linker_flags="-flto=auto"
           if [ "${{ matrix.install_kind }}" = "clang" ]; then
             compile_lto_flags="-flto=thin"
-            link_lto_flags="-flto=thin -fuse-ld=lld"
+            linker_flags="-flto=thin -fuse-ld=lld"
           elif [ "${{ matrix.install_kind }}" = "appleclang" ]; then
             compile_lto_flags="-flto=thin"
-            link_lto_flags="-flto=thin"
+            linker_flags="-flto=thin"
           fi
-          ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $compile_lto_flags -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o unicode_ranges_runtime.o
-          ar rcs libunicode_ranges.a unicode_ranges_runtime.o
-          ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $link_lto_flags unicode_ranges_benchmarks.cpp libunicode_ranges.a -o ${{ matrix.output }}
+          build_dir="build/cmake-${{ matrix.output }}"
+          cmake -S . -B "$build_dir" \
+            -DUTF8_RANGES_BUILD_TESTS=OFF \
+            -DUTF8_RANGES_BUILD_BENCHMARKS=ON \
+            -DUTF8_RANGES_ENABLE_ICU=OFF \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+            -DCMAKE_CXX_FLAGS="${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $compile_lto_flags -Wno-error=overflow -Wno-error=pedantic" \
+            -DCMAKE_EXE_LINKER_FLAGS="$linker_flags"
+          cmake --build "$build_dir" --config Release --target unicode_ranges_benchmarks
 
       - name: Run benchmark suite
-        run: ./${{ matrix.output }} --min-ms=300 > benchmark-results.txt
+        run: ./build/cmake-${{ matrix.output }}/unicode_ranges_benchmarks --min-ms=300 > benchmark-results.txt
 
       - name: Publish benchmark summary
         run: |
