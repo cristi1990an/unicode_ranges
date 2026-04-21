@@ -40,13 +40,6 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Fetch simdutf dependency
-        shell: powershell
-        run: |
-          $depsRoot = Join-Path $PWD "build/runtime-deps"
-          $simdutfRoot = .\tools\fetch_comparative_dependency.ps1 -Name simdutf -DestinationRoot $depsRoot
-          "SIMDUTF_ROOT=$simdutfRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
       - name: Build and run tests for all Unicode versions
         shell: powershell
         run: |
@@ -80,13 +73,6 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Fetch simdutf dependency
-        shell: powershell
-        run: |
-          $depsRoot = Join-Path $PWD "build/runtime-deps"
-          $simdutfRoot = .\tools\fetch_comparative_dependency.ps1 -Name simdutf -DestinationRoot $depsRoot
-          "SIMDUTF_ROOT=$simdutfRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
       - name: Build and run tests for all Unicode versions
         shell: powershell
         run: |
@@ -117,12 +103,6 @@ jobs:
           rustc --version
           pwsh --version
 
-      - name: Fetch simdutf dependency
-        run: |
-          deps_root="$(pwd)/build/runtime-deps"
-          simdutf_root="$(pwsh -NoProfile -File ./tools/fetch_comparative_dependency.ps1 -Name simdutf -DestinationRoot "$deps_root")"
-          echo "SIMDUTF_ROOT=$simdutf_root" >> "$GITHUB_ENV"
-
       - name: Build and run tests for all Unicode versions
         run: |
           for version in $UNICODE_TEST_VERSIONS; do
@@ -131,9 +111,9 @@ jobs:
             output="unicode_ranges_macos_o2_${version//./_}"
             runtime_obj="${output}_runtime.o"
             runtime_lib="lib${output}.a"
-            clang++ -std=c++23 -O2 -Wall -Wextra -Werror -pedantic -pthread -I"${SIMDUTF_ROOT}" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
+            clang++ -std=c++23 -O2 -Wall -Wextra -Werror -pedantic -pthread -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
             ar rcs "$runtime_lib" "$runtime_obj"
-            clang++ -std=c++23 -O2 -Wall -Wextra -Werror -pedantic -pthread -I"${SIMDUTF_ROOT}" source.cpp "$runtime_lib" -o "$output"
+            clang++ -std=c++23 -O2 -Wall -Wextra -Werror -pedantic -pthread source.cpp "$runtime_lib" -o "$output"
             "./$output"
           done
 
@@ -148,13 +128,6 @@ jobs:
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
-
-      - name: Fetch simdutf dependency
-        shell: powershell
-        run: |
-          $depsRoot = Join-Path $PWD "build/runtime-deps"
-          $simdutfRoot = .\tools\fetch_comparative_dependency.ps1 -Name simdutf -DestinationRoot $depsRoot
-          "SIMDUTF_ROOT=$simdutfRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Run static analysis
         shell: powershell
@@ -365,12 +338,6 @@ jobs:
           rustc --version
           pwsh --version
 
-      - name: Fetch simdutf dependency
-        run: |
-          deps_root="$(pwd)/build/runtime-deps"
-          simdutf_root="$(pwsh -NoProfile -File ./tools/fetch_comparative_dependency.ps1 -Name simdutf -DestinationRoot "$deps_root")"
-          echo "SIMDUTF_ROOT=$simdutf_root" >> "$GITHUB_ENV"
-
       - name: Build and run tests for all Unicode versions
         run: |
           for version in $UNICODE_TEST_VERSIONS; do
@@ -379,17 +346,17 @@ jobs:
             output="${{ matrix.output }}_${version//./_}"
             runtime_obj="${output}_runtime.o"
             runtime_lib="lib${output}.a"
-            ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
+            ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
             ar rcs "$runtime_lib" "$runtime_obj"
-            ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 source.cpp "$runtime_lib" -o "$output"
+            ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 source.cpp "$runtime_lib" -o "$output"
             "./$output"
             if [ -n "${{ matrix.sanitizer_flags }}" ]; then
               forced_output="${output}_forced_parallel"
               forced_runtime_obj="${forced_output}_runtime.o"
               forced_runtime_lib="lib${forced_output}.a"
-              ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$forced_runtime_obj"
+              ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$forced_runtime_obj"
               ar rcs "$forced_runtime_lib" "$forced_runtime_obj"
-              ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 source.cpp "$forced_runtime_lib" -o "$forced_output"
+              ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 source.cpp "$forced_runtime_lib" -o "$forced_output"
               "./$forced_output"
             fi
           done
@@ -444,12 +411,6 @@ jobs:
           rustc --version
           pwsh --version
 
-      - name: Fetch simdutf dependency
-        run: |
-          deps_root="$(pwd)/build/runtime-deps"
-          simdutf_root="$(pwsh -NoProfile -File ./tools/fetch_comparative_dependency.ps1 -Name simdutf -DestinationRoot "$deps_root")"
-          echo "SIMDUTF_ROOT=$simdutf_root" >> "$GITHUB_ENV"
-
       - name: Build and run tests for all Unicode versions
         run: |
           for version in $UNICODE_TEST_VERSIONS; do
@@ -458,17 +419,17 @@ jobs:
             output="${{ matrix.output }}_${version//./_}"
             runtime_obj="${output}_runtime.o"
             runtime_lib="lib${output}.a"
-            g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
+            g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
             ar rcs "$runtime_lib" "$runtime_obj"
-            g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 source.cpp "$runtime_lib" -o "$output"
+            g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 source.cpp "$runtime_lib" -o "$output"
             "./$output"
             if [ -n "${{ matrix.sanitizer_flags }}" ]; then
               forced_output="${output}_forced_parallel"
               forced_runtime_obj="${forced_output}_runtime.o"
               forced_runtime_lib="lib${forced_output}.a"
-              g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$forced_runtime_obj"
+              g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$forced_runtime_obj"
               ar rcs "$forced_runtime_lib" "$forced_runtime_obj"
-              g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -I"${SIMDUTF_ROOT}" -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 source.cpp "$forced_runtime_lib" -o "$forced_output"
+              g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 source.cpp "$forced_runtime_lib" -o "$forced_output"
               "./$forced_output"
             fi
           done
@@ -526,12 +487,6 @@ jobs:
           pwsh --version
           pkg-config --modversion icu-uc
 
-      - name: Fetch simdutf dependency
-        run: |
-          deps_root="$(pwd)/build/runtime-deps"
-          simdutf_root="$(pwsh -NoProfile -File ./tools/fetch_comparative_dependency.ps1 -Name simdutf -DestinationRoot "$deps_root")"
-          echo "SIMDUTF_ROOT=$simdutf_root" >> "$GITHUB_ENV"
-
       - name: Build and run ICU-enabled tests for all Unicode versions
         run: |
           for version in $UNICODE_TEST_VERSIONS; do
@@ -543,7 +498,6 @@ jobs:
             ${{ matrix.cxx }} -std=c++23 -O2 -Wall -Wextra -Werror -pedantic \
               -DUTF8_RANGES_ENABLE_ICU=1 \
               ${{ matrix.cxxflags }} \
-              -I"${SIMDUTF_ROOT}" \
               $(pkg-config --cflags icu-uc) \
               -Wno-error=overflow -Wno-error=pedantic \
               -c unicode_ranges.cpp \
@@ -552,7 +506,6 @@ jobs:
             ${{ matrix.cxx }} -std=c++23 -O2 -Wall -Wextra -Werror -pedantic \
               -DUTF8_RANGES_ENABLE_ICU=1 \
               ${{ matrix.cxxflags }} \
-              -I"${SIMDUTF_ROOT}" \
               $(pkg-config --cflags icu-uc) \
               source.cpp "$runtime_lib" \
               -o "$output" \
@@ -602,12 +555,6 @@ jobs:
         run: |
           ${{ matrix.cxx }} --version
 
-      - name: Fetch simdutf dependency
-        run: |
-          deps_root="$(pwd)/build/runtime-deps"
-          simdutf_root="$(pwsh -NoProfile -File ./tools/fetch_comparative_dependency.ps1 -Name simdutf -DestinationRoot "$deps_root")"
-          echo "SIMDUTF_ROOT=$simdutf_root" >> "$GITHUB_ENV"
-
       - name: Compile docs examples
         id: compile_docs_examples
         continue-on-error: ${{ matrix.install_kind == 'gcc' }}
@@ -643,12 +590,6 @@ jobs:
           clang++-22 --version
           llvm-cov-22 --version
           llvm-profdata-22 --version
-
-      - name: Fetch simdutf dependency
-        run: |
-          deps_root="$(pwd)/build/runtime-deps"
-          simdutf_root="$(pwsh -NoProfile -File ./tools/fetch_comparative_dependency.ps1 -Name simdutf -DestinationRoot "$deps_root")"
-          echo "SIMDUTF_ROOT=$simdutf_root" >> "$GITHUB_ENV"
 
       - name: Generate coverage
         run: bash tools/generate_coverage.sh
@@ -767,12 +708,6 @@ jobs:
       - name: Show compiler version
         run: ${{ matrix.cxx }} --version
 
-      - name: Fetch simdutf dependency
-        run: |
-          deps_root="$(pwd)/build/runtime-deps"
-          simdutf_root="$(pwsh -NoProfile -File ./tools/fetch_comparative_dependency.ps1 -Name simdutf -DestinationRoot "$deps_root")"
-          echo "SIMDUTF_ROOT=$simdutf_root" >> "$GITHUB_ENV"
-
       - name: Build benchmark runner
         run: |
           compile_lto_flags="-flto=auto"
@@ -784,9 +719,9 @@ jobs:
             compile_lto_flags="-flto=thin"
             link_lto_flags="-flto=thin"
           fi
-          ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $compile_lto_flags -I"${SIMDUTF_ROOT}" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o unicode_ranges_runtime.o
+          ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $compile_lto_flags -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o unicode_ranges_runtime.o
           ar rcs libunicode_ranges.a unicode_ranges_runtime.o
-          ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $link_lto_flags -I"${SIMDUTF_ROOT}" unicode_ranges_benchmarks.cpp libunicode_ranges.a -o ${{ matrix.output }}
+          ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $link_lto_flags unicode_ranges_benchmarks.cpp libunicode_ranges.a -o ${{ matrix.output }}
 
       - name: Run benchmark suite
         run: ./${{ matrix.output }} --min-ms=300 > benchmark-results.txt
