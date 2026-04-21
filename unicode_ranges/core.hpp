@@ -1141,12 +1141,74 @@ namespace details
 		copy_ascii_utf8_to_utf16_runtime(out, bytes);
 	}
 
-	inline constexpr void copy_ascii_utf8_to_utf32_scalar(char32_t* out, std::u8string_view bytes) noexcept
+	template <typename CharT>
+	requires (sizeof(CharT) == 1)
+	inline constexpr void copy_ascii_bytes_to_utf32_scalar(char32_t* out, std::basic_string_view<CharT> bytes) noexcept
 	{
 		for (std::size_t index = 0; index != bytes.size(); ++index)
 		{
 			out[index] = static_cast<char32_t>(static_cast<std::uint8_t>(bytes[index]));
 		}
+	}
+
+	template <typename CharT>
+	requires (sizeof(CharT) == 1)
+	inline void copy_ascii_bytes_to_utf32_runtime(char32_t* out, std::basic_string_view<CharT> bytes) noexcept
+	{
+#if UTF8_RANGES_HAS_SSE2_INTRINSICS
+		if (bytes.size() < 16) [[unlikely]]
+		{
+			copy_ascii_bytes_to_utf32_scalar(out, bytes);
+			return;
+		}
+
+		const auto* data = reinterpret_cast<const char*>(bytes.data());
+		const auto zero = _mm_setzero_si128();
+		std::size_t index = 0;
+		while (index + 16 <= bytes.size())
+		{
+			__m128i block;
+			std::memcpy(&block, data + index, 16);
+			const auto lower16 = _mm_unpacklo_epi8(block, zero);
+			const auto upper16 = _mm_unpackhi_epi8(block, zero);
+			const auto lane0 = _mm_unpacklo_epi16(lower16, zero);
+			const auto lane1 = _mm_unpackhi_epi16(lower16, zero);
+			const auto lane2 = _mm_unpacklo_epi16(upper16, zero);
+			const auto lane3 = _mm_unpackhi_epi16(upper16, zero);
+			_mm_storeu_si128(reinterpret_cast<__m128i*>(out + index), lane0);
+			_mm_storeu_si128(reinterpret_cast<__m128i*>(out + index + 4), lane1);
+			_mm_storeu_si128(reinterpret_cast<__m128i*>(out + index + 8), lane2);
+			_mm_storeu_si128(reinterpret_cast<__m128i*>(out + index + 12), lane3);
+			index += 16;
+		}
+
+		copy_ascii_bytes_to_utf32_scalar(out + index, bytes.substr(index));
+#else
+		copy_ascii_bytes_to_utf32_scalar(out, bytes);
+#endif
+	}
+
+	template <typename CharT>
+	requires (sizeof(CharT) == 1)
+	inline constexpr void copy_ascii_bytes_to_utf32(char32_t* out, std::basic_string_view<CharT> bytes) noexcept
+	{
+		if (std::is_constant_evaluated())
+		{
+			copy_ascii_bytes_to_utf32_scalar(out, bytes);
+			return;
+		}
+
+		copy_ascii_bytes_to_utf32_runtime(out, bytes);
+	}
+
+	inline constexpr void copy_ascii_utf8_to_utf32_scalar(char32_t* out, std::u8string_view bytes) noexcept
+	{
+		copy_ascii_bytes_to_utf32_scalar(out, bytes);
+	}
+
+	inline constexpr void copy_ascii_utf8_to_utf32(char32_t* out, std::u8string_view bytes) noexcept
+	{
+		copy_ascii_bytes_to_utf32(out, bytes);
 	}
 
 	template <typename CharT>
@@ -2301,7 +2363,13 @@ namespace details
 		result.resize_and_overwrite(bytes.size(),
 			[&](char32_t* buffer, std::size_t) noexcept
 			{
-				copy_ascii_utf8_to_utf32_scalar(buffer, bytes);
+				if (auto converted = simdutf_convert_valid_utf8_to_utf32_if_available(bytes, buffer))
+				{
+					UTF8_RANGES_DEBUG_ASSERT(*converted == bytes.size());
+					return *converted;
+				}
+
+				copy_ascii_utf8_to_utf32(buffer, bytes);
 				return bytes.size();
 			});
 		return result;
@@ -2622,7 +2690,7 @@ namespace details
 			const auto ascii_run = ascii_prefix_length(remaining);
 			if (ascii_run != 0)
 			{
-				copy_ascii_utf8_to_utf32_scalar(buffer + write_index, remaining.substr(0, ascii_run));
+				copy_ascii_utf8_to_utf32(buffer + write_index, remaining.substr(0, ascii_run));
 				write_index += ascii_run;
 				read_index += ascii_run;
 				continue;
@@ -2720,10 +2788,7 @@ namespace details
 					const auto ascii_run = ascii_prefix_length(remaining);
 					if (ascii_run != 0)
 					{
-						for (std::size_t i = 0; i != ascii_run; ++i)
-						{
-							buffer[write_index + i] = static_cast<char32_t>(static_cast<std::uint8_t>(remaining[i]));
-						}
+						copy_ascii_bytes_to_utf32(buffer + write_index, remaining.substr(0, ascii_run));
 
 						write_index += ascii_run;
 						read_index += ascii_run;
@@ -2770,10 +2835,7 @@ namespace details
 					const auto ascii_run = ascii_prefix_length(remaining);
 					if (ascii_run != 0)
 					{
-						for (std::size_t i = 0; i != ascii_run; ++i)
-						{
-							buffer[write_index + i] = static_cast<char32_t>(static_cast<unsigned char>(remaining[i]));
-						}
+						copy_ascii_bytes_to_utf32(buffer + write_index, remaining.substr(0, ascii_run));
 
 						write_index += ascii_run;
 						read_index += ascii_run;
