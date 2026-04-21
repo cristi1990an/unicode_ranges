@@ -2,6 +2,11 @@
 
 This page defines how `unicode_ranges` will be benchmarked against other libraries.
 
+Current implementation note:
+
+- `unicode_ranges` now uses `simdutf` as its production runtime backend for the hot UTF validation and UTF-8 -> UTF-16/UTF-32 transcoding paths.
+- That means current comparative rows in those families measure `unicode_ranges` integration overhead, API shape, allocation behavior, and fallback decisions against raw `simdutf` public API usage; they are not a claim that `unicode_ranges` and `simdutf` are independent low-level codec implementations.
+
 The benchmark suite is intended to answer a narrow question:
 
 - for a specific Unicode task, with clearly defined semantics, how does `unicode_ranges` compare to the strongest available implementation on each major C++ toolchain?
@@ -95,7 +100,7 @@ No single library overlaps the full `unicode_ranges` surface. Comparisons are th
 
 | Library | Best comparison families | Notes |
 | --- | --- | --- |
-| [simdutf](https://github.com/simdutf/simdutf) | UTF validation, UTF transcoding | strongest raw UTF codec baseline; not a normalization or segmentation library |
+| [simdutf](https://github.com/simdutf/simdutf) | UTF validation, UTF transcoding | strongest raw UTF codec baseline; also the current `unicode_ranges` runtime backend for those hot paths |
 | [ICU](https://unicode-org.github.io/icu/userguide/) | normalization, case mapping, segmentation, legacy encoding conversion | broadest feature overlap; use converter APIs for boundary encodings |
 | [Boost.Text](https://tzlaine.github.io/text/doc/html/index.html) | transcoding, normalization, segmentation, case mapping | broad algorithm overlap in modern C++ |
 | [uni-algo](https://github.com/uni-algo/uni-algo) | conversion, normalization, case mapping, segmentation | strong safe-Unicode algorithm baseline; strict conversion and validation APIs are public in `conv.h` |
@@ -123,6 +128,10 @@ Primary comparisons:
 - `uni-algo`
 - `utfcpp`
 
+Interpretation note:
+
+- current `unicode_ranges` rows in this family are wrapper/integration comparisons against raw `simdutf` usage, not independent codec-algorithm competitions
+
 ### UTF Transcoding
 
 Semantics:
@@ -138,6 +147,10 @@ Primary comparisons:
 - `Boost.Text`
 - `uni-algo`
 - `utfcpp`
+
+Interpretation note:
+
+- current `unicode_ranges` rows in this family are wrapper/integration comparisons against raw `simdutf` usage for the same reason as UTF validation
 
 ### Normalization
 
@@ -317,6 +330,14 @@ Current comparative suite:
   and fetched through `tools/fetch_comparative_dependency.ps1`
 - a manifest-driven dependency fetch script for external comparative baselines
 - CI jobs that fetch, build, and run the comparative suite on GCC, Clang, and MSVC
+
+Important current caveat:
+
+- because `unicode_ranges` now uses `simdutf` as the production runtime backend for UTF validation and UTF-8 -> UTF-16/UTF-32 transcoding, those comparative families should be read primarily as:
+  - wrapper overhead comparisons
+  - API-shape and allocation-model comparisons
+  - fallback-policy comparisons
+  rather than as "completely unrelated low-level algorithm A versus algorithm B"
 
 It still does not imply:
 

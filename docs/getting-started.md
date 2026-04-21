@@ -24,6 +24,7 @@ Short version:
 - put a pinned `simdutf` singleheader release (`v7.7.0`) on the include path
 - there is not yet a first-party package-manager or CMake package integration
 - your build needs C++23, the repository root on the include path, and the `simdutf` include root
+- runtime UTF validation and UTF-8 <-> UTF-16/UTF-32 transcoding currently go through the `simdutf` backend; compile-time and higher-level APIs remain in `unicode_ranges`
 
 ## Include the library
 

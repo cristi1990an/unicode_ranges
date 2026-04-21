@@ -20,6 +20,23 @@ Many existing C and C++ Unicode/text APIs start from raw byte buffers or raw cod
 
 The goal is predictable Unicode handling with clear invariants and explicit failure modes. You do not pay for what you do not use: checked and unchecked paths are separate, borrowed and owning types are separate, ASCII-only and Unicode-aware operations are separate, and scalar-level and grapheme-level APIs are separate.
 
+## Runtime Backend
+
+`unicode_ranges` now uses `simdutf` as its production runtime backend for the hot UTF boundary operations:
+
+- UTF-8 validation
+- UTF-8 -> UTF-16 transcoding
+- UTF-8 -> UTF-32 transcoding
+
+That choice is deliberate. In the comparative benchmark suite, `simdutf` has been the strongest raw UTF codec baseline by a clear margin, and using it through its public API lets `unicode_ranges` keep its own validated types and error model while benefiting from best-in-class runtime UTF performance.
+
+This does not replace the rest of the library:
+
+- the public API remains `unicode_ranges`
+- the higher-level string/view/value types remain `unicode_ranges`
+- compile-time and `constexpr`-oriented functionality remains implemented in `unicode_ranges`
+- the runtime backend is specifically about the hot UTF validation/transcoding paths
+
 ## Documentation
 
 - Docs site: [https://cristi1990an.github.io/unicode_ranges/](https://cristi1990an.github.io/unicode_ranges/)
@@ -129,14 +146,16 @@ python -m mkdocs serve
 
 Then open `http://127.0.0.1:8000/`.
 
-## License
+## Licensing
 
-This repository is dual-licensed under:
+This repository is dual-licensed under `MIT OR Apache-2.0`.
 
-- `MIT`
-- `Apache-2.0`
+The full license texts are in:
 
-See `LICENSE`, `LICENSE-MIT`, and `LICENSE-APACHE`.
+- `LICENSE`
+- `LICENSE-MIT`
+- `LICENSE-APACHE`
 
-Third-party dependency notices and the provenance-header policy for any future
-copied source files are documented in `THIRD_PARTY_NOTICES.md`.
+The pinned runtime dependency `simdutf` is also dual-licensed under `MIT OR Apache-2.0`, which keeps the licensing model straightforward for the compiled runtime backend.
+
+Third-party dependency notices, pinned versions, and the provenance-header policy for any future copied source files are documented in `THIRD_PARTY_NOTICES.md`.

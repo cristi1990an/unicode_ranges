@@ -29,6 +29,23 @@ The library is built around a few explicit rules:
 - Borrowed and owning types are separate.
 - Performance matters, especially on ASCII-heavy paths, but not at the expense of Unicode correctness.
 
+## Compiled runtime backend
+
+The library is no longer purely a header-only/source-only consumption story. The hot runtime UTF boundary operations now live in the compiled `unicode_ranges` library target and use `simdutf` as the backend for:
+
+- UTF-8 validation
+- UTF-8 -> UTF-16 transcoding
+- UTF-8 -> UTF-32 transcoding
+
+This is a pragmatic design decision. In the comparative benchmark suite, `simdutf` has been the strongest raw UTF codec baseline, so the library now uses it through its public API instead of re-implementing the same runtime dispatch ladder itself.
+
+That backend choice does not change the core model:
+
+- the public API is still `unicode_ranges`
+- validated types and higher-level algorithms still belong to `unicode_ranges`
+- compile-time and `constexpr`-oriented behavior remains implemented locally
+- the `simdutf` dependency is specifically about the runtime hot path for contiguous UTF validation/transcoding
+
 ## Ownership model
 
 - `utf8_string_view` / `utf16_string_view` / `utf32_string_view` borrow validated storage.

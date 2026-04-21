@@ -1,5 +1,5 @@
 site_name: unicode_ranges
-site_description: Header-only C++23 UTF-8 and UTF-16 text library
+site_description: Compiled C++23 UTF-8, UTF-16, and UTF-32 text library
 site_url: https://cristi1990an.github.io/unicode_ranges/
 site_dir: _site
 repo_url: https://github.com/cristi1990an/unicode_ranges
@@ -41,6 +41,7 @@ nav:
   - Design: design.md
   - Boundary Encodings: extensible-encodings.md
   - Benchmarking: benchmarking.md
+  - Licensing: licensing.md
   - Unicode Data: unicode-data.md
   - Error Model: error-model.md
   - Text Operations: text-operations.md

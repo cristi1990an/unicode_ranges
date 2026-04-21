@@ -34,6 +34,29 @@ The public umbrella header lives at the repository root:
 #include "unicode_ranges.hpp"
 ```
 
+## Runtime backend: simdutf
+
+The compiled `unicode_ranges` library target uses `simdutf` for the hot runtime UTF boundary operations:
+
+- UTF-8 validation
+- UTF-8 -> UTF-16 transcoding
+- UTF-8 -> UTF-32 transcoding
+
+That is not accidental dependency creep. `simdutf` has been the strongest raw UTF codec baseline in the comparative benchmark suite, and using its public API lets `unicode_ranges` keep its own validated string/view/value types and error model while taking advantage of excellent runtime UTF performance.
+
+The rest of the library remains `unicode_ranges` code:
+
+- the public API surface
+- validated UTF types
+- grapheme logic
+- normalization and casing layers
+- compile-time and `constexpr`-oriented functionality
+
+So the integration rule is simple:
+
+- link `unicode_ranges`
+- provide the pinned `simdutf` singleheader release on the include path when building that library target
+
 ## Recommended: vendor or submodule
 
 If you vendor the repository or add it as a submodule, point your include path at the checked-out repository root and at a pinned `simdutf` singleheader release:
@@ -160,6 +183,19 @@ target_compile_features(unicode_ranges PUBLIC cxx_std_23)
 ```
 
 This is still a source-fetch recipe, not a first-party packaged install.
+
+## Licensing
+
+`unicode_ranges` itself is dual-licensed under `MIT OR Apache-2.0`.
+
+The pinned runtime dependency `simdutf` is also dual-licensed under `MIT OR Apache-2.0`, which keeps the compiled runtime dependency model straightforward.
+
+For the exact repository licenses, third-party dependency versions, and notice policy, see:
+
+- `LICENSE`
+- `LICENSE-MIT`
+- `LICENSE-APACHE`
+- `THIRD_PARTY_NOTICES.md`
 
 ## Toolchains exercised in CI
 

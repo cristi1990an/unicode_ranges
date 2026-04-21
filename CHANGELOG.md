@@ -69,6 +69,9 @@ tracking local work before it is tagged or versioned.
 
 ### Changed
 
+- the build and integration model is now centered on a compiled `unicode_ranges` library target instead of asking every consumer to compile `unicode_ranges.cpp` directly
+- runtime UTF-8 validation and UTF-8 <-> UTF-16/UTF-32 transcoding now use pinned `simdutf` `v7.7.0` as the production backend for those hot paths
+- the repository license is now documented consistently as `MIT OR Apache-2.0`, with third-party dependency notices collected in `THIRD_PARTY_NOTICES.md`
 - unchecked construction/access APIs now mirror the checked preconditions with debug-only assertions
 - GCC docs-example compilation is now treated as informational for the known libstdc++ formatting limitation
 - locale-aware titlecasing is available only as a whole-string ICU-backed operation; partial locale-aware titlecasing overloads are intentionally not exposed
@@ -85,6 +88,7 @@ tracking local work before it is tagged or versioned.
 
 ### Documentation
 
+- updated the README and docs site to describe the compiled-library build model, the `simdutf` runtime backend, and the current licensing/dependency story
 - documented the optional ICU-backed locale-aware casing APIs, locale tokens, and ICU fallback behavior
 - added reference coverage and compiled examples for the new case-insensitive comparison helpers
 - added reference coverage and examples for the curated `characters::utf8` / `characters::utf16` / `characters::utf32` namespaces

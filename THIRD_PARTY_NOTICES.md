@@ -6,6 +6,7 @@ components keep their own licenses.
 ## Current state
 
 - `simdutf` is a pinned runtime dependency and is also reused by the comparative benchmark suite.
+- the shipped compiled runtime backend currently uses `simdutf` through its public API and published singleheader release layout
 - Comparative benchmark dependencies are fetched separately.
 - No copied or adapted third-party source files are currently tracked in the
   library sources.
@@ -52,6 +53,10 @@ instead of tracked source copies.
 - Upstream: <https://github.com/simdutf/simdutf>
 - Version used by the library runtime and comparative benchmark suite: `v7.7.0`
 - License: `MIT OR Apache-2.0`
+- Consumption model:
+  - compiled runtime dependency
+  - consumed through the published `simdutf.h` + `simdutf.cpp` singleheader release layout
+  - no tracked copied/adapted `simdutf` source files in the library sources at this time
 - Local metadata:
   - `comparative_benchmarks/dependencies.json`
 

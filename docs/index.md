@@ -20,6 +20,8 @@ The design goal is not "maximum abstraction". It is predictable Unicode handling
 
 The public surface is still header-first, but the runtime UTF hot paths now live in the compiled `unicode_ranges` library target, built from `unicode_ranges.cpp` and backed by pinned `simdutf` (`v7.7.0`). Consumers should link that library target, or an equivalent library in their own build, and keep the `simdutf` singleheader release on the include path.
 
+That backend choice is intentional: `simdutf` has been the strongest raw UTF validation/transcoding baseline in the comparative benchmark suite, so `unicode_ranges` now uses it directly for those runtime hot paths while keeping the higher-level validated type model and the rest of the Unicode algorithms in `unicode_ranges` itself.
+
 ## New users: start here
 
 - [Install And Integrate](install-and-integrate.md): how to consume the library today, including the current packaging reality.
@@ -28,6 +30,7 @@ The public surface is still header-first, but the runtime UTF hot paths now live
 - [Design](design.md): ownership, indexing, boundaries, and what the library treats as a character.
 - [Boundary Encodings](extensible-encodings.md): built-in codecs, custom encoder/decoder requirements, generated APIs, and boundary-specific error handling.
 - [Benchmarking](benchmarking.md): the cross-library benchmark charter, comparison rules, toolchain matrix, and planned benchmark families.
+- [Licensing](licensing.md): repository dual-license model, runtime dependency license notes, and third-party notices.
 - [Text Operations](text-operations.md): search, split, trim, replace, reverse, and boundary queries.
 - [Casing and Normalization](casing-and-normalization.md): Unicode casing, case folding, and normalization forms.
 - [Reference](reference/index.md): grouped API reference by type family.
