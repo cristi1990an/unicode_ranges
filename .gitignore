@@ -3,8 +3,17 @@
 x64/
 Debug/
 Win32/
+build/
+_site/
 build_artifacts/
+.dotnet/
 .dotnet-home/
+.local/
+benchmark_artifact_*/
+benchmark_review_*/
+benchmark_review_simdutf_latest/
+coverage_artifact/
+unicode_ranges_benchmarks_check.exe
 *.user
 *.pdb
 *.ilk

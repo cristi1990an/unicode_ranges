@@ -31,7 +31,7 @@ The library is built around a few explicit rules:
 
 ## Compiled runtime backend
 
-The library is no longer purely a header-only/source-only consumption story. The hot runtime UTF boundary operations now live in the compiled `unicode_ranges` library target and use `simdutf` as the backend for:
+The library now has a compiled runtime backend. The hot runtime UTF boundary operations live in the compiled `unicode_ranges` library target and use `simdutf` as the backend for:
 
 - UTF-8 validation
 - UTF-8 -> UTF-16 transcoding

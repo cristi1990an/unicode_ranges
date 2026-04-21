@@ -136,7 +136,7 @@ include(FetchContent)
 FetchContent_Declare(
     unicode_ranges_src
     GIT_REPOSITORY https://github.com/cristi1990an/unicode_ranges.git
-    GIT_TAG main
+    GIT_TAG <pinned-tag-or-commit>
 )
 
 FetchContent_MakeAvailable(unicode_ranges_src)
@@ -145,6 +145,8 @@ target_link_libraries(your_target PRIVATE unicode_ranges::unicode_ranges)
 ```
 
 This uses the first-party library target instead of rebuilding ad hoc target logic in your own project.
+
+Do not track `main` in production builds. Pin an exact tag or commit that you have validated in your own CI.
 
 ## Optional ICU-backed locale casing
 
