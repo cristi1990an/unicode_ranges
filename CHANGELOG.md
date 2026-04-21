@@ -70,6 +70,7 @@ tracking local work before it is tagged or versioned.
 ### Changed
 
 - the build and integration model is now centered on a compiled `unicode_ranges` library target instead of asking every consumer to compile `unicode_ranges.cpp` directly
+- the repository now ships a first-party CMake build, install/export package, and linked test/benchmark targets for the compiled `unicode_ranges` library
 - runtime UTF-8 validation and UTF-8 <-> UTF-16/UTF-32 transcoding now use pinned `simdutf` `v7.7.0` as the production backend for those hot paths
 - the repository license is now documented consistently as `MIT OR Apache-2.0`, with third-party dependency notices collected in `THIRD_PARTY_NOTICES.md`
 - unchecked construction/access APIs now mirror the checked preconditions with debug-only assertions

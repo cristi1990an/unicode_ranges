@@ -269,6 +269,72 @@ auto simdutf_convert_utf8_to_utf32_checked_runtime(
 	return std::unexpected(map_simdutf_utf8_error(result));
 }
 
+utf32_parallel_plan make_utf32_parallel_plan(std::size_t code_point_count) noexcept
+{
+	return make_utf32_parallel_plan(code_point_count, std::thread::hardware_concurrency());
+}
+
+void run_parallel_jobs_runtime(
+	std::size_t worker_count,
+	void* context,
+	utf32_parallel_job_fn job)
+{
+	if (worker_count <= 1)
+	{
+		job(context, 0);
+		return;
+	}
+
+	// The calling thread participates as the last worker to avoid spinning up an
+	// extra thread just to sit idle waiting for joins.
+	const auto background_worker_count = worker_count - 1;
+	static_assert(runtime_parallel_max_worker_count >= 2);
+#if UTF8_RANGES_HAS_JTHREAD
+	std::array<std::jthread, runtime_parallel_max_worker_count - 1> workers{};
+	for (std::size_t worker_index = 0; worker_index != background_worker_count; ++worker_index)
+	{
+		workers[worker_index] = std::jthread([=] noexcept
+			{
+				job(context, worker_index);
+			});
+	}
+	job(context, background_worker_count);
+#else
+	std::array<std::thread, runtime_parallel_max_worker_count - 1> workers{};
+	std::size_t started_workers = 0;
+	try
+	{
+		for (std::size_t worker_index = 0; worker_index != background_worker_count; ++worker_index)
+		{
+			workers[worker_index] = std::thread([=]
+				{
+					job(context, worker_index);
+				});
+			++started_workers;
+		}
+	}
+	catch (...)
+	{
+		for (std::size_t worker_index = 0; worker_index != started_workers; ++worker_index)
+		{
+			if (workers[worker_index].joinable())
+			{
+				workers[worker_index].join();
+			}
+		}
+		throw;
+	}
+	job(context, background_worker_count);
+	for (std::size_t worker_index = 0; worker_index != started_workers; ++worker_index)
+	{
+		if (workers[worker_index].joinable())
+		{
+			workers[worker_index].join();
+		}
+	}
+#endif
+}
+
 }
 
 #if UTF8_RANGES_HAS_ICU

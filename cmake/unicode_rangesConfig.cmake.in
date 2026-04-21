@@ -1,0 +1,9 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+if(@UTF8_RANGES_PACKAGE_HAS_ICU@)
+    find_dependency(ICU COMPONENTS uc i18n)
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/unicode_rangesTargets.cmake")

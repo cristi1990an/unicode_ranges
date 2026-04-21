@@ -13,3 +13,8 @@ build_artifacts/
 *.tlog/
 *.lastbuildstate
 *.log
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+Makefile

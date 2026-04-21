@@ -21,7 +21,7 @@ Short version:
 
 - today, the normal consumption path is vendoring, a git submodule, or source-fetching in CMake
 - build and link the `unicode_ranges` library target, or an equivalent library target in your own build
-- there is not yet a first-party package-manager or CMake package integration
+- there is not yet a first-party package-manager distribution
 - your build needs C++23 and the repository root on the include path
 - the repository already vendors pinned `simdutf` (`v7.7.0`) under `third_party/simdutf`
 - runtime UTF validation and UTF-8 <-> UTF-16/UTF-32 transcoding currently go through the `simdutf` backend; compile-time and higher-level APIs remain in `unicode_ranges`

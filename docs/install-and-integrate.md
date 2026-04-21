@@ -8,22 +8,21 @@
 ## Current packaging status
 
 - There is no first-party package-manager distribution yet.
-- There is no first-party CMake package or `install()` export yet.
 - There may be no tagged release that matches the commit you want to consume.
 - Runtime UTF validation and UTF-8 <-> UTF-16/UTF-32 transcoding use pinned vendored `simdutf` `v7.7.0` under `third_party/simdutf`.
-- The repository itself now ships a first-party Visual Studio static-library project, `unicode_ranges.vcxproj`, plus separate test and benchmark executables that link it.
+- The repository ships first-party Visual Studio and CMake build definitions for the compiled library target.
 
 So the practical choices right now are:
 
 1. Vendor a snapshot of the repository into your source tree.
 2. Add the repository as a git submodule.
-3. Fetch the repository in CMake, then build a small static library target yourself.
+3. Fetch the repository in CMake and link the shipped `unicode_ranges` target.
 
 ## What your build needs
 
 - C++23 enabled
 - the repository root on the include path
-- `unicode_ranges.cpp` compiled into your `unicode_ranges` library target
+- the `unicode_ranges` library target built from `unicode_ranges.cpp`
 - `#include "unicode_ranges.hpp"` in user code
 - the vendored `third_party/simdutf` directory kept alongside `unicode_ranges.cpp`
 
@@ -93,63 +92,43 @@ The repository now contains a first-party Visual Studio library project:
 
 If you are consuming the repository directly from Visual Studio, build `unicode_ranges.vcxproj` and link it into your own executable or test project the same way the repo's test/benchmark projects do.
 
-## CMake: manual target
+## CMake: first-party target
 
-Because the repository does not yet ship a first-party CMake package, the simplest CMake integration is still a small static library target:
+The repository now ships a first-party CMake build, install, and package-export surface:
 
-```cmake
-add_library(unicode_ranges STATIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/unicode_ranges/unicode_ranges.cpp
-)
-target_include_directories(unicode_ranges PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/unicode_ranges
-)
-target_compile_features(unicode_ranges PUBLIC cxx_std_23)
-```
+- target: `unicode_ranges::unicode_ranges`
+- package config: `unicode_rangesConfig.cmake`
+- install export under `lib/cmake/unicode_ranges`
 
-Then consume it normally:
+The first-party CMake build also exposes linked test and benchmark executables. The benchmark target is currently generated only when ICU is available to that build, because the benchmark suite exercises ICU-backed operations as part of its sanity assertions.
+
+If you add the repository with `add_subdirectory(...)`, just link the target:
 
 ```cmake
-target_link_libraries(your_target PRIVATE unicode_ranges)
+add_subdirectory(third_party/unicode_ranges)
+target_link_libraries(your_target PRIVATE unicode_ranges::unicode_ranges)
 ```
 
-## Optional ICU-backed locale casing
+## CMake: install / find_package
 
-The default library build depends only on pinned `simdutf` and exposes only locale-independent Unicode casing.
+After configuring and installing the library:
 
-If you want ICU-backed locale-sensitive casing overloads such as `to_lowercase("tr"_locale)`, `to_uppercase("tr"_locale)`, or `case_fold("tr"_locale)`, enable ICU on the `unicode_ranges` target itself:
+```bash
+cmake -S third_party/unicode_ranges -B build/unicode_ranges
+cmake --build build/unicode_ranges
+cmake --install build/unicode_ranges --prefix install/unicode_ranges
+```
 
-- find and link ICU in the library target
-- define `UTF8_RANGES_ENABLE_ICU=1` on the library target
-- let the extra overloads appear only in that configuration
-
-Example:
+you can consume it as a normal package:
 
 ```cmake
-option(UNICODE_RANGES_WITH_ICU "Enable ICU-backed locale casing overloads" OFF)
-
-add_library(unicode_ranges STATIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/unicode_ranges/unicode_ranges.cpp
-)
-target_include_directories(unicode_ranges PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/unicode_ranges
-)
-target_compile_features(unicode_ranges PUBLIC cxx_std_23)
-
-if(UNICODE_RANGES_WITH_ICU)
-    find_package(ICU REQUIRED COMPONENTS uc)
-    target_compile_definitions(unicode_ranges PUBLIC UTF8_RANGES_ENABLE_ICU=1)
-    target_link_libraries(unicode_ranges PUBLIC ICU::uc)
-endif()
+find_package(unicode_ranges CONFIG REQUIRED)
+target_link_libraries(your_target PRIVATE unicode_ranges::unicode_ranges)
 ```
-
-This keeps the default build small while making the locale-sensitive overloads disappear entirely when ICU is not available.
-
-When ICU is enabled, locale-aware casing follows ICU locale resolution behavior. `locale_id` is a raw null-terminated locale-name token, while `_locale` gives you a compile-time checked literal form. The locale-aware overloads pass the token through to ICU, which may canonicalize it or fall back to a more general locale instead of failing. Use `is_available_locale(...)` if you want to require that the current ICU data set explicitly exposes a locale before calling a locale-aware casing overload.
 
 ## CMake: FetchContent
 
-If you prefer to fetch sources at configure time, fetch `unicode_ranges` and keep the same compiled-library pattern:
+If you prefer to fetch sources at configure time, fetch `unicode_ranges` and use the shipped target:
 
 ```cmake
 include(FetchContent)
@@ -162,16 +141,24 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(unicode_ranges_src)
 
-add_library(unicode_ranges STATIC
-    ${unicode_ranges_src_SOURCE_DIR}/unicode_ranges.cpp
-)
-target_include_directories(unicode_ranges PUBLIC
-    ${unicode_ranges_src_SOURCE_DIR}
-)
-target_compile_features(unicode_ranges PUBLIC cxx_std_23)
+target_link_libraries(your_target PRIVATE unicode_ranges::unicode_ranges)
 ```
 
-This is still a source-fetch recipe, not a first-party packaged install.
+This uses the first-party library target instead of rebuilding ad hoc target logic in your own project.
+
+## Optional ICU-backed locale casing
+
+The default library build depends only on pinned `simdutf` and exposes only locale-independent Unicode casing.
+
+If you want ICU-backed locale-sensitive casing overloads such as `to_lowercase("tr"_locale)`, `to_uppercase("tr"_locale)`, or `case_fold("tr"_locale)`, leave `UTF8_RANGES_ENABLE_ICU` enabled and make ICU available to CMake. The shipped build will then:
+
+- find `ICU::uc` and `ICU::i18n`
+- define `UTF8_RANGES_ENABLE_ICU=1`
+- link those ICU targets through `unicode_ranges::unicode_ranges`
+
+If ICU is not found, the default build falls back to the locale-independent surface.
+
+When ICU is enabled, locale-aware casing follows ICU locale resolution behavior. `locale_id` is a raw null-terminated locale-name token, while `_locale` gives you a compile-time checked literal form. The locale-aware overloads pass the token through to ICU, which may canonicalize it or fall back to a more general locale instead of failing. Use `is_available_locale(...)` if you want to require that the current ICU data set explicitly exposes a locale before calling a locale-aware casing overload.
 
 ## Licensing
 

@@ -1,47 +1,10 @@
 #if defined(UTF8_RANGES_UTF32_STRING_HPP) && defined(UTF8_RANGES_TRANSCODING_HPP) && !defined(UTF8_RANGES_TRANSCODING_UTF32_HPP)
 #define UTF8_RANGES_TRANSCODING_UTF32_HPP
+
+#include "internal/utf32_parallel_runtime.hpp"
+
 namespace unicode_ranges
 {
-	namespace details
-	{
-		template <typename Result, typename MeasureFn>
-		inline void fill_parallel_utf32_chunk_results(
-			std::u32string_view code_points,
-			utf32_parallel_plan plan,
-			Result* chunk_results,
-			MeasureFn&& measure_fn)
-		{
-			// First pass: let each worker compute metadata for its own chunk. The caller
-			// later turns these per-chunk measurements into a global prefix-sum.
-			run_parallel_jobs(plan.worker_count,
-				[&](std::size_t chunk_index) noexcept
-				{
-					chunk_results[chunk_index] = measure_fn(utf32_parallel_chunk(code_points, plan, chunk_index));
-				});
-		}
-
-		template <typename CodeUnit, typename WriteFn>
-		inline void write_parallel_utf32_chunks(
-			std::u32string_view code_points,
-			utf32_parallel_plan plan,
-			const std::size_t* chunk_offsets,
-			CodeUnit* buffer,
-			WriteFn&& write_fn)
-		{
-			// Second pass: each worker writes into the exact output slice reserved for its
-			// chunk, so no synchronization is needed during emission.
-			run_parallel_jobs(plan.worker_count,
-				[&](std::size_t chunk_index) noexcept
-				{
-					const auto chunk = utf32_parallel_chunk(code_points, plan, chunk_index);
-					if (!chunk.empty())
-					{
-						write_fn(chunk, buffer + chunk_offsets[chunk_index]);
-					}
-				});
-		}
-	}
-
 	template <typename Allocator>
 	constexpr basic_utf8_string<Allocator>::basic_utf8_string(utf32_string_view view, const Allocator& alloc)
 		: base_(alloc)

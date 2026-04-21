@@ -6,6 +6,8 @@ It provides validated character types, borrowed string views, owning strings, gr
 
 `unicode_ranges` is now a compiled library. The public API stays header-first, but runtime UTF validation and runtime UTF-8 <-> UTF-16/UTF-32 transcoding are provided by the `unicode_ranges` library target built from `unicode_ranges.cpp`, backed by pinned vendored `simdutf` (`v7.7.0`) under [`third_party/simdutf`](third_party/simdutf). Consumers should link the library target, or produce an equivalent static/shared library in their own build. No separate `simdutf` setup step is required for normal consumption.
 
+The repository now also ships a first-party CMake build and install/export package for that compiled library target.
+
 ## Why this library exists
 
 Many existing C and C++ Unicode/text APIs start from raw byte buffers or raw code-unit strings and rely on documentation, preconditions, and caller discipline to keep invalid text out. Validation, boundary rules, and error handling are often separate from the type that is later passed around.
