@@ -1070,116 +1070,19 @@ namespace unicode_ranges
 		}
 	};
 
-	struct uenumeration_closer
-	{
-		void operator()(UEnumeration* enumeration) const noexcept
-		{
-			if (enumeration != nullptr)
-			{
-				uenum_close(enumeration);
-			}
-		}
-	};
+	[[nodiscard]] const char* checked_icu_locale_name(locale_id locale);
 
-	inline const char* checked_icu_locale_name(locale_id locale)
-	{
-		if (locale.name == nullptr)
-		{
-			throw std::invalid_argument("locale_id must not be null");
-		}
+	[[noreturn]] void throw_icu_error(const char* operation, UErrorCode error);
 
-		return locale.name;
-	}
+	[[nodiscard]] std::string normalized_icu_locale_name(locale_id locale);
 
-	[[noreturn]] inline void throw_icu_error(const char* operation, UErrorCode error)
-	{
-		throw std::runtime_error(std::string{ operation } + " failed: " + u_errorName(error));
-	}
+	[[nodiscard]] int32_t checked_icu_length(std::size_t size, const char* what);
 
-	inline std::string normalized_icu_locale_name(locale_id locale)
-	{
-		const auto locale_name = checked_icu_locale_name(locale);
-		if (*locale_name == '\0')
-		{
-			return {};
-		}
+	[[nodiscard]] std::unique_ptr<UCaseMap, ucasemap_closer> make_icu_case_map(locale_id locale, uint32_t options = 0);
 
-		std::array<char, 160> buffer{};
-		UErrorCode error = U_ZERO_ERROR;
-		auto written = uloc_getName(locale_name, buffer.data(), static_cast<int32_t>(buffer.size()), &error);
-		if (error == U_BUFFER_OVERFLOW_ERROR)
-		{
-			std::string expanded(static_cast<std::size_t>(written), '\0');
-			error = U_ZERO_ERROR;
-			written = uloc_getName(locale_name, expanded.data(), static_cast<int32_t>(expanded.size() + 1), &error);
-			if (U_FAILURE(error))
-			{
-				throw_icu_error("uloc_getName", error);
-			}
+	[[nodiscard]] bool icu_locale_uses_turkic_case_behavior(locale_id locale);
 
-			expanded.resize(static_cast<std::size_t>(written));
-			return expanded;
-		}
-
-		if (U_FAILURE(error))
-		{
-			throw_icu_error("uloc_getName", error);
-		}
-
-		return std::string{ buffer.data(), static_cast<std::size_t>(written) };
-	}
-
-	inline int32_t checked_icu_length(std::size_t size, const char* what)
-	{
-		if (size > static_cast<std::size_t>((std::numeric_limits<int32_t>::max)()))
-		{
-			throw std::length_error(std::string{ what } + " is too large for ICU");
-		}
-
-		return static_cast<int32_t>(size);
-	}
-
-	inline std::unique_ptr<UCaseMap, ucasemap_closer> make_icu_case_map(locale_id locale, uint32_t options = 0)
-	{
-		const auto locale_name = checked_icu_locale_name(locale);
-		UErrorCode error = U_ZERO_ERROR;
-		auto map = std::unique_ptr<UCaseMap, ucasemap_closer>{ ucasemap_open(locale_name, options, &error) };
-		if (U_FAILURE(error) || map == nullptr)
-		{
-			throw_icu_error("ucasemap_open", error);
-		}
-
-		return map;
-	}
-
-	inline bool icu_locale_uses_turkic_case_behavior(locale_id locale)
-	{
-		const auto locale_name = checked_icu_locale_name(locale);
-		if (*locale_name == '\0')
-		{
-			return false;
-		}
-
-		std::array<char, 32> language{};
-		UErrorCode error = U_ZERO_ERROR;
-		const auto written = uloc_getLanguage(
-			locale_name,
-			language.data(),
-			static_cast<int32_t>(language.size()),
-			&error);
-		if (U_FAILURE(error))
-		{
-			throw_icu_error("uloc_getLanguage", error);
-		}
-
-		const auto language_name = std::string_view{ language.data(), static_cast<std::size_t>(written) };
-		return language_name == "tr" || language_name == "az";
-	}
-
-	inline uint32_t icu_case_fold_options(locale_id locale)
-	{
-		return icu_locale_uses_turkic_case_behavior(locale) ? U_FOLD_CASE_EXCLUDE_SPECIAL_I : U_FOLD_CASE_DEFAULT;
-	}
+	[[nodiscard]] uint32_t icu_case_fold_options(locale_id locale);
 
 	template <typename Allocator>
 	basic_utf8_string<Allocator> icu_lowercase_utf8_copy(
@@ -5112,44 +5015,7 @@ namespace unicode_ranges
 	}
 
 #if UTF8_RANGES_HAS_ICU
-	inline bool is_available_locale(locale_id locale) noexcept
-	{
-		try
-		{
-			const auto normalized = details::normalized_icu_locale_name(locale);
-			if (normalized.empty())
-			{
-				return false;
-			}
-
-			UErrorCode error = U_ZERO_ERROR;
-			auto available = std::unique_ptr<UEnumeration, details::uenumeration_closer>{
-				uloc_openAvailableByType(ULOC_AVAILABLE_WITH_LEGACY_ALIASES, &error)
-			};
-			if (U_FAILURE(error) || available == nullptr)
-			{
-				return false;
-			}
-
-			int32_t candidate_length = 0;
-			for (const char* candidate = uenum_next(available.get(), &candidate_length, &error);
-				candidate != nullptr;
-				candidate = uenum_next(available.get(), &candidate_length, &error))
-			{
-				if (normalized.size() == static_cast<std::size_t>(candidate_length)
-					&& std::char_traits<char>::compare(normalized.data(), candidate, static_cast<std::size_t>(candidate_length)) == 0)
-				{
-					return true;
-				}
-			}
-
-			return false;
-		}
-		catch (...)
-		{
-			return false;
-		}
-	}
+	[[nodiscard]] bool is_available_locale(locale_id locale) noexcept;
 #endif
 
 }

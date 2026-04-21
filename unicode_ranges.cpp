@@ -1,12 +1,12 @@
 #include "unicode_ranges.hpp"
 
 #if defined(__has_include)
-#if !__has_include(<simdutf.h>) || !__has_include(<simdutf.cpp>)
-#error "unicode_ranges.cpp requires simdutf.h and simdutf.cpp on the include path"
+#if !__has_include("third_party/simdutf/simdutf.h") || !__has_include("third_party/simdutf/simdutf.cpp")
+#error "unicode_ranges.cpp requires the vendored third_party/simdutf/simdutf.h and simdutf.cpp files"
 #endif
 #endif
 
-#include <simdutf.h>
+#include "third_party/simdutf/simdutf.h"
 
 #if defined(__clang__)
 #pragma clang diagnostic push
@@ -18,7 +18,7 @@
 #pragma GCC diagnostic ignored "-Wpedantic"
 #endif
 
-#include <simdutf.cpp>
+#include "third_party/simdutf/simdutf.cpp"
 
 #if defined(__clang__)
 #pragma clang diagnostic pop
@@ -85,6 +85,111 @@ namespace
 		return std::unexpected(map_simdutf_utf8_error(result));
 	}
 }
+
+#if UTF8_RANGES_HAS_ICU
+
+auto checked_icu_locale_name(locale_id locale) -> const char*
+{
+	if (locale.name == nullptr)
+	{
+		throw std::invalid_argument("locale_id must not be null");
+	}
+
+	return locale.name;
+}
+
+[[noreturn]] void throw_icu_error(const char* operation, UErrorCode error)
+{
+	throw std::runtime_error(std::string{ operation } + " failed: " + u_errorName(error));
+}
+
+auto normalized_icu_locale_name(locale_id locale) -> std::string
+{
+	const auto locale_name = checked_icu_locale_name(locale);
+	if (*locale_name == '\0')
+	{
+		return {};
+	}
+
+	std::array<char, 160> buffer{};
+	UErrorCode error = U_ZERO_ERROR;
+	auto written = uloc_getName(locale_name, buffer.data(), static_cast<int32_t>(buffer.size()), &error);
+	if (error == U_BUFFER_OVERFLOW_ERROR)
+	{
+		std::string expanded(static_cast<std::size_t>(written), '\0');
+		error = U_ZERO_ERROR;
+		written = uloc_getName(locale_name, expanded.data(), static_cast<int32_t>(expanded.size() + 1), &error);
+		if (U_FAILURE(error))
+		{
+			throw_icu_error("uloc_getName", error);
+		}
+
+		expanded.resize(static_cast<std::size_t>(written));
+		return expanded;
+	}
+
+	if (U_FAILURE(error))
+	{
+		throw_icu_error("uloc_getName", error);
+	}
+
+	return std::string{ buffer.data(), static_cast<std::size_t>(written) };
+}
+
+auto checked_icu_length(std::size_t size, const char* what) -> int32_t
+{
+	if (size > static_cast<std::size_t>((std::numeric_limits<int32_t>::max)()))
+	{
+		throw std::length_error(std::string{ what } + " is too large for ICU");
+	}
+
+	return static_cast<int32_t>(size);
+}
+
+auto make_icu_case_map(locale_id locale, uint32_t options)
+	-> std::unique_ptr<UCaseMap, ucasemap_closer>
+{
+	const auto locale_name = checked_icu_locale_name(locale);
+	UErrorCode error = U_ZERO_ERROR;
+	auto map = std::unique_ptr<UCaseMap, ucasemap_closer>{ ucasemap_open(locale_name, options, &error) };
+	if (U_FAILURE(error) || map == nullptr)
+	{
+		throw_icu_error("ucasemap_open", error);
+	}
+
+	return map;
+}
+
+bool icu_locale_uses_turkic_case_behavior(locale_id locale)
+{
+	const auto locale_name = checked_icu_locale_name(locale);
+	if (*locale_name == '\0')
+	{
+		return false;
+	}
+
+	std::array<char, 32> language{};
+	UErrorCode error = U_ZERO_ERROR;
+	const auto written = uloc_getLanguage(
+		locale_name,
+		language.data(),
+		static_cast<int32_t>(language.size()),
+		&error);
+	if (U_FAILURE(error))
+	{
+		throw_icu_error("uloc_getLanguage", error);
+	}
+
+	const auto language_name = std::string_view{ language.data(), static_cast<std::size_t>(written) };
+	return language_name == "tr" || language_name == "az";
+}
+
+auto icu_case_fold_options(locale_id locale) -> uint32_t
+{
+	return icu_locale_uses_turkic_case_behavior(locale) ? U_FOLD_CASE_EXCLUDE_SPECIAL_I : U_FOLD_CASE_DEFAULT;
+}
+
+#endif
 
 auto simdutf_validate_utf8_runtime(std::string_view bytes) noexcept
 	-> std::expected<void, utf8_error>
@@ -165,3 +270,47 @@ auto simdutf_convert_utf8_to_utf32_checked_runtime(
 }
 
 }
+
+#if UTF8_RANGES_HAS_ICU
+
+namespace unicode_ranges
+{
+
+bool is_available_locale(locale_id locale) noexcept
+{
+	try
+	{
+		const auto normalized = details::normalized_icu_locale_name(locale);
+		if (normalized.empty())
+		{
+			return false;
+		}
+
+		const auto available_count = uloc_countAvailable();
+		for (int32_t index = 0; index < available_count; ++index)
+		{
+			const char* candidate = uloc_getAvailable(index);
+			if (candidate == nullptr)
+			{
+				continue;
+			}
+
+			const auto candidate_length = static_cast<int32_t>(std::char_traits<char>::length(candidate));
+			if (normalized.size() == static_cast<std::size_t>(candidate_length)
+				&& std::char_traits<char>::compare(normalized.data(), candidate, static_cast<std::size_t>(candidate_length)) == 0)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+	catch (...)
+	{
+		return false;
+	}
+}
+
+}
+
+#endif

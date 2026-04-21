@@ -27,12 +27,14 @@ The compiled runtime backend currently depends on pinned `simdutf` `v7.7.0` for:
 
 `simdutf` is also dual-licensed under `MIT OR Apache-2.0`, which keeps the licensing model straightforward for the current compiled-library design.
 
-`unicode_ranges` consumes `simdutf` through its published singleheader release layout:
+`unicode_ranges` vendors the pinned `simdutf` singleheader release under `third_party/simdutf`:
 
 - `simdutf.h`
 - `simdutf.cpp`
+- `LICENSE-MIT`
+- `LICENSE-APACHE`
 
-No copied or adapted `simdutf` source files are currently tracked in the library sources on this branch.
+These are tracked upstream distribution files from `simdutf` `v7.7.0`, not ad hoc local fetches.
 
 ## Comparative benchmark dependencies
 
@@ -58,6 +60,6 @@ That file records:
 
 At the moment:
 
-- `simdutf` is a runtime dependency
+- `simdutf` is a vendored runtime dependency
 - `utfcpp` and `uni-algo` are comparative-benchmark dependencies
-- there are no copied or adapted third-party source files tracked in the library sources
+- the repository tracks the vendored `simdutf` singleheader release under `third_party/simdutf`

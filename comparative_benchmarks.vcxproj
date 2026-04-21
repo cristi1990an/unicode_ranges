@@ -73,8 +73,9 @@
     <TreatWarningAsError Condition="'$(TreatWarningAsError)'==''">false</TreatWarningAsError>
   </PropertyGroup>
   <PropertyGroup>
+    <IcuRoot Condition="'$(IcuRoot)'=='' And Exists('$(ProjectDir).local\\icu-sdk\\include\\unicode\\uchar.h')">$(ProjectDir).local\icu-sdk</IcuRoot>
+    <SimdutfRoot Condition="'$(SimdutfRoot)'=='' And Exists('$(ProjectDir)third_party\\simdutf\\simdutf.h')">$(ProjectDir)third_party\simdutf</SimdutfRoot>
     <SimdutfRoot Condition="'$(SimdutfRoot)'==''">$(SIMDUTF_ROOT)</SimdutfRoot>
-    <SimdutfRoot Condition="'$(SimdutfRoot)'=='' And Exists('$(ProjectDir).local\\comparative-deps-assets\\simdutf\\simdutf.h')">$(ProjectDir).local\comparative-deps-assets\simdutf</SimdutfRoot>
     <SimdutfAvailable Condition="Exists('$(SimdutfRoot)\\simdutf.h') And Exists('$(SimdutfRoot)\\simdutf.cpp')">true</SimdutfAvailable>
     <UtfcppRoot Condition="'$(UtfcppRoot)'==''">$(UTFCPP_ROOT)</UtfcppRoot>
     <UtfcppAvailable Condition="Exists('$(UtfcppRoot)\\source\\utf8.h')">true</UtfcppAvailable>
@@ -108,6 +109,8 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories Condition="Exists('$(IcuRoot)\\lib\\$(Platform)\\icuuc.lib')">$(IcuRoot)\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies Condition="Exists('$(IcuRoot)\\lib\\$(Platform)\\icuuc.lib')">icuuc.lib;icuin.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -128,6 +131,8 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories Condition="Exists('$(IcuRoot)\\lib\\$(Platform)\\icuuc.lib')">$(IcuRoot)\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies Condition="Exists('$(IcuRoot)\\lib\\$(Platform)\\icuuc.lib')">icuuc.lib;icuin.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -146,6 +151,8 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories Condition="Exists('$(IcuRoot)\\lib\\$(Platform)\\icuuc.lib')">$(IcuRoot)\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies Condition="Exists('$(IcuRoot)\\lib\\$(Platform)\\icuuc.lib')">icuuc.lib;icuin.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -166,6 +173,8 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories Condition="Exists('$(IcuRoot)\\lib\\$(Platform)\\icuuc.lib')">$(IcuRoot)\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies Condition="Exists('$(IcuRoot)\\lib\\$(Platform)\\icuuc.lib')">icuuc.lib;icuin.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

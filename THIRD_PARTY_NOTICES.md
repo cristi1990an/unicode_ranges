@@ -5,11 +5,10 @@ components keep their own licenses.
 
 ## Current state
 
-- `simdutf` is a pinned runtime dependency and is also reused by the comparative benchmark suite.
-- the shipped compiled runtime backend currently uses `simdutf` through its public API and published singleheader release layout
-- Comparative benchmark dependencies are fetched separately.
-- No copied or adapted third-party source files are currently tracked in the
-  library sources.
+- `simdutf` is a pinned vendored runtime dependency and is also reused by the comparative benchmark suite.
+- the shipped compiled runtime backend currently uses `simdutf` through its public API and vendored singleheader release layout under `third_party/simdutf`
+- Comparative benchmark dependencies besides `simdutf` are fetched separately.
+- The repository tracks the vendored upstream `simdutf` singleheader release files under `third_party/simdutf`.
 - Any additional copied or adapted third-party source files must carry an
   explicit provenance header as described below.
 
@@ -38,14 +37,20 @@ Rules:
 
 ## Copied or adapted source files currently in the repository
 
-There are currently no copied or adapted third-party source files tracked in
-the repository.
+The repository currently tracks the following vendored upstream distribution files:
+
+- `third_party/simdutf/simdutf.h`
+- `third_party/simdutf/simdutf.cpp`
+- `third_party/simdutf/README.md`
+- `third_party/simdutf/LICENSE-MIT`
+- `third_party/simdutf/LICENSE-APACHE`
+
+These are upstream release files from the pinned `simdutf` `v7.7.0` singleheader distribution and license texts, not locally adapted source files.
 
 ## Runtime and comparative benchmark dependencies
 
 These projects are used either by the shipped library runtime, the comparative
-benchmark suite, or both. They are consumed through pinned release/tag fetches
-instead of tracked source copies.
+benchmark suite, or both.
 
 ### simdutf
 
@@ -55,8 +60,8 @@ instead of tracked source copies.
 - License: `MIT OR Apache-2.0`
 - Consumption model:
   - compiled runtime dependency
-  - consumed through the published `simdutf.h` + `simdutf.cpp` singleheader release layout
-  - no tracked copied/adapted `simdutf` source files in the library sources at this time
+  - vendored under `third_party/simdutf`
+  - uses the published `simdutf.h` + `simdutf.cpp` singleheader release layout
 - Local metadata:
   - `comparative_benchmarks/dependencies.json`
 

@@ -14,31 +14,14 @@ shift
 
 mkdir -p "$out_dir"
 
-simdutf_candidates=()
-if [[ -n "${SIMDUTF_ROOT:-}" ]]; then
-  simdutf_candidates+=("${SIMDUTF_ROOT}")
-fi
-simdutf_candidates+=(
-  "build/runtime-deps/simdutf"
-  ".local/comparative-deps-assets/simdutf"
-)
-
-resolved_simdutf_root=""
-for candidate in "${simdutf_candidates[@]}"; do
-  if [[ -f "${candidate}/simdutf.h" && -f "${candidate}/simdutf.cpp" ]]; then
-    resolved_simdutf_root="$candidate"
-    break
-  fi
-done
-
-if [[ -z "$resolved_simdutf_root" ]]; then
-  echo "SIMDUTF_ROOT must point to a simdutf singleheader release containing simdutf.h and simdutf.cpp." >&2
+if [[ ! -f "third_party/simdutf/simdutf.h" || ! -f "third_party/simdutf/simdutf.cpp" ]]; then
+  echo "Vendored simdutf is missing from third_party/simdutf." >&2
   exit 1
 fi
 
 runtime_obj="$out_dir/unicode_ranges_runtime.o"
 runtime_lib="$out_dir/libunicode_ranges.a"
-"$cxx" -std=c++23 -I. -I"${resolved_simdutf_root}" "$@" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
+"$cxx" -std=c++23 -I. "$@" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
 ar rcs "$runtime_lib" "$runtime_obj"
 
 mapfile -t sources < <(find docs/examples -name '*.cpp' | sort)
@@ -48,5 +31,5 @@ for source in "${sources[@]}"; do
   stem="${rel%.cpp}"
   exe_name="${stem//\//__}"
   echo "Compiling $source"
-  "$cxx" -std=c++23 -I. -I"${resolved_simdutf_root}" "$@" "$source" "$runtime_lib" -o "$out_dir/$exe_name"
+  "$cxx" -std=c++23 -I. "$@" "$source" "$runtime_lib" -o "$out_dir/$exe_name"
 done

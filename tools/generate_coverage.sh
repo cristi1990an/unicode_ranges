@@ -15,27 +15,11 @@ PROFDATA="${OUTPUT_DIR}/unicode_ranges.profdata"
 REPORT_TXT="${OUTPUT_DIR}/report.txt"
 SUMMARY_TXT="${OUTPUT_DIR}/summary.txt"
 HTML_DIR="${OUTPUT_DIR}/html"
-simdutf_candidates=()
-if [[ -n "${SIMDUTF_ROOT:-}" ]]; then
-	simdutf_candidates+=("${SIMDUTF_ROOT}")
-fi
-simdutf_candidates+=(
-	"build/runtime-deps/simdutf"
-	".local/comparative-deps-assets/simdutf"
-)
 
 mkdir -p "${OUTPUT_DIR}"
 
-resolved_simdutf_root=""
-for candidate in "${simdutf_candidates[@]}"; do
-	if [[ -f "${candidate}/simdutf.h" && -f "${candidate}/simdutf.cpp" ]]; then
-		resolved_simdutf_root="$candidate"
-		break
-	fi
-done
-
-if [[ -z "${resolved_simdutf_root}" ]]; then
-	echo "SIMDUTF_ROOT must point to a simdutf singleheader release containing simdutf.h and simdutf.cpp." >&2
+if [[ ! -f "third_party/simdutf/simdutf.h" || ! -f "third_party/simdutf/simdutf.cpp" ]]; then
+	echo "Vendored simdutf is missing from third_party/simdutf." >&2
 	exit 1
 fi
 
@@ -48,7 +32,6 @@ fi
 	-pedantic \
 	-pthread \
 	-stdlib=libc++ \
-	-I"${resolved_simdutf_root}" \
 	-Wno-error=overflow \
 	-Wno-error=pedantic \
 	-DUTF8_RANGES_ENABLE_TEST_HOOKS=1 \
@@ -71,7 +54,6 @@ ar rcs "${OUTPUT_DIR}/libunicode_ranges.a" "${OUTPUT_DIR}/unicode_ranges_runtime
 	-pedantic \
 	-pthread \
 	-stdlib=libc++ \
-	-I"${resolved_simdutf_root}" \
 	-DUTF8_RANGES_ENABLE_TEST_HOOKS=1 \
 	-DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 \
 	-fprofile-instr-generate \
@@ -91,7 +73,6 @@ LLVM_PROFILE_FILE="${PROFRAW}" "${OUTPUT_DIR}/${BINARY}"
 	-pedantic \
 	-pthread \
 	-stdlib=libc++ \
-	-I"${resolved_simdutf_root}" \
 	-DUTF8_RANGES_ENABLE_TEST_HOOKS=1 \
 	-DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 \
 	-fprofile-instr-generate \

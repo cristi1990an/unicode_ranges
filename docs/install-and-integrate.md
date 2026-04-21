@@ -4,14 +4,13 @@
 
 1. bring this repository into your tree
 2. build and link the `unicode_ranges` library target, or an equivalent library target in your own build
-3. place a pinned `simdutf` singleheader release on the include path
 
 ## Current packaging status
 
 - There is no first-party package-manager distribution yet.
 - There is no first-party CMake package or `install()` export yet.
 - There may be no tagged release that matches the commit you want to consume.
-- Runtime UTF validation and UTF-8 <-> UTF-16/UTF-32 transcoding require pinned `simdutf` `v7.7.0`.
+- Runtime UTF validation and UTF-8 <-> UTF-16/UTF-32 transcoding use pinned vendored `simdutf` `v7.7.0` under `third_party/simdutf`.
 - The repository itself now ships a first-party Visual Studio static-library project, `unicode_ranges.vcxproj`, plus separate test and benchmark executables that link it.
 
 So the practical choices right now are:
@@ -24,9 +23,9 @@ So the practical choices right now are:
 
 - C++23 enabled
 - the repository root on the include path
-- a `simdutf` singleheader release root on the include path
 - `unicode_ranges.cpp` compiled into your `unicode_ranges` library target
 - `#include "unicode_ranges.hpp"` in user code
+- the vendored `third_party/simdutf` directory kept alongside `unicode_ranges.cpp`
 
 The public umbrella header lives at the repository root:
 
@@ -55,11 +54,11 @@ The rest of the library remains `unicode_ranges` code:
 So the integration rule is simple:
 
 - link `unicode_ranges`
-- provide the pinned `simdutf` singleheader release on the include path when building that library target
+- keep the vendored `third_party/simdutf` directory that ships with this repository
 
 ## Recommended: vendor or submodule
 
-If you vendor the repository or add it as a submodule, point your include path at the checked-out repository root and at a pinned `simdutf` singleheader release:
+If you vendor the repository or add it as a submodule, keep the checked-out tree intact:
 
 ```text
 your_project/
@@ -68,16 +67,16 @@ your_project/
       unicode_ranges.cpp
       unicode_ranges.hpp
       unicode_ranges/
-    simdutf/
-      simdutf.h
-      simdutf.cpp
+      third_party/
+        simdutf/
+          simdutf.h
+          simdutf.cpp
 ```
 
 Then build with:
 
 - include directories:
   - `third_party/unicode_ranges`
-  - `third_party/simdutf`
 - language mode: C++23
 - one compiled library target:
   - compile `third_party/unicode_ranges/unicode_ranges.cpp` into `unicode_ranges`
@@ -104,7 +103,6 @@ add_library(unicode_ranges STATIC
 )
 target_include_directories(unicode_ranges PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/unicode_ranges
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/simdutf
 )
 target_compile_features(unicode_ranges PUBLIC cxx_std_23)
 ```
@@ -135,7 +133,6 @@ add_library(unicode_ranges STATIC
 )
 target_include_directories(unicode_ranges PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/unicode_ranges
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/simdutf
 )
 target_compile_features(unicode_ranges PUBLIC cxx_std_23)
 
@@ -152,7 +149,7 @@ When ICU is enabled, locale-aware casing follows ICU locale resolution behavior.
 
 ## CMake: FetchContent
 
-If you prefer to fetch sources at configure time, fetch both repositories and keep the same compiled-library pattern:
+If you prefer to fetch sources at configure time, fetch `unicode_ranges` and keep the same compiled-library pattern:
 
 ```cmake
 include(FetchContent)
@@ -163,21 +160,13 @@ FetchContent_Declare(
     GIT_TAG main
 )
 
-FetchContent_Declare(
-    simdutf_src
-    URL https://github.com/simdutf/simdutf/releases/download/v7.7.0/singleheader.zip
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-)
-
 FetchContent_MakeAvailable(unicode_ranges_src)
-FetchContent_MakeAvailable(simdutf_src)
 
 add_library(unicode_ranges STATIC
     ${unicode_ranges_src_SOURCE_DIR}/unicode_ranges.cpp
 )
 target_include_directories(unicode_ranges PUBLIC
     ${unicode_ranges_src_SOURCE_DIR}
-    ${simdutf_src_SOURCE_DIR}
 )
 target_compile_features(unicode_ranges PUBLIC cxx_std_23)
 ```
