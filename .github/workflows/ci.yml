@@ -29,7 +29,6 @@ jobs:
         include:
           - configuration: Debug
           - configuration: Release
-            use_cmake: true
 
     steps:
       - name: Checkout
@@ -49,7 +48,6 @@ jobs:
           rustc --version
 
       - name: Configure, build, and run tests for all Unicode versions (CMake)
-        if: matrix.use_cmake == true
         shell: powershell
         run: |
           foreach ($version in ($env:UNICODE_TEST_VERSIONS -split ' ' | Where-Object { $_ -ne '' }))
@@ -62,20 +60,6 @@ jobs:
             cmake --build $buildDir --config ${{ matrix.configuration }}
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             ctest --test-dir $buildDir -C ${{ matrix.configuration }} --output-on-failure
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
-
-      - name: Build and run tests for all Unicode versions
-        if: matrix.use_cmake != true
-        shell: powershell
-        run: |
-          foreach ($version in ($env:UNICODE_TEST_VERSIONS -split ' ' | Where-Object { $_ -ne '' }))
-          {
-            ./tools/update_unicode_data.ps1 -Version $version
-            ./tools/regenerate_unicode_tables.ps1 -DataRoot (Join-Path $PWD "tools/unicode_data/$version") -UnicodeVersion $version
-            msbuild unicode_ranges_tests.vcxproj "/t:Clean;Build" /p:Configuration=${{ matrix.configuration }} /p:Platform=x64 /p:PlatformToolset=v143 /p:TreatWarningAsError=true
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            .\x64\${{ matrix.configuration }}\unicode_ranges_tests.exe
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
@@ -99,16 +83,26 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Build and run tests for all Unicode versions
+      - name: Show build tool versions
+        shell: powershell
+        run: |
+          cmake --version
+          msbuild -version
+          rustc --version
+
+      - name: Configure, build, and run tests for all Unicode versions (CMake)
         shell: powershell
         run: |
           foreach ($version in ($env:UNICODE_TEST_VERSIONS -split ' ' | Where-Object { $_ -ne '' }))
           {
             ./tools/update_unicode_data.ps1 -Version $version
             ./tools/regenerate_unicode_tables.ps1 -DataRoot (Join-Path $PWD "tools/unicode_data/$version") -UnicodeVersion $version
-            msbuild unicode_ranges_tests.vcxproj "/t:Clean;Build" /p:Configuration=${{ matrix.configuration }} /p:Platform=x64 /p:PlatformToolset=ClangCL /p:TreatWarningAsError=true
+            $buildDir = Join-Path $PWD ("build/cmake-clangcl-${{ matrix.configuration }}-" + ($version -replace '\.', '_'))
+            cmake -S . -B $buildDir -G "Visual Studio 17 2022" -T ClangCL -A x64 -DUTF8_RANGES_BUILD_TESTS=ON -DUTF8_RANGES_BUILD_BENCHMARKS=OFF -DUTF8_RANGES_ENABLE_ICU=OFF
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            .\x64\${{ matrix.configuration }}\unicode_ranges_tests.exe
+            cmake --build $buildDir --config ${{ matrix.configuration }}
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            ctest --test-dir $buildDir -C ${{ matrix.configuration }} --output-on-failure
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
@@ -269,7 +263,6 @@ jobs:
             output: unicode_ranges_clang_o2
             opt_name: O2
             opt_flags: "-O2"
-            use_cmake: true
             sanitizer_name: ""
             sanitizer_flags: ""
             asan_options: ""
@@ -370,7 +363,6 @@ jobs:
           pwsh --version
 
       - name: Configure, build, and run tests for all Unicode versions (CMake)
-        if: matrix.use_cmake == true
         run: |
           for version in $UNICODE_TEST_VERSIONS; do
             pwsh ./tools/update_unicode_data.ps1 -Version "$version"
@@ -380,38 +372,22 @@ jobs:
               -DUTF8_RANGES_BUILD_TESTS=ON \
               -DUTF8_RANGES_BUILD_BENCHMARKS=OFF \
               -DUTF8_RANGES_ENABLE_ICU=OFF \
-              -DCMAKE_BUILD_TYPE=Release \
+              -DUTF8_RANGES_ENABLE_TEST_HOOKS=ON \
               -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
-              -DCMAKE_CXX_FLAGS="${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} -Wno-error=overflow -Wno-error=pedantic"
+              -DCMAKE_CXX_FLAGS="${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -Wno-error=overflow -Wno-error=pedantic"
             cmake --build "$build_dir" --config Release
             ctest --test-dir "$build_dir" --build-config Release --output-on-failure
-          done
-        env:
-          ASAN_OPTIONS: ${{ matrix.asan_options }}
-          UBSAN_OPTIONS: ${{ matrix.ubsan_options }}
-          TSAN_OPTIONS: ${{ matrix.tsan_options }}
-
-      - name: Build and run tests for all Unicode versions
-        if: matrix.use_cmake != true
-        run: |
-          for version in $UNICODE_TEST_VERSIONS; do
-            pwsh ./tools/update_unicode_data.ps1 -Version "$version"
-            pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
-            output="${{ matrix.output }}_${version//./_}"
-            runtime_obj="${output}_runtime.o"
-            runtime_lib="lib${output}.a"
-            ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
-            ar rcs "$runtime_lib" "$runtime_obj"
-            ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 source.cpp "$runtime_lib" -o "$output"
-            "./$output"
             if [ -n "${{ matrix.sanitizer_flags }}" ]; then
-              forced_output="${output}_forced_parallel"
-              forced_runtime_obj="${forced_output}_runtime.o"
-              forced_runtime_lib="lib${forced_output}.a"
-              ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$forced_runtime_obj"
-              ar rcs "$forced_runtime_lib" "$forced_runtime_obj"
-              ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 source.cpp "$forced_runtime_lib" -o "$forced_output"
-              "./$forced_output"
+              forced_build_dir="${build_dir}-forced-parallel"
+              cmake -S . -B "$forced_build_dir" \
+                -DUTF8_RANGES_BUILD_TESTS=ON \
+                -DUTF8_RANGES_BUILD_BENCHMARKS=OFF \
+                -DUTF8_RANGES_ENABLE_ICU=OFF \
+                -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=ON \
+                -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+                -DCMAKE_CXX_FLAGS="${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -Wno-error=overflow -Wno-error=pedantic"
+              cmake --build "$forced_build_dir" --config Release
+              ctest --test-dir "$forced_build_dir" --build-config Release --output-on-failure
             fi
           done
         env:
@@ -462,29 +438,36 @@ jobs:
       - name: Show compiler version
         run: |
           g++-14 --version
+          cmake --version
           rustc --version
           pwsh --version
 
-      - name: Build and run tests for all Unicode versions
+      - name: Configure, build, and run tests for all Unicode versions (CMake)
         run: |
           for version in $UNICODE_TEST_VERSIONS; do
             pwsh ./tools/update_unicode_data.ps1 -Version "$version"
             pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
-            output="${{ matrix.output }}_${version//./_}"
-            runtime_obj="${output}_runtime.o"
-            runtime_lib="lib${output}.a"
-            g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
-            ar rcs "$runtime_lib" "$runtime_obj"
-            g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 source.cpp "$runtime_lib" -o "$output"
-            "./$output"
+            build_dir="build/cmake-linux32-${{ matrix.output }}-${version//./_}"
+            cmake -S . -B "$build_dir" \
+              -DUTF8_RANGES_BUILD_TESTS=ON \
+              -DUTF8_RANGES_BUILD_BENCHMARKS=OFF \
+              -DUTF8_RANGES_ENABLE_ICU=OFF \
+              -DUTF8_RANGES_ENABLE_TEST_HOOKS=ON \
+              -DCMAKE_CXX_COMPILER=g++-14 \
+              -DCMAKE_CXX_FLAGS="-m32 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -Wno-error=overflow -Wno-error=pedantic"
+            cmake --build "$build_dir" --config Release
+            ctest --test-dir "$build_dir" --build-config Release --output-on-failure
             if [ -n "${{ matrix.sanitizer_flags }}" ]; then
-              forced_output="${output}_forced_parallel"
-              forced_runtime_obj="${forced_output}_runtime.o"
-              forced_runtime_lib="lib${forced_output}.a"
-              g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$forced_runtime_obj"
-              ar rcs "$forced_runtime_lib" "$forced_runtime_obj"
-              g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 source.cpp "$forced_runtime_lib" -o "$forced_output"
-              "./$forced_output"
+              forced_build_dir="${build_dir}-forced-parallel"
+              cmake -S . -B "$forced_build_dir" \
+                -DUTF8_RANGES_BUILD_TESTS=ON \
+                -DUTF8_RANGES_BUILD_BENCHMARKS=OFF \
+                -DUTF8_RANGES_ENABLE_ICU=OFF \
+                -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=ON \
+                -DCMAKE_CXX_COMPILER=g++-14 \
+                -DCMAKE_CXX_FLAGS="-m32 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -Wno-error=overflow -Wno-error=pedantic"
+              cmake --build "$forced_build_dir" --config Release
+              ctest --test-dir "$forced_build_dir" --build-config Release --output-on-failure
             fi
           done
         env:
@@ -537,34 +520,25 @@ jobs:
       - name: Show tool versions
         run: |
           ${{ matrix.cxx }} --version
+          cmake --version
           rustc --version
           pwsh --version
           pkg-config --modversion icu-uc
 
-      - name: Build and run ICU-enabled tests for all Unicode versions
+      - name: Configure, build, and run ICU-enabled tests for all Unicode versions (CMake)
         run: |
           for version in $UNICODE_TEST_VERSIONS; do
             pwsh ./tools/update_unicode_data.ps1 -Version "$version"
             pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
-            output="${{ matrix.output }}_${version//./_}"
-            runtime_obj="${output}_runtime.o"
-            runtime_lib="lib${output}.a"
-            ${{ matrix.cxx }} -std=c++23 -O2 -Wall -Wextra -Werror -pedantic \
-              -DUTF8_RANGES_ENABLE_ICU=1 \
-              ${{ matrix.cxxflags }} \
-              $(pkg-config --cflags icu-uc) \
-              -Wno-error=overflow -Wno-error=pedantic \
-              -c unicode_ranges.cpp \
-              -o "$runtime_obj"
-            ar rcs "$runtime_lib" "$runtime_obj"
-            ${{ matrix.cxx }} -std=c++23 -O2 -Wall -Wextra -Werror -pedantic \
-              -DUTF8_RANGES_ENABLE_ICU=1 \
-              ${{ matrix.cxxflags }} \
-              $(pkg-config --cflags icu-uc) \
-              source.cpp "$runtime_lib" \
-              -o "$output" \
-              $(pkg-config --libs icu-uc)
-            "./$output"
+            build_dir="build/cmake-linux-icu-${{ matrix.output }}-${version//./_}"
+            cmake -S . -B "$build_dir" \
+              -DUTF8_RANGES_BUILD_TESTS=ON \
+              -DUTF8_RANGES_BUILD_BENCHMARKS=OFF \
+              -DUTF8_RANGES_ENABLE_ICU=ON \
+              -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+              -DCMAKE_CXX_FLAGS="-O2 -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} -Wno-error=overflow -Wno-error=pedantic"
+            cmake --build "$build_dir" --config Release
+            ctest --test-dir "$build_dir" --build-config Release --output-on-failure
           done
 
   docs_examples:

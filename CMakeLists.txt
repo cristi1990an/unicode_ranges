@@ -13,6 +13,12 @@ file(GLOB UTF8_RANGES_PUBLIC_HEADERS CONFIGURE_DEPENDS
 option(UTF8_RANGES_BUILD_TESTS "Build the unicode_ranges test runner" ${PROJECT_IS_TOP_LEVEL})
 option(UTF8_RANGES_BUILD_BENCHMARKS "Build the unicode_ranges benchmark runner" ${PROJECT_IS_TOP_LEVEL})
 option(UTF8_RANGES_ENABLE_ICU "Enable ICU-backed locale-aware casing when ICU is available" ON)
+option(UTF8_RANGES_ENABLE_TEST_HOOKS "Enable internal test hooks used by selected CI lanes" OFF)
+option(UTF8_RANGES_TEST_FORCE_UTF32_PARALLEL "Force UTF-32 parallel test paths when test hooks are enabled" OFF)
+
+if(UTF8_RANGES_TEST_FORCE_UTF32_PARALLEL)
+    set(UTF8_RANGES_ENABLE_TEST_HOOKS ON)
+endif()
 
 set(UTF8_RANGES_WITH_ICU OFF)
 if(UTF8_RANGES_ENABLE_ICU)
@@ -42,6 +48,14 @@ endif()
 if(UTF8_RANGES_WITH_ICU)
     target_compile_definitions(unicode_ranges PUBLIC UTF8_RANGES_ENABLE_ICU=1)
     target_link_libraries(unicode_ranges PUBLIC ICU::uc ICU::i18n)
+endif()
+
+if(UTF8_RANGES_ENABLE_TEST_HOOKS)
+    target_compile_definitions(unicode_ranges PUBLIC UTF8_RANGES_ENABLE_TEST_HOOKS=1)
+endif()
+
+if(UTF8_RANGES_TEST_FORCE_UTF32_PARALLEL)
+    target_compile_definitions(unicode_ranges PUBLIC UTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1)
 endif()
 
 if(UTF8_RANGES_BUILD_TESTS)
