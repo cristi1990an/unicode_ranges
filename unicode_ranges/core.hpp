@@ -580,17 +580,6 @@ namespace details
 		return ascii_prefix_length(value) == value.size();
 	}
 
-	[[nodiscard]]
-	UTF8_RANGES_FORCEINLINE constexpr bool simdutf_runtime_enabled_for_target() noexcept
-	{
-#if defined(_M_IX86) || defined(__i386__)
-		// The current compiled simdutf bridge regresses the 32-bit x86 benchmark rows.
-		return false;
-#else
-		return true;
-#endif
-	}
-
 	// Runtime-only thresholding for the UTF-32 parallel paths. These are intentionally
 	// conservative so we do not pay thread setup costs on mid-sized inputs.
 #if UINTPTR_MAX > 0xFFFFFFFFu
@@ -1941,15 +1930,20 @@ namespace details
 	template<typename CharT>
 	inline constexpr std::expected<void, utf8_error> validate_utf8(std::basic_string_view<CharT> value) noexcept
 	{
-		if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+		if constexpr (std::same_as<CharT, char>)
 		{
-			if constexpr (std::same_as<CharT, char>)
+			if (auto runtime = details::simdutf_validate_utf8_if_available(
+				std::string_view{ value.data(), value.size() }); runtime)
 			{
-				return details::simdutf_validate_utf8_runtime(std::string_view{ value.data(), value.size() });
+				return *runtime;
 			}
-			else if constexpr (std::same_as<CharT, char8_t>)
+		}
+		else if constexpr (std::same_as<CharT, char8_t>)
+		{
+			if (auto runtime = details::simdutf_validate_utf8_if_available(
+				std::u8string_view{ value.data(), value.size() }); runtime)
 			{
-				return details::simdutf_validate_utf8_runtime(std::u8string_view{ value.data(), value.size() });
+				return *runtime;
 			}
 		}
 
@@ -2318,11 +2312,11 @@ namespace details
 		result.resize_and_overwrite(bytes.size(),
 			[&](char8_t* buffer, std::size_t) noexcept
 			{
-				if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+				if (auto validated = simdutf_validate_utf8_if_available(bytes))
 				{
-					if (auto validated = simdutf_validate_utf8_runtime(bytes); !validated) [[unlikely]]
+					if (!*validated) [[unlikely]]
 					{
-						error = validated.error();
+						error = validated->error();
 						return std::size_t{ 0 };
 					}
 
@@ -2448,11 +2442,6 @@ namespace details
 		result.resize_and_overwrite(bytes.size(),
 			[&](char16_t* buffer, std::size_t) noexcept
 			{
-				if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
-				{
-					return simdutf_convert_valid_utf8_to_utf16_runtime(bytes, buffer);
-				}
-
 				if (bytes.size() < 16) [[unlikely]]
 				{
 					copy_ascii_utf8_to_utf16_scalar(buffer, bytes);
@@ -2476,11 +2465,6 @@ namespace details
 		result.resize_and_overwrite(bytes.size(),
 			[&](char32_t* buffer, std::size_t) noexcept
 			{
-				if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
-				{
-					return simdutf_convert_valid_utf8_to_utf32_runtime(bytes, buffer);
-				}
-
 				copy_ascii_utf8_to_utf32_scalar(buffer, bytes);
 				return bytes.size();
 			});
@@ -2503,14 +2487,15 @@ namespace details
 					return copy_ascii_utf8_to_utf16_owned(input, alloc);
 				}
 
-				if (simdutf_runtime_enabled_for_target())
+				if (auto output_size = simdutf_utf16_length_from_valid_utf8_if_available(input))
 				{
 					utf16_base_string<Allocator> result{ alloc };
-					const auto output_size = simdutf_utf16_length_from_valid_utf8_runtime(input);
-					result.resize_and_overwrite(output_size,
+					result.resize_and_overwrite(*output_size,
 						[&](char16_t* buffer, std::size_t) noexcept
 						{
-							return simdutf_convert_valid_utf8_to_utf16_runtime(input, buffer);
+							const auto converted = simdutf_convert_valid_utf8_to_utf16_if_available(input, buffer);
+							UTF8_RANGES_DEBUG_ASSERT(converted.has_value());
+							return *converted;
 						});
 
 					return result;
@@ -2578,21 +2563,20 @@ namespace details
 		result.resize_and_overwrite(bytes.size(),
 			[&](char16_t* buffer, std::size_t) noexcept
 			{
-				if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+				if (is_ascii_only(bytes))
 				{
-					if (is_ascii_only(bytes))
+					copy_ascii_bytes_to_utf16(buffer, bytes);
+					return bytes.size();
+				}
+
+				if (auto converted = simdutf_convert_utf8_to_utf16_checked_if_available(bytes, buffer))
+				{
+					if (*converted) [[likely]]
 					{
-						copy_ascii_bytes_to_utf16(buffer, bytes);
-						return bytes.size();
+						return **converted;
 					}
 
-					const auto converted = simdutf_convert_utf8_to_utf16_checked_runtime(bytes, buffer);
-					if (converted) [[likely]]
-					{
-						return *converted;
-					}
-
-					error = converted.error();
+					error = converted->error();
 					return std::size_t{ 0 };
 				}
 
@@ -2860,14 +2844,15 @@ namespace details
 					return copy_ascii_utf8_to_utf32_owned(input, alloc);
 				}
 
-				if (simdutf_runtime_enabled_for_target())
+				if (auto output_size = simdutf_utf32_length_from_valid_utf8_if_available(input))
 				{
 					utf32_base_string<Allocator> result{ alloc };
-					const auto output_size = simdutf_utf32_length_from_valid_utf8_runtime(input);
-					result.resize_and_overwrite(output_size,
+					result.resize_and_overwrite(*output_size,
 						[&](char32_t* buffer, std::size_t) noexcept
 						{
-							return simdutf_convert_valid_utf8_to_utf32_runtime(input, buffer);
+							const auto converted = simdutf_convert_valid_utf8_to_utf32_if_available(input, buffer);
+							UTF8_RANGES_DEBUG_ASSERT(converted.has_value());
+							return *converted;
 						});
 
 					return result;
@@ -2930,15 +2915,14 @@ namespace details
 		result.resize_and_overwrite(bytes.size(),
 			[&](char32_t* buffer, std::size_t) noexcept
 			{
-				if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+				if (auto converted = simdutf_convert_utf8_to_utf32_checked_if_available(bytes, buffer))
 				{
-					const auto converted = simdutf_convert_utf8_to_utf32_checked_runtime(bytes, buffer);
-					if (converted) [[likely]]
+					if (*converted) [[likely]]
 					{
-						return *converted;
+						return **converted;
 					}
 
-					error = converted.error();
+					error = converted->error();
 					return std::size_t{ 0 };
 				}
 
