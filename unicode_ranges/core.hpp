@@ -2363,12 +2363,6 @@ namespace details
 		result.resize_and_overwrite(bytes.size(),
 			[&](char32_t* buffer, std::size_t) noexcept
 			{
-				if (auto converted = simdutf_convert_valid_utf8_to_utf32_if_available(bytes, buffer))
-				{
-					UTF8_RANGES_DEBUG_ASSERT(*converted == bytes.size());
-					return *converted;
-				}
-
 				copy_ascii_utf8_to_utf32(buffer, bytes);
 				return bytes.size();
 			});
