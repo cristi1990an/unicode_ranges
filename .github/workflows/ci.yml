@@ -29,6 +29,7 @@ jobs:
         include:
           - configuration: Debug
           - configuration: Release
+            use_cmake: true
 
     steps:
       - name: Checkout
@@ -40,7 +41,32 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
+      - name: Show build tool versions
+        shell: powershell
+        run: |
+          cmake --version
+          msbuild -version
+          rustc --version
+
+      - name: Configure, build, and run tests for all Unicode versions (CMake)
+        if: matrix.use_cmake == true
+        shell: powershell
+        run: |
+          foreach ($version in ($env:UNICODE_TEST_VERSIONS -split ' ' | Where-Object { $_ -ne '' }))
+          {
+            ./tools/update_unicode_data.ps1 -Version $version
+            ./tools/regenerate_unicode_tables.ps1 -DataRoot (Join-Path $PWD "tools/unicode_data/$version") -UnicodeVersion $version
+            $buildDir = Join-Path $PWD ("build/cmake-msvc-${{ matrix.configuration }}-" + ($version -replace '\.', '_'))
+            cmake -S . -B $buildDir -G "Visual Studio 17 2022" -A x64 -DUTF8_RANGES_BUILD_TESTS=ON -DUTF8_RANGES_BUILD_BENCHMARKS=OFF -DUTF8_RANGES_ENABLE_ICU=OFF
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            cmake --build $buildDir --config ${{ matrix.configuration }}
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            ctest --test-dir $buildDir -C ${{ matrix.configuration }} --output-on-failure
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
       - name: Build and run tests for all Unicode versions
+        if: matrix.use_cmake != true
         shell: powershell
         run: |
           foreach ($version in ($env:UNICODE_TEST_VERSIONS -split ' ' | Where-Object { $_ -ne '' }))
