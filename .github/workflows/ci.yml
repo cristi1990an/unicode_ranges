@@ -243,6 +243,7 @@ jobs:
             output: unicode_ranges_clang_o2
             opt_name: O2
             opt_flags: "-O2"
+            use_cmake: true
             sanitizer_name: ""
             sanitizer_flags: ""
             asan_options: ""
@@ -338,10 +339,34 @@ jobs:
       - name: Show compiler version
         run: |
           ${{ matrix.cxx }} --version
+          cmake --version
           rustc --version
           pwsh --version
 
+      - name: Configure, build, and run tests for all Unicode versions (CMake)
+        if: matrix.use_cmake == true
+        run: |
+          for version in $UNICODE_TEST_VERSIONS; do
+            pwsh ./tools/update_unicode_data.ps1 -Version "$version"
+            pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
+            build_dir="build/cmake-linux-${{ matrix.output }}-${version//./_}"
+            cmake -S . -B "$build_dir" \
+              -DUTF8_RANGES_BUILD_TESTS=ON \
+              -DUTF8_RANGES_BUILD_BENCHMARKS=OFF \
+              -DUTF8_RANGES_ENABLE_ICU=OFF \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+              -DCMAKE_CXX_FLAGS="${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} -Wno-error=overflow -Wno-error=pedantic"
+            cmake --build "$build_dir" --config Release
+            ctest --test-dir "$build_dir" --build-config Release --output-on-failure
+          done
+        env:
+          ASAN_OPTIONS: ${{ matrix.asan_options }}
+          UBSAN_OPTIONS: ${{ matrix.ubsan_options }}
+          TSAN_OPTIONS: ${{ matrix.tsan_options }}
+
       - name: Build and run tests for all Unicode versions
+        if: matrix.use_cmake != true
         run: |
           for version in $UNICODE_TEST_VERSIONS; do
             pwsh ./tools/update_unicode_data.ps1 -Version "$version"
