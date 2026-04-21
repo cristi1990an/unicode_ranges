@@ -11,9 +11,9 @@ That means you may use the repository under either:
 
 The repository root contains:
 
-- [`LICENSE`](../LICENSE)
-- [`LICENSE-MIT`](../LICENSE-MIT)
-- [`LICENSE-APACHE`](../LICENSE-APACHE)
+- [`LICENSE`](https://github.com/cristi1990an/unicode_ranges/blob/main/LICENSE)
+- [`LICENSE-MIT`](https://github.com/cristi1990an/unicode_ranges/blob/main/LICENSE-MIT)
+- [`LICENSE-APACHE`](https://github.com/cristi1990an/unicode_ranges/blob/main/LICENSE-APACHE)
 
 Unless otherwise noted, repository source files are available under that dual-license model.
 
@@ -44,13 +44,13 @@ The comparative benchmark suite also uses pinned external libraries:
 - `utfcpp` `v4.0.9`
 - `uni-algo` `v1.0.0`
 
-These keep their own licenses. See [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md) for the current dependency list and license expressions.
+These keep their own licenses. See [`THIRD_PARTY_NOTICES.md`](https://github.com/cristi1990an/unicode_ranges/blob/main/THIRD_PARTY_NOTICES.md) for the current dependency list and license expressions.
 
 ## Notices and provenance policy
 
 The authoritative third-party notice file is:
 
-- [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md)
+- [`THIRD_PARTY_NOTICES.md`](https://github.com/cristi1990an/unicode_ranges/blob/main/THIRD_PARTY_NOTICES.md)
 
 That file records:
 
