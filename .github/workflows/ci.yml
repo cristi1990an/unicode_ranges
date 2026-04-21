@@ -100,21 +100,24 @@ jobs:
       - name: Show compiler versions
         run: |
           clang++ --version
+          cmake --version
           rustc --version
           pwsh --version
 
-      - name: Build and run tests for all Unicode versions
+      - name: Configure, build, and run tests for all Unicode versions
         run: |
           for version in $UNICODE_TEST_VERSIONS; do
             pwsh ./tools/update_unicode_data.ps1 -Version "$version"
             pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
-            output="unicode_ranges_macos_o2_${version//./_}"
-            runtime_obj="${output}_runtime.o"
-            runtime_lib="lib${output}.a"
-            clang++ -std=c++23 -O2 -Wall -Wextra -Werror -pedantic -pthread -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
-            ar rcs "$runtime_lib" "$runtime_obj"
-            clang++ -std=c++23 -O2 -Wall -Wextra -Werror -pedantic -pthread source.cpp "$runtime_lib" -o "$output"
-            "./$output"
+            build_dir="build/cmake-macos-${version//./_}"
+            cmake -S . -B "$build_dir" \
+              -DUTF8_RANGES_BUILD_TESTS=ON \
+              -DUTF8_RANGES_BUILD_BENCHMARKS=OFF \
+              -DUTF8_RANGES_ENABLE_ICU=OFF \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_CXX_FLAGS="-O2 -Wall -Wextra -Werror -pedantic -pthread -Wno-error=overflow -Wno-error=pedantic"
+            cmake --build "$build_dir" --config Release
+            ctest --test-dir "$build_dir" --build-config Release --output-on-failure
           done
 
   static_analysis:
