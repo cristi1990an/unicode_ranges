@@ -149,11 +149,12 @@
     <ClInclude Include="unicode_ranges.hpp" />
     <ClInclude Include="unicode_ranges\utf16_views.hpp" />
     <ClInclude Include="unicode_ranges\utf8_views.hpp" />
-    <ClInclude Include="unicode_ranges\internal\simdutf_runtime.hpp" />
+    <ClInclude Include="unicode_ranges\internal\unicode_tables_runtime_support.hpp" />
     <ClInclude Include="third_party\simdutf\simdutf.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="unicode_ranges.cpp" />
+    <ClCompile Include="unicode_tables_runtime.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="third_party\simdutf\README.md" />

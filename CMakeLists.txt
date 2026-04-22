@@ -27,7 +27,10 @@ if(UTF8_RANGES_ENABLE_ICU)
     endif()
 endif()
 
-add_library(unicode_ranges STATIC unicode_ranges.cpp)
+add_library(unicode_ranges STATIC
+    unicode_ranges.cpp
+    unicode_tables_runtime.cpp
+)
 add_library(unicode_ranges::unicode_ranges ALIAS unicode_ranges)
 
 target_compile_features(unicode_ranges PUBLIC cxx_std_23)

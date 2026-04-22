@@ -78,6 +78,13 @@ struct SimpleCaseMappingRecord {
     mapped: u32,
 }
 
+struct SimpleCaseDeltaRangeRecord {
+    first: u32,
+    last: u32,
+    delta: i32,
+    stride: u8,
+}
+
 struct UnicodeDataRecord {
     scalar: u32,
     general_category: String,
@@ -125,12 +132,6 @@ struct PropertyValueRangeRecord {
     first: u32,
     last: u32,
     value: String,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-struct BmpCaseMappingEntry {
-    mapped: u16,
-    same_size: bool,
 }
 
 fn collect_ranges<F: Fn(char) -> bool>(pred: F) -> Vec<Range> {
@@ -215,6 +216,52 @@ fn split_case_mappings(mappings: &[CaseMappingRecord]) -> (Vec<SimpleCaseMapping
     }
 
     (simple, special)
+}
+
+fn collect_simple_case_delta_ranges(mappings: &[SimpleCaseMappingRecord]) -> Vec<SimpleCaseDeltaRangeRecord> {
+    let mut ranges = Vec::new();
+    let mut read = 0usize;
+
+    while read < mappings.len() {
+        let first = &mappings[read];
+        let delta = first.mapped as i64 - first.source as i64;
+        let mut end = read;
+        let mut stride = 0u32;
+
+        while end + 1 < mappings.len() {
+            let current = &mappings[end];
+            let next = &mappings[end + 1];
+            let next_delta = next.mapped as i64 - next.source as i64;
+            let step = next.source - current.source;
+
+            if next_delta != delta || (step != 1 && step != 2) {
+                break;
+            }
+
+            if stride == 0 {
+                stride = step;
+            } else if step != stride {
+                break;
+            }
+
+            end += 1;
+        }
+
+        if end > read {
+            ranges.push(SimpleCaseDeltaRangeRecord {
+                first: first.source,
+                last: mappings[end].source,
+                delta: delta as i32,
+                stride: stride as u8,
+            });
+            read = end + 1;
+            continue;
+        }
+
+        read += 1;
+    }
+
+    ranges
 }
 
 fn parse_unicode_scalar(value: &str) -> io::Result<u32> {
@@ -798,15 +845,6 @@ fn emit_case_mapping_support(max_length: usize) {
     );
     println!("}};");
     println!();
-    println!("inline constexpr std::size_t unicode_mapping_page_shift = 8;");
-    println!("inline constexpr std::size_t unicode_mapping_page_count = (0x10FFFFu >> unicode_mapping_page_shift) + 1u;");
-    println!();
-    println!("struct unicode_range_page_slice");
-    println!("{{");
-    println!("    std::uint16_t begin;");
-    println!("    std::uint16_t end;");
-    println!("}};");
-    println!();
     println!("template <std::size_t N>");
     println!("struct unicode_simple_case_delta_range_set");
     println!("{{");
@@ -820,36 +858,12 @@ fn emit_case_mapping_support(max_length: usize) {
     println!("}}");
     println!();
     println!("template <typename Mapping, std::size_t N>");
-    println!(
-        "constexpr auto make_source_mapping_page_index(const std::array<Mapping, N>& mappings) noexcept"
-    );
-    println!("{{");
-    println!("    std::array<std::uint16_t, unicode_mapping_page_count + 1> page_index{{}};");
-    println!("    std::size_t mapping_index = 0;");
-    println!("    for (std::size_t page = 0; page != unicode_mapping_page_count; ++page)");
-    println!("    {{");
-    println!("        page_index[page] = static_cast<std::uint16_t>(mapping_index);");
-    println!("        const auto page_end = static_cast<std::uint32_t>((page + 1u) << unicode_mapping_page_shift);");
-    println!("        while (mapping_index < N && mappings[mapping_index].source < page_end)");
-    println!("        {{");
-    println!("            ++mapping_index;");
-    println!("        }}");
-    println!("    }}");
-    println!("    page_index[unicode_mapping_page_count] = static_cast<std::uint16_t>(mapping_index);");
-    println!("    return page_index;");
-    println!("}}");
-    println!();
-    println!("template <typename Mapping, std::size_t N, std::size_t P>");
-    println!(
-        "constexpr const Mapping* find_source_mapping_paged("
-    );
+    println!("constexpr const Mapping* find_source_mapping(");
     println!("    std::uint32_t scalar,");
-    println!("    const std::array<Mapping, N>& mappings,");
-    println!("    const std::array<std::uint16_t, P>& page_index) noexcept");
+    println!("    const std::array<Mapping, N>& mappings) noexcept");
     println!("{{");
-    println!("    const auto page = static_cast<std::size_t>(scalar >> unicode_mapping_page_shift);");
-    println!("    std::size_t left = page_index[page];");
-    println!("    std::size_t right = page_index[page + 1u];");
+    println!("    std::size_t left = 0;");
+    println!("    std::size_t right = N;");
     println!("    while (left < right)");
     println!("    {{");
     println!("        const std::size_t mid = left + (right - left) / 2;");
@@ -870,20 +884,18 @@ fn emit_case_mapping_support(max_length: usize) {
     println!("    return nullptr;");
     println!("}}");
     println!();
-    println!("template <typename Mapping, std::size_t N, std::size_t P>");
-    println!("constexpr std::size_t find_source_mapping_paged_index(");
+    println!("template <typename Mapping, std::size_t N>");
+    println!("constexpr std::size_t find_source_mapping_index(");
     println!("    std::uint32_t scalar,");
-    println!("    const std::array<Mapping, N>& mappings,");
-    println!("    const std::array<std::uint16_t, P>& page_index) noexcept");
+    println!("    const std::array<Mapping, N>& mappings) noexcept");
     println!("{{");
-    println!("    const auto page = static_cast<std::size_t>(scalar >> unicode_mapping_page_shift);");
-    println!("    std::size_t left = page_index[page];");
-    println!("    std::size_t right = page_index[page + 1u];");
+    println!("    std::size_t left = 0;");
+    println!("    std::size_t right = N;");
     println!("    while (left < right)");
     println!("    {{");
-    println!("        const std::size_t mid = left + (right - left) / 2;");
-    println!("        const Mapping& mapping = mappings[mid];");
-    println!("        if (scalar < mapping.source)");
+        println!("        const std::size_t mid = left + (right - left) / 2;");
+        println!("        const Mapping& mapping = mappings[mid];");
+        println!("        if (scalar < mapping.source)");
     println!("        {{");
     println!("            right = mid;");
     println!("        }}");
@@ -894,120 +906,37 @@ fn emit_case_mapping_support(max_length: usize) {
     println!("        else");
     println!("        {{");
     println!("            return mid;");
-    println!("        }}");
+        println!("        }}");
     println!("    }}");
     println!("    return N;");
     println!("}}");
     println!();
     println!("template <typename Range, std::size_t N>");
-    println!("constexpr auto make_overlapping_range_page_slices(");
+    println!("constexpr std::size_t find_overlapping_range_index(");
+    println!("    std::uint32_t scalar,");
     println!("    const std::array<Range, N>& ranges,");
     println!("    std::size_t count = N) noexcept");
     println!("{{");
-    println!("    std::array<unicode_range_page_slice, unicode_mapping_page_count> page_slices{{}};");
-    println!("    std::size_t begin = 0;");
-    println!("    std::size_t end = 0;");
-    println!("    for (std::size_t page = 0; page != unicode_mapping_page_count; ++page)");
-    println!("    {{");
-    println!("        const auto page_start = static_cast<std::uint32_t>(page << unicode_mapping_page_shift);");
-    println!("        const auto page_end = static_cast<std::uint32_t>((page + 1u) << unicode_mapping_page_shift);");
-    println!("        while (begin < count && ranges[begin].last < page_start)");
-    println!("        {{");
-    println!("            ++begin;");
-    println!("        }}");
-    println!("        if (end < begin)");
-    println!("        {{");
-    println!("            end = begin;");
-    println!("        }}");
-    println!("        while (end < count && ranges[end].first < page_end)");
-    println!("        {{");
-    println!("            ++end;");
-    println!("        }}");
-    println!("        page_slices[page] = unicode_range_page_slice{{");
-    println!("            static_cast<std::uint16_t>(begin),");
-    println!("            static_cast<std::uint16_t>(end)");
-    println!("        }};");
-    println!("    }}");
-    println!("    return page_slices;");
-    println!("}}");
-    println!();
-    println!("template <typename Range, std::size_t N, std::size_t P>");
-    println!("constexpr std::size_t find_overlapping_range_index_paged(");
-    println!("    std::uint32_t scalar,");
-    println!("    const std::array<Range, N>& ranges,");
-    println!("    std::size_t count,");
-    println!("    const std::array<unicode_range_page_slice, P>& page_slices) noexcept");
-    println!("{{");
-    println!("    const auto page = static_cast<std::size_t>(scalar >> unicode_mapping_page_shift);");
-    println!("    std::size_t left = page_slices[page].begin;");
-    println!("    std::size_t right = page_slices[page].end;");
+    println!("    std::size_t left = 0;");
+    println!("    std::size_t right = count;");
     println!("    while (left < right)");
     println!("    {{");
-    println!("        const std::size_t mid = left + (right - left) / 2;");
-    println!("        const Range& range = ranges[mid];");
-    println!("        if (scalar < range.first)");
-    println!("        {{");
-    println!("            right = mid;");
-    println!("        }}");
-    println!("        else if (scalar > range.last)");
-    println!("        {{");
-    println!("            left = mid + 1;");
-    println!("        }}");
-    println!("        else");
-    println!("        {{");
-    println!("            return mid;");
-    println!("        }}");
+        println!("        const std::size_t mid = left + (right - left) / 2;");
+        println!("        const Range& range = ranges[mid];");
+        println!("        if (scalar < range.first)");
+        println!("        {{");
+            println!("            right = mid;");
+        println!("        }}");
+        println!("        else if (scalar > range.last)");
+        println!("        {{");
+            println!("            left = mid + 1;");
+        println!("        }}");
+        println!("        else");
+        println!("        {{");
+        println!("            return mid;");
+        println!("        }}");
     println!("    }}");
     println!("    return count;");
-    println!("}}");
-    println!();
-    println!("template <std::size_t N>");
-    println!("constexpr auto make_simple_case_delta_ranges(const std::array<unicode_simple_case_mapping, N>& mappings) noexcept");
-    println!("{{");
-    println!("    unicode_simple_case_delta_range_set<N> result{{}};");
-    println!("    std::size_t read = 0;");
-    println!("    while (read < N)");
-    println!("    {{");
-    println!("        const auto first = mappings[read];");
-    println!("        const auto delta = static_cast<std::int64_t>(first.mapped) - static_cast<std::int64_t>(first.source);");
-    println!("        std::size_t end = read;");
-    println!("        std::uint32_t stride = 0;");
-    println!("        while (end + 1 < N)");
-    println!("        {{");
-    println!("            const auto& current = mappings[end];");
-    println!("            const auto& next = mappings[end + 1];");
-    println!("            const auto next_delta = static_cast<std::int64_t>(next.mapped) - static_cast<std::int64_t>(next.source);");
-    println!("            const auto step = next.source - current.source;");
-    println!("            if (next_delta != delta || (step != 1u && step != 2u))");
-    println!("            {{");
-    println!("                break;");
-    println!("            }}");
-    println!("            if (stride == 0)");
-    println!("            {{");
-    println!("                stride = step;");
-    println!("            }}");
-    println!("            else if (step != stride)");
-    println!("            {{");
-    println!("                break;");
-    println!("            }}");
-    println!("            ++end;");
-    println!("        }}");
-    println!();
-    println!("        if (end > read)");
-    println!("        {{");
-    println!("            result.ranges[result.count++] = unicode_simple_case_delta_range{{");
-    println!("                first.source,");
-    println!("                mappings[end].source,");
-    println!("                static_cast<std::int32_t>(delta),");
-    println!("                static_cast<std::uint8_t>(stride)");
-    println!("            }};");
-    println!("            read = end + 1;");
-    println!("            continue;");
-    println!("        }}");
-    println!();
-    println!("        ++read;");
-    println!("    }}");
-    println!("    return result;");
     println!("}}");
     println!();
     println!("struct unicode_bmp_case_mapping");
@@ -1060,115 +989,62 @@ fn emit_special_case_mappings(name: &str, mappings: &[CaseMappingRecord], max_le
     println!();
 }
 
-fn collect_bmp_case_mapping_entries(mappings: &[CaseMappingRecord]) -> Vec<BmpCaseMappingEntry> {
-    let mut entries = (0u32..=0xFFFF)
-        .map(|scalar| BmpCaseMappingEntry {
-            mapped: scalar as u16,
-            same_size: true,
-        })
-        .collect::<Vec<_>>();
-
-    for mapping in mappings {
-        if mapping.source > 0xFFFF {
-            continue;
-        }
-
-        let source = mapping.source as usize;
-        if mapping.mapped.len() == 1 && mapping.mapped[0] <= 0xFFFF {
-            entries[source] = BmpCaseMappingEntry {
-                mapped: mapping.mapped[0] as u16,
-                same_size: true,
-            };
-        } else {
-            entries[source] = BmpCaseMappingEntry {
-                mapped: mapping.source as u16,
-                same_size: false,
-            };
-        }
+fn emit_simple_case_delta_ranges(name: &str, mappings: &[SimpleCaseMappingRecord]) {
+    let ranges = collect_simple_case_delta_ranges(mappings);
+    println!(
+        "inline constexpr unicode_simple_case_delta_range_set<{}> {name}{{",
+        ranges.len()
+    );
+    println!("    .ranges = {{");
+    for range in &ranges {
+        println!(
+            "        unicode_simple_case_delta_range{{ 0x{:04X}u, 0x{:04X}u, {}{}, {}u }},",
+            range.first,
+            range.last,
+            if range.delta >= 0 { "" } else { "-" },
+            range.delta.unsigned_abs(),
+            range.stride
+        );
     }
-
-    entries
+    println!("    }},");
+    println!("    .count = {}u", ranges.len());
+    println!("}};");
+    println!();
 }
 
-fn emit_bmp_case_mapping_table(name: &str, mappings: &[CaseMappingRecord]) {
-    let entries = collect_bmp_case_mapping_entries(mappings);
-    let mut page_index = [u16::MAX; 0x100];
-    let mut pages = Vec::<Vec<BmpCaseMappingEntry>>::new();
-
-    for page in 0usize..0x100 {
-        let base = page * 0x100;
-        let page_entries = &entries[base..base + 0x100];
-        let has_non_default = page_entries.iter().enumerate().any(|(offset, entry)| {
-            entry.mapped != (base + offset) as u16 || !entry.same_size
-        });
-        if has_non_default {
-            page_index[page] = pages.len() as u16;
-            pages.push(page_entries.to_vec());
-        }
-    }
-
-    println!(
-        "inline constexpr std::array<std::uint16_t, 0x100> {name}_page_index{{{{"
-    );
-    for chunk in page_index.chunks(8) {
-        print!("    ");
-        for (index, value) in chunk.iter().enumerate() {
-            if index != 0 {
-                print!(", ");
-            }
-
-            if *value == u16::MAX {
-                print!("0xFFFFu");
-            } else {
-                print!("{value}u");
-            }
-        }
-        println!(",");
-    }
-    println!("}}}};");
+fn emit_bmp_case_mapping_table(name: &str, _mappings: &[CaseMappingRecord]) {
+    let simple_mappings_name = name.strip_suffix("_bmp_case_mapping").unwrap();
+    let special_mappings_name = format!("{simple_mappings_name}_special_mappings");
+    let simple_mappings_name = format!("{simple_mappings_name}_simple_mappings");
+    println!("[[nodiscard]] unicode_bmp_case_mapping {name}_runtime(std::uint32_t scalar) noexcept;");
     println!();
-
-    println!(
-        "inline constexpr std::array<std::array<unicode_bmp_case_mapping, 0x100>, {}> {name}_pages{{{{",
-        pages.len()
-    );
-    for page in &pages {
-        println!("    {{{{");
-        for chunk in page.chunks(4) {
-            print!("        ");
-            for (index, entry) in chunk.iter().enumerate() {
-                if index != 0 {
-                    print!(", ");
-                }
-
-                print!(
-                    "{{ static_cast<char16_t>(0x{:04X}u), {} }}",
-                    entry.mapped,
-                    if entry.same_size { "true" } else { "false" }
-                );
-            }
-            println!(",");
-        }
-        println!("    }}}},");
-    }
-    println!("}}}};");
-    println!();
-
     println!("constexpr unicode_bmp_case_mapping {name}(std::uint32_t scalar) noexcept");
     println!("{{");
+    println!("    if (!std::is_constant_evaluated()) [[likely]]");
+    println!("    {{");
+    println!("        return {name}_runtime(scalar);");
+    println!("    }}");
+    println!();
     println!("    if (scalar > 0xFFFFu)");
     println!("    {{");
     println!("        return unicode_bmp_case_mapping{{ 0, false }};");
     println!("    }}");
     println!();
-    println!("    const auto page = static_cast<std::size_t>(scalar >> 8);");
-    println!("    const auto page_index = {name}_page_index[page];");
-    println!("    if (page_index == 0xFFFFu)");
+    println!("    if (const auto* mapping = find_source_mapping(scalar, {simple_mappings_name}); mapping != nullptr)");
     println!("    {{");
-    println!("        return unicode_bmp_case_mapping{{ static_cast<char16_t>(scalar), true }};");
+    println!("        if (mapping->mapped <= 0xFFFFu)");
+    println!("        {{");
+    println!("            return unicode_bmp_case_mapping{{ static_cast<char16_t>(mapping->mapped), true }};");
+    println!("        }}");
+    println!("        return unicode_bmp_case_mapping{{ static_cast<char16_t>(scalar), false }};");
     println!("    }}");
     println!();
-    println!("    return {name}_pages[page_index][scalar & 0xFFu];");
+    println!("    if (find_source_mapping(scalar, {special_mappings_name}) != nullptr)");
+    println!("    {{");
+    println!("        return unicode_bmp_case_mapping{{ static_cast<char16_t>(scalar), false }};");
+    println!("    }}");
+    println!();
+    println!("    return unicode_bmp_case_mapping{{ static_cast<char16_t>(scalar), true }};");
     println!("}}");
     println!();
 }
@@ -1205,16 +1081,16 @@ fn emit_canonical_combining_class_ranges(
 }
 
 fn emit_canonical_combining_class_lookup(name: &str, ranges_name: &str) {
-    println!("inline constexpr auto {ranges_name}_page_slices =");
-    println!("    make_overlapping_range_page_slices({ranges_name});");
+    println!("[[nodiscard]] std::uint8_t {name}_runtime(std::uint32_t scalar) noexcept;");
     println!();
     println!("constexpr std::uint8_t {name}(std::uint32_t scalar) noexcept");
     println!("{{");
-    println!("    const auto index = find_overlapping_range_index_paged(");
-    println!("        scalar,");
-    println!("        {ranges_name},");
-    println!("        {ranges_name}.size(),");
-    println!("        {ranges_name}_page_slices);");
+    println!("    if (!std::is_constant_evaluated()) [[likely]]");
+    println!("    {{");
+    println!("        return {name}_runtime(scalar);");
+    println!("    }}");
+    println!();
+    println!("    const auto index = find_overlapping_range_index(scalar, {ranges_name});");
     println!("    if (index == {ranges_name}.size())");
     println!("    {{");
     println!("        return 0u;");
@@ -1251,38 +1127,18 @@ fn emit_decomposition_support(max_length: usize) {
     println!("}};");
     println!();
     println!("template <std::size_t N>");
-    println!("constexpr auto make_first_mapping_page_index(const std::array<unicode_composition_mapping, N>& mappings) noexcept");
-    println!("{{");
-    println!("    std::array<std::uint16_t, unicode_mapping_page_count + 1> page_index{{}};");
-    println!("    std::size_t mapping_index = 0;");
-    println!("    for (std::size_t page = 0; page != unicode_mapping_page_count; ++page)");
-    println!("    {{");
-    println!("        page_index[page] = static_cast<std::uint16_t>(mapping_index);");
-    println!("        const auto page_end = static_cast<std::uint32_t>((page + 1u) << unicode_mapping_page_shift);");
-    println!("        while (mapping_index < N && mappings[mapping_index].first < page_end)");
-    println!("        {{");
-    println!("            ++mapping_index;");
-    println!("        }}");
-    println!("    }}");
-    println!("    page_index[unicode_mapping_page_count] = static_cast<std::uint16_t>(mapping_index);");
-    println!("    return page_index;");
-    println!("}}");
-    println!();
-    println!("template <std::size_t N, std::size_t P>");
-    println!("constexpr const unicode_composition_mapping* find_composition_mapping_paged(");
+    println!("constexpr const unicode_composition_mapping* find_composition_mapping(");
     println!("    std::uint32_t first,");
     println!("    std::uint32_t second,");
-    println!("    const std::array<unicode_composition_mapping, N>& mappings,");
-    println!("    const std::array<std::uint16_t, P>& page_index) noexcept");
+    println!("    const std::array<unicode_composition_mapping, N>& mappings) noexcept");
     println!("{{");
-    println!("    const auto page = static_cast<std::size_t>(first >> unicode_mapping_page_shift);");
-    println!("    std::size_t left = page_index[page];");
-    println!("    std::size_t right = page_index[page + 1u];");
+    println!("    std::size_t left = 0;");
+    println!("    std::size_t right = N;");
     println!("    while (left < right)");
     println!("    {{");
-    println!("        const std::size_t mid = left + (right - left) / 2;");
-    println!("        const auto& mapping = mappings[mid];");
-    println!("        if (first < mapping.first || (first == mapping.first && second < mapping.second))");
+        println!("        const std::size_t mid = left + (right - left) / 2;");
+        println!("        const auto& mapping = mappings[mid];");
+        println!("        if (first < mapping.first || (first == mapping.first && second < mapping.second))");
     println!("        {{");
     println!("            right = mid;");
     println!("        }}");
@@ -1298,21 +1154,19 @@ fn emit_decomposition_support(max_length: usize) {
     println!("    return nullptr;");
     println!("}}");
     println!();
-    println!("template <std::size_t N, std::size_t P>");
-    println!("constexpr std::size_t find_composition_mapping_paged_index(");
+    println!("template <std::size_t N>");
+    println!("constexpr std::size_t find_composition_mapping_index(");
     println!("    std::uint32_t first,");
     println!("    std::uint32_t second,");
-    println!("    const std::array<unicode_composition_mapping, N>& mappings,");
-    println!("    const std::array<std::uint16_t, P>& page_index) noexcept");
+    println!("    const std::array<unicode_composition_mapping, N>& mappings) noexcept");
     println!("{{");
-    println!("    const auto page = static_cast<std::size_t>(first >> unicode_mapping_page_shift);");
-    println!("    std::size_t left = page_index[page];");
-    println!("    std::size_t right = page_index[page + 1u];");
+    println!("    std::size_t left = 0;");
+    println!("    std::size_t right = N;");
     println!("    while (left < right)");
     println!("    {{");
-    println!("        const std::size_t mid = left + (right - left) / 2;");
-    println!("        const auto& mapping = mappings[mid];");
-    println!("        if (first < mapping.first || (first == mapping.first && second < mapping.second))");
+        println!("        const std::size_t mid = left + (right - left) / 2;");
+        println!("        const auto& mapping = mappings[mid];");
+        println!("        if (first < mapping.first || (first == mapping.first && second < mapping.second))");
     println!("        {{");
     println!("            right = mid;");
     println!("        }}");
@@ -1375,9 +1229,6 @@ fn emit_composition_mappings(name: &str, mappings: &[CompositionMappingRecord]) 
 }
 
 fn emit_source_mapping_lookup(fn_name: &str, mapping_type: &str, mappings_name: &str) {
-    println!(
-        "inline constexpr auto {mappings_name}_page_index = make_source_mapping_page_index({mappings_name});"
-    );
     emit_source_mapping_lookup_without_page_index(fn_name, mapping_type, mappings_name);
 }
 
@@ -1387,13 +1238,22 @@ fn emit_source_mapping_lookup_without_page_index(
     mappings_name: &str,
 ) {
     println!();
+    println!("[[nodiscard]] const {mapping_type}* {fn_name}_runtime(std::uint32_t scalar) noexcept;");
+    println!();
     println!(
         "constexpr std::size_t {fn_name}_index(std::uint32_t scalar) noexcept"
     );
     println!("{{");
-    println!(
-        "    return find_source_mapping_paged_index(scalar, {mappings_name}, {mappings_name}_page_index);"
-    );
+    println!("    if (!std::is_constant_evaluated()) [[likely]]");
+    println!("    {{");
+    println!("        if (const auto* mapping = {fn_name}_runtime(scalar); mapping != nullptr)");
+    println!("        {{");
+    println!("            return static_cast<std::size_t>(mapping - {mappings_name}.data());");
+    println!("        }}");
+    println!("        return {mappings_name}.size();");
+    println!("    }}");
+    println!();
+    println!("    return find_source_mapping_index(scalar, {mappings_name});");
     println!("}}");
     println!();
     println!("constexpr const {mapping_type}& {fn_name}_at(std::size_t index) noexcept");
@@ -1405,26 +1265,30 @@ fn emit_source_mapping_lookup_without_page_index(
         "constexpr const {mapping_type}* {fn_name}(std::uint32_t scalar) noexcept"
     );
     println!("{{");
-    println!(
-        "    return find_source_mapping_paged(scalar, {mappings_name}, {mappings_name}_page_index);"
-    );
+    println!("    if (!std::is_constant_evaluated()) [[likely]]");
+    println!("    {{");
+    println!("        return {fn_name}_runtime(scalar);");
+    println!("    }}");
+    println!();
+    println!("    return find_source_mapping(scalar, {mappings_name});");
     println!("}}");
     println!();
 }
 
 fn emit_simple_case_delta_lookup(fn_name: &str, mappings_name: &str) {
-    println!("inline constexpr auto {mappings_name}_page_index = make_source_mapping_page_index({mappings_name});");
-    println!("inline constexpr auto {mappings_name}_delta_ranges = make_simple_case_delta_ranges({mappings_name});");
-    println!("inline constexpr auto {mappings_name}_delta_ranges_page_slices =");
-    println!("    make_overlapping_range_page_slices({mappings_name}_delta_ranges.ranges, {mappings_name}_delta_ranges.count);");
+    println!("[[nodiscard]] const unicode_simple_case_delta_range* {fn_name}_runtime(std::uint32_t scalar) noexcept;");
     println!();
     println!("constexpr const unicode_simple_case_delta_range* {fn_name}(std::uint32_t scalar) noexcept");
     println!("{{");
-    println!("    const auto index = find_overlapping_range_index_paged(");
+    println!("    if (!std::is_constant_evaluated()) [[likely]]");
+    println!("    {{");
+    println!("        return {fn_name}_runtime(scalar);");
+    println!("    }}");
+    println!();
+    println!("    const auto index = find_overlapping_range_index(");
     println!("        scalar,");
     println!("        {mappings_name}_delta_ranges.ranges,");
-    println!("        {mappings_name}_delta_ranges.count,");
-    println!("        {mappings_name}_delta_ranges_page_slices);");
+    println!("        {mappings_name}_delta_ranges.count);");
     println!("    if (index == {mappings_name}_delta_ranges.count)");
     println!("    {{");
     println!("        return nullptr;");
@@ -1532,11 +1396,21 @@ fn emit_grapheme_property_lookup(fn_name: &str, ranges_name: &str) {
 }
 
 fn emit_composition_mapping_lookup(fn_name: &str, mappings_name: &str) {
-    println!("inline constexpr auto {mappings_name}_page_index = make_first_mapping_page_index({mappings_name});");
+    println!();
+    println!("[[nodiscard]] const unicode_composition_mapping* {fn_name}_runtime(std::uint32_t first, std::uint32_t second) noexcept;");
     println!();
     println!("constexpr std::size_t {fn_name}_index(std::uint32_t first, std::uint32_t second) noexcept");
     println!("{{");
-    println!("    return find_composition_mapping_paged_index(first, second, {mappings_name}, {mappings_name}_page_index);");
+    println!("    if (!std::is_constant_evaluated()) [[likely]]");
+    println!("    {{");
+    println!("        if (const auto* mapping = {fn_name}_runtime(first, second); mapping != nullptr)");
+    println!("        {{");
+    println!("            return static_cast<std::size_t>(mapping - {mappings_name}.data());");
+    println!("        }}");
+    println!("        return {mappings_name}.size();");
+    println!("    }}");
+    println!();
+    println!("    return find_composition_mapping_index(first, second, {mappings_name});");
     println!("}}");
     println!();
     println!("constexpr const unicode_composition_mapping& {fn_name}_at(std::size_t index) noexcept");
@@ -1546,7 +1420,12 @@ fn emit_composition_mapping_lookup(fn_name: &str, mappings_name: &str) {
     println!();
     println!("constexpr const unicode_composition_mapping* {fn_name}(std::uint32_t first, std::uint32_t second) noexcept");
     println!("{{");
-    println!("    return find_composition_mapping_paged(first, second, {mappings_name}, {mappings_name}_page_index);");
+    println!("    if (!std::is_constant_evaluated()) [[likely]]");
+    println!("    {{");
+    println!("        return {fn_name}_runtime(first, second);");
+    println!("    }}");
+    println!();
+    println!("    return find_composition_mapping(first, second, {mappings_name});");
     println!("}}");
     println!();
 }
@@ -1560,16 +1439,16 @@ fn emit_bool_lookup(name: &str, ranges_name: &str) {
 }
 
 fn emit_bool_lookup_paged(name: &str, ranges_name: &str) {
-    println!("inline constexpr auto {ranges_name}_page_slices =");
-    println!("    make_overlapping_range_page_slices({ranges_name});");
+    println!("[[nodiscard]] bool {name}_runtime(std::uint32_t scalar) noexcept;");
     println!();
     println!("constexpr bool {name}(std::uint32_t scalar) noexcept");
     println!("{{");
-    println!("    return find_overlapping_range_index_paged(");
-    println!("        scalar,");
-    println!("        {ranges_name},");
-    println!("        {ranges_name}.size(),");
-    println!("        {ranges_name}_page_slices) != {ranges_name}.size();");
+    println!("    if (!std::is_constant_evaluated()) [[likely]]");
+    println!("    {{");
+    println!("        return {name}_runtime(scalar);");
+    println!("    }}");
+    println!();
+    println!("    return find_overlapping_range_index(scalar, {ranges_name}) != {ranges_name}.size();");
     println!("}}");
     println!();
 }
@@ -1633,16 +1512,16 @@ fn emit_property_value_lookup(
     default_variant: &str,
     ranges_name: &str,
 ) {
-    println!("inline constexpr auto {ranges_name}_page_slices =");
-    println!("    make_overlapping_range_page_slices({ranges_name});");
+    println!("[[nodiscard]] {enum_name} {fn_name}_runtime(std::uint32_t scalar) noexcept;");
     println!();
     println!("constexpr {enum_name} {fn_name}(std::uint32_t scalar) noexcept");
     println!("{{");
-    println!("    const auto index = find_overlapping_range_index_paged(");
-    println!("        scalar,");
-    println!("        {ranges_name},");
-    println!("        {ranges_name}.size(),");
-    println!("        {ranges_name}_page_slices);");
+    println!("    if (!std::is_constant_evaluated()) [[likely]]");
+    println!("    {{");
+    println!("        return {fn_name}_runtime(scalar);");
+    println!("    }}");
+    println!();
+    println!("    const auto index = find_overlapping_range_index(scalar, {ranges_name});");
     println!("    if (index == {ranges_name}.size())");
     println!("    {{");
     println!("        return {enum_name}::{default_variant};");
@@ -2338,6 +2217,10 @@ fn main() -> io::Result<()> {
         "other",
         "sentence_break_ranges",
     );
+    emit_simple_case_delta_ranges(
+        "lowercase_simple_mappings_delta_ranges",
+        &lowercase_simple_mappings,
+    );
     emit_simple_case_delta_lookup(
         "lowercase_simple_delta_range",
         "lowercase_simple_mappings",
@@ -2352,6 +2235,10 @@ fn main() -> io::Result<()> {
         "unicode_special_case_mapping",
         "lowercase_special_mappings",
     );
+    emit_simple_case_delta_ranges(
+        "uppercase_simple_mappings_delta_ranges",
+        &uppercase_simple_mappings,
+    );
     emit_simple_case_delta_lookup(
         "uppercase_simple_delta_range",
         "uppercase_simple_mappings",
@@ -2365,6 +2252,10 @@ fn main() -> io::Result<()> {
         "uppercase_special_mapping",
         "unicode_special_case_mapping",
         "uppercase_special_mappings",
+    );
+    emit_simple_case_delta_ranges(
+        "case_fold_simple_mappings_delta_ranges",
+        &case_fold_simple_mappings,
     );
     emit_simple_case_delta_lookup(
         "case_fold_simple_delta_range",
