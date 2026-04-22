@@ -40,16 +40,26 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Build and run tests for all Unicode versions
+      - name: Show build tool versions
+        shell: powershell
+        run: |
+          cmake --version
+          msbuild -version
+          rustc --version
+
+      - name: Configure, build, and run tests for all Unicode versions (CMake)
         shell: powershell
         run: |
           foreach ($version in ($env:UNICODE_TEST_VERSIONS -split ' ' | Where-Object { $_ -ne '' }))
           {
             ./tools/update_unicode_data.ps1 -Version $version
             ./tools/regenerate_unicode_tables.ps1 -DataRoot (Join-Path $PWD "tools/unicode_data/$version") -UnicodeVersion $version
-            msbuild unicode_ranges.vcxproj "/t:Clean;Build" /p:Configuration=${{ matrix.configuration }} /p:Platform=x64 /p:PlatformToolset=v143 /p:TreatWarningAsError=true
+            $buildDir = Join-Path $PWD ("build/cmake-msvc-${{ matrix.configuration }}-" + ($version -replace '\.', '_'))
+            cmake -S . -B $buildDir -G "Visual Studio 17 2022" -A x64 -DUTF8_RANGES_BUILD_TESTS=ON -DUTF8_RANGES_BUILD_BENCHMARKS=OFF -DUTF8_RANGES_ENABLE_ICU=OFF
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            .\x64\${{ matrix.configuration }}\unicode_ranges.exe
+            cmake --build $buildDir --config ${{ matrix.configuration }}
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            ctest --test-dir $buildDir -C ${{ matrix.configuration }} --output-on-failure
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
@@ -73,16 +83,26 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Build and run tests for all Unicode versions
+      - name: Show build tool versions
+        shell: powershell
+        run: |
+          cmake --version
+          msbuild -version
+          rustc --version
+
+      - name: Configure, build, and run tests for all Unicode versions (CMake)
         shell: powershell
         run: |
           foreach ($version in ($env:UNICODE_TEST_VERSIONS -split ' ' | Where-Object { $_ -ne '' }))
           {
             ./tools/update_unicode_data.ps1 -Version $version
             ./tools/regenerate_unicode_tables.ps1 -DataRoot (Join-Path $PWD "tools/unicode_data/$version") -UnicodeVersion $version
-            msbuild unicode_ranges.vcxproj "/t:Clean;Build" /p:Configuration=${{ matrix.configuration }} /p:Platform=x64 /p:PlatformToolset=ClangCL /p:TreatWarningAsError=true
+            $buildDir = Join-Path $PWD ("build/cmake-clangcl-${{ matrix.configuration }}-" + ($version -replace '\.', '_'))
+            cmake -S . -B $buildDir -G "Visual Studio 17 2022" -T ClangCL -A x64 -DUTF8_RANGES_BUILD_TESTS=ON -DUTF8_RANGES_BUILD_BENCHMARKS=OFF -DUTF8_RANGES_ENABLE_ICU=OFF
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            .\x64\${{ matrix.configuration }}\unicode_ranges.exe
+            cmake --build $buildDir --config ${{ matrix.configuration }}
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            ctest --test-dir $buildDir -C ${{ matrix.configuration }} --output-on-failure
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
@@ -100,17 +120,24 @@ jobs:
       - name: Show compiler versions
         run: |
           clang++ --version
+          cmake --version
           rustc --version
           pwsh --version
 
-      - name: Build and run tests for all Unicode versions
+      - name: Configure, build, and run tests for all Unicode versions
         run: |
           for version in $UNICODE_TEST_VERSIONS; do
             pwsh ./tools/update_unicode_data.ps1 -Version "$version"
             pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
-            output="unicode_ranges_macos_o2_${version//./_}"
-            clang++ -std=c++23 -O2 -Wall -Wextra -Werror -pedantic -pthread source.cpp -o "$output"
-            "./$output"
+            build_dir="build/cmake-macos-${version//./_}"
+            cmake -S . -B "$build_dir" \
+              -DUTF8_RANGES_BUILD_TESTS=ON \
+              -DUTF8_RANGES_BUILD_BENCHMARKS=OFF \
+              -DUTF8_RANGES_ENABLE_ICU=OFF \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_CXX_FLAGS="-O2 -Wall -Wextra -Werror -pedantic -pthread -Wno-error=overflow -Wno-error=pedantic"
+            cmake --build "$build_dir" --config Release
+            ctest --test-dir "$build_dir" --build-config Release --output-on-failure
           done
 
   static_analysis:
@@ -331,26 +358,36 @@ jobs:
       - name: Show compiler version
         run: |
           ${{ matrix.cxx }} --version
+          cmake --version
           rustc --version
           pwsh --version
 
-      - name: Build and run tests for all Unicode versions
+      - name: Configure, build, and run tests for all Unicode versions (CMake)
         run: |
           for version in $UNICODE_TEST_VERSIONS; do
             pwsh ./tools/update_unicode_data.ps1 -Version "$version"
             pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
-            output="${{ matrix.output }}_${version//./_}"
-            ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 source.cpp -o "$output"
-            "./$output"
+            build_dir="build/cmake-linux-${{ matrix.output }}-${version//./_}"
+            cmake -S . -B "$build_dir" \
+              -DUTF8_RANGES_BUILD_TESTS=ON \
+              -DUTF8_RANGES_BUILD_BENCHMARKS=OFF \
+              -DUTF8_RANGES_ENABLE_ICU=OFF \
+              -DUTF8_RANGES_ENABLE_TEST_HOOKS=ON \
+              -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+              -DCMAKE_CXX_FLAGS="${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -Wno-error=overflow -Wno-error=pedantic"
+            cmake --build "$build_dir" --config Release
+            ctest --test-dir "$build_dir" --build-config Release --output-on-failure
             if [ -n "${{ matrix.sanitizer_flags }}" ]; then
-              forced_output="${output}_forced_parallel"
-              ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 source.cpp -o "$forced_output"
-              "./$forced_output"
-            fi
-            if [ "${{ matrix.sanitizer_name }}" = ", TSan" ]; then
-              forced_output="${output}_forced_parallel"
-              ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 source.cpp -o "$forced_output"
-              "./$forced_output"
+              forced_build_dir="${build_dir}-forced-parallel"
+              cmake -S . -B "$forced_build_dir" \
+                -DUTF8_RANGES_BUILD_TESTS=ON \
+                -DUTF8_RANGES_BUILD_BENCHMARKS=OFF \
+                -DUTF8_RANGES_ENABLE_ICU=OFF \
+                -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=ON \
+                -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+                -DCMAKE_CXX_FLAGS="${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} ${{ matrix.sanitizer_flags }} -Wno-error=overflow -Wno-error=pedantic"
+              cmake --build "$forced_build_dir" --config Release
+              ctest --test-dir "$forced_build_dir" --build-config Release --output-on-failure
             fi
           done
         env:
@@ -401,21 +438,36 @@ jobs:
       - name: Show compiler version
         run: |
           g++-14 --version
+          cmake --version
           rustc --version
           pwsh --version
 
-      - name: Build and run tests for all Unicode versions
+      - name: Configure, build, and run tests for all Unicode versions (CMake)
         run: |
           for version in $UNICODE_TEST_VERSIONS; do
             pwsh ./tools/update_unicode_data.ps1 -Version "$version"
             pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
-            output="${{ matrix.output }}_${version//./_}"
-            g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 source.cpp -o "$output"
-            "./$output"
+            build_dir="build/cmake-linux32-${{ matrix.output }}-${version//./_}"
+            cmake -S . -B "$build_dir" \
+              -DUTF8_RANGES_BUILD_TESTS=ON \
+              -DUTF8_RANGES_BUILD_BENCHMARKS=OFF \
+              -DUTF8_RANGES_ENABLE_ICU=OFF \
+              -DUTF8_RANGES_ENABLE_TEST_HOOKS=ON \
+              -DCMAKE_CXX_COMPILER=g++-14 \
+              -DCMAKE_CXX_FLAGS="-m32 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -Wno-error=overflow -Wno-error=pedantic"
+            cmake --build "$build_dir" --config Release
+            ctest --test-dir "$build_dir" --build-config Release --output-on-failure
             if [ -n "${{ matrix.sanitizer_flags }}" ]; then
-              forced_output="${output}_forced_parallel"
-              g++-14 -m32 -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -DUTF8_RANGES_ENABLE_TEST_HOOKS=1 -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 source.cpp -o "$forced_output"
-              "./$forced_output"
+              forced_build_dir="${build_dir}-forced-parallel"
+              cmake -S . -B "$forced_build_dir" \
+                -DUTF8_RANGES_BUILD_TESTS=ON \
+                -DUTF8_RANGES_BUILD_BENCHMARKS=OFF \
+                -DUTF8_RANGES_ENABLE_ICU=OFF \
+                -DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=ON \
+                -DCMAKE_CXX_COMPILER=g++-14 \
+                -DCMAKE_CXX_FLAGS="-m32 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -Wno-error=overflow -Wno-error=pedantic"
+              cmake --build "$forced_build_dir" --config Release
+              ctest --test-dir "$forced_build_dir" --build-config Release --output-on-failure
             fi
           done
         env:
@@ -468,24 +520,25 @@ jobs:
       - name: Show tool versions
         run: |
           ${{ matrix.cxx }} --version
+          cmake --version
           rustc --version
           pwsh --version
           pkg-config --modversion icu-uc
 
-      - name: Build and run ICU-enabled tests for all Unicode versions
+      - name: Configure, build, and run ICU-enabled tests for all Unicode versions (CMake)
         run: |
           for version in $UNICODE_TEST_VERSIONS; do
             pwsh ./tools/update_unicode_data.ps1 -Version "$version"
             pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
-            output="${{ matrix.output }}_${version//./_}"
-            ${{ matrix.cxx }} -std=c++23 -O2 -Wall -Wextra -Werror -pedantic \
-              -DUTF8_RANGES_ENABLE_ICU=1 \
-              ${{ matrix.cxxflags }} \
-              $(pkg-config --cflags icu-uc) \
-              source.cpp \
-              -o "$output" \
-              $(pkg-config --libs icu-uc)
-            "./$output"
+            build_dir="build/cmake-linux-icu-${{ matrix.output }}-${version//./_}"
+            cmake -S . -B "$build_dir" \
+              -DUTF8_RANGES_BUILD_TESTS=ON \
+              -DUTF8_RANGES_BUILD_BENCHMARKS=OFF \
+              -DUTF8_RANGES_ENABLE_ICU=ON \
+              -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+              -DCMAKE_CXX_FLAGS="-O2 -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} -Wno-error=overflow -Wno-error=pedantic"
+            cmake --build "$build_dir" --config Release
+            ctest --test-dir "$build_dir" --build-config Release --output-on-failure
           done
 
   docs_examples:
@@ -524,7 +577,7 @@ jobs:
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
           sudo ./llvm.sh 22
-          sudo apt-get install -y ${{ matrix.packages }}
+          sudo apt-get install -y ${{ matrix.packages }} lld-22
 
       - name: Show compiler version
         run: |
@@ -599,6 +652,7 @@ jobs:
       - linux_icu
       - docs_examples
       - coverage
+      - comparative_benchmarks
     runs-on: ubuntu-24.04
 
     steps:
@@ -680,13 +734,34 @@ jobs:
           sudo apt-get install -y ${{ matrix.packages }}
 
       - name: Show compiler version
-        run: ${{ matrix.cxx }} --version
+        run: |
+          ${{ matrix.cxx }} --version
+          cmake --version
 
-      - name: Build benchmark runner
-        run: ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} unicode_ranges_benchmarks.cpp -o ${{ matrix.output }}
+      - name: Configure and build benchmark runner (CMake)
+        run: |
+          compile_lto_flags="-flto=auto"
+          linker_flags="-flto=auto"
+          if [ "${{ matrix.install_kind }}" = "clang" ]; then
+            compile_lto_flags="-flto=thin"
+            linker_flags="-flto=thin -fuse-ld=lld"
+          elif [ "${{ matrix.install_kind }}" = "appleclang" ]; then
+            compile_lto_flags="-flto=thin"
+            linker_flags="-flto=thin"
+          fi
+          build_dir="build/cmake-${{ matrix.output }}"
+          cmake -S . -B "$build_dir" \
+            -DUTF8_RANGES_BUILD_TESTS=OFF \
+            -DUTF8_RANGES_BUILD_BENCHMARKS=ON \
+            -DUTF8_RANGES_ENABLE_ICU=OFF \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+            -DCMAKE_CXX_FLAGS="${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $compile_lto_flags -Wno-error=overflow -Wno-error=pedantic" \
+            -DCMAKE_EXE_LINKER_FLAGS="$linker_flags"
+          cmake --build "$build_dir" --config Release --target unicode_ranges_benchmarks
 
       - name: Run benchmark suite
-        run: ./${{ matrix.output }} --min-ms=300 > benchmark-results.txt
+        run: ./build/cmake-${{ matrix.output }}/unicode_ranges_benchmarks --min-ms=300 > benchmark-results.txt
 
       - name: Publish benchmark summary
         run: |
@@ -705,3 +780,175 @@ jobs:
         with:
           name: ${{ matrix.artifact_name }}
           path: benchmark-results.txt
+
+  comparative_benchmarks:
+    name: Comparative benchmarks (${{ matrix.name }}, ${{ matrix.opt_name || matrix.configuration }}, C++23)
+    runs-on: ${{ matrix.runs_on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: GCC
+            runs_on: ubuntu-24.04
+            install_kind: gcc
+            packages: g++-14
+            cxx: g++-14
+            cxxflags: "-pthread"
+            opt_name: O3
+            opt_flags: "-O3 -DNDEBUG"
+            output: comparative_benchmarks_gcc_o3
+          - name: Clang trunk
+            runs_on: ubuntu-24.04
+            install_kind: clang
+            packages: clang-22 libc++-22-dev libc++abi-22-dev
+            cxx: clang++-22
+            cxxflags: "-stdlib=libc++ -pthread"
+            opt_name: O2
+            opt_flags: "-O2 -DNDEBUG"
+            output: comparative_benchmarks_clang_o2
+          - name: MSVC
+            runs_on: windows-latest
+            install_kind: msvc
+            configuration: Release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install GCC
+        if: matrix.install_kind == 'gcc'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.packages }}
+
+      - name: Install Clang trunk
+        if: matrix.install_kind == 'clang'
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 22
+          sudo apt-get install -y ${{ matrix.packages }} lld-22
+
+      - name: Setup MSBuild
+        if: matrix.install_kind == 'msvc'
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Fetch comparative dependencies
+        if: matrix.install_kind != 'msvc'
+        run: |
+          deps_root="$(pwd)/build/comparative-deps"
+          simdutf_root="$(pwsh -NoProfile -File ./tools/fetch_comparative_dependency.ps1 -Name simdutf -DestinationRoot "$deps_root")"
+          utfcpp_root="$(pwsh -NoProfile -File ./tools/fetch_comparative_dependency.ps1 -Name utfcpp -DestinationRoot "$deps_root")"
+          uni_algo_root="$(pwsh -NoProfile -File ./tools/fetch_comparative_dependency.ps1 -Name uni_algo -DestinationRoot "$deps_root")"
+          echo "SIMDUTF_ROOT=$simdutf_root" >> "$GITHUB_ENV"
+          echo "UTFCPP_ROOT=$utfcpp_root" >> "$GITHUB_ENV"
+          echo "UNI_ALGO_ROOT=$uni_algo_root" >> "$GITHUB_ENV"
+
+      - name: Fetch comparative dependencies (MSVC)
+        if: matrix.install_kind == 'msvc'
+        shell: powershell
+        run: |
+          $depsRoot = Join-Path $PWD "build/comparative-deps"
+          $simdutfRoot = .\tools\fetch_comparative_dependency.ps1 -Name simdutf -DestinationRoot $depsRoot
+          $utfcppRoot = .\tools\fetch_comparative_dependency.ps1 -Name utfcpp -DestinationRoot $depsRoot
+          $uniAlgoRoot = .\tools\fetch_comparative_dependency.ps1 -Name uni_algo -DestinationRoot $depsRoot
+          "SIMDUTF_ROOT=$simdutfRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "UTFCPP_ROOT=$utfcppRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "UNI_ALGO_ROOT=$uniAlgoRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Show fetched comparative dependency versions
+        shell: pwsh
+        run: |
+          $depsRoot = Join-Path $PWD "build/comparative-deps"
+          $stamps = @(Get-ChildItem -LiteralPath $depsRoot -Recurse -Filter ".utf8_ranges_dependency.json" -ErrorAction SilentlyContinue)
+          if ($stamps.Length -eq 0) {
+            Write-Host "Fetched comparative dependencies: none"
+            if ($env:GITHUB_STEP_SUMMARY) {
+              @(
+                "## Comparative dependencies"
+                ""
+                "No comparative dependencies were fetched."
+              ) -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+            }
+            exit 0
+          }
+
+          $summaryLines = @("## Comparative dependencies", "")
+          Write-Host "Fetched comparative dependencies:"
+          foreach ($stampPath in $stamps | Sort-Object FullName) {
+            $stamp = Get-Content -LiteralPath $stampPath.FullName -Raw | ConvertFrom-Json
+            $line = " - $($stamp.name) $($stamp.version)"
+            Write-Host $line
+            $summaryLines += $line
+          }
+
+          if ($env:GITHUB_STEP_SUMMARY) {
+            $summaryLines -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          }
+
+      - name: Show compiler version
+        if: matrix.install_kind != 'msvc'
+        run: ${{ matrix.cxx }} --version
+
+      - name: Build comparative benchmark runner
+        if: matrix.install_kind != 'msvc'
+        run: |
+          compile_lto_flags="-flto=auto"
+          link_lto_flags="-flto=auto"
+          if [ "${{ matrix.install_kind }}" = "clang" ]; then
+            compile_lto_flags="-flto=thin"
+            link_lto_flags="-flto=thin -fuse-ld=lld"
+          fi
+          ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $compile_lto_flags -DUTF8_RANGES_COMPARATIVE_WITH_SIMDUTF=1 -DUTF8_RANGES_COMPARATIVE_WITH_UTFCPP=1 -DUTF8_RANGES_COMPARATIVE_WITH_UNI_ALGO=1 -I"${SIMDUTF_ROOT}" -I"${UTFCPP_ROOT}/source" -I"${UNI_ALGO_ROOT}/include" -c tools/comparative_benchmarks/main.cpp -o comparative_benchmarks.o
+          ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $compile_lto_flags -I"${SIMDUTF_ROOT}" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o unicode_ranges_runtime.o
+          ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $compile_lto_flags -I"${SIMDUTF_ROOT}" -Wno-error=overflow -Wno-error=pedantic -c unicode_tables_runtime.cpp -o unicode_tables_runtime.o
+          ar rcs libunicode_ranges.a unicode_ranges_runtime.o unicode_tables_runtime.o
+          ${{ matrix.cxx }} $link_lto_flags comparative_benchmarks.o libunicode_ranges.a ${{ matrix.cxxflags }} -o ${{ matrix.output }}
+
+      - name: Run comparative benchmark suite
+        if: matrix.install_kind != 'msvc'
+        run: ./${{ matrix.output }} --quick > comparative-benchmark-results.txt
+
+      - name: Build comparative benchmark runner (MSVC)
+        if: matrix.install_kind == 'msvc'
+        shell: powershell
+        run: |
+          msbuild tools\comparative_benchmarks\comparative_benchmarks.vcxproj "/t:Clean;Build" /p:Configuration=${{ matrix.configuration }} /p:Platform=x64 /p:PlatformToolset=v143 /p:TreatWarningAsError=true
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run comparative benchmark suite (MSVC)
+        if: matrix.install_kind == 'msvc'
+        shell: powershell
+        run: |
+          .\x64\${{ matrix.configuration }}\comparative_benchmarks.exe --quick | Out-File -FilePath comparative-benchmark-results.txt -Encoding utf8
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Publish comparative benchmark summary
+        shell: pwsh
+        run: |
+          $summaryLines = @(
+            "## Comparative benchmarks (${{ matrix.name }}, ${{ matrix.opt_name || matrix.configuration }})"
+            ""
+            "_Current baselines: unicode_ranges, simdutf (v7.7.0), utfcpp (v4.0.9), and uni-algo (v1.0.0)._"
+            "_Unsupported rows are reported explicitly when a library or public API surface does not cover the benchmark contract._"
+            ""
+            '```text'
+          )
+
+          if (Test-Path -LiteralPath comparative-benchmark-results.txt) {
+            $summaryLines += Get-Content -LiteralPath comparative-benchmark-results.txt
+          } else {
+            $summaryLines += "comparative-benchmark-results.txt was not generated."
+          }
+
+          $summaryLines += '```'
+
+          if ($env:GITHUB_STEP_SUMMARY) {
+            $summaryLines -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          }
+
+      - name: Upload comparative benchmark artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: comparative-benchmark-results-${{ matrix.output || format('msvc_{0}', matrix.configuration) }}
+          path: comparative-benchmark-results.txt

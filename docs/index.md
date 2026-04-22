@@ -1,6 +1,6 @@
 # unicode_ranges
 
-`unicode_ranges` is a header-only C++23 library for validated UTF-8, UTF-16, and UTF-32 text.
+`unicode_ranges` is a C++23 library for validated UTF-8, UTF-16, and UTF-32 text.
 
 It is built around a simple idea: Unicode scalar values are the canonical model, while UTF-8, UTF-16, and UTF-32 remain first-class encodings with dedicated APIs. The library gives you validated characters, borrowed views, owning strings, scalar iteration, grapheme iteration, Unicode casing, normalization, formatting support, and conversion between encodings.
 
@@ -18,6 +18,10 @@ Existing C and C++ text handling often starts from raw byte buffers, raw code-un
 
 The design goal is not "maximum abstraction". It is predictable Unicode handling with clear invariants, explicit failure modes, and no repeated worry about whether the current value is valid text.
 
+The public surface is still header-first, but the runtime UTF hot paths now live in the compiled `unicode_ranges` library target, built from `unicode_ranges.cpp` and backed by pinned vendored `simdutf` (`v7.7.0`) under `third_party/simdutf`. Consumers should link that library target, or an equivalent library in their own build. There is no separate `simdutf` include-path step for normal use.
+
+That backend choice is intentional: `simdutf` has been the strongest raw UTF validation/transcoding baseline in the comparative benchmark suite, so `unicode_ranges` now uses it directly for those runtime hot paths while keeping the higher-level validated type model and the rest of the Unicode algorithms in `unicode_ranges` itself.
+
 ## New users: start here
 
 - [Install And Integrate](install-and-integrate.md): how to consume the library today, including the current packaging reality.
@@ -25,6 +29,8 @@ The design goal is not "maximum abstraction". It is predictable Unicode handling
 - [Common Tasks](common-tasks.md): validate input, iterate scalars versus graphemes, normalize, case-map, and convert encodings.
 - [Design](design.md): ownership, indexing, boundaries, and what the library treats as a character.
 - [Boundary Encodings](extensible-encodings.md): built-in codecs, custom encoder/decoder requirements, generated APIs, and boundary-specific error handling.
+- [Benchmarking](benchmarking.md): the cross-library benchmark charter, comparison rules, toolchain matrix, and planned benchmark families.
+- [Licensing](licensing.md): repository dual-license model, runtime dependency license notes, and third-party notices.
 - [Text Operations](text-operations.md): search, split, trim, replace, reverse, and boundary queries.
 - [Casing and Normalization](casing-and-normalization.md): Unicode casing, case folding, and normalization forms.
 - [Reference](reference/index.md): grouped API reference by type family.
@@ -48,6 +54,8 @@ The design goal is not "maximum abstraction". It is predictable Unicode handling
 ```
 
 Everything public lives in namespace `unicode_ranges`. Literal operators live in `unicode_ranges::literals`. PMR owning-string aliases live in `unicode_ranges::pmr`.
+
+Use `unicode_ranges_full.hpp` if you want the all-in umbrella, including owning strings.
 
 !!! warning
     `unicode_ranges::details` is implementation detail only. It is not part of the supported public API.

@@ -18,6 +18,53 @@ HTML_DIR="${OUTPUT_DIR}/html"
 
 mkdir -p "${OUTPUT_DIR}"
 
+if [[ ! -f "third_party/simdutf/simdutf.h" || ! -f "third_party/simdutf/simdutf.cpp" ]]; then
+	echo "Vendored simdutf is missing from third_party/simdutf." >&2
+	exit 1
+fi
+
+"${CXX}" \
+	-std=c++23 \
+	-O0 \
+	-Wall \
+	-Wextra \
+	-Werror \
+	-pedantic \
+	-pthread \
+	-stdlib=libc++ \
+	-Wno-error=overflow \
+	-Wno-error=pedantic \
+	-DUTF8_RANGES_ENABLE_TEST_HOOKS=1 \
+	-DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 \
+	-fprofile-instr-generate \
+	-fcoverage-mapping \
+	-fno-inline \
+	-c \
+	unicode_ranges.cpp \
+	-o "${OUTPUT_DIR}/unicode_ranges_runtime.o"
+
+"${CXX}" \
+	-std=c++23 \
+	-O0 \
+	-Wall \
+	-Wextra \
+	-Werror \
+	-pedantic \
+	-pthread \
+	-stdlib=libc++ \
+	-Wno-error=overflow \
+	-Wno-error=pedantic \
+	-DUTF8_RANGES_ENABLE_TEST_HOOKS=1 \
+	-DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 \
+	-fprofile-instr-generate \
+	-fcoverage-mapping \
+	-fno-inline \
+	-c \
+	unicode_tables_runtime.cpp \
+	-o "${OUTPUT_DIR}/unicode_tables_runtime.o"
+
+ar rcs "${OUTPUT_DIR}/libunicode_ranges.a" "${OUTPUT_DIR}/unicode_ranges_runtime.o" "${OUTPUT_DIR}/unicode_tables_runtime.o"
+
 "${CXX}" \
 	-std=c++23 \
 	-O0 \
@@ -32,7 +79,7 @@ mkdir -p "${OUTPUT_DIR}"
 	-fprofile-instr-generate \
 	-fcoverage-mapping \
 	-fno-inline \
-	source.cpp \
+	source.cpp "${OUTPUT_DIR}/libunicode_ranges.a" \
 	-o "${OUTPUT_DIR}/${BINARY}"
 
 LLVM_PROFILE_FILE="${PROFRAW}" "${OUTPUT_DIR}/${BINARY}"
@@ -51,7 +98,7 @@ LLVM_PROFILE_FILE="${PROFRAW}" "${OUTPUT_DIR}/${BINARY}"
 	-fprofile-instr-generate \
 	-fcoverage-mapping \
 	-fno-inline \
-	unicode_ranges_benchmarks.cpp \
+	tools/benchmarks/unicode_ranges_benchmarks.cpp "${OUTPUT_DIR}/libunicode_ranges.a" \
 	-o "${OUTPUT_DIR}/${BENCH_BINARY}"
 
 LLVM_PROFILE_FILE="${PROFRAW_BENCH}" "${OUTPUT_DIR}/${BENCH_BINARY}" --quick --filter=large.view

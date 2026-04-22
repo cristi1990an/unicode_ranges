@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path $PSScriptRoot -Parent
 $generatorSource = Join-Path $PSScriptRoot "gen_unicode_tables.rs"
 $generatorExe = Join-Path $PSScriptRoot "gen_unicode_tables.exe"
-$outputPath = Join-Path $repoRoot "unicode_ranges\unicode_tables.hpp"
+$outputPath = Join-Path $repoRoot "unicode_ranges\unicode_tables_constexpr.hpp"
 
 & rustc $generatorSource -o $generatorExe
 try

@@ -79,6 +79,7 @@
 
 #if defined(_MSC_VER) && !defined(__clang__)
 #define UTF8_RANGES_NO_UNIQUE_ADDRESS [[msvc::no_unique_address]]
+#define UTF8_RANGES_FORCEINLINE __forceinline
 #elif defined(__has_cpp_attribute)
 #if __has_cpp_attribute(no_unique_address)
 #define UTF8_RANGES_NO_UNIQUE_ADDRESS [[no_unique_address]]
@@ -89,7 +90,15 @@
 #define UTF8_RANGES_NO_UNIQUE_ADDRESS
 #endif
 
-#include "unicode_tables.hpp"
+#ifndef UTF8_RANGES_FORCEINLINE
+#if defined(__clang__) || defined(__GNUC__)
+#define UTF8_RANGES_FORCEINLINE inline __attribute__((always_inline))
+#else
+#define UTF8_RANGES_FORCEINLINE inline
+#endif
+#endif
+
+#include "unicode_tables_constexpr.hpp"
 
 namespace unicode_ranges
 {
@@ -186,6 +195,157 @@ struct unicode_scalar_error
 	unicode_scalar_error_code code{};
 	std::size_t first_invalid_element_index = 0;
 };
+
+namespace details
+{
+	template <typename Allocator, typename CharT>
+	inline constexpr bool compiled_owning_string_allocator_v =
+		std::same_as<std::remove_cvref_t<Allocator>, std::allocator<CharT>>
+		|| std::same_as<std::remove_cvref_t<Allocator>, std::pmr::polymorphic_allocator<CharT>>;
+
+	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr bool simdutf_runtime_enabled_for_target() noexcept
+	{
+#if defined(_M_IX86) || defined(__i386__)
+		// The current compiled simdutf bridge regresses the 32-bit x86 benchmark rows.
+		return false;
+#else
+		return true;
+#endif
+	}
+
+	[[nodiscard]]
+	std::expected<void, utf8_error> simdutf_validate_utf8_runtime(std::string_view bytes) noexcept;
+
+	[[nodiscard]]
+	std::expected<void, utf8_error> simdutf_validate_utf8_runtime(std::u8string_view bytes) noexcept;
+
+	[[nodiscard]]
+	std::size_t simdutf_utf16_length_from_valid_utf8_runtime(std::u8string_view bytes) noexcept;
+
+	[[nodiscard]]
+	std::size_t simdutf_utf32_length_from_valid_utf8_runtime(std::u8string_view bytes) noexcept;
+
+	[[nodiscard]]
+	std::size_t simdutf_convert_valid_utf8_to_utf16_runtime(
+		std::u8string_view bytes,
+		char16_t* output) noexcept;
+
+	[[nodiscard]]
+	std::size_t simdutf_convert_valid_utf8_to_utf32_runtime(
+		std::u8string_view bytes,
+		char32_t* output) noexcept;
+
+	[[nodiscard]]
+	std::expected<std::size_t, utf8_error> simdutf_convert_utf8_to_utf16_checked_runtime(
+		std::string_view bytes,
+		char16_t* output) noexcept;
+
+	[[nodiscard]]
+	std::expected<std::size_t, utf8_error> simdutf_convert_utf8_to_utf32_checked_runtime(
+		std::string_view bytes,
+		char32_t* output) noexcept;
+
+	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr auto simdutf_validate_utf8_if_available(std::string_view bytes) noexcept
+		-> std::optional<std::expected<void, utf8_error>>
+	{
+		if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+		{
+			return simdutf_validate_utf8_runtime(bytes);
+		}
+
+		return std::nullopt;
+	}
+
+	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr auto simdutf_validate_utf8_if_available(std::u8string_view bytes) noexcept
+		-> std::optional<std::expected<void, utf8_error>>
+	{
+		if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+		{
+			return simdutf_validate_utf8_runtime(bytes);
+		}
+
+		return std::nullopt;
+	}
+
+	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr auto simdutf_utf16_length_from_valid_utf8_if_available(std::u8string_view bytes) noexcept
+		-> std::optional<std::size_t>
+	{
+		if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+		{
+			return simdutf_utf16_length_from_valid_utf8_runtime(bytes);
+		}
+
+		return std::nullopt;
+	}
+
+	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr auto simdutf_utf32_length_from_valid_utf8_if_available(std::u8string_view bytes) noexcept
+		-> std::optional<std::size_t>
+	{
+		if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+		{
+			return simdutf_utf32_length_from_valid_utf8_runtime(bytes);
+		}
+
+		return std::nullopt;
+	}
+
+	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr auto simdutf_convert_valid_utf8_to_utf16_if_available(
+		std::u8string_view bytes,
+		char16_t* output) noexcept -> std::optional<std::size_t>
+	{
+		if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+		{
+			return simdutf_convert_valid_utf8_to_utf16_runtime(bytes, output);
+		}
+
+		return std::nullopt;
+	}
+
+	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr auto simdutf_convert_valid_utf8_to_utf32_if_available(
+		std::u8string_view bytes,
+		char32_t* output) noexcept -> std::optional<std::size_t>
+	{
+		if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+		{
+			return simdutf_convert_valid_utf8_to_utf32_runtime(bytes, output);
+		}
+
+		return std::nullopt;
+	}
+
+	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr auto simdutf_convert_utf8_to_utf16_checked_if_available(
+		std::string_view bytes,
+		char16_t* output) noexcept -> std::optional<std::expected<std::size_t, utf8_error>>
+	{
+		if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+		{
+			return simdutf_convert_utf8_to_utf16_checked_runtime(bytes, output);
+		}
+
+		return std::nullopt;
+	}
+
+	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr auto simdutf_convert_utf8_to_utf32_checked_if_available(
+		std::string_view bytes,
+		char32_t* output) noexcept -> std::optional<std::expected<std::size_t, utf8_error>>
+	{
+		if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+		{
+			return simdutf_convert_utf8_to_utf32_checked_runtime(bytes, output);
+		}
+
+		return std::nullopt;
+	}
+}
 
 enum class normalization_form
 {
@@ -553,7 +713,7 @@ namespace details
 	}
 
 	template <typename CharT>
-	inline constexpr std::size_t ascii_prefix_length(std::basic_string_view<CharT> value) noexcept
+	UTF8_RANGES_FORCEINLINE constexpr std::size_t ascii_prefix_length(std::basic_string_view<CharT> value) noexcept
 	{
 		if (std::is_constant_evaluated())
 		{
@@ -564,168 +724,36 @@ namespace details
 	}
 
 	template <typename CharT>
-	inline constexpr bool is_ascii_only(std::basic_string_view<CharT> value) noexcept
+	UTF8_RANGES_FORCEINLINE constexpr bool is_ascii_only(std::basic_string_view<CharT> value) noexcept
 	{
 		return ascii_prefix_length(value) == value.size();
 	}
 
-	// Runtime-only thresholding for the UTF-32 parallel paths. These are intentionally
-	// conservative so we do not pay thread setup costs on mid-sized inputs.
-#if UINTPTR_MAX > 0xFFFFFFFFu
-	inline constexpr std::size_t runtime_parallel_min_total_bytes = 1u << 20;
-	inline constexpr std::size_t runtime_parallel_min_bytes_per_worker = 1u << 18;
-	inline constexpr std::size_t runtime_parallel_max_worker_count = (std::numeric_limits<std::size_t>::max)();
-#else
-	// 32-bit runners have noticeably higher thread/setup pressure relative to the
-	// UTF-32 workloads we parallelize here, so they use a stricter activation policy.
-	inline constexpr std::size_t runtime_parallel_min_total_bytes = 2u << 20;
-	inline constexpr std::size_t runtime_parallel_min_bytes_per_worker = 1u << 20;
-	inline constexpr std::size_t runtime_parallel_max_worker_count = 2;
-#endif
-
-#ifndef UTF8_RANGES_ENABLE_TEST_HOOKS
-#define UTF8_RANGES_ENABLE_TEST_HOOKS 0
-#endif
-
-#ifndef UTF8_RANGES_TEST_FORCE_UTF32_PARALLEL
-#define UTF8_RANGES_TEST_FORCE_UTF32_PARALLEL 0
-#endif
-
-#if UTF8_RANGES_ENABLE_TEST_HOOKS
-	inline constexpr bool test_force_utf32_parallel = UTF8_RANGES_TEST_FORCE_UTF32_PARALLEL != 0;
-#else
-	inline constexpr bool test_force_utf32_parallel = false;
-#endif
-
-	struct utf32_parallel_plan
+	template <typename CharT>
+	UTF8_RANGES_FORCEINLINE constexpr bool is_ascii_prefix(
+		std::basic_string_view<CharT> value,
+		std::size_t count) noexcept
 	{
-		std::size_t worker_count = 1;
-		std::size_t chunk_size = 0;
-	};
-
-	inline constexpr utf32_parallel_plan make_utf32_parallel_plan(
-		std::size_t code_point_count,
-		std::size_t available_workers) noexcept
-	{
-		if (code_point_count == 0)
+		if (count > value.size())
 		{
-			return { 1, code_point_count };
+			return false;
 		}
 
-		if (test_force_utf32_parallel && available_workers >= 2)
-		{
-			const auto forced_workers = std::max<std::size_t>(
-				2,
-				std::min(available_workers, runtime_parallel_max_worker_count));
-			return {
-				forced_workers,
-				(code_point_count + forced_workers - 1) / forced_workers
-			};
-		}
-
-		const auto total_bytes = code_point_count * sizeof(char32_t);
-		if (total_bytes < runtime_parallel_min_total_bytes)
-		{
-			return { 1, code_point_count };
-		}
-
-		// UTF-32 is fixed-width, so chunking by code-point index is always boundary-safe.
-		std::size_t worker_count = available_workers;
-		if (worker_count < 2)
-		{
-			return { 1, code_point_count };
-		}
-
-		worker_count = std::min(worker_count, runtime_parallel_max_worker_count);
-		worker_count = std::min(worker_count, total_bytes / runtime_parallel_min_bytes_per_worker);
-		worker_count = std::min(worker_count, code_point_count);
-		if (worker_count < 2)
-		{
-			return { 1, code_point_count };
-		}
-
-		return {
-			worker_count,
-			(code_point_count + worker_count - 1) / worker_count
-		};
+		return ascii_prefix_length(value.substr(0, count)) == count;
 	}
 
-	inline utf32_parallel_plan make_utf32_parallel_plan(std::size_t code_point_count) noexcept
+	template <typename CharT>
+	UTF8_RANGES_FORCEINLINE constexpr bool is_ascii_suffix(
+		std::basic_string_view<CharT> value,
+		std::size_t count) noexcept
 	{
-		return make_utf32_parallel_plan(code_point_count, std::thread::hardware_concurrency());
-	}
-
-	inline constexpr std::u32string_view utf32_parallel_chunk(
-		std::u32string_view code_points,
-		utf32_parallel_plan plan,
-		std::size_t chunk_index) noexcept
-	{
-		// Each worker gets a disjoint contiguous subspan so it can measure and write
-		// independently without any boundary repair.
-		const auto start = chunk_index * plan.chunk_size;
-		if (start >= code_points.size())
+		if (count > value.size())
 		{
-			return {};
+			return false;
 		}
 
-		return code_points.substr(start, std::min(plan.chunk_size, code_points.size() - start));
-	}
-
-	template <typename Fn>
-	inline void run_parallel_jobs(std::size_t worker_count, Fn&& fn)
-	{
-		if (worker_count <= 1)
-		{
-			fn(0);
-			return;
-		}
-
-		// The calling thread participates as the last worker to avoid spinning up an
-		// extra thread just to sit idle waiting for joins.
-#if UTF8_RANGES_HAS_JTHREAD
-		auto workers = std::make_unique<std::jthread[]>(worker_count - 1);
-		for (std::size_t worker_index = 0; worker_index + 1 < worker_count; ++worker_index)
-		{
-			workers[worker_index] = std::jthread([&, worker_index]
-				{
-					fn(worker_index);
-				});
-		}
-		fn(worker_count - 1);
-#else
-		auto workers = std::make_unique<std::thread[]>(worker_count - 1);
-		std::size_t started_workers = 0;
-		try
-		{
-			for (std::size_t worker_index = 0; worker_index + 1 < worker_count; ++worker_index)
-			{
-				workers[worker_index] = std::thread([&, worker_index]
-					{
-						fn(worker_index);
-					});
-				++started_workers;
-			}
-		}
-		catch (...)
-		{
-			for (std::size_t worker_index = 0; worker_index != started_workers; ++worker_index)
-			{
-				if (workers[worker_index].joinable())
-				{
-					workers[worker_index].join();
-				}
-			}
-			throw;
-		}
-		fn(worker_count - 1);
-		for (std::size_t worker_index = 0; worker_index != started_workers; ++worker_index)
-		{
-			if (workers[worker_index].joinable())
-			{
-				workers[worker_index].join();
-			}
-		}
-#endif
+		const auto offset = value.size() - count;
+		return ascii_prefix_length(value.substr(offset, count)) == count;
 	}
 
 	inline constexpr bool ascii_lowercase_copy_scalar(char8_t* out, std::u8string_view bytes) noexcept
@@ -1203,6 +1231,12 @@ namespace details
 	inline void copy_ascii_bytes_to_utf16_runtime(char16_t* out, std::basic_string_view<CharT> bytes) noexcept
 	{
 #if UTF8_RANGES_HAS_SSE2_INTRINSICS
+		if (bytes.size() < 16) [[unlikely]]
+		{
+			copy_ascii_bytes_to_utf16_scalar(out, bytes);
+			return;
+		}
+
 		const auto* data = reinterpret_cast<const char*>(bytes.data());
 		const auto zero = _mm_setzero_si128();
 		std::size_t index = 0;
@@ -1246,12 +1280,19 @@ namespace details
 	inline void copy_ascii_utf8_to_utf16_runtime(char16_t* out, std::u8string_view bytes) noexcept
 	{
 #if UTF8_RANGES_HAS_SSE2_INTRINSICS
+		if (bytes.size() < 16) [[unlikely]]
+		{
+			copy_ascii_utf8_to_utf16_scalar(out, bytes);
+			return;
+		}
+
 		const auto* data = reinterpret_cast<const char*>(bytes.data());
 		const auto zero = _mm_setzero_si128();
 		std::size_t index = 0;
 		while (index + 16 <= bytes.size())
 		{
-			const auto block = _mm_loadu_si128(reinterpret_cast<const __m128i*>(data + index));
+			__m128i block;
+			std::memcpy(&block, data + index, 16);
 			const auto lower = _mm_unpacklo_epi8(block, zero);
 			const auto upper = _mm_unpackhi_epi8(block, zero);
 			_mm_storeu_si128(reinterpret_cast<__m128i*>(out + index), lower);
@@ -1274,6 +1315,76 @@ namespace details
 		}
 
 		copy_ascii_utf8_to_utf16_runtime(out, bytes);
+	}
+
+	template <typename CharT>
+	requires (sizeof(CharT) == 1)
+	inline constexpr void copy_ascii_bytes_to_utf32_scalar(char32_t* out, std::basic_string_view<CharT> bytes) noexcept
+	{
+		for (std::size_t index = 0; index != bytes.size(); ++index)
+		{
+			out[index] = static_cast<char32_t>(static_cast<std::uint8_t>(bytes[index]));
+		}
+	}
+
+	template <typename CharT>
+	requires (sizeof(CharT) == 1)
+	inline void copy_ascii_bytes_to_utf32_runtime(char32_t* out, std::basic_string_view<CharT> bytes) noexcept
+	{
+#if UTF8_RANGES_HAS_SSE2_INTRINSICS
+		if (bytes.size() < 16) [[unlikely]]
+		{
+			copy_ascii_bytes_to_utf32_scalar(out, bytes);
+			return;
+		}
+
+		const auto* data = reinterpret_cast<const char*>(bytes.data());
+		const auto zero = _mm_setzero_si128();
+		std::size_t index = 0;
+		while (index + 16 <= bytes.size())
+		{
+			__m128i block;
+			std::memcpy(&block, data + index, 16);
+			const auto lower16 = _mm_unpacklo_epi8(block, zero);
+			const auto upper16 = _mm_unpackhi_epi8(block, zero);
+			const auto lane0 = _mm_unpacklo_epi16(lower16, zero);
+			const auto lane1 = _mm_unpackhi_epi16(lower16, zero);
+			const auto lane2 = _mm_unpacklo_epi16(upper16, zero);
+			const auto lane3 = _mm_unpackhi_epi16(upper16, zero);
+			_mm_storeu_si128(reinterpret_cast<__m128i*>(out + index), lane0);
+			_mm_storeu_si128(reinterpret_cast<__m128i*>(out + index + 4), lane1);
+			_mm_storeu_si128(reinterpret_cast<__m128i*>(out + index + 8), lane2);
+			_mm_storeu_si128(reinterpret_cast<__m128i*>(out + index + 12), lane3);
+			index += 16;
+		}
+
+		copy_ascii_bytes_to_utf32_scalar(out + index, bytes.substr(index));
+#else
+		copy_ascii_bytes_to_utf32_scalar(out, bytes);
+#endif
+	}
+
+	template <typename CharT>
+	requires (sizeof(CharT) == 1)
+	inline constexpr void copy_ascii_bytes_to_utf32(char32_t* out, std::basic_string_view<CharT> bytes) noexcept
+	{
+		if (std::is_constant_evaluated())
+		{
+			copy_ascii_bytes_to_utf32_scalar(out, bytes);
+			return;
+		}
+
+		copy_ascii_bytes_to_utf32_runtime(out, bytes);
+	}
+
+	inline constexpr void copy_ascii_utf8_to_utf32_scalar(char32_t* out, std::u8string_view bytes) noexcept
+	{
+		copy_ascii_bytes_to_utf32_scalar(out, bytes);
+	}
+
+	inline constexpr void copy_ascii_utf8_to_utf32(char32_t* out, std::u8string_view bytes) noexcept
+	{
+		copy_ascii_bytes_to_utf32(out, bytes);
 	}
 
 	template <typename CharT>
@@ -1681,10 +1792,16 @@ namespace details
 			&& byte <= encoding_constants::utf8_continuation_max;
 	}
 
+	struct utf8_sequence_validation_result
+	{
+		std::size_t size = 0;
+		utf8_error_code code = utf8_error_code::invalid_sequence;
+	};
+
 	template<typename CharT>
-	inline constexpr auto validate_utf8_sequence_at(
+	inline constexpr auto validate_utf8_sequence_at_raw(
 		std::basic_string_view<CharT> value,
-		std::size_t index) noexcept -> std::expected<std::size_t, utf8_error>
+		std::size_t index) noexcept -> utf8_sequence_validation_result
 	{
 		const std::uint8_t lead = static_cast<std::uint8_t>(value[index]);
 		const auto traits = utf8_lead_validation_table[lead];
@@ -1696,61 +1813,86 @@ namespace details
 
 		if (traits.size == 0) [[unlikely]]
 		{
-			return std::unexpected(utf8_error{
-				.code = utf8_error_code::invalid_lead_byte,
-				.first_invalid_byte_index = index
-			});
+			return utf8_sequence_validation_result{
+				.size = 0,
+				.code = utf8_error_code::invalid_lead_byte
+			};
 		}
 
 		if (remaining < traits.size) [[unlikely]]
 		{
-			return std::unexpected(utf8_error{
-				.code = utf8_error_code::truncated_sequence,
-				.first_invalid_byte_index = index
-			});
+			return utf8_sequence_validation_result{
+				.size = 0,
+				.code = utf8_error_code::truncated_sequence
+			};
 		}
 
 		if (traits.size == encoding_constants::single_code_unit_count)
 		{
-			return encoding_constants::single_code_unit_count;
+			return utf8_sequence_validation_result{
+				.size = encoding_constants::single_code_unit_count
+			};
 		}
 
 		const auto second = byte_at(1);
 		if (second < traits.second_min || second > traits.second_max) [[unlikely]]
 		{
-			return std::unexpected(utf8_error{
-				.code = utf8_error_code::invalid_sequence,
-				.first_invalid_byte_index = index
-			});
+			return utf8_sequence_validation_result{
+				.size = 0,
+				.code = utf8_error_code::invalid_sequence
+			};
 		}
 
 		if (traits.size == encoding_constants::two_code_unit_count)
 		{
-			return encoding_constants::two_code_unit_count;
+			return utf8_sequence_validation_result{
+				.size = encoding_constants::two_code_unit_count
+			};
 		}
 
 		if (!is_utf8_continuation_byte(byte_at(2))) [[unlikely]]
 		{
-			return std::unexpected(utf8_error{
-				.code = utf8_error_code::invalid_sequence,
-				.first_invalid_byte_index = index
-			});
+			return utf8_sequence_validation_result{
+				.size = 0,
+				.code = utf8_error_code::invalid_sequence
+			};
 		}
 
 		if (traits.size == encoding_constants::three_code_unit_count)
 		{
-			return encoding_constants::three_code_unit_count;
+			return utf8_sequence_validation_result{
+				.size = encoding_constants::three_code_unit_count
+			};
 		}
 
 		if (!is_utf8_continuation_byte(byte_at(3))) [[unlikely]]
 		{
-			return std::unexpected(utf8_error{
-				.code = utf8_error_code::invalid_sequence,
-				.first_invalid_byte_index = index
-			});
+			return utf8_sequence_validation_result{
+				.size = 0,
+				.code = utf8_error_code::invalid_sequence
+			};
 		}
 
-		return encoding_constants::max_utf8_code_units;
+		return utf8_sequence_validation_result{
+			.size = encoding_constants::max_utf8_code_units
+		};
+	}
+
+	template<typename CharT>
+	inline constexpr auto validate_utf8_sequence_at(
+		std::basic_string_view<CharT> value,
+		std::size_t index) noexcept -> std::expected<std::size_t, utf8_error>
+	{
+		const auto result = validate_utf8_sequence_at_raw(value, index);
+		if (result.size != 0) [[likely]]
+		{
+			return result.size;
+		}
+
+		return std::unexpected(utf8_error{
+			.code = result.code,
+			.first_invalid_byte_index = index
+		});
 	}
 
 	template<typename CharT>
@@ -1862,6 +2004,23 @@ namespace details
 	template<typename CharT>
 	inline constexpr std::expected<void, utf8_error> validate_utf8(std::basic_string_view<CharT> value) noexcept
 	{
+		if constexpr (std::same_as<CharT, char>)
+		{
+			if (auto runtime = details::simdutf_validate_utf8_if_available(
+				std::string_view{ value.data(), value.size() }); runtime)
+			{
+				return *runtime;
+			}
+		}
+		else if constexpr (std::same_as<CharT, char8_t>)
+		{
+			if (auto runtime = details::simdutf_validate_utf8_if_available(
+				std::u8string_view{ value.data(), value.size() }); runtime)
+			{
+				return *runtime;
+			}
+		}
+
 		std::size_t index = 0;
 		while (index < value.size())
 		{
@@ -1873,13 +2032,16 @@ namespace details
 				break;
 			}
 
-			const auto expected_size = validate_utf8_sequence_at(value, index);
-			if (!expected_size) [[unlikely]]
+			const auto sequence = validate_utf8_sequence_at_raw(value, index);
+			if (sequence.size == 0) [[unlikely]]
 			{
-				return std::unexpected(expected_size.error());
+				return std::unexpected(utf8_error{
+					.code = sequence.code,
+					.first_invalid_byte_index = index
+				});
 			}
 
-			index += *expected_size;
+			index += sequence.size;
 		}
 
 		return {};
@@ -2224,6 +2386,18 @@ namespace details
 		result.resize_and_overwrite(bytes.size(),
 			[&](char8_t* buffer, std::size_t) noexcept
 			{
+				if (auto validated = simdutf_validate_utf8_if_available(bytes))
+				{
+					if (!*validated) [[unlikely]]
+					{
+						error = validated->error();
+						return std::size_t{ 0 };
+					}
+
+					std::memcpy(buffer, bytes.data(), bytes.size());
+					return bytes.size();
+				}
+
 				std::size_t write_index = 0;
 				std::size_t read_index = 0;
 				while (read_index < bytes.size())
@@ -2238,20 +2412,23 @@ namespace details
 						continue;
 					}
 
-					const auto sequence_length = validate_utf8_sequence_at(bytes, read_index);
-					if (!sequence_length) [[unlikely]]
+					const auto sequence = validate_utf8_sequence_at_raw(bytes, read_index);
+					if (sequence.size == 0) [[unlikely]]
 					{
-						error = sequence_length.error();
+						error = utf8_error{
+							.code = sequence.code,
+							.first_invalid_byte_index = read_index
+						};
 						return std::size_t{ 0 };
 					}
 
-					for (std::size_t i = 0; i != *sequence_length; ++i)
+					for (std::size_t i = 0; i != sequence.size; ++i)
 					{
 						buffer[write_index + i] = static_cast<char8_t>(bytes[read_index + i]);
 					}
 
-					write_index += *sequence_length;
-					read_index += *sequence_length;
+					write_index += sequence.size;
+					read_index += sequence.size;
 				}
 
 				return write_index;
@@ -2261,6 +2438,191 @@ namespace details
 		{
 			return std::unexpected(*error);
 		}
+
+		return result;
+	}
+
+	template <bool Validate, typename CharT>
+	requires (sizeof(CharT) == 1)
+	inline constexpr std::size_t transcode_utf8_to_utf16_runtime_kernel(
+		std::basic_string_view<CharT> bytes,
+		char16_t* buffer,
+		std::optional<utf8_error>* error) noexcept
+	{
+		std::size_t write_index = 0;
+		std::size_t read_index = 0;
+		while (read_index < bytes.size())
+		{
+			const auto remaining = std::basic_string_view<CharT>{ bytes.data() + read_index, bytes.size() - read_index };
+			const auto ascii_run = ascii_prefix_length(remaining);
+			if (ascii_run != 0)
+			{
+				if constexpr (std::is_same_v<CharT, char8_t>)
+				{
+					const auto ascii_bytes = std::u8string_view{ bytes.data() + read_index, ascii_run };
+					if (ascii_run < 16) [[unlikely]]
+					{
+						copy_ascii_utf8_to_utf16_scalar(buffer + write_index, ascii_bytes);
+					}
+					else
+					{
+						copy_ascii_utf8_to_utf16(buffer + write_index, ascii_bytes);
+					}
+				}
+				else
+				{
+					copy_ascii_bytes_to_utf16(buffer + write_index, remaining.substr(0, ascii_run));
+				}
+				write_index += ascii_run;
+				read_index += ascii_run;
+				continue;
+			}
+
+			std::size_t count = 0;
+			if constexpr (Validate)
+			{
+				const auto sequence = validate_utf8_sequence_at_raw(bytes, read_index);
+				if (sequence.size == 0) [[unlikely]]
+				{
+					UTF8_RANGES_DEBUG_ASSERT(error != nullptr);
+					*error = utf8_error{
+						.code = sequence.code,
+						.first_invalid_byte_index = read_index
+					};
+					return std::size_t{ 0 };
+				}
+
+				count = sequence.size;
+			}
+			else
+			{
+				count = utf8_byte_count_from_lead(static_cast<std::uint8_t>(bytes[read_index]));
+			}
+
+			const auto scalar = decode_valid_utf8_char(bytes.data() + read_index, count);
+			write_index += encode_unicode_scalar_utf16_unchecked(scalar, buffer + write_index);
+			read_index += count;
+		}
+
+		return write_index;
+	}
+
+	template <typename Allocator>
+	UTF8_RANGES_FORCEINLINE auto copy_ascii_utf8_to_utf16_owned(
+		std::u8string_view bytes,
+		const Allocator& alloc) -> utf16_base_string<Allocator>
+	{
+		utf16_base_string<Allocator> result{ alloc };
+		result.resize_and_overwrite(bytes.size(),
+			[&](char16_t* buffer, std::size_t) noexcept
+			{
+				if (bytes.size() < 16) [[unlikely]]
+				{
+					copy_ascii_utf8_to_utf16_scalar(buffer, bytes);
+				}
+				else
+				{
+					copy_ascii_utf8_to_utf16(buffer, bytes);
+				}
+
+				return bytes.size();
+			});
+		return result;
+	}
+
+	template <typename Allocator>
+	UTF8_RANGES_FORCEINLINE auto copy_ascii_utf8_to_utf32_owned(
+		std::u8string_view bytes,
+		const Allocator& alloc) -> utf32_base_string<Allocator>
+	{
+		utf32_base_string<Allocator> result{ alloc };
+		result.resize_and_overwrite(bytes.size(),
+			[&](char32_t* buffer, std::size_t) noexcept
+			{
+				copy_ascii_utf8_to_utf32(buffer, bytes);
+				return bytes.size();
+			});
+		return result;
+	}
+
+	template <typename CharT, typename Allocator>
+	requires (sizeof(CharT) == 1)
+	inline constexpr auto transcode_valid_utf8_to_utf16_unchecked(
+		std::basic_string_view<CharT> bytes,
+		const Allocator& alloc) -> utf16_base_string<Allocator>
+	{
+		if (!std::is_constant_evaluated())
+		{
+			if constexpr (std::same_as<CharT, char8_t>)
+			{
+				const auto input = std::u8string_view{ bytes.data(), bytes.size() };
+				if (is_ascii_only(input))
+				{
+					return copy_ascii_utf8_to_utf16_owned(input, alloc);
+				}
+
+				if (auto output_size = simdutf_utf16_length_from_valid_utf8_if_available(input))
+				{
+					utf16_base_string<Allocator> result{ alloc };
+					result.resize_and_overwrite(*output_size,
+						[&](char16_t* buffer, std::size_t) noexcept
+						{
+							const auto converted = simdutf_convert_valid_utf8_to_utf16_if_available(input, buffer);
+							UTF8_RANGES_DEBUG_ASSERT(converted.has_value());
+							return *converted;
+						});
+
+					return result;
+				}
+			}
+		}
+
+		utf16_base_string<Allocator> result{ alloc };
+		result.resize_and_overwrite(bytes.size(),
+			[&](char16_t* buffer, std::size_t) noexcept
+			{
+				if (!std::is_constant_evaluated())
+				{
+					return transcode_utf8_to_utf16_runtime_kernel<false>(bytes, buffer, nullptr);
+				}
+
+				std::size_t write_index = 0;
+				std::size_t read_index = 0;
+				while (read_index < bytes.size())
+				{
+					const auto remaining = std::basic_string_view<CharT>{ bytes.data() + read_index, bytes.size() - read_index };
+					const auto ascii_run = ascii_prefix_length(remaining);
+					if (ascii_run != 0)
+					{
+						if constexpr (std::is_same_v<CharT, char8_t>)
+						{
+							const auto ascii_bytes = std::u8string_view{ bytes.data() + read_index, ascii_run };
+							if (ascii_run < 16) [[unlikely]]
+							{
+								copy_ascii_utf8_to_utf16_scalar(buffer + write_index, ascii_bytes);
+							}
+							else
+							{
+								copy_ascii_utf8_to_utf16(buffer + write_index, ascii_bytes);
+							}
+						}
+						else
+						{
+							copy_ascii_bytes_to_utf16(buffer + write_index, remaining.substr(0, ascii_run));
+						}
+						write_index += ascii_run;
+						read_index += ascii_run;
+						continue;
+					}
+
+					const auto count = utf8_byte_count_from_lead(static_cast<std::uint8_t>(bytes[read_index]));
+					const auto scalar = decode_valid_utf8_char(bytes.data() + read_index, count);
+					write_index += encode_unicode_scalar_utf16_unchecked(scalar, buffer + write_index);
+					read_index += count;
+				}
+
+				return write_index;
+			});
 
 		return result;
 	}
@@ -2275,6 +2637,23 @@ namespace details
 		result.resize_and_overwrite(bytes.size(),
 			[&](char16_t* buffer, std::size_t) noexcept
 			{
+				if (is_ascii_only(bytes))
+				{
+					copy_ascii_bytes_to_utf16(buffer, bytes);
+					return bytes.size();
+				}
+
+				if (auto converted = simdutf_convert_utf8_to_utf16_checked_if_available(bytes, buffer))
+				{
+					if (*converted) [[likely]]
+					{
+						return **converted;
+					}
+
+					error = converted->error();
+					return std::size_t{ 0 };
+				}
+
 				std::size_t write_index = 0;
 				std::size_t read_index = 0;
 				while (read_index < bytes.size())
@@ -2289,16 +2668,19 @@ namespace details
 						continue;
 					}
 
-					const auto sequence_length = validate_utf8_sequence_at(bytes, read_index);
-					if (!sequence_length) [[unlikely]]
+					const auto sequence = validate_utf8_sequence_at_raw(bytes, read_index);
+					if (sequence.size == 0) [[unlikely]]
 					{
-						error = sequence_length.error();
+						error = utf8_error{
+							.code = sequence.code,
+							.first_invalid_byte_index = read_index
+						};
 						return std::size_t{ 0 };
 					}
 
-					const auto scalar = decode_valid_utf8_char(bytes.data() + read_index, *sequence_length);
+					const auto scalar = decode_valid_utf8_char(bytes.data() + read_index, sequence.size);
 					write_index += encode_unicode_scalar_utf16_unchecked(scalar, buffer + write_index);
-					read_index += *sequence_length;
+					read_index += sequence.size;
 				}
 
 				return write_index;
@@ -2413,6 +2795,187 @@ namespace details
 		return result;
 	}
 
+	template <bool Validate, typename CharT>
+	requires (sizeof(CharT) == 1)
+	inline constexpr std::size_t transcode_utf8_to_utf32_runtime_kernel(
+		std::basic_string_view<CharT> bytes,
+		char32_t* buffer,
+		std::optional<utf8_error>* error) noexcept
+	{
+		std::size_t write_index = 0;
+		std::size_t read_index = 0;
+		while (read_index < bytes.size())
+		{
+			const auto remaining = std::basic_string_view<CharT>{ bytes.data() + read_index, bytes.size() - read_index };
+			const auto ascii_run = ascii_prefix_length(remaining);
+			if (ascii_run != 0)
+			{
+				for (std::size_t i = 0; i != ascii_run; ++i)
+				{
+					buffer[write_index + i] = static_cast<char32_t>(static_cast<std::uint8_t>(remaining[i]));
+				}
+
+				write_index += ascii_run;
+				read_index += ascii_run;
+				continue;
+			}
+
+			std::size_t count = 0;
+			if constexpr (Validate)
+			{
+				const auto sequence = validate_utf8_sequence_at_raw(bytes, read_index);
+				if (sequence.size == 0) [[unlikely]]
+				{
+					UTF8_RANGES_DEBUG_ASSERT(error != nullptr);
+					*error = utf8_error{
+						.code = sequence.code,
+						.first_invalid_byte_index = read_index
+					};
+					return std::size_t{ 0 };
+				}
+
+				count = sequence.size;
+			}
+			else
+			{
+				count = utf8_byte_count_from_lead(static_cast<std::uint8_t>(bytes[read_index]));
+			}
+
+			buffer[write_index++] = static_cast<char32_t>(decode_valid_utf8_char(bytes.data() + read_index, count));
+			read_index += count;
+		}
+
+		return write_index;
+	}
+
+	inline constexpr std::size_t transcode_valid_utf8_to_utf32_runtime_u8(
+		std::u8string_view bytes,
+		char32_t* buffer) noexcept
+	{
+		std::size_t write_index = 0;
+		std::size_t read_index = 0;
+		while (read_index < bytes.size())
+		{
+			const auto remaining = std::u8string_view{ bytes.data() + read_index, bytes.size() - read_index };
+			const auto ascii_run = ascii_prefix_length(remaining);
+			if (ascii_run != 0)
+			{
+				copy_ascii_utf8_to_utf32(buffer + write_index, remaining.substr(0, ascii_run));
+				write_index += ascii_run;
+				read_index += ascii_run;
+				continue;
+			}
+
+			const auto byte = [&](std::size_t offset) noexcept -> std::uint32_t
+			{
+				return static_cast<std::uint8_t>(bytes[read_index + offset]);
+			};
+
+			const auto lead = byte(0);
+			if ((lead & encoding_constants::utf8_two_byte_prefix_mask) == encoding_constants::utf8_two_byte_prefix_value)
+			{
+				buffer[write_index++] =
+					((lead & encoding_constants::utf8_two_byte_payload_mask) << encoding_constants::utf8_two_byte_lead_shift) |
+					(byte(1) & encoding_constants::utf8_continuation_payload_mask);
+				read_index += encoding_constants::two_code_unit_count;
+				continue;
+			}
+
+			if ((lead & encoding_constants::utf8_three_byte_prefix_mask) == encoding_constants::utf8_three_byte_prefix_value)
+			{
+				buffer[write_index++] =
+					((lead & encoding_constants::utf8_three_byte_payload_mask) << encoding_constants::utf8_three_byte_lead_shift) |
+					((byte(1) & encoding_constants::utf8_continuation_payload_mask) << encoding_constants::utf8_continuation_payload_bits) |
+					(byte(2) & encoding_constants::utf8_continuation_payload_mask);
+				read_index += encoding_constants::three_code_unit_count;
+				continue;
+			}
+
+			buffer[write_index++] =
+				((lead & encoding_constants::utf8_four_byte_payload_mask) << encoding_constants::utf8_four_byte_lead_shift) |
+				((byte(1) & encoding_constants::utf8_continuation_payload_mask) << encoding_constants::utf8_three_byte_lead_shift) |
+				((byte(2) & encoding_constants::utf8_continuation_payload_mask) << encoding_constants::utf8_continuation_payload_bits) |
+				(byte(3) & encoding_constants::utf8_continuation_payload_mask);
+			read_index += encoding_constants::max_utf8_code_units;
+		}
+
+		return write_index;
+	}
+
+	template <typename CharT, typename Allocator>
+	requires (sizeof(CharT) == 1)
+	inline constexpr auto transcode_valid_utf8_to_utf32_unchecked(
+		std::basic_string_view<CharT> bytes,
+		const Allocator& alloc) -> utf32_base_string<Allocator>
+	{
+		if (!std::is_constant_evaluated())
+		{
+			if constexpr (std::same_as<CharT, char8_t>)
+			{
+				const auto input = std::u8string_view{ bytes.data(), bytes.size() };
+				if (is_ascii_only(input))
+				{
+					return copy_ascii_utf8_to_utf32_owned(input, alloc);
+				}
+
+				if (auto output_size = simdutf_utf32_length_from_valid_utf8_if_available(input))
+				{
+					utf32_base_string<Allocator> result{ alloc };
+					result.resize_and_overwrite(*output_size,
+						[&](char32_t* buffer, std::size_t) noexcept
+						{
+							const auto converted = simdutf_convert_valid_utf8_to_utf32_if_available(input, buffer);
+							UTF8_RANGES_DEBUG_ASSERT(converted.has_value());
+							return *converted;
+						});
+
+					return result;
+				}
+			}
+		}
+
+		utf32_base_string<Allocator> result{ alloc };
+		result.resize_and_overwrite(bytes.size(),
+			[&](char32_t* buffer, std::size_t) noexcept
+			{
+				if (!std::is_constant_evaluated())
+				{
+					if constexpr (std::is_same_v<CharT, char8_t>)
+					{
+						return transcode_valid_utf8_to_utf32_runtime_u8(
+							std::u8string_view{ bytes.data(), bytes.size() },
+							buffer);
+					}
+
+					return transcode_utf8_to_utf32_runtime_kernel<false>(bytes, buffer, nullptr);
+				}
+
+				std::size_t write_index = 0;
+				std::size_t read_index = 0;
+				while (read_index < bytes.size())
+				{
+					const auto remaining = std::basic_string_view<CharT>{ bytes.data() + read_index, bytes.size() - read_index };
+					const auto ascii_run = ascii_prefix_length(remaining);
+					if (ascii_run != 0)
+					{
+						copy_ascii_bytes_to_utf32(buffer + write_index, remaining.substr(0, ascii_run));
+
+						write_index += ascii_run;
+						read_index += ascii_run;
+						continue;
+					}
+
+					const auto count = utf8_byte_count_from_lead(static_cast<std::uint8_t>(bytes[read_index]));
+					buffer[write_index++] = static_cast<char32_t>(decode_valid_utf8_char(bytes.data() + read_index, count));
+					read_index += count;
+				}
+
+				return write_index;
+			});
+
+		return result;
+	}
+
 	template <typename Allocator>
 	inline constexpr auto transcode_utf8_to_utf32_checked(
 		std::string_view bytes,
@@ -2423,6 +2986,17 @@ namespace details
 		result.resize_and_overwrite(bytes.size(),
 			[&](char32_t* buffer, std::size_t) noexcept
 			{
+				if (auto converted = simdutf_convert_utf8_to_utf32_checked_if_available(bytes, buffer))
+				{
+					if (*converted) [[likely]]
+					{
+						return **converted;
+					}
+
+					error = converted->error();
+					return std::size_t{ 0 };
+				}
+
 				std::size_t write_index = 0;
 				std::size_t read_index = 0;
 				while (read_index < bytes.size())
@@ -2431,10 +3005,7 @@ namespace details
 					const auto ascii_run = ascii_prefix_length(remaining);
 					if (ascii_run != 0)
 					{
-						for (std::size_t i = 0; i != ascii_run; ++i)
-						{
-							buffer[write_index + i] = static_cast<char32_t>(static_cast<unsigned char>(remaining[i]));
-						}
+						copy_ascii_bytes_to_utf32(buffer + write_index, remaining.substr(0, ascii_run));
 
 						write_index += ascii_run;
 						read_index += ascii_run;

@@ -22,7 +22,7 @@ The generated tables cover the Unicode data needed by the library's public behav
 - normalization decomposition and composition data
 - full case-fold mappings
 
-The generated output lives in `unicode_ranges/unicode_tables.hpp`.
+The generated constexpr table output lives in `unicode_ranges/unicode_tables_constexpr.hpp`. `unicode_ranges/unicode_tables.hpp` remains a thin compatibility wrapper.
 
 ## Source data
 
@@ -40,12 +40,12 @@ Typical workflow:
 
 1. Refresh the raw Unicode data under `tools/unicode_data/<version>/`.
 2. Rerun `tools/regenerate_unicode_tables.ps1`.
-3. Commit the regenerated `unicode_ranges/unicode_tables.hpp`.
+3. Commit the regenerated `unicode_ranges/unicode_tables_constexpr.hpp`.
 4. Update the changelog and any affected documentation.
 
 ## Why tables are checked in
 
-The library is header-only and aims to be easy to consume without a build-time generator dependency. Checking in the generated tables keeps usage simple for downstream users while still allowing the Unicode pipeline to remain explicit and reproducible.
+The library aims to stay easy to consume without a build-time generator dependency. Checking in the generated tables keeps usage simple for downstream users while still allowing the Unicode pipeline to remain explicit and reproducible.
 
 ## Notes on semantics
 

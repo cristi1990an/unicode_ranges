@@ -1,101 +1,144 @@
 # Install And Integrate
 
-`unicode_ranges` is a header-only library. Today, the supported consumption model is "bring the sources into your tree and add the repository root as an include directory."
+`unicode_ranges` is now a compiled library with a header-first public API. The supported integration model is:
+
+1. bring this repository into your tree
+2. build and link the `unicode_ranges` library target, or an equivalent library target in your own build
 
 ## Current packaging status
 
 - There is no first-party package-manager distribution yet.
-- There is no first-party CMake package or `install()` export yet.
 - There may be no tagged release that matches the commit you want to consume.
+- Runtime UTF validation and UTF-8 <-> UTF-16/UTF-32 transcoding use pinned vendored `simdutf` `v7.7.0` under `third_party/simdutf`.
+- The repository ships first-party Visual Studio and CMake build definitions for the compiled library target.
 
 So the practical choices right now are:
 
 1. Vendor a snapshot of the repository into your source tree.
 2. Add the repository as a git submodule.
-3. Fetch the repository in CMake, then expose it as an interface include path yourself.
+3. Fetch the repository in CMake and link the shipped `unicode_ranges` target.
 
 ## What your build needs
 
 - C++23 enabled
 - the repository root on the include path
-- `#include "unicode_ranges.hpp"` in user code
+- the `unicode_ranges` library target built from `unicode_ranges.cpp`
+- `#include "unicode_ranges.hpp"` or `#include "unicode_ranges_full.hpp"` in user code
+- the vendored `third_party/simdutf` directory kept alongside `unicode_ranges.cpp`
 
-The public umbrella header lives at the repository root:
+The public umbrella headers live at the repository root:
 
 ```cpp
 #include "unicode_ranges.hpp"
 ```
 
+```cpp
+#include "unicode_ranges_full.hpp"
+```
+
+Use:
+
+- `unicode_ranges.hpp` for the lighter borrowed/core surface
+- `unicode_ranges_full.hpp` for the all-in umbrella, including owning strings
+
+## Runtime backend: simdutf
+
+The compiled `unicode_ranges` library target uses `simdutf` for the hot runtime UTF boundary operations:
+
+- UTF-8 validation
+- UTF-8 -> UTF-16 transcoding
+- UTF-8 -> UTF-32 transcoding
+
+That is not accidental dependency creep. `simdutf` has been the strongest raw UTF codec baseline in the comparative benchmark suite, and using its public API lets `unicode_ranges` keep its own validated string/view/value types and error model while taking advantage of excellent runtime UTF performance.
+
+The rest of the library remains `unicode_ranges` code:
+
+- the public API surface
+- validated UTF types
+- grapheme logic
+- normalization and casing layers
+- compile-time and `constexpr`-oriented functionality
+
+So the integration rule is simple:
+
+- link `unicode_ranges`
+- keep the vendored `third_party/simdutf` directory that ships with this repository
+
 ## Recommended: vendor or submodule
 
-If you vendor the repository or add it as a submodule, point your include path at the checked-out root:
+If you vendor the repository or add it as a submodule, keep the checked-out tree intact:
 
 ```text
 your_project/
   third_party/
     unicode_ranges/
+      unicode_ranges.cpp
       unicode_ranges.hpp
+      unicode_ranges_full.hpp
       unicode_ranges/
+      third_party/
+        simdutf/
+          simdutf.h
+          simdutf.cpp
 ```
 
-Then compile with:
+Then build with:
 
-- include directory: `third_party/unicode_ranges`
+- include directories:
+  - `third_party/unicode_ranges`
 - language mode: C++23
+- one compiled library target:
+  - compile `third_party/unicode_ranges/unicode_ranges.cpp` into `unicode_ranges`
+  - link your executable or test target against that library
 
-## CMake: manual interface target
+## Visual Studio
 
-Because the repository does not yet ship a first-party CMake package, the simplest CMake integration is an interface target:
+The repository now contains a first-party Visual Studio library project:
 
-```cmake
-add_library(unicode_ranges INTERFACE)
-target_include_directories(unicode_ranges INTERFACE
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/unicode_ranges
-)
-target_compile_features(unicode_ranges INTERFACE cxx_std_23)
-```
+- `unicode_ranges.vcxproj`: static library
+- `unicode_ranges_tests.vcxproj`: test runner linked against the library
+- `tools/benchmarks/unicode_ranges_benchmarks.vcxproj`: benchmark runner linked against the library
+- `tools/comparative_benchmarks/comparative_benchmarks.vcxproj`: comparative benchmark runner linked against the library
 
-Then consume it normally:
+If you are consuming the repository directly from Visual Studio, build `unicode_ranges.vcxproj` and link it into your own executable or test project the same way the repo's test/benchmark projects do.
 
-```cmake
-target_link_libraries(your_target PRIVATE unicode_ranges)
-```
+## CMake: first-party target
 
-## Optional ICU-backed locale casing
+The repository now ships a first-party CMake build, install, and package-export surface:
 
-The default library build stays dependency-free and exposes only locale-independent Unicode casing.
+- target: `unicode_ranges::unicode_ranges`
+- package config: `unicode_rangesConfig.cmake`
+- install export under `lib/cmake/unicode_ranges`
 
-If you want ICU-backed locale-sensitive casing overloads such as `to_lowercase("tr"_locale)`, `to_uppercase("tr"_locale)`, or `case_fold("tr"_locale)`, enable ICU explicitly in your build. For a header-only library, the cleanest model is:
+The first-party CMake build also exposes linked test and benchmark executables.
 
-- find and link ICU in the consuming target
-- define `UTF8_RANGES_ENABLE_ICU=1` on the same target
-- let the extra overloads appear only in that configuration
-
-Example:
+If you add the repository with `add_subdirectory(...)`, just link the target:
 
 ```cmake
-option(UNICODE_RANGES_WITH_ICU "Enable ICU-backed locale casing overloads" OFF)
-
-add_library(unicode_ranges INTERFACE)
-target_include_directories(unicode_ranges INTERFACE
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/unicode_ranges
-)
-target_compile_features(unicode_ranges INTERFACE cxx_std_23)
-
-if(UNICODE_RANGES_WITH_ICU)
-    find_package(ICU REQUIRED COMPONENTS uc)
-    target_compile_definitions(unicode_ranges INTERFACE UTF8_RANGES_ENABLE_ICU=1)
-    target_link_libraries(unicode_ranges INTERFACE ICU::uc)
-endif()
+add_subdirectory(third_party/unicode_ranges)
+target_link_libraries(your_target PRIVATE unicode_ranges::unicode_ranges)
 ```
 
-This keeps the default build small and dependency-free while making the locale-sensitive overloads disappear entirely when ICU is not available.
+## CMake: install / find_package
 
-When ICU is enabled, locale-aware casing follows ICU locale resolution behavior. `locale_id` is a raw null-terminated locale-name token, while `_locale` gives you a compile-time checked literal form. The locale-aware overloads pass the token through to ICU, which may canonicalize it or fall back to a more general locale instead of failing. Use `is_available_locale(...)` if you want to require that the current ICU data set explicitly exposes a locale before calling a locale-aware casing overload.
+After configuring and installing the library:
+
+```bash
+cmake -S third_party/unicode_ranges -B build/unicode_ranges
+cmake --build build/unicode_ranges
+cmake --install build/unicode_ranges --prefix install/unicode_ranges
+```
+
+you can consume it as a normal package:
+
+```cmake
+find_package(unicode_ranges CONFIG REQUIRED)
+target_link_libraries(your_target PRIVATE unicode_ranges::unicode_ranges)
+```
 
 ## CMake: FetchContent
 
-If you prefer to fetch sources at configure time, keep the same interface-target pattern:
+If you prefer to fetch sources at configure time, fetch `unicode_ranges` and use the shipped target:
 
 ```cmake
 include(FetchContent)
@@ -103,19 +146,44 @@ include(FetchContent)
 FetchContent_Declare(
     unicode_ranges_src
     GIT_REPOSITORY https://github.com/cristi1990an/unicode_ranges.git
-    GIT_TAG main
+    GIT_TAG <pinned-tag-or-commit>
 )
 
 FetchContent_MakeAvailable(unicode_ranges_src)
 
-add_library(unicode_ranges INTERFACE)
-target_include_directories(unicode_ranges INTERFACE
-    ${unicode_ranges_src_SOURCE_DIR}
-)
-target_compile_features(unicode_ranges INTERFACE cxx_std_23)
+target_link_libraries(your_target PRIVATE unicode_ranges::unicode_ranges)
 ```
 
-This is a source-fetch recipe, not a first-party packaged install.
+This uses the first-party library target instead of rebuilding ad hoc target logic in your own project.
+
+Do not track `main` in production builds. Pin an exact tag or commit that you have validated in your own CI.
+
+## Optional ICU-backed locale casing
+
+The default library build depends only on pinned `simdutf` and exposes only locale-independent Unicode casing.
+
+If you want ICU-backed locale-sensitive casing overloads such as `to_lowercase("tr"_locale)`, `to_uppercase("tr"_locale)`, or `case_fold("tr"_locale)`, leave `UTF8_RANGES_ENABLE_ICU` enabled and make ICU available to CMake. The shipped build will then:
+
+- find `ICU::uc` and `ICU::i18n`
+- define `UTF8_RANGES_ENABLE_ICU=1`
+- link those ICU targets through `unicode_ranges::unicode_ranges`
+
+If ICU is not found, the default build falls back to the locale-independent surface.
+
+When ICU is enabled, locale-aware casing follows ICU locale resolution behavior. `locale_id` is a raw null-terminated locale-name token, while `_locale` gives you a compile-time checked literal form. The locale-aware overloads pass the token through to ICU, which may canonicalize it or fall back to a more general locale instead of failing. Use `is_available_locale(...)` if you want to require that the current ICU data set explicitly exposes a locale before calling a locale-aware casing overload.
+
+## Licensing
+
+`unicode_ranges` itself is dual-licensed under `MIT OR Apache-2.0`.
+
+The pinned runtime dependency `simdutf` is also dual-licensed under `MIT OR Apache-2.0`, which keeps the compiled runtime dependency model straightforward.
+
+For the exact repository licenses, third-party dependency versions, and notice policy, see:
+
+- `LICENSE`
+- `LICENSE-MIT`
+- `LICENSE-APACHE`
+- `THIRD_PARTY_NOTICES.md`
 
 ## Toolchains exercised in CI
 

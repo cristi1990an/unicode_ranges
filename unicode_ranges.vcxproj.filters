@@ -45,9 +45,15 @@
     <ClInclude Include="unicode_ranges\utf8_views.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="unicode_ranges\internal\unicode_tables_runtime_support.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="source.cpp">
+    <ClCompile Include="unicode_ranges.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="unicode_tables_runtime.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -1,9 +1,182 @@
 #if defined(UTF8_RANGES_UTF32_STRING_HPP) && defined(UTF8_RANGES_TRANSCODING_HPP) && !defined(UTF8_RANGES_TRANSCODING_UTF32_HPP)
 #define UTF8_RANGES_TRANSCODING_UTF32_HPP
+
 namespace unicode_ranges
 {
 	namespace details
 	{
+#ifndef UTF8_RANGES_ENABLE_TEST_HOOKS
+#define UTF8_RANGES_ENABLE_TEST_HOOKS 0
+#endif
+
+#ifndef UTF8_RANGES_TEST_FORCE_UTF32_PARALLEL
+#define UTF8_RANGES_TEST_FORCE_UTF32_PARALLEL 0
+#endif
+
+#if UINTPTR_MAX > 0xFFFFFFFFu
+		inline constexpr std::size_t runtime_parallel_min_total_bytes = 1u << 20;
+		inline constexpr std::size_t runtime_parallel_min_bytes_per_worker = 1u << 18;
+		inline constexpr std::size_t runtime_parallel_max_worker_count = 64;
+#else
+		inline constexpr std::size_t runtime_parallel_min_total_bytes = 2u << 20;
+		inline constexpr std::size_t runtime_parallel_min_bytes_per_worker = 1u << 20;
+		inline constexpr std::size_t runtime_parallel_max_worker_count = 2;
+#endif
+
+#if UTF8_RANGES_ENABLE_TEST_HOOKS
+		inline constexpr bool test_force_utf32_parallel = UTF8_RANGES_TEST_FORCE_UTF32_PARALLEL != 0;
+#else
+		inline constexpr bool test_force_utf32_parallel = false;
+#endif
+
+		template <typename Allocator>
+			requires compiled_owning_string_allocator_v<Allocator, char8_t>
+		void append_utf32_view_to_utf8_runtime(
+			std::basic_string<char8_t, std::char_traits<char8_t>, Allocator>& output,
+			std::u32string_view input);
+
+		template <typename Allocator>
+			requires compiled_owning_string_allocator_v<Allocator, char8_t>
+		void assign_utf32_view_to_utf8_runtime(
+			std::basic_string<char8_t, std::char_traits<char8_t>, Allocator>& output,
+			std::u32string_view input);
+
+		template <typename Allocator>
+			requires compiled_owning_string_allocator_v<Allocator, char16_t>
+		void append_utf32_view_to_utf16_runtime(
+			std::basic_string<char16_t, std::char_traits<char16_t>, Allocator>& output,
+			std::u32string_view input);
+
+		template <typename Allocator>
+			requires compiled_owning_string_allocator_v<Allocator, char16_t>
+		void assign_utf32_view_to_utf16_runtime(
+			std::basic_string<char16_t, std::char_traits<char16_t>, Allocator>& output,
+			std::u32string_view input);
+
+		template <typename Allocator>
+			requires compiled_owning_string_allocator_v<Allocator, char32_t>
+		void append_utf8_view_to_utf32_runtime(
+			std::basic_string<char32_t, std::char_traits<char32_t>, Allocator>& output,
+			std::u8string_view input);
+
+		template <typename Allocator>
+			requires compiled_owning_string_allocator_v<Allocator, char32_t>
+		void assign_utf8_view_to_utf32_runtime(
+			std::basic_string<char32_t, std::char_traits<char32_t>, Allocator>& output,
+			std::u8string_view input);
+
+		template <typename Allocator>
+			requires compiled_owning_string_allocator_v<Allocator, char32_t>
+		void append_utf16_view_to_utf32_runtime(
+			std::basic_string<char32_t, std::char_traits<char32_t>, Allocator>& output,
+			std::u16string_view input);
+
+		template <typename Allocator>
+			requires compiled_owning_string_allocator_v<Allocator, char32_t>
+		void assign_utf16_view_to_utf32_runtime(
+			std::basic_string<char32_t, std::char_traits<char32_t>, Allocator>& output,
+			std::u16string_view input);
+
+		struct utf32_parallel_plan
+		{
+			std::size_t worker_count = 1;
+			std::size_t chunk_size = 0;
+		};
+
+		[[nodiscard]]
+		inline constexpr utf32_parallel_plan make_utf32_parallel_plan(
+			std::size_t code_point_count,
+			std::size_t available_workers) noexcept
+		{
+			if (code_point_count == 0)
+			{
+				return { 1, code_point_count };
+			}
+
+			if (test_force_utf32_parallel && available_workers >= 2)
+			{
+				const auto forced_workers = std::max<std::size_t>(
+					2,
+					std::min(available_workers, runtime_parallel_max_worker_count));
+				return {
+					forced_workers,
+					(code_point_count + forced_workers - 1) / forced_workers
+				};
+			}
+
+			const auto total_bytes = code_point_count * sizeof(char32_t);
+			if (total_bytes < runtime_parallel_min_total_bytes)
+			{
+				return { 1, code_point_count };
+			}
+
+			std::size_t worker_count = available_workers;
+			if (worker_count < 2)
+			{
+				return { 1, code_point_count };
+			}
+
+			worker_count = std::min(worker_count, runtime_parallel_max_worker_count);
+			worker_count = std::min(worker_count, total_bytes / runtime_parallel_min_bytes_per_worker);
+			worker_count = std::min(worker_count, code_point_count);
+			if (worker_count < 2)
+			{
+				return { 1, code_point_count };
+			}
+
+			return {
+				worker_count,
+				(code_point_count + worker_count - 1) / worker_count
+			};
+		}
+
+		[[nodiscard]]
+		utf32_parallel_plan make_utf32_parallel_plan(std::size_t code_point_count) noexcept;
+
+		[[nodiscard]]
+		inline constexpr std::u32string_view utf32_parallel_chunk(
+			std::u32string_view code_points,
+			utf32_parallel_plan plan,
+			std::size_t chunk_index) noexcept
+		{
+			const auto start = chunk_index * plan.chunk_size;
+			if (start >= code_points.size())
+			{
+				return {};
+			}
+
+			return code_points.substr(start, std::min(plan.chunk_size, code_points.size() - start));
+		}
+
+		using utf32_parallel_job_fn = void(*)(void*, std::size_t) noexcept;
+
+		void run_parallel_jobs_runtime(
+			std::size_t worker_count,
+			void* context,
+			utf32_parallel_job_fn job);
+
+		template <typename Fn>
+		inline void run_parallel_jobs(std::size_t worker_count, Fn&& fn)
+		{
+			using fn_type = std::remove_reference_t<Fn>;
+			static_assert(std::is_nothrow_invocable_v<fn_type&, std::size_t>);
+
+			struct context
+			{
+				fn_type* fn = nullptr;
+			};
+
+			context job_context{ std::addressof(fn) };
+			run_parallel_jobs_runtime(
+				worker_count,
+				&job_context,
+				[](void* raw_context, std::size_t worker_index) noexcept
+				{
+					auto& typed_context = *static_cast<context*>(raw_context);
+					(*typed_context.fn)(worker_index);
+				});
+		}
+
 		template <typename Result, typename MeasureFn>
 		inline void fill_parallel_utf32_chunk_results(
 			std::u32string_view code_points,
@@ -11,8 +184,6 @@ namespace unicode_ranges
 			Result* chunk_results,
 			MeasureFn&& measure_fn)
 		{
-			// First pass: let each worker compute metadata for its own chunk. The caller
-			// later turns these per-chunk measurements into a global prefix-sum.
 			run_parallel_jobs(plan.worker_count,
 				[&](std::size_t chunk_index) noexcept
 				{
@@ -28,8 +199,6 @@ namespace unicode_ranges
 			CodeUnit* buffer,
 			WriteFn&& write_fn)
 		{
-			// Second pass: each worker writes into the exact output slice reserved for its
-			// chunk, so no synchronization is needed during emission.
 			run_parallel_jobs(plan.worker_count,
 				[&](std::size_t chunk_index) noexcept
 				{
@@ -46,27 +215,72 @@ namespace unicode_ranges
 	constexpr basic_utf8_string<Allocator>::basic_utf8_string(utf32_string_view view, const Allocator& alloc)
 		: base_(alloc)
 	{
+		if constexpr (details::compiled_owning_string_allocator_v<Allocator, char8_t>)
+		{
+			if (!std::is_constant_evaluated())
+			{
+				details::assign_utf32_view_to_utf8_runtime(base_, view.base());
+				return;
+			}
+		}
+
 		append_range(view.chars());
 	}
 	template <typename Allocator>
 	constexpr basic_utf8_string<Allocator>& basic_utf8_string<Allocator>::operator+=(utf32_string_view sv)
 	{
+		if constexpr (details::compiled_owning_string_allocator_v<Allocator, char8_t>)
+		{
+			if (!std::is_constant_evaluated())
+			{
+				details::append_utf32_view_to_utf8_runtime(base_, sv.base());
+				return *this;
+			}
+		}
+
 		return append_range(sv.chars());
 	}
 	template <typename Allocator>
 	constexpr basic_utf16_string<Allocator>::basic_utf16_string(utf32_string_view view, const Allocator& alloc)
 		: base_(alloc)
 	{
+		if constexpr (details::compiled_owning_string_allocator_v<Allocator, char16_t>)
+		{
+			if (!std::is_constant_evaluated())
+			{
+				details::assign_utf32_view_to_utf16_runtime(base_, view.base());
+				return;
+			}
+		}
+
 		append_range(view.chars());
 	}
 	template <typename Allocator>
 	constexpr basic_utf16_string<Allocator>& basic_utf16_string<Allocator>::operator+=(utf32_string_view sv)
 	{
+		if constexpr (details::compiled_owning_string_allocator_v<Allocator, char16_t>)
+		{
+			if (!std::is_constant_evaluated())
+			{
+				details::append_utf32_view_to_utf16_runtime(base_, sv.base());
+				return *this;
+			}
+		}
+
 		return append_range(sv.chars());
 	}
 	template <typename Allocator>
 	constexpr basic_utf8_string<Allocator>& basic_utf8_string<Allocator>::append_range(views::utf32_view rg)
 	{
+		if constexpr (details::compiled_owning_string_allocator_v<Allocator, char8_t>)
+		{
+			if (!std::is_constant_evaluated())
+			{
+				details::append_utf32_view_to_utf8_runtime(base_, rg.base());
+				return *this;
+			}
+		}
+
 		const auto code_points = rg.base();
 		if (!std::is_constant_evaluated())
 		{
@@ -136,6 +350,15 @@ namespace unicode_ranges
 	template <typename Allocator>
 	constexpr basic_utf8_string<Allocator>& basic_utf8_string<Allocator>::assign_range(views::utf32_view rg)
 	{
+		if constexpr (details::compiled_owning_string_allocator_v<Allocator, char8_t>)
+		{
+			if (!std::is_constant_evaluated())
+			{
+				details::assign_utf32_view_to_utf8_runtime(base_, rg.base());
+				return *this;
+			}
+		}
+
 		base_type replacement{ base_.get_allocator() };
 		const auto code_points = rg.base();
 		if (!std::is_constant_evaluated())
@@ -202,6 +425,15 @@ namespace unicode_ranges
 	template <typename Allocator>
 	constexpr basic_utf16_string<Allocator>& basic_utf16_string<Allocator>::append_range(views::utf32_view rg)
 	{
+		if constexpr (details::compiled_owning_string_allocator_v<Allocator, char16_t>)
+		{
+			if (!std::is_constant_evaluated())
+			{
+				details::append_utf32_view_to_utf16_runtime(base_, rg.base());
+				return *this;
+			}
+		}
+
 		const auto code_points = rg.base();
 		if (!std::is_constant_evaluated())
 		{
@@ -269,6 +501,15 @@ namespace unicode_ranges
 	template <typename Allocator>
 	constexpr basic_utf16_string<Allocator>& basic_utf16_string<Allocator>::assign_range(views::utf32_view rg)
 	{
+		if constexpr (details::compiled_owning_string_allocator_v<Allocator, char16_t>)
+		{
+			if (!std::is_constant_evaluated())
+			{
+				details::assign_utf32_view_to_utf16_runtime(base_, rg.base());
+				return *this;
+			}
+		}
+
 		base_type replacement{ base_.get_allocator() };
 		const auto code_points = rg.base();
 		if (!std::is_constant_evaluated())
@@ -448,10 +689,7 @@ namespace unicode_ranges
 			locale_id locale,
 			const Allocator& alloc)
 		{
-			basic_utf16_string<> utf16;
-			utf16.append_range(utf32_string_view::from_code_points_unchecked(code_points).chars());
-			auto lowered = icu_lowercase_utf16_copy(std::u16string_view{ utf16.base() }, locale, std::allocator<char16_t>{});
-			return basic_utf32_string<Allocator>{ lowered.as_view(), alloc };
+			return adopt_icu_utf32_runtime_copy<Allocator>(icu_lowercase_utf32_runtime_copy(code_points, locale), alloc);
 		}
 		template <typename Allocator>
 		basic_utf32_string<Allocator> icu_uppercase_utf32_copy(
@@ -459,10 +697,7 @@ namespace unicode_ranges
 			locale_id locale,
 			const Allocator& alloc)
 		{
-			basic_utf16_string<> utf16;
-			utf16.append_range(utf32_string_view::from_code_points_unchecked(code_points).chars());
-			auto uppered = icu_uppercase_utf16_copy(std::u16string_view{ utf16.base() }, locale, std::allocator<char16_t>{});
-			return basic_utf32_string<Allocator>{ uppered.as_view(), alloc };
+			return adopt_icu_utf32_runtime_copy<Allocator>(icu_uppercase_utf32_runtime_copy(code_points, locale), alloc);
 		}
 		template <typename Allocator>
 		basic_utf32_string<Allocator> icu_titlecase_utf32_copy(
@@ -470,10 +705,7 @@ namespace unicode_ranges
 			locale_id locale,
 			const Allocator& alloc)
 		{
-			basic_utf16_string<> utf16;
-			utf16.append_range(utf32_string_view::from_code_points_unchecked(code_points).chars());
-			auto titled = icu_titlecase_utf16_copy(std::u16string_view{ utf16.base() }, locale, std::allocator<char16_t>{});
-			return basic_utf32_string<Allocator>{ titled.as_view(), alloc };
+			return adopt_icu_utf32_runtime_copy<Allocator>(icu_titlecase_utf32_runtime_copy(code_points, locale), alloc);
 		}
 		template <typename Allocator>
 		basic_utf32_string<Allocator> icu_case_fold_utf32_copy(
@@ -481,10 +713,7 @@ namespace unicode_ranges
 			locale_id locale,
 			const Allocator& alloc)
 		{
-			basic_utf16_string<> utf16;
-			utf16.append_range(utf32_string_view::from_code_points_unchecked(code_points).chars());
-			auto folded = icu_case_fold_utf16_copy(std::u16string_view{ utf16.base() }, locale, std::allocator<char16_t>{});
-			return basic_utf32_string<Allocator>{ folded.as_view(), alloc };
+			return adopt_icu_utf32_runtime_copy<Allocator>(icu_case_fold_utf32_runtime_copy(code_points, locale), alloc);
 		}
 #endif
 		template <bool Lowercase>
@@ -1057,9 +1286,8 @@ namespace unicode_ranges
 	template <typename Allocator>
 	constexpr basic_utf32_string<Allocator> utf8_string_crtp<Derived, View>::to_utf32(const Allocator& alloc) const
 	{
-		basic_utf32_string<Allocator> result{ alloc };
-		result.append_range(chars());
-		return result;
+		return basic_utf32_string<Allocator>::from_code_points_unchecked(
+			details::transcode_valid_utf8_to_utf32_unchecked(byte_view(), alloc));
 	}
 	template <typename Derived, typename View>
 	template <typename Allocator>
@@ -1402,49 +1630,25 @@ namespace unicode_ranges
 	template <typename Derived, typename View>
 	bool utf32_string_crtp<Derived, View>::eq_ignore_case(View sv, locale_id locale) const
 	{
-		return compare_ignore_case(sv, locale) == std::weak_ordering::equivalent;
+		return details::utf32_compare_ignore_case_runtime(code_unit_view(), sv.base(), locale) == std::weak_ordering::equivalent;
 	}
 
 	template <typename Derived, typename View>
 	bool utf32_string_crtp<Derived, View>::starts_with_ignore_case(View sv, locale_id locale) const
 	{
-		const auto lhs = code_unit_view();
-		const auto rhs = sv.base();
-		const auto turkic = details::icu_case_fold_is_turkic(locale);
-		if (!turkic && details::is_ascii_only(lhs) && details::is_ascii_only(rhs))
-		{
-			return details::starts_with_ascii_case_insensitive(lhs, rhs);
-		}
-
-		return details::starts_with_case_folded_utf32(lhs, rhs, locale);
+		return details::utf32_starts_with_ignore_case_runtime(code_unit_view(), sv.base(), locale);
 	}
 
 	template <typename Derived, typename View>
 	bool utf32_string_crtp<Derived, View>::ends_with_ignore_case(View sv, locale_id locale) const
 	{
-		const auto lhs = code_unit_view();
-		const auto rhs = sv.base();
-		const auto turkic = details::icu_case_fold_is_turkic(locale);
-		if (!turkic && details::is_ascii_only(lhs) && details::is_ascii_only(rhs))
-		{
-			return details::ends_with_ascii_case_insensitive(lhs, rhs);
-		}
-
-		return details::ends_with_case_folded_utf32(lhs, rhs, locale);
+		return details::utf32_ends_with_ignore_case_runtime(code_unit_view(), sv.base(), locale);
 	}
 
 	template <typename Derived, typename View>
 	std::weak_ordering utf32_string_crtp<Derived, View>::compare_ignore_case(View sv, locale_id locale) const
 	{
-		const auto lhs = code_unit_view();
-		const auto rhs = sv.base();
-		const auto turkic = details::icu_case_fold_is_turkic(locale);
-		if (!turkic && details::is_ascii_only(lhs) && details::is_ascii_only(rhs))
-		{
-			return details::compare_ascii_case_insensitive(lhs, rhs);
-		}
-
-		return details::compare_case_folded_utf32(lhs, rhs, locale);
+		return details::utf32_compare_ignore_case_runtime(code_unit_view(), sv.base(), locale);
 	}
 #endif
 
@@ -1468,9 +1672,13 @@ namespace unicode_ranges
 	{
 		const auto lhs = code_unit_view();
 		const auto rhs = sv.base();
-		if (details::is_ascii_only(lhs) && details::is_ascii_only(rhs))
+		if (details::is_ascii_only(rhs))
 		{
-			return details::starts_with_ascii_case_insensitive(lhs, rhs);
+			const auto prefix_count = (std::min)(lhs.size(), rhs.size());
+			if (details::is_ascii_prefix(lhs, prefix_count))
+			{
+				return details::starts_with_ascii_case_insensitive(lhs, rhs);
+			}
 		}
 
 		return details::starts_with_case_folded_utf32(lhs, rhs);
@@ -1481,9 +1689,13 @@ namespace unicode_ranges
 	{
 		const auto lhs = code_unit_view();
 		const auto rhs = sv.base();
-		if (details::is_ascii_only(lhs) && details::is_ascii_only(rhs))
+		if (details::is_ascii_only(rhs))
 		{
-			return details::ends_with_ascii_case_insensitive(lhs, rhs);
+			const auto suffix_count = (std::min)(lhs.size(), rhs.size());
+			if (details::is_ascii_suffix(lhs, suffix_count))
+			{
+				return details::ends_with_ascii_case_insensitive(lhs, rhs);
+			}
 		}
 
 		return details::ends_with_case_folded_utf32(lhs, rhs);
@@ -1888,12 +2100,30 @@ namespace unicode_ranges
 	constexpr basic_utf32_string<Allocator>::basic_utf32_string(utf8_string_view view, const Allocator& alloc)
 		: base_(alloc)
 	{
-		append_range(view.chars());
+		if constexpr (details::compiled_owning_string_allocator_v<Allocator, char32_t>)
+		{
+			if (!std::is_constant_evaluated())
+			{
+				details::assign_utf8_view_to_utf32_runtime(base_, view.base());
+				return;
+			}
+		}
+
+		base_ = details::transcode_valid_utf8_to_utf32_unchecked(view.base(), alloc);
 	}
 	template <typename Allocator>
 	constexpr basic_utf32_string<Allocator>::basic_utf32_string(utf16_string_view view, const Allocator& alloc)
 		: base_(alloc)
 	{
+		if constexpr (details::compiled_owning_string_allocator_v<Allocator, char32_t>)
+		{
+			if (!std::is_constant_evaluated())
+			{
+				details::assign_utf16_view_to_utf32_runtime(base_, view.base());
+				return;
+			}
+		}
+
 		append_range(view.chars());
 	}
 	template <typename Allocator>
@@ -1904,6 +2134,15 @@ namespace unicode_ranges
 	template <typename Allocator>
 	constexpr basic_utf32_string<Allocator>& basic_utf32_string<Allocator>::append_range(views::utf8_view rg)
 	{
+		if constexpr (details::compiled_owning_string_allocator_v<Allocator, char32_t>)
+		{
+			if (!std::is_constant_evaluated())
+			{
+				details::append_utf8_view_to_utf32_runtime(base_, rg.base());
+				return *this;
+			}
+		}
+
 		const auto bytes = rg.base();
 		const auto original_size = base_.size();
 		base_.resize_and_overwrite(original_size + bytes.size(),
@@ -1936,6 +2175,15 @@ namespace unicode_ranges
 	template <typename Allocator>
 	constexpr basic_utf32_string<Allocator>& basic_utf32_string<Allocator>::append_range(views::utf16_view rg)
 	{
+		if constexpr (details::compiled_owning_string_allocator_v<Allocator, char32_t>)
+		{
+			if (!std::is_constant_evaluated())
+			{
+				details::append_utf16_view_to_utf32_runtime(base_, rg.base());
+				return *this;
+			}
+		}
+
 		const auto code_units = rg.base();
 		const auto original_size = base_.size();
 		base_.resize_and_overwrite(original_size + code_units.size(),
@@ -1986,6 +2234,15 @@ namespace unicode_ranges
 	template <typename Allocator>
 	constexpr basic_utf32_string<Allocator>& basic_utf32_string<Allocator>::assign_range(views::utf8_view rg)
 	{
+		if constexpr (details::compiled_owning_string_allocator_v<Allocator, char32_t>)
+		{
+			if (!std::is_constant_evaluated())
+			{
+				details::assign_utf8_view_to_utf32_runtime(base_, rg.base());
+				return *this;
+			}
+		}
+
 		base_type replacement{ base_.get_allocator() };
 		const auto bytes = rg.base();
 		replacement.resize_and_overwrite(bytes.size(),
@@ -2019,6 +2276,15 @@ namespace unicode_ranges
 	template <typename Allocator>
 	constexpr basic_utf32_string<Allocator>& basic_utf32_string<Allocator>::assign_range(views::utf16_view rg)
 	{
+		if constexpr (details::compiled_owning_string_allocator_v<Allocator, char32_t>)
+		{
+			if (!std::is_constant_evaluated())
+			{
+				details::assign_utf16_view_to_utf32_runtime(base_, rg.base());
+				return *this;
+			}
+		}
+
 		base_type replacement{ base_.get_allocator() };
 		const auto code_units = rg.base();
 		replacement.resize_and_overwrite(code_units.size(),
@@ -2055,11 +2321,30 @@ namespace unicode_ranges
 	template <typename Allocator>
 	constexpr basic_utf32_string<Allocator>& basic_utf32_string<Allocator>::operator+=(utf8_string_view sv)
 	{
-		return append_range(sv.chars());
+		if constexpr (details::compiled_owning_string_allocator_v<Allocator, char32_t>)
+		{
+			if (!std::is_constant_evaluated())
+			{
+				details::append_utf8_view_to_utf32_runtime(base_, sv.base());
+				return *this;
+			}
+		}
+
+		const auto appended = details::transcode_valid_utf8_to_utf32_unchecked(sv.base(), base_.get_allocator());
+		return append_code_points(equivalent_string_view{ appended });
 	}
 	template <typename Allocator>
 	constexpr basic_utf32_string<Allocator>& basic_utf32_string<Allocator>::operator+=(utf16_string_view sv)
 	{
+		if constexpr (details::compiled_owning_string_allocator_v<Allocator, char32_t>)
+		{
+			if (!std::is_constant_evaluated())
+			{
+				details::append_utf16_view_to_utf32_runtime(base_, sv.base());
+				return *this;
+			}
+		}
+
 		return append_range(sv.chars());
 	}
 	template <typename Allocator>

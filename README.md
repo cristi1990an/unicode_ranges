@@ -1,8 +1,17 @@
 # unicode_ranges
 
-`unicode_ranges` is a header-only C++23 library for representing, validating, iterating, transforming, and formatting UTF-8, UTF-16, and UTF-32 text.
+`unicode_ranges` is a C++23 library for representing, validating, iterating, transforming, and formatting UTF-8, UTF-16, and UTF-32 text.
 
 It provides validated character types, borrowed string views, owning strings, grapheme-aware iteration, Unicode casing, normalization, and conversion between UTF-8, UTF-16, and UTF-32.
+
+`unicode_ranges` is now a compiled library. The public API stays header-first, but runtime UTF validation and runtime UTF-8 <-> UTF-16/UTF-32 transcoding are provided by the `unicode_ranges` library target built from `unicode_ranges.cpp`, backed by pinned vendored `simdutf` (`v7.7.0`) under [`third_party/simdutf`](third_party/simdutf). Consumers should link the library target, or produce an equivalent static/shared library in their own build. No separate `simdutf` setup step is required for normal consumption.
+
+The repository now also ships a first-party CMake build and install/export package for that compiled library target.
+
+Umbrella headers:
+
+- `unicode_ranges.hpp`: lighter borrowed/core surface
+- `unicode_ranges_full.hpp`: full umbrella, including owning strings
 
 ## Why this library exists
 
@@ -17,6 +26,23 @@ Many existing C and C++ Unicode/text APIs start from raw byte buffers or raw cod
 - keep explicit `_unchecked` escape hatches for callers that already proved validity elsewhere
 
 The goal is predictable Unicode handling with clear invariants and explicit failure modes. You do not pay for what you do not use: checked and unchecked paths are separate, borrowed and owning types are separate, ASCII-only and Unicode-aware operations are separate, and scalar-level and grapheme-level APIs are separate.
+
+## Runtime Backend
+
+`unicode_ranges` now uses `simdutf` as its production runtime backend for the hot UTF boundary operations:
+
+- UTF-8 validation
+- UTF-8 -> UTF-16 transcoding
+- UTF-8 -> UTF-32 transcoding
+
+That choice is deliberate. In the comparative benchmark suite, `simdutf` has been the strongest raw UTF codec baseline by a clear margin, and using it through its public API lets `unicode_ranges` keep its own validated types and error model while benefiting from best-in-class runtime UTF performance.
+
+This does not replace the rest of the library:
+
+- the public API remains `unicode_ranges`
+- the higher-level string/view/value types remain `unicode_ranges`
+- compile-time and `constexpr`-oriented functionality remains implemented in `unicode_ranges`
+- the runtime backend is specifically about the hot UTF validation/transcoding paths
 
 ## Documentation
 
@@ -54,7 +80,7 @@ Unicode tables currently track Unicode `17.0.0`.
 ## Quick start
 
 ```cpp
-#include "unicode_ranges.hpp"
+#include "unicode_ranges_full.hpp"
 
 #include <print>
 
@@ -126,3 +152,17 @@ python -m mkdocs serve
 ```
 
 Then open `http://127.0.0.1:8000/`.
+
+## Licensing
+
+This repository is dual-licensed under `MIT OR Apache-2.0`.
+
+The full license texts are in:
+
+- `LICENSE`
+- `LICENSE-MIT`
+- `LICENSE-APACHE`
+
+The pinned vendored runtime dependency `simdutf` is also dual-licensed under `MIT OR Apache-2.0`, which keeps the licensing model straightforward for the compiled runtime backend.
+
+Third-party dependency notices, pinned versions, and the provenance-header policy for any future copied source files are documented in `THIRD_PARTY_NOTICES.md`.

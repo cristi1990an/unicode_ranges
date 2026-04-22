@@ -1,0 +1,57 @@
+{
+  "simdutf": {
+    "display_name": "simdutf",
+    "version": "v7.7.0",
+    "source": {
+      "kind": "github_release_asset_zip",
+      "repo": "simdutf/simdutf",
+      "tag": "v7.7.0",
+      "asset": "singleheader.zip"
+    },
+    "layout": {
+      "expected_files": [
+        "simdutf.h",
+        "simdutf.cpp"
+      ]
+    },
+    "documentation": {
+      "readme": "https://github.com/simdutf/simdutf/blob/v7.7.0/README.md",
+      "release_asset": "https://github.com/simdutf/simdutf/releases/download/v7.7.0/singleheader.zip"
+    }
+  },
+  "utfcpp": {
+    "display_name": "utfcpp",
+    "version": "v4.0.9",
+    "source": {
+      "kind": "git_clone",
+      "repo_url": "https://github.com/nemtrif/utfcpp.git",
+      "tag": "v4.0.9"
+    },
+    "layout": {
+      "expected_files": [
+        "source/utf8.h"
+      ]
+    },
+    "documentation": {
+      "readme": "https://github.com/nemtrif/utfcpp/blob/v4.0.9/README.md",
+      "api_reference": "https://github.com/nemtrif/utfcpp/blob/v4.0.9/API_REFERENCE.md"
+    }
+  },
+  "uni_algo": {
+    "display_name": "uni-algo",
+    "version": "v1.0.0",
+    "source": {
+      "kind": "git_clone",
+      "repo_url": "https://github.com/uni-algo/uni-algo.git",
+      "tag": "v1.0.0"
+    },
+    "layout": {
+      "expected_files": [
+        "include/uni_algo/conv.h"
+      ]
+    },
+    "documentation": {
+      "readme": "https://github.com/uni-algo/uni-algo/blob/v1.0.0/README.md"
+    }
+  }
+}

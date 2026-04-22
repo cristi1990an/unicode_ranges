@@ -10,7 +10,8 @@ This page documents the exact public surface. For the higher-level guide to buil
 
 ## Header And Namespaces
 
-- Include [`unicode_ranges.hpp`](https://github.com/cristi1990an/unicode_ranges/blob/main/unicode_ranges.hpp) for the full surface.
+- Include [`unicode_ranges_full.hpp`](https://github.com/cristi1990an/unicode_ranges/blob/main/unicode_ranges_full.hpp) for the full surface.
+- Include [`unicode_ranges.hpp`](https://github.com/cristi1990an/unicode_ranges/blob/main/unicode_ranges.hpp) for the lighter borrowed/core umbrella.
 - The boundary API lives in namespace `unicode_ranges`.
 - Built-in codecs currently live in namespace `unicode_ranges::encodings`.
 
