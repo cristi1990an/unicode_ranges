@@ -1,8 +1,8 @@
 #include <vector>
 
-#include "comparative_benchmarks/families/utf_transcoding.hpp"
-#include "comparative_benchmarks/families/utf_validation.hpp"
-#include "comparative_benchmarks/framework.hpp"
+#include "families/utf_transcoding.hpp"
+#include "families/utf_validation.hpp"
+#include "framework.hpp"
 
 int main(int argc, char** argv)
 {

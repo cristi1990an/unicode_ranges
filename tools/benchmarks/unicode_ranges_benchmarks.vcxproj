@@ -73,11 +73,11 @@
     <TreatWarningAsError Condition="'$(TreatWarningAsError)'==''">false</TreatWarningAsError>
   </PropertyGroup>
   <PropertyGroup>
-    <IcuRoot Condition="'$(IcuRoot)'=='' And Exists('$(ProjectDir).local\\icu-sdk\\include\\unicode\\uchar.h')">$(ProjectDir).local\icu-sdk</IcuRoot>
+    <IcuRoot Condition="'$(IcuRoot)'=='' And Exists('$(ProjectDir)..\\..\\.local\\icu-sdk\\include\\unicode\\uchar.h')">$(ProjectDir)..\..\.local\icu-sdk</IcuRoot>
   </PropertyGroup>
   <PropertyGroup>
-    <OutDir>$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>build_artifacts\$(Platform)\$(Configuration)\unicode_ranges_benchmarks\</IntDir>
+    <OutDir>$(ProjectDir)..\..\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(ProjectDir)..\..\build_artifacts\$(Platform)\$(Configuration)\unicode_ranges_benchmarks\</IntDir>
   </PropertyGroup>
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -157,28 +157,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="unicode_ranges\core.hpp" />
-    <ClInclude Include="unicode_ranges\string.hpp" />
-    <ClInclude Include="unicode_ranges\utf8_string_crtp.hpp" />
-    <ClInclude Include="unicode_ranges\utf8_string_view.hpp" />
-    <ClInclude Include="unicode_ranges\utf8_string.hpp" />
-    <ClInclude Include="unicode_ranges\unicode_tables.hpp" />
-    <ClInclude Include="unicode_ranges_tests.hpp" />
-    <ClInclude Include="unicode_ranges\utf16_char.hpp" />
-    <ClInclude Include="unicode_ranges\utf16_string_crtp.hpp" />
-    <ClInclude Include="unicode_ranges\utf16_string_view.hpp" />
-    <ClInclude Include="unicode_ranges\utf16_string.hpp" />
-    <ClInclude Include="unicode_ranges\utf8_char.hpp" />
-    <ClInclude Include="unicode_ranges\grapheme_cluster_view.hpp" />
-    <ClInclude Include="unicode_ranges.hpp" />
-    <ClInclude Include="unicode_ranges\utf16_views.hpp" />
-    <ClInclude Include="unicode_ranges\utf8_views.hpp" />
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="unicode_ranges_benchmarks.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="unicode_ranges.vcxproj">
+    <ProjectReference Include="..\..\unicode_ranges.vcxproj">
       <Project>{145EBCBD-1896-42AE-AD89-D25964826D92}</Project>
       <LinkLibraryDependencies>true</LinkLibraryDependencies>
       <UseLibraryDependencyInputs>false</UseLibraryDependencyInputs>

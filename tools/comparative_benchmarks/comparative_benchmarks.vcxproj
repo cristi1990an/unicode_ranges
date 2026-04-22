@@ -73,8 +73,8 @@
     <TreatWarningAsError Condition="'$(TreatWarningAsError)'==''">false</TreatWarningAsError>
   </PropertyGroup>
   <PropertyGroup>
-    <IcuRoot Condition="'$(IcuRoot)'=='' And Exists('$(ProjectDir).local\\icu-sdk\\include\\unicode\\uchar.h')">$(ProjectDir).local\icu-sdk</IcuRoot>
-    <SimdutfRoot Condition="'$(SimdutfRoot)'=='' And Exists('$(ProjectDir)third_party\\simdutf\\simdutf.h')">$(ProjectDir)third_party\simdutf</SimdutfRoot>
+    <IcuRoot Condition="'$(IcuRoot)'=='' And Exists('$(ProjectDir)..\\..\\.local\\icu-sdk\\include\\unicode\\uchar.h')">$(ProjectDir)..\..\.local\icu-sdk</IcuRoot>
+    <SimdutfRoot Condition="'$(SimdutfRoot)'=='' And Exists('$(ProjectDir)..\\..\\third_party\\simdutf\\simdutf.h')">$(ProjectDir)..\..\third_party\simdutf</SimdutfRoot>
     <SimdutfRoot Condition="'$(SimdutfRoot)'==''">$(SIMDUTF_ROOT)</SimdutfRoot>
     <SimdutfAvailable Condition="Exists('$(SimdutfRoot)\\simdutf.h') And Exists('$(SimdutfRoot)\\simdutf.cpp')">true</SimdutfAvailable>
     <UtfcppRoot Condition="'$(UtfcppRoot)'==''">$(UTFCPP_ROOT)</UtfcppRoot>
@@ -89,8 +89,8 @@
     <ComparativePreprocessorDefinitions Condition="'$(UniAlgoAvailable)'=='true'">UTF8_RANGES_COMPARATIVE_WITH_UNI_ALGO=1;$(ComparativePreprocessorDefinitions)</ComparativePreprocessorDefinitions>
   </PropertyGroup>
   <PropertyGroup>
-    <OutDir>$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>build_artifacts\$(Platform)\$(Configuration)\comparative_benchmarks\</IntDir>
+    <OutDir>$(ProjectDir)..\..\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(ProjectDir)..\..\build_artifacts\$(Platform)\$(Configuration)\comparative_benchmarks\</IntDir>
   </PropertyGroup>
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -178,10 +178,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="comparative_benchmarks.cpp" />
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="unicode_ranges.vcxproj">
+    <ProjectReference Include="..\..\unicode_ranges.vcxproj">
       <Project>{145EBCBD-1896-42AE-AD89-D25964826D92}</Project>
       <LinkLibraryDependencies>true</LinkLibraryDependencies>
       <UseLibraryDependencyInputs>false</UseLibraryDependencyInputs>

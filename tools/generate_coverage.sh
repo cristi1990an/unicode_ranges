@@ -78,7 +78,7 @@ LLVM_PROFILE_FILE="${PROFRAW}" "${OUTPUT_DIR}/${BINARY}"
 	-fprofile-instr-generate \
 	-fcoverage-mapping \
 	-fno-inline \
-	unicode_ranges_benchmarks.cpp "${OUTPUT_DIR}/libunicode_ranges.a" \
+	tools/benchmarks/unicode_ranges_benchmarks.cpp "${OUTPUT_DIR}/libunicode_ranges.a" \
 	-o "${OUTPUT_DIR}/${BENCH_BINARY}"
 
 LLVM_PROFILE_FILE="${PROFRAW_BENCH}" "${OUTPUT_DIR}/${BENCH_BINARY}" --quick --filter=large.view

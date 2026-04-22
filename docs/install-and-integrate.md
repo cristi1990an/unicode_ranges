@@ -87,8 +87,8 @@ The repository now contains a first-party Visual Studio library project:
 
 - `unicode_ranges.vcxproj`: static library
 - `unicode_ranges_tests.vcxproj`: test runner linked against the library
-- `unicode_ranges_benchmarks.vcxproj`: benchmark runner linked against the library
-- `comparative_benchmarks.vcxproj`: comparative benchmark runner linked against the library
+- `tools/benchmarks/unicode_ranges_benchmarks.vcxproj`: benchmark runner linked against the library
+- `tools/comparative_benchmarks/comparative_benchmarks.vcxproj`: comparative benchmark runner linked against the library
 
 If you are consuming the repository directly from Visual Studio, build `unicode_ranges.vcxproj` and link it into your own executable or test project the same way the repo's test/benchmark projects do.
 

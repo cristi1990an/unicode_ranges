@@ -17,7 +17,7 @@ $ErrorActionPreference = "Stop"
 
 if ([string]::IsNullOrWhiteSpace($ManifestPath))
 {
-	$ManifestPath = Join-Path $PSScriptRoot "..\\comparative_benchmarks\\dependencies.json"
+	$ManifestPath = Join-Path $PSScriptRoot "comparative_benchmarks\\dependencies.json"
 }
 
 function Get-ManifestEntry

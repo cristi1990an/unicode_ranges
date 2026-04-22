@@ -303,8 +303,8 @@ This page started as the design charter and now also reflects the initial scaffo
 
 Current comparative suite:
 
-- a dedicated comparative benchmark runner: `comparative_benchmarks.cpp`
-- a shared benchmark model and harness under `comparative_benchmarks/`
+- a dedicated comparative benchmark runner: `tools/comparative_benchmarks/main.cpp`
+- a shared benchmark model and harness under `tools/comparative_benchmarks/`
 - initial corpus layout for UTF-8 validation and UTF-8 transcoding rows
 - initial `unicode_ranges` baseline adapters for strict UTF-8 validation and strict UTF-8 owned transcoding
 - initial third-party baselines:
@@ -327,7 +327,7 @@ Current comparative suite:
   - `uni-algo` is reported as unsupported there because the public API does not expose caller-buffer UTF transcoding
   - `unicode_ranges` is reported as unsupported for those rows because it does
     not currently expose a public caller-buffer UTF transcoding API
-- comparative dependencies are defined in `comparative_benchmarks/dependencies.json`
+- comparative dependencies are defined in `tools/comparative_benchmarks/dependencies.json`
   and fetched through `tools/fetch_comparative_dependency.ps1`
 - a manifest-driven dependency fetch script for external comparative baselines
 - CI jobs that fetch, build, and run the comparative suite on GCC, Clang, and MSVC

@@ -70,7 +70,7 @@ if(UTF8_RANGES_BUILD_TESTS)
 endif()
 
 if(UTF8_RANGES_BUILD_BENCHMARKS)
-    add_executable(unicode_ranges_benchmarks unicode_ranges_benchmarks.cpp)
+    add_executable(unicode_ranges_benchmarks tools/benchmarks/unicode_ranges_benchmarks.cpp)
     target_compile_features(unicode_ranges_benchmarks PRIVATE cxx_std_23)
     if(MSVC)
         target_compile_options(unicode_ranges_benchmarks PRIVATE /utf-8 /bigobj)
