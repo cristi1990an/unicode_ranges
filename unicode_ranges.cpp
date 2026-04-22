@@ -189,6 +189,231 @@ auto icu_case_fold_options(locale_id locale) -> uint32_t
 	return icu_locale_uses_turkic_case_behavior(locale) ? U_FOLD_CASE_EXCLUDE_SPECIAL_I : U_FOLD_CASE_DEFAULT;
 }
 
+namespace
+{
+	template <typename Transform>
+	auto icu_utf8_case_map_copy_impl(
+		std::u8string_view bytes,
+		locale_id locale,
+		uint32_t options,
+		const char* operation,
+		Transform&& transform) -> std::u8string
+	{
+		if (bytes.empty())
+		{
+			return {};
+		}
+
+		auto case_map = make_icu_case_map(locale, options);
+		const auto input_size = checked_icu_length(bytes.size(), "UTF-8 input");
+		std::u8string result(bytes.size(), u8'\0');
+
+		UErrorCode error = U_ZERO_ERROR;
+		const auto written = transform(
+			case_map.get(),
+			reinterpret_cast<char*>(result.data()),
+			input_size,
+			reinterpret_cast<const char*>(bytes.data()),
+			input_size,
+			&error);
+
+		if (error == U_BUFFER_OVERFLOW_ERROR)
+		{
+			result.resize(static_cast<std::size_t>(written));
+			error = U_ZERO_ERROR;
+			const auto rerun_written = transform(
+				case_map.get(),
+				reinterpret_cast<char*>(result.data()),
+				written,
+				reinterpret_cast<const char*>(bytes.data()),
+				input_size,
+				&error);
+			if (U_FAILURE(error))
+			{
+				throw_icu_error(operation, error);
+			}
+
+			result.resize(static_cast<std::size_t>(rerun_written));
+		}
+		else if (U_FAILURE(error))
+		{
+			throw_icu_error(operation, error);
+		}
+		else
+		{
+			result.resize(static_cast<std::size_t>(written));
+		}
+
+		return result;
+	}
+
+	template <typename Transform>
+	auto icu_utf16_case_map_copy_impl(
+		std::u16string_view code_units,
+		const char* operation,
+		Transform&& transform) -> std::u16string
+	{
+		static_assert(sizeof(UChar) == sizeof(char16_t));
+
+		if (code_units.empty())
+		{
+			return {};
+		}
+
+		const auto input_size = checked_icu_length(code_units.size(), "UTF-16 input");
+		const auto* source = reinterpret_cast<const UChar*>(code_units.data());
+		std::u16string result(code_units.size(), u'\0');
+
+		UErrorCode error = U_ZERO_ERROR;
+		const auto written = transform(
+			reinterpret_cast<UChar*>(result.data()),
+			input_size,
+			source,
+			input_size,
+			&error);
+
+		if (error == U_BUFFER_OVERFLOW_ERROR)
+		{
+			result.resize(static_cast<std::size_t>(written));
+			error = U_ZERO_ERROR;
+			const auto rerun_written = transform(
+				reinterpret_cast<UChar*>(result.data()),
+				written,
+				source,
+				input_size,
+				&error);
+			if (U_FAILURE(error))
+			{
+				throw_icu_error(operation, error);
+			}
+
+			result.resize(static_cast<std::size_t>(rerun_written));
+		}
+		else if (U_FAILURE(error))
+		{
+			throw_icu_error(operation, error);
+		}
+		else
+		{
+			result.resize(static_cast<std::size_t>(written));
+		}
+
+		return result;
+	}
+}
+
+auto icu_lowercase_utf8_runtime_copy(std::u8string_view bytes, locale_id locale) -> std::u8string
+{
+	return icu_utf8_case_map_copy_impl(bytes, locale, 0, "ucasemap_utf8ToLower",
+		[](UCaseMap* case_map, char* dest, int32_t dest_capacity, const char* source, int32_t source_length, UErrorCode* error)
+		{
+			return ucasemap_utf8ToLower(case_map, dest, dest_capacity, source, source_length, error);
+		});
+}
+
+auto icu_uppercase_utf8_runtime_copy(std::u8string_view bytes, locale_id locale) -> std::u8string
+{
+	return icu_utf8_case_map_copy_impl(bytes, locale, 0, "ucasemap_utf8ToUpper",
+		[](UCaseMap* case_map, char* dest, int32_t dest_capacity, const char* source, int32_t source_length, UErrorCode* error)
+		{
+			return ucasemap_utf8ToUpper(case_map, dest, dest_capacity, source, source_length, error);
+		});
+}
+
+auto icu_lowercase_utf16_runtime_copy(std::u16string_view code_units, locale_id locale) -> std::u16string
+{
+	const auto locale_name = checked_icu_locale_name(locale);
+	return icu_utf16_case_map_copy_impl(code_units, "u_strToLower",
+		[&](UChar* dest, int32_t dest_capacity, const UChar* source, int32_t source_length, UErrorCode* error)
+		{
+			return u_strToLower(dest, dest_capacity, source, source_length, locale_name, error);
+		});
+}
+
+auto icu_uppercase_utf16_runtime_copy(std::u16string_view code_units, locale_id locale) -> std::u16string
+{
+	const auto locale_name = checked_icu_locale_name(locale);
+	return icu_utf16_case_map_copy_impl(code_units, "u_strToUpper",
+		[&](UChar* dest, int32_t dest_capacity, const UChar* source, int32_t source_length, UErrorCode* error)
+		{
+			return u_strToUpper(dest, dest_capacity, source, source_length, locale_name, error);
+		});
+}
+
+auto icu_titlecase_utf8_runtime_copy(std::u8string_view bytes, locale_id locale) -> std::u8string
+{
+	return icu_utf8_case_map_copy_impl(bytes, locale, 0, "ucasemap_utf8ToTitle",
+		[](UCaseMap* case_map, char* dest, int32_t dest_capacity, const char* source, int32_t source_length, UErrorCode* error)
+		{
+			return ucasemap_utf8ToTitle(case_map, dest, dest_capacity, source, source_length, error);
+		});
+}
+
+auto icu_titlecase_utf16_runtime_copy(std::u16string_view code_units, locale_id locale) -> std::u16string
+{
+	const auto locale_name = checked_icu_locale_name(locale);
+	return icu_utf16_case_map_copy_impl(code_units, "u_strToTitle",
+		[&](UChar* dest, int32_t dest_capacity, const UChar* source, int32_t source_length, UErrorCode* error)
+		{
+			return u_strToTitle(dest, dest_capacity, source, source_length, nullptr, locale_name, error);
+		});
+}
+
+auto icu_case_fold_utf8_runtime_copy(std::u8string_view bytes, locale_id locale) -> std::u8string
+{
+	return icu_utf8_case_map_copy_impl(bytes, locale, icu_case_fold_options(locale), "ucasemap_utf8FoldCase",
+		[](UCaseMap* case_map, char* dest, int32_t dest_capacity, const char* source, int32_t source_length, UErrorCode* error)
+		{
+			return ucasemap_utf8FoldCase(case_map, dest, dest_capacity, source, source_length, error);
+		});
+}
+
+auto icu_case_fold_utf16_runtime_copy(std::u16string_view code_units, locale_id locale) -> std::u16string
+{
+	const auto options = icu_case_fold_options(locale);
+	return icu_utf16_case_map_copy_impl(code_units, "u_strFoldCase",
+		[&](UChar* dest, int32_t dest_capacity, const UChar* source, int32_t source_length, UErrorCode* error)
+		{
+			return u_strFoldCase(dest, dest_capacity, source, source_length, options, error);
+		});
+}
+
+auto icu_lowercase_utf32_runtime_copy(std::u32string_view code_points, locale_id locale) -> std::u32string
+{
+	basic_utf16_string<> utf16;
+	utf16.append_range(utf32_string_view::from_code_points_unchecked(code_points).chars());
+	auto lowered = icu_lowercase_utf16_runtime_copy(std::u16string_view{ utf16.base() }, locale);
+	auto result = basic_utf32_string<>{ utf16_string_view::from_code_units_unchecked(std::u16string_view{ lowered }) };
+	return std::move(result).base();
+}
+
+auto icu_uppercase_utf32_runtime_copy(std::u32string_view code_points, locale_id locale) -> std::u32string
+{
+	basic_utf16_string<> utf16;
+	utf16.append_range(utf32_string_view::from_code_points_unchecked(code_points).chars());
+	auto uppered = icu_uppercase_utf16_runtime_copy(std::u16string_view{ utf16.base() }, locale);
+	auto result = basic_utf32_string<>{ utf16_string_view::from_code_units_unchecked(std::u16string_view{ uppered }) };
+	return std::move(result).base();
+}
+
+auto icu_titlecase_utf32_runtime_copy(std::u32string_view code_points, locale_id locale) -> std::u32string
+{
+	basic_utf16_string<> utf16;
+	utf16.append_range(utf32_string_view::from_code_points_unchecked(code_points).chars());
+	auto titled = icu_titlecase_utf16_runtime_copy(std::u16string_view{ utf16.base() }, locale);
+	auto result = basic_utf32_string<>{ utf16_string_view::from_code_units_unchecked(std::u16string_view{ titled }) };
+	return std::move(result).base();
+}
+
+auto icu_case_fold_utf32_runtime_copy(std::u32string_view code_points, locale_id locale) -> std::u32string
+{
+	basic_utf16_string<> utf16;
+	utf16.append_range(utf32_string_view::from_code_points_unchecked(code_points).chars());
+	auto folded = icu_case_fold_utf16_runtime_copy(std::u16string_view{ utf16.base() }, locale);
+	auto result = basic_utf32_string<>{ utf16_string_view::from_code_units_unchecked(std::u16string_view{ folded }) };
+	return std::move(result).base();
+}
+
 #endif
 
 auto simdutf_validate_utf8_runtime(std::string_view bytes) noexcept

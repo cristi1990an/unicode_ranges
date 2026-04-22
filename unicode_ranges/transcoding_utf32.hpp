@@ -569,10 +569,7 @@ namespace unicode_ranges
 			locale_id locale,
 			const Allocator& alloc)
 		{
-			basic_utf16_string<> utf16;
-			utf16.append_range(utf32_string_view::from_code_points_unchecked(code_points).chars());
-			auto lowered = icu_lowercase_utf16_copy(std::u16string_view{ utf16.base() }, locale, std::allocator<char16_t>{});
-			return basic_utf32_string<Allocator>{ lowered.as_view(), alloc };
+			return adopt_icu_utf32_runtime_copy<Allocator>(icu_lowercase_utf32_runtime_copy(code_points, locale), alloc);
 		}
 		template <typename Allocator>
 		basic_utf32_string<Allocator> icu_uppercase_utf32_copy(
@@ -580,10 +577,7 @@ namespace unicode_ranges
 			locale_id locale,
 			const Allocator& alloc)
 		{
-			basic_utf16_string<> utf16;
-			utf16.append_range(utf32_string_view::from_code_points_unchecked(code_points).chars());
-			auto uppered = icu_uppercase_utf16_copy(std::u16string_view{ utf16.base() }, locale, std::allocator<char16_t>{});
-			return basic_utf32_string<Allocator>{ uppered.as_view(), alloc };
+			return adopt_icu_utf32_runtime_copy<Allocator>(icu_uppercase_utf32_runtime_copy(code_points, locale), alloc);
 		}
 		template <typename Allocator>
 		basic_utf32_string<Allocator> icu_titlecase_utf32_copy(
@@ -591,10 +585,7 @@ namespace unicode_ranges
 			locale_id locale,
 			const Allocator& alloc)
 		{
-			basic_utf16_string<> utf16;
-			utf16.append_range(utf32_string_view::from_code_points_unchecked(code_points).chars());
-			auto titled = icu_titlecase_utf16_copy(std::u16string_view{ utf16.base() }, locale, std::allocator<char16_t>{});
-			return basic_utf32_string<Allocator>{ titled.as_view(), alloc };
+			return adopt_icu_utf32_runtime_copy<Allocator>(icu_titlecase_utf32_runtime_copy(code_points, locale), alloc);
 		}
 		template <typename Allocator>
 		basic_utf32_string<Allocator> icu_case_fold_utf32_copy(
@@ -602,10 +593,7 @@ namespace unicode_ranges
 			locale_id locale,
 			const Allocator& alloc)
 		{
-			basic_utf16_string<> utf16;
-			utf16.append_range(utf32_string_view::from_code_points_unchecked(code_points).chars());
-			auto folded = icu_case_fold_utf16_copy(std::u16string_view{ utf16.base() }, locale, std::allocator<char16_t>{});
-			return basic_utf32_string<Allocator>{ folded.as_view(), alloc };
+			return adopt_icu_utf32_runtime_copy<Allocator>(icu_case_fold_utf32_runtime_copy(code_points, locale), alloc);
 		}
 #endif
 		template <bool Lowercase>
