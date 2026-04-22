@@ -2,7 +2,6 @@
 #define UTF8_RANGES_UTF8_CHAR_HPP
 
 #include "core.hpp"
-#include "unicode_tables.hpp"
 
 namespace unicode_ranges
 {

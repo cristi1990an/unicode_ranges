@@ -7,7 +7,6 @@ include(CMakePackageConfigHelpers)
 
 file(GLOB UTF8_RANGES_PUBLIC_HEADERS CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/unicode_ranges/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/unicode_ranges/internal/*.hpp"
 )
 
 option(UTF8_RANGES_BUILD_TESTS "Build the unicode_ranges test runner" ${PROJECT_IS_TOP_LEVEL})
