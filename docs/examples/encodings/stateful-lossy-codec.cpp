@@ -1,6 +1,6 @@
 #include <vector>
 
-#include "unicode_ranges.hpp"
+#include "unicode_ranges_full.hpp"
 
 using namespace unicode_ranges;
 using namespace unicode_ranges::literals;

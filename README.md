@@ -8,6 +8,11 @@ It provides validated character types, borrowed string views, owning strings, gr
 
 The repository now also ships a first-party CMake build and install/export package for that compiled library target.
 
+Umbrella headers:
+
+- `unicode_ranges.hpp`: lighter borrowed/core surface
+- `unicode_ranges_full.hpp`: full umbrella, including owning strings
+
 ## Why this library exists
 
 Many existing C and C++ Unicode/text APIs start from raw byte buffers or raw code-unit strings and rely on documentation, preconditions, and caller discipline to keep invalid text out. Validation, boundary rules, and error handling are often separate from the type that is later passed around.
@@ -75,7 +80,7 @@ Unicode tables currently track Unicode `17.0.0`.
 ## Quick start
 
 ```cpp
-#include "unicode_ranges.hpp"
+#include "unicode_ranges_full.hpp"
 
 #include <print>
 

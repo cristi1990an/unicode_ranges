@@ -1,4 +1,4 @@
-#include "unicode_ranges.hpp"
+#include "unicode_ranges_full.hpp"
 
 #if defined(__has_include)
 #if !__has_include("third_party/simdutf/simdutf.h") || !__has_include("third_party/simdutf/simdutf.cpp")

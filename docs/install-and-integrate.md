@@ -23,14 +23,23 @@ So the practical choices right now are:
 - C++23 enabled
 - the repository root on the include path
 - the `unicode_ranges` library target built from `unicode_ranges.cpp`
-- `#include "unicode_ranges.hpp"` in user code
+- `#include "unicode_ranges.hpp"` or `#include "unicode_ranges_full.hpp"` in user code
 - the vendored `third_party/simdutf` directory kept alongside `unicode_ranges.cpp`
 
-The public umbrella header lives at the repository root:
+The public umbrella headers live at the repository root:
 
 ```cpp
 #include "unicode_ranges.hpp"
 ```
+
+```cpp
+#include "unicode_ranges_full.hpp"
+```
+
+Use:
+
+- `unicode_ranges.hpp` for the lighter borrowed/core surface
+- `unicode_ranges_full.hpp` for the all-in umbrella, including owning strings
 
 ## Runtime backend: simdutf
 
@@ -65,6 +74,7 @@ your_project/
     unicode_ranges/
       unicode_ranges.cpp
       unicode_ranges.hpp
+      unicode_ranges_full.hpp
       unicode_ranges/
       third_party/
         simdutf/

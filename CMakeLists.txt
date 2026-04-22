@@ -89,6 +89,7 @@ install(TARGETS unicode_ranges
 
 install(FILES
     unicode_ranges.hpp
+    unicode_ranges_full.hpp
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 

@@ -32,6 +32,8 @@ Short version:
 #include "unicode_ranges.hpp"
 ```
 
+Use `unicode_ranges_full.hpp` when you want the all-in umbrella, including owning string types such as `utf8_string`, `utf16_string`, and `utf32_string`.
+
 ## Terminology cheat sheet
 
 | Term | Meaning here |

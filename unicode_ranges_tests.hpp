@@ -1,7 +1,7 @@
 #ifndef UTF8_RANGES_TESTS_HPP
 #define UTF8_RANGES_TESTS_HPP
 
-#include "unicode_ranges.hpp"
+#include "unicode_ranges_full.hpp"
 
 #include <array>
 #include <cassert>
