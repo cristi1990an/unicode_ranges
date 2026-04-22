@@ -20,9 +20,11 @@ if [[ ! -f "third_party/simdutf/simdutf.h" || ! -f "third_party/simdutf/simdutf.
 fi
 
 runtime_obj="$out_dir/unicode_ranges_runtime.o"
+tables_obj="$out_dir/unicode_tables_runtime.o"
 runtime_lib="$out_dir/libunicode_ranges.a"
 "$cxx" -std=c++23 -I. "$@" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
-ar rcs "$runtime_lib" "$runtime_obj"
+"$cxx" -std=c++23 -I. "$@" -Wno-error=overflow -Wno-error=pedantic -c unicode_tables_runtime.cpp -o "$tables_obj"
+ar rcs "$runtime_lib" "$runtime_obj" "$tables_obj"
 
 mapfile -t sources < <(find docs/examples -name '*.cpp' | sort)
 

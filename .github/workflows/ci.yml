@@ -901,7 +901,8 @@ jobs:
           fi
           ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $compile_lto_flags -DUTF8_RANGES_COMPARATIVE_WITH_SIMDUTF=1 -DUTF8_RANGES_COMPARATIVE_WITH_UTFCPP=1 -DUTF8_RANGES_COMPARATIVE_WITH_UNI_ALGO=1 -I"${SIMDUTF_ROOT}" -I"${UTFCPP_ROOT}/source" -I"${UNI_ALGO_ROOT}/include" -c tools/comparative_benchmarks/main.cpp -o comparative_benchmarks.o
           ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $compile_lto_flags -I"${SIMDUTF_ROOT}" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o unicode_ranges_runtime.o
-          ar rcs libunicode_ranges.a unicode_ranges_runtime.o
+          ${{ matrix.cxx }} -std=c++23 ${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $compile_lto_flags -I"${SIMDUTF_ROOT}" -Wno-error=overflow -Wno-error=pedantic -c unicode_tables_runtime.cpp -o unicode_tables_runtime.o
+          ar rcs libunicode_ranges.a unicode_ranges_runtime.o unicode_tables_runtime.o
           ${{ matrix.cxx }} $link_lto_flags comparative_benchmarks.o libunicode_ranges.a ${{ matrix.cxxflags }} -o ${{ matrix.output }}
 
       - name: Run comparative benchmark suite

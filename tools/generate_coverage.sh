@@ -43,7 +43,27 @@ fi
 	unicode_ranges.cpp \
 	-o "${OUTPUT_DIR}/unicode_ranges_runtime.o"
 
-ar rcs "${OUTPUT_DIR}/libunicode_ranges.a" "${OUTPUT_DIR}/unicode_ranges_runtime.o"
+"${CXX}" \
+	-std=c++23 \
+	-O0 \
+	-Wall \
+	-Wextra \
+	-Werror \
+	-pedantic \
+	-pthread \
+	-stdlib=libc++ \
+	-Wno-error=overflow \
+	-Wno-error=pedantic \
+	-DUTF8_RANGES_ENABLE_TEST_HOOKS=1 \
+	-DUTF8_RANGES_TEST_FORCE_UTF32_PARALLEL=1 \
+	-fprofile-instr-generate \
+	-fcoverage-mapping \
+	-fno-inline \
+	-c \
+	unicode_tables_runtime.cpp \
+	-o "${OUTPUT_DIR}/unicode_tables_runtime.o"
+
+ar rcs "${OUTPUT_DIR}/libunicode_ranges.a" "${OUTPUT_DIR}/unicode_ranges_runtime.o" "${OUTPUT_DIR}/unicode_tables_runtime.o"
 
 "${CXX}" \
 	-std=c++23 \
