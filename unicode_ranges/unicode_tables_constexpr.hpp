@@ -432,7 +432,7 @@ constexpr const Mapping* find_source_mapping(
         }
         else
         {
-            return &mapping;
+            return mappings.data() + mid;
         }
     }
     return nullptr;
@@ -538,7 +538,7 @@ constexpr const unicode_composition_mapping* find_composition_mapping(
         }
         else
         {
-            return &mapping;
+            return mappings.data() + mid;
         }
     }
     return nullptr;
@@ -32541,16 +32541,18 @@ constexpr unicode_bmp_case_mapping lowercase_bmp_case_mapping(std::uint32_t scal
         return unicode_bmp_case_mapping{ 0, false };
     }
 
-    if (const auto* mapping = find_source_mapping(scalar, lowercase_simple_mappings); mapping != nullptr)
+    const auto simple_index = find_source_mapping_index(scalar, lowercase_simple_mappings);
+    if (simple_index != lowercase_simple_mappings.size())
     {
-        if (mapping->mapped <= 0xFFFFu)
+        const auto& mapping = lowercase_simple_mappings[simple_index];
+        if (mapping.mapped <= 0xFFFFu)
         {
-            return unicode_bmp_case_mapping{ static_cast<char16_t>(mapping->mapped), true };
+            return unicode_bmp_case_mapping{ static_cast<char16_t>(mapping.mapped), true };
         }
         return unicode_bmp_case_mapping{ static_cast<char16_t>(scalar), false };
     }
 
-    if (find_source_mapping(scalar, lowercase_special_mappings) != nullptr)
+    if (find_source_mapping_index(scalar, lowercase_special_mappings) != lowercase_special_mappings.size())
     {
         return unicode_bmp_case_mapping{ static_cast<char16_t>(scalar), false };
     }
@@ -32572,16 +32574,18 @@ constexpr unicode_bmp_case_mapping uppercase_bmp_case_mapping(std::uint32_t scal
         return unicode_bmp_case_mapping{ 0, false };
     }
 
-    if (const auto* mapping = find_source_mapping(scalar, uppercase_simple_mappings); mapping != nullptr)
+    const auto simple_index = find_source_mapping_index(scalar, uppercase_simple_mappings);
+    if (simple_index != uppercase_simple_mappings.size())
     {
-        if (mapping->mapped <= 0xFFFFu)
+        const auto& mapping = uppercase_simple_mappings[simple_index];
+        if (mapping.mapped <= 0xFFFFu)
         {
-            return unicode_bmp_case_mapping{ static_cast<char16_t>(mapping->mapped), true };
+            return unicode_bmp_case_mapping{ static_cast<char16_t>(mapping.mapped), true };
         }
         return unicode_bmp_case_mapping{ static_cast<char16_t>(scalar), false };
     }
 
-    if (find_source_mapping(scalar, uppercase_special_mappings) != nullptr)
+    if (find_source_mapping_index(scalar, uppercase_special_mappings) != uppercase_special_mappings.size())
     {
         return unicode_bmp_case_mapping{ static_cast<char16_t>(scalar), false };
     }
@@ -32603,16 +32607,18 @@ constexpr unicode_bmp_case_mapping case_fold_bmp_case_mapping(std::uint32_t scal
         return unicode_bmp_case_mapping{ 0, false };
     }
 
-    if (const auto* mapping = find_source_mapping(scalar, case_fold_simple_mappings); mapping != nullptr)
+    const auto simple_index = find_source_mapping_index(scalar, case_fold_simple_mappings);
+    if (simple_index != case_fold_simple_mappings.size())
     {
-        if (mapping->mapped <= 0xFFFFu)
+        const auto& mapping = case_fold_simple_mappings[simple_index];
+        if (mapping.mapped <= 0xFFFFu)
         {
-            return unicode_bmp_case_mapping{ static_cast<char16_t>(mapping->mapped), true };
+            return unicode_bmp_case_mapping{ static_cast<char16_t>(mapping.mapped), true };
         }
         return unicode_bmp_case_mapping{ static_cast<char16_t>(scalar), false };
     }
 
-    if (find_source_mapping(scalar, case_fold_special_mappings) != nullptr)
+    if (find_source_mapping_index(scalar, case_fold_special_mappings) != case_fold_special_mappings.size())
     {
         return unicode_bmp_case_mapping{ static_cast<char16_t>(scalar), false };
     }

@@ -702,11 +702,13 @@ namespace unicode_ranges
 				};
 			}
 
-			if (const auto* mapping = unicode::lowercase_simple_mapping(scalar); mapping != nullptr)
+			const auto simple_index = unicode::lowercase_simple_mapping_index(scalar);
+			if (simple_index != unicode::lowercase_simple_mappings.size())
 			{
+				const auto& mapping = unicode::lowercase_simple_mapping_at(simple_index);
 				return case_mapping_lookup_result{
 					.has_simple = true,
-					.simple_mapped = mapping->mapped
+					.simple_mapped = mapping.mapped
 				};
 			}
 
@@ -727,11 +729,13 @@ namespace unicode_ranges
 				};
 			}
 
-			if (const auto* mapping = unicode::uppercase_simple_mapping(scalar); mapping != nullptr)
+			const auto simple_index = unicode::uppercase_simple_mapping_index(scalar);
+			if (simple_index != unicode::uppercase_simple_mappings.size())
 			{
+				const auto& mapping = unicode::uppercase_simple_mapping_at(simple_index);
 				return case_mapping_lookup_result{
 					.has_simple = true,
-					.simple_mapped = mapping->mapped
+					.simple_mapped = mapping.mapped
 				};
 			}
 
@@ -754,11 +758,13 @@ namespace unicode_ranges
 			};
 		}
 
-		if (const auto* mapping = unicode::case_fold_simple_mapping(scalar); mapping != nullptr)
+		const auto simple_index = unicode::case_fold_simple_mapping_index(scalar);
+		if (simple_index != unicode::case_fold_simple_mappings.size())
 		{
+			const auto& mapping = unicode::case_fold_simple_mapping_at(simple_index);
 			return case_mapping_lookup_result{
 				.has_simple = true,
-				.simple_mapped = mapping->mapped
+				.simple_mapped = mapping.mapped
 			};
 		}
 
