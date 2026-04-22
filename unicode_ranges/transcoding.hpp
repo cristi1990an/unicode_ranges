@@ -3448,9 +3448,13 @@ namespace unicode_ranges
 	{
 		const auto lhs = byte_view();
 		const auto rhs = sv.base();
-		if (details::is_ascii_only(lhs) && details::is_ascii_only(rhs))
+		if (details::is_ascii_only(rhs))
 		{
-			return details::starts_with_ascii_case_insensitive(lhs, rhs);
+			const auto prefix_count = (std::min)(lhs.size(), rhs.size());
+			if (details::is_ascii_prefix(lhs, prefix_count))
+			{
+				return details::starts_with_ascii_case_insensitive(lhs, rhs);
+			}
 		}
 
 		return details::starts_with_case_folded_utf8(lhs, rhs);
@@ -3461,9 +3465,13 @@ namespace unicode_ranges
 	{
 		const auto lhs = byte_view();
 		const auto rhs = sv.base();
-		if (details::is_ascii_only(lhs) && details::is_ascii_only(rhs))
+		if (details::is_ascii_only(rhs))
 		{
-			return details::ends_with_ascii_case_insensitive(lhs, rhs);
+			const auto suffix_count = (std::min)(lhs.size(), rhs.size());
+			if (details::is_ascii_suffix(lhs, suffix_count))
+			{
+				return details::ends_with_ascii_case_insensitive(lhs, rhs);
+			}
 		}
 
 		return details::ends_with_case_folded_utf8(lhs, rhs);
@@ -4230,9 +4238,13 @@ namespace unicode_ranges
 	{
 		const auto lhs = code_unit_view();
 		const auto rhs = sv.base();
-		if (details::is_ascii_only(lhs) && details::is_ascii_only(rhs))
+		if (details::is_ascii_only(rhs))
 		{
-			return details::starts_with_ascii_case_insensitive(lhs, rhs);
+			const auto prefix_count = (std::min)(lhs.size(), rhs.size());
+			if (details::is_ascii_prefix(lhs, prefix_count))
+			{
+				return details::starts_with_ascii_case_insensitive(lhs, rhs);
+			}
 		}
 
 		return details::starts_with_case_folded_utf16(lhs, rhs);
@@ -4243,9 +4255,13 @@ namespace unicode_ranges
 	{
 		const auto lhs = code_unit_view();
 		const auto rhs = sv.base();
-		if (details::is_ascii_only(lhs) && details::is_ascii_only(rhs))
+		if (details::is_ascii_only(rhs))
 		{
-			return details::ends_with_ascii_case_insensitive(lhs, rhs);
+			const auto suffix_count = (std::min)(lhs.size(), rhs.size());
+			if (details::is_ascii_suffix(lhs, suffix_count))
+			{
+				return details::ends_with_ascii_case_insensitive(lhs, rhs);
+			}
 		}
 
 		return details::ends_with_case_folded_utf16(lhs, rhs);

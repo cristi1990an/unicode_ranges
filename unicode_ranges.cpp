@@ -417,9 +417,13 @@ auto icu_case_fold_utf32_runtime_copy(std::u32string_view code_points, locale_id
 bool utf8_starts_with_ignore_case_runtime(std::u8string_view lhs, std::u8string_view rhs, locale_id locale)
 {
 	const auto turkic = icu_case_fold_is_turkic(locale);
-	if (!turkic && is_ascii_only(lhs) && is_ascii_only(rhs))
+	if (!turkic && is_ascii_only(rhs))
 	{
-		return starts_with_ascii_case_insensitive(lhs, rhs);
+		const auto prefix_count = (std::min)(lhs.size(), rhs.size());
+		if (is_ascii_prefix(lhs, prefix_count))
+		{
+			return starts_with_ascii_case_insensitive(lhs, rhs);
+		}
 	}
 
 	return starts_with_case_folded_utf8(lhs, rhs, locale);
@@ -428,9 +432,13 @@ bool utf8_starts_with_ignore_case_runtime(std::u8string_view lhs, std::u8string_
 bool utf8_ends_with_ignore_case_runtime(std::u8string_view lhs, std::u8string_view rhs, locale_id locale)
 {
 	const auto turkic = icu_case_fold_is_turkic(locale);
-	if (!turkic && is_ascii_only(lhs) && is_ascii_only(rhs))
+	if (!turkic && is_ascii_only(rhs))
 	{
-		return ends_with_ascii_case_insensitive(lhs, rhs);
+		const auto suffix_count = (std::min)(lhs.size(), rhs.size());
+		if (is_ascii_suffix(lhs, suffix_count))
+		{
+			return ends_with_ascii_case_insensitive(lhs, rhs);
+		}
 	}
 
 	return ends_with_case_folded_utf8(lhs, rhs, locale);
@@ -450,9 +458,13 @@ std::weak_ordering utf8_compare_ignore_case_runtime(std::u8string_view lhs, std:
 bool utf16_starts_with_ignore_case_runtime(std::u16string_view lhs, std::u16string_view rhs, locale_id locale)
 {
 	const auto turkic = icu_case_fold_is_turkic(locale);
-	if (!turkic && is_ascii_only(lhs) && is_ascii_only(rhs))
+	if (!turkic && is_ascii_only(rhs))
 	{
-		return starts_with_ascii_case_insensitive(lhs, rhs);
+		const auto prefix_count = (std::min)(lhs.size(), rhs.size());
+		if (is_ascii_prefix(lhs, prefix_count))
+		{
+			return starts_with_ascii_case_insensitive(lhs, rhs);
+		}
 	}
 
 	return starts_with_case_folded_utf16(lhs, rhs, locale);
@@ -461,9 +473,13 @@ bool utf16_starts_with_ignore_case_runtime(std::u16string_view lhs, std::u16stri
 bool utf16_ends_with_ignore_case_runtime(std::u16string_view lhs, std::u16string_view rhs, locale_id locale)
 {
 	const auto turkic = icu_case_fold_is_turkic(locale);
-	if (!turkic && is_ascii_only(lhs) && is_ascii_only(rhs))
+	if (!turkic && is_ascii_only(rhs))
 	{
-		return ends_with_ascii_case_insensitive(lhs, rhs);
+		const auto suffix_count = (std::min)(lhs.size(), rhs.size());
+		if (is_ascii_suffix(lhs, suffix_count))
+		{
+			return ends_with_ascii_case_insensitive(lhs, rhs);
+		}
 	}
 
 	return ends_with_case_folded_utf16(lhs, rhs, locale);
@@ -483,9 +499,13 @@ std::weak_ordering utf16_compare_ignore_case_runtime(std::u16string_view lhs, st
 bool utf32_starts_with_ignore_case_runtime(std::u32string_view lhs, std::u32string_view rhs, locale_id locale)
 {
 	const auto turkic = icu_case_fold_is_turkic(locale);
-	if (!turkic && is_ascii_only(lhs) && is_ascii_only(rhs))
+	if (!turkic && is_ascii_only(rhs))
 	{
-		return starts_with_ascii_case_insensitive(lhs, rhs);
+		const auto prefix_count = (std::min)(lhs.size(), rhs.size());
+		if (is_ascii_prefix(lhs, prefix_count))
+		{
+			return starts_with_ascii_case_insensitive(lhs, rhs);
+		}
 	}
 
 	return starts_with_case_folded_utf32(lhs, rhs, locale);
@@ -494,9 +514,13 @@ bool utf32_starts_with_ignore_case_runtime(std::u32string_view lhs, std::u32stri
 bool utf32_ends_with_ignore_case_runtime(std::u32string_view lhs, std::u32string_view rhs, locale_id locale)
 {
 	const auto turkic = icu_case_fold_is_turkic(locale);
-	if (!turkic && is_ascii_only(lhs) && is_ascii_only(rhs))
+	if (!turkic && is_ascii_only(rhs))
 	{
-		return ends_with_ascii_case_insensitive(lhs, rhs);
+		const auto suffix_count = (std::min)(lhs.size(), rhs.size());
+		if (is_ascii_suffix(lhs, suffix_count))
+		{
+			return ends_with_ascii_case_insensitive(lhs, rhs);
+		}
 	}
 
 	return ends_with_case_folded_utf32(lhs, rhs, locale);

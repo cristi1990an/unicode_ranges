@@ -724,6 +724,33 @@ namespace details
 		return ascii_prefix_length(value) == value.size();
 	}
 
+	template <typename CharT>
+	UTF8_RANGES_FORCEINLINE constexpr bool is_ascii_prefix(
+		std::basic_string_view<CharT> value,
+		std::size_t count) noexcept
+	{
+		if (count > value.size())
+		{
+			return false;
+		}
+
+		return ascii_prefix_length(value.substr(0, count)) == count;
+	}
+
+	template <typename CharT>
+	UTF8_RANGES_FORCEINLINE constexpr bool is_ascii_suffix(
+		std::basic_string_view<CharT> value,
+		std::size_t count) noexcept
+	{
+		if (count > value.size())
+		{
+			return false;
+		}
+
+		const auto offset = value.size() - count;
+		return ascii_prefix_length(value.substr(offset, count)) == count;
+	}
+
 	inline constexpr bool ascii_lowercase_copy_scalar(char8_t* out, std::u8string_view bytes) noexcept
 	{
 		bool changed = false;
