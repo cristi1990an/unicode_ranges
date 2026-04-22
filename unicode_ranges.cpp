@@ -1310,6 +1310,90 @@ void run_parallel_jobs_runtime(
 #endif
 }
 
+template void append_utf16_view_to_utf8_runtime<std::allocator<char8_t>>(
+	std::basic_string<char8_t, std::char_traits<char8_t>, std::allocator<char8_t>>& output,
+	std::u16string_view input);
+template void append_utf16_view_to_utf8_runtime<std::pmr::polymorphic_allocator<char8_t>>(
+	std::basic_string<char8_t, std::char_traits<char8_t>, std::pmr::polymorphic_allocator<char8_t>>& output,
+	std::u16string_view input);
+
+template void assign_utf16_view_to_utf8_runtime<std::allocator<char8_t>>(
+	std::basic_string<char8_t, std::char_traits<char8_t>, std::allocator<char8_t>>& output,
+	std::u16string_view input);
+template void assign_utf16_view_to_utf8_runtime<std::pmr::polymorphic_allocator<char8_t>>(
+	std::basic_string<char8_t, std::char_traits<char8_t>, std::pmr::polymorphic_allocator<char8_t>>& output,
+	std::u16string_view input);
+
+template void append_utf8_view_to_utf16_runtime<std::allocator<char16_t>>(
+	std::basic_string<char16_t, std::char_traits<char16_t>, std::allocator<char16_t>>& output,
+	std::u8string_view input);
+template void append_utf8_view_to_utf16_runtime<std::pmr::polymorphic_allocator<char16_t>>(
+	std::basic_string<char16_t, std::char_traits<char16_t>, std::pmr::polymorphic_allocator<char16_t>>& output,
+	std::u8string_view input);
+
+template void assign_utf8_view_to_utf16_runtime<std::allocator<char16_t>>(
+	std::basic_string<char16_t, std::char_traits<char16_t>, std::allocator<char16_t>>& output,
+	std::u8string_view input);
+template void assign_utf8_view_to_utf16_runtime<std::pmr::polymorphic_allocator<char16_t>>(
+	std::basic_string<char16_t, std::char_traits<char16_t>, std::pmr::polymorphic_allocator<char16_t>>& output,
+	std::u8string_view input);
+
+template void append_utf32_view_to_utf8_runtime<std::allocator<char8_t>>(
+	std::basic_string<char8_t, std::char_traits<char8_t>, std::allocator<char8_t>>& output,
+	std::u32string_view input);
+template void append_utf32_view_to_utf8_runtime<std::pmr::polymorphic_allocator<char8_t>>(
+	std::basic_string<char8_t, std::char_traits<char8_t>, std::pmr::polymorphic_allocator<char8_t>>& output,
+	std::u32string_view input);
+
+template void assign_utf32_view_to_utf8_runtime<std::allocator<char8_t>>(
+	std::basic_string<char8_t, std::char_traits<char8_t>, std::allocator<char8_t>>& output,
+	std::u32string_view input);
+template void assign_utf32_view_to_utf8_runtime<std::pmr::polymorphic_allocator<char8_t>>(
+	std::basic_string<char8_t, std::char_traits<char8_t>, std::pmr::polymorphic_allocator<char8_t>>& output,
+	std::u32string_view input);
+
+template void append_utf32_view_to_utf16_runtime<std::allocator<char16_t>>(
+	std::basic_string<char16_t, std::char_traits<char16_t>, std::allocator<char16_t>>& output,
+	std::u32string_view input);
+template void append_utf32_view_to_utf16_runtime<std::pmr::polymorphic_allocator<char16_t>>(
+	std::basic_string<char16_t, std::char_traits<char16_t>, std::pmr::polymorphic_allocator<char16_t>>& output,
+	std::u32string_view input);
+
+template void assign_utf32_view_to_utf16_runtime<std::allocator<char16_t>>(
+	std::basic_string<char16_t, std::char_traits<char16_t>, std::allocator<char16_t>>& output,
+	std::u32string_view input);
+template void assign_utf32_view_to_utf16_runtime<std::pmr::polymorphic_allocator<char16_t>>(
+	std::basic_string<char16_t, std::char_traits<char16_t>, std::pmr::polymorphic_allocator<char16_t>>& output,
+	std::u32string_view input);
+
+template void append_utf8_view_to_utf32_runtime<std::allocator<char32_t>>(
+	std::basic_string<char32_t, std::char_traits<char32_t>, std::allocator<char32_t>>& output,
+	std::u8string_view input);
+template void append_utf8_view_to_utf32_runtime<std::pmr::polymorphic_allocator<char32_t>>(
+	std::basic_string<char32_t, std::char_traits<char32_t>, std::pmr::polymorphic_allocator<char32_t>>& output,
+	std::u8string_view input);
+
+template void assign_utf8_view_to_utf32_runtime<std::allocator<char32_t>>(
+	std::basic_string<char32_t, std::char_traits<char32_t>, std::allocator<char32_t>>& output,
+	std::u8string_view input);
+template void assign_utf8_view_to_utf32_runtime<std::pmr::polymorphic_allocator<char32_t>>(
+	std::basic_string<char32_t, std::char_traits<char32_t>, std::pmr::polymorphic_allocator<char32_t>>& output,
+	std::u8string_view input);
+
+template void append_utf16_view_to_utf32_runtime<std::allocator<char32_t>>(
+	std::basic_string<char32_t, std::char_traits<char32_t>, std::allocator<char32_t>>& output,
+	std::u16string_view input);
+template void append_utf16_view_to_utf32_runtime<std::pmr::polymorphic_allocator<char32_t>>(
+	std::basic_string<char32_t, std::char_traits<char32_t>, std::pmr::polymorphic_allocator<char32_t>>& output,
+	std::u16string_view input);
+
+template void assign_utf16_view_to_utf32_runtime<std::allocator<char32_t>>(
+	std::basic_string<char32_t, std::char_traits<char32_t>, std::allocator<char32_t>>& output,
+	std::u16string_view input);
+template void assign_utf16_view_to_utf32_runtime<std::pmr::polymorphic_allocator<char32_t>>(
+	std::basic_string<char32_t, std::char_traits<char32_t>, std::pmr::polymorphic_allocator<char32_t>>& output,
+	std::u16string_view input);
+
 }
 
 #if UTF8_RANGES_HAS_ICU
