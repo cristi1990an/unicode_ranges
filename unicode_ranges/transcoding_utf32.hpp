@@ -1510,49 +1510,25 @@ namespace unicode_ranges
 	template <typename Derived, typename View>
 	bool utf32_string_crtp<Derived, View>::eq_ignore_case(View sv, locale_id locale) const
 	{
-		return compare_ignore_case(sv, locale) == std::weak_ordering::equivalent;
+		return details::utf32_compare_ignore_case_runtime(code_unit_view(), sv.base(), locale) == std::weak_ordering::equivalent;
 	}
 
 	template <typename Derived, typename View>
 	bool utf32_string_crtp<Derived, View>::starts_with_ignore_case(View sv, locale_id locale) const
 	{
-		const auto lhs = code_unit_view();
-		const auto rhs = sv.base();
-		const auto turkic = details::icu_case_fold_is_turkic(locale);
-		if (!turkic && details::is_ascii_only(lhs) && details::is_ascii_only(rhs))
-		{
-			return details::starts_with_ascii_case_insensitive(lhs, rhs);
-		}
-
-		return details::starts_with_case_folded_utf32(lhs, rhs, locale);
+		return details::utf32_starts_with_ignore_case_runtime(code_unit_view(), sv.base(), locale);
 	}
 
 	template <typename Derived, typename View>
 	bool utf32_string_crtp<Derived, View>::ends_with_ignore_case(View sv, locale_id locale) const
 	{
-		const auto lhs = code_unit_view();
-		const auto rhs = sv.base();
-		const auto turkic = details::icu_case_fold_is_turkic(locale);
-		if (!turkic && details::is_ascii_only(lhs) && details::is_ascii_only(rhs))
-		{
-			return details::ends_with_ascii_case_insensitive(lhs, rhs);
-		}
-
-		return details::ends_with_case_folded_utf32(lhs, rhs, locale);
+		return details::utf32_ends_with_ignore_case_runtime(code_unit_view(), sv.base(), locale);
 	}
 
 	template <typename Derived, typename View>
 	std::weak_ordering utf32_string_crtp<Derived, View>::compare_ignore_case(View sv, locale_id locale) const
 	{
-		const auto lhs = code_unit_view();
-		const auto rhs = sv.base();
-		const auto turkic = details::icu_case_fold_is_turkic(locale);
-		if (!turkic && details::is_ascii_only(lhs) && details::is_ascii_only(rhs))
-		{
-			return details::compare_ascii_case_insensitive(lhs, rhs);
-		}
-
-		return details::compare_case_folded_utf32(lhs, rhs, locale);
+		return details::utf32_compare_ignore_case_runtime(code_unit_view(), sv.base(), locale);
 	}
 #endif
 
