@@ -3,6 +3,33 @@
 
 namespace unicode_ranges
 {
+	namespace details
+	{
+		template <typename Allocator>
+			requires compiled_owning_string_allocator_v<Allocator, char8_t>
+		void append_utf16_view_to_utf8_runtime(
+			std::basic_string<char8_t, std::char_traits<char8_t>, Allocator>& output,
+			std::u16string_view input);
+
+		template <typename Allocator>
+			requires compiled_owning_string_allocator_v<Allocator, char8_t>
+		void assign_utf16_view_to_utf8_runtime(
+			std::basic_string<char8_t, std::char_traits<char8_t>, Allocator>& output,
+			std::u16string_view input);
+
+		template <typename Allocator>
+			requires compiled_owning_string_allocator_v<Allocator, char16_t>
+		void append_utf8_view_to_utf16_runtime(
+			std::basic_string<char16_t, std::char_traits<char16_t>, Allocator>& output,
+			std::u8string_view input);
+
+		template <typename Allocator>
+			requires compiled_owning_string_allocator_v<Allocator, char16_t>
+		void assign_utf8_view_to_utf16_runtime(
+			std::basic_string<char16_t, std::char_traits<char16_t>, Allocator>& output,
+			std::u8string_view input);
+	}
+
 	template <typename Allocator>
 	constexpr basic_utf8_string<Allocator>& basic_utf8_string<Allocator>::append_range(views::utf8_view rg)
 	{
@@ -12,6 +39,15 @@ namespace unicode_ranges
 	template <typename Allocator>
 	constexpr basic_utf8_string<Allocator>& basic_utf8_string<Allocator>::append_range(views::utf16_view rg)
 	{
+		if constexpr (details::compiled_owning_string_allocator_v<Allocator, char8_t>)
+		{
+			if (!std::is_constant_evaluated())
+			{
+				details::append_utf16_view_to_utf8_runtime(base_, rg.base());
+				return *this;
+			}
+		}
+
 		const auto code_units = rg.base();
 		const auto original_size = base_.size();
 		base_.resize_and_overwrite(original_size + code_units.size() * details::encoding_constants::three_code_unit_count,
@@ -66,6 +102,15 @@ namespace unicode_ranges
 	template <typename Allocator>
 	constexpr basic_utf8_string<Allocator>& basic_utf8_string<Allocator>::assign_range(views::utf16_view rg)
 	{
+		if constexpr (details::compiled_owning_string_allocator_v<Allocator, char8_t>)
+		{
+			if (!std::is_constant_evaluated())
+			{
+				details::assign_utf16_view_to_utf8_runtime(base_, rg.base());
+				return *this;
+			}
+		}
+
 		base_type replacement{ base_.get_allocator() };
 		const auto code_units = rg.base();
 		replacement.resize_and_overwrite(code_units.size() * details::encoding_constants::three_code_unit_count,
@@ -104,12 +149,30 @@ namespace unicode_ranges
 	constexpr basic_utf8_string<Allocator>::basic_utf8_string(utf16_string_view view, const Allocator& alloc)
 		: base_(alloc)
 	{
+		if constexpr (details::compiled_owning_string_allocator_v<Allocator, char8_t>)
+		{
+			if (!std::is_constant_evaluated())
+			{
+				details::assign_utf16_view_to_utf8_runtime(base_, view.base());
+				return;
+			}
+		}
+
 		append_range(view.chars());
 	}
 
 	template <typename Allocator>
 	constexpr basic_utf8_string<Allocator>& basic_utf8_string<Allocator>::operator+=(utf16_string_view sv)
 	{
+		if constexpr (details::compiled_owning_string_allocator_v<Allocator, char8_t>)
+		{
+			if (!std::is_constant_evaluated())
+			{
+				details::append_utf16_view_to_utf8_runtime(base_, sv.base());
+				return *this;
+			}
+		}
+
 		return append_range(sv.chars());
 	}
 
@@ -122,6 +185,15 @@ namespace unicode_ranges
 	template <typename Allocator>
 	constexpr basic_utf16_string<Allocator>& basic_utf16_string<Allocator>::append_range(views::utf8_view rg)
 	{
+		if constexpr (details::compiled_owning_string_allocator_v<Allocator, char16_t>)
+		{
+			if (!std::is_constant_evaluated())
+			{
+				details::append_utf8_view_to_utf16_runtime(base_, rg.base());
+				return *this;
+			}
+		}
+
 		const auto bytes = rg.base();
 		const auto original_size = base_.size();
 		base_.resize_and_overwrite(original_size + bytes.size(),
@@ -173,6 +245,15 @@ namespace unicode_ranges
 	template <typename Allocator>
 	constexpr basic_utf16_string<Allocator>& basic_utf16_string<Allocator>::assign_range(views::utf8_view rg)
 	{
+		if constexpr (details::compiled_owning_string_allocator_v<Allocator, char16_t>)
+		{
+			if (!std::is_constant_evaluated())
+			{
+				details::assign_utf8_view_to_utf16_runtime(base_, rg.base());
+				return *this;
+			}
+		}
+
 		base_type replacement{ base_.get_allocator() };
 		const auto bytes = rg.base();
 		replacement.resize_and_overwrite(bytes.size(),
@@ -208,12 +289,30 @@ namespace unicode_ranges
 	constexpr basic_utf16_string<Allocator>::basic_utf16_string(utf8_string_view view, const Allocator& alloc)
 		: base_(alloc)
 	{
+		if constexpr (details::compiled_owning_string_allocator_v<Allocator, char16_t>)
+		{
+			if (!std::is_constant_evaluated())
+			{
+				details::assign_utf8_view_to_utf16_runtime(base_, view.base());
+				return;
+			}
+		}
+
 		base_ = details::transcode_valid_utf8_to_utf16_unchecked(view.base(), alloc);
 	}
 
 	template <typename Allocator>
 	constexpr basic_utf16_string<Allocator>& basic_utf16_string<Allocator>::operator+=(utf8_string_view sv)
 	{
+		if constexpr (details::compiled_owning_string_allocator_v<Allocator, char16_t>)
+		{
+			if (!std::is_constant_evaluated())
+			{
+				details::append_utf8_view_to_utf16_runtime(base_, sv.base());
+				return *this;
+			}
+		}
+
 		const auto appended = details::transcode_valid_utf8_to_utf16_unchecked(sv.base(), base_.get_allocator());
 		return append_code_units(equivalent_string_view{ appended });
 	}

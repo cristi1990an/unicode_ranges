@@ -488,7 +488,7 @@ public:
 	{ }
 
 	constexpr basic_utf16_string(basic_utf16_string&& other, const Allocator& alloc)
-		noexcept(std::allocator_traits<Allocator>::is_always_equal)
+		noexcept(std::allocator_traits<Allocator>::is_always_equal::value)
 		: base_(std::move(other.base_), alloc)
 	{ }
 
@@ -2506,6 +2506,9 @@ private:
 
 	base_type base_;
 };
+
+extern template class basic_utf16_string<std::allocator<char16_t>>;
+extern template class basic_utf16_string<std::pmr::polymorphic_allocator<char16_t>>;
 
 template <typename Allocator>
 inline std::ostream& operator<<(std::ostream& os, const basic_utf16_string<Allocator>& value)

@@ -198,6 +198,11 @@ struct unicode_scalar_error
 
 namespace details
 {
+	template <typename Allocator, typename CharT>
+	inline constexpr bool compiled_owning_string_allocator_v =
+		std::same_as<std::remove_cvref_t<Allocator>, std::allocator<CharT>>
+		|| std::same_as<std::remove_cvref_t<Allocator>, std::pmr::polymorphic_allocator<CharT>>;
+
 	[[nodiscard]]
 	UTF8_RANGES_FORCEINLINE constexpr bool simdutf_runtime_enabled_for_target() noexcept
 	{
