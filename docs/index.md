@@ -31,6 +31,7 @@ That backend choice is intentional: `simdutf` has been the strongest raw UTF val
 - [Boundary Encodings](extensible-encodings.md): built-in codecs, custom encoder/decoder requirements, generated APIs, and boundary-specific error handling.
 - [Benchmarking](benchmarking.md): the cross-library benchmark charter, comparison rules, toolchain matrix, and planned benchmark families.
 - [Licensing](licensing.md): repository dual-license model, runtime dependency license notes, and third-party notices.
+- Stability policy: the repository root `STABILITY.md` defines the intended `1.x` support and compatibility contract.
 - [Text Operations](text-operations.md): search, split, trim, replace, reverse, and boundary queries.
 - [Casing and Normalization](casing-and-normalization.md): Unicode casing, case folding, and normalization forms.
 - [Reference](reference/index.md): grouped API reference by type family.
@@ -50,12 +51,12 @@ That backend choice is intentional: `simdutf` has been the strongest raw UTF val
 ## Public entry point
 
 ```cpp
-#include "unicode_ranges.hpp"
+#include "unicode_ranges_borrowed.hpp"
 ```
 
 Everything public lives in namespace `unicode_ranges`. Literal operators live in `unicode_ranges::literals`. PMR owning-string aliases live in `unicode_ranges::pmr`.
 
-Use `unicode_ranges_full.hpp` if you want the all-in umbrella, including owning strings.
+Use `unicode_ranges_all.hpp` if you want the all-in umbrella, including owning strings and `unicode_ranges::characters`.
 
 !!! warning
     `unicode_ranges::details` is implementation detail only. It is not part of the supported public API.

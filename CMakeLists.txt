@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(unicode_ranges VERSION 0.0.0 LANGUAGES CXX)
+project(unicode_ranges VERSION 1.0.0 LANGUAGES CXX)
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
@@ -88,6 +88,8 @@ install(TARGETS unicode_ranges
 )
 
 install(FILES
+    unicode_ranges_borrowed.hpp
+    unicode_ranges_all.hpp
     unicode_ranges.hpp
     unicode_ranges_full.hpp
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}

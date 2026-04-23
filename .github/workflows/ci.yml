@@ -475,6 +475,46 @@ jobs:
           UBSAN_OPTIONS: ${{ matrix.ubsan_options }}
           TSAN_OPTIONS: ${{ matrix.tsan_options }}
 
+  linux_arm64:
+    name: Linux ARM64 GCC (O2, C++23)
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install GCC
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++-14
+
+      - name: Show compiler version
+        run: |
+          g++-14 --version
+          cmake --version
+          rustc --version
+          pwsh --version
+
+      - name: Configure, build, and run tests for all Unicode versions (CMake)
+        run: |
+          for version in $UNICODE_TEST_VERSIONS; do
+            pwsh ./tools/update_unicode_data.ps1 -Version "$version"
+            pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
+            build_dir="build/cmake-linux-arm64-unicode_ranges_gcc_o2-${version//./_}"
+            cmake -S . -B "$build_dir" \
+              -DUTF8_RANGES_BUILD_TESTS=ON \
+              -DUTF8_RANGES_BUILD_BENCHMARKS=OFF \
+              -DUTF8_RANGES_ENABLE_ICU=OFF \
+              -DUTF8_RANGES_ENABLE_TEST_HOOKS=ON \
+              -DCMAKE_CXX_COMPILER=g++-14 \
+              -DCMAKE_CXX_FLAGS="-O2 -Wall -Wextra -Werror -pedantic -pthread -Wno-error=overflow -Wno-error=pedantic"
+            cmake --build "$build_dir" --config Release
+            ctest --test-dir "$build_dir" --build-config Release --output-on-failure
+          done
+
   linux_icu:
     name: ${{ matrix.name }} + ICU (O2, C++23)
     runs-on: ubuntu-24.04
@@ -540,6 +580,169 @@ jobs:
             cmake --build "$build_dir" --config Release
             ctest --test-dir "$build_dir" --build-config Release --output-on-failure
           done
+
+  release_validation:
+    name: Release validation (${{ matrix.name }})
+    runs-on: ${{ matrix.runs_on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            runs_on: ubuntu-24.04
+            shell: bash
+            install_kind: gcc
+            cxx: g++-14
+            build_dir: build/release-validation-linux
+            install_dir: build/release-install-linux
+            consumer_dir: build/release-smoke-consumer-linux
+          - name: Windows
+            runs_on: windows-latest
+            shell: powershell
+            install_kind: msvc
+            build_dir: build/release-validation-windows
+            install_dir: build/release-install-windows
+            consumer_dir: build/release-smoke-consumer-windows
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install GCC
+        if: matrix.install_kind == 'gcc'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++-14
+
+      - name: Setup MSBuild
+        if: matrix.install_kind == 'msvc'
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Show tool versions (Linux)
+        if: matrix.install_kind == 'gcc'
+        run: |
+          cmake --version
+          ctest --version
+          ${{ matrix.cxx }} --version
+
+      - name: Show tool versions (Windows)
+        if: matrix.install_kind == 'msvc'
+        shell: powershell
+        run: |
+          cmake --version
+          ctest --version
+
+      - name: Release validation (Linux)
+        if: matrix.install_kind == 'gcc'
+        run: |
+          cmake -S . -B "${{ matrix.build_dir }}" \
+            -DUTF8_RANGES_BUILD_TESTS=ON \
+            -DUTF8_RANGES_BUILD_BENCHMARKS=OFF \
+            -DUTF8_RANGES_ENABLE_ICU=OFF \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+            -DCMAKE_CXX_FLAGS="-O2 -Wall -Wextra -Werror -pedantic -pthread -Wno-error=overflow -Wno-error=pedantic"
+          cmake --build "${{ matrix.build_dir }}" --config Release
+          ctest --test-dir "${{ matrix.build_dir }}" --build-config Release --output-on-failure
+          cmake --install "${{ matrix.build_dir }}" --prefix "$(pwd)/${{ matrix.install_dir }}"
+
+          cmake -S tools/release_smoke_consumer -B "${{ matrix.consumer_dir }}" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+            -DCMAKE_CXX_FLAGS="-O2 -Wall -Wextra -Werror -pedantic -pthread -Wno-error=overflow -Wno-error=pedantic" \
+            -DCMAKE_PREFIX_PATH="$(pwd)/${{ matrix.install_dir }}"
+          cmake --build "${{ matrix.consumer_dir }}" --config Release
+          ctest --test-dir "${{ matrix.consumer_dir }}" --build-config Release --output-on-failure
+
+      - name: Release validation (Windows)
+        if: matrix.install_kind == 'msvc'
+        shell: powershell
+        run: |
+          $installPrefix = Join-Path $PWD "${{ matrix.install_dir }}"
+          cmake -S . -B ${{ matrix.build_dir }} -G "Visual Studio 17 2022" -A x64 -DUTF8_RANGES_BUILD_TESTS=ON -DUTF8_RANGES_BUILD_BENCHMARKS=OFF -DUTF8_RANGES_ENABLE_ICU=OFF
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build ${{ matrix.build_dir }} --config Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --test-dir ${{ matrix.build_dir }} -C Release --output-on-failure
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --install ${{ matrix.build_dir }} --config Release --prefix $installPrefix
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          cmake -S tools/release_smoke_consumer -B ${{ matrix.consumer_dir }} -G "Visual Studio 17 2022" -A x64 "-DCMAKE_PREFIX_PATH=$installPrefix"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build ${{ matrix.consumer_dir }} --config Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --test-dir ${{ matrix.consumer_dir }} -C Release --output-on-failure
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  compile_time:
+    name: Compile-time probe (${{ matrix.name }}, C++23)
+    runs-on: ubuntu-24.04
+    continue-on-error: ${{ matrix.install_kind == 'clang' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: GCC
+            install_kind: gcc
+            packages: g++-14
+            cxx: g++-14
+            cxxflags: "-O2 -Wall -Wextra -Werror -pedantic -pthread"
+            output_dir: build/compile-time-gcc
+          - name: Clang trunk
+            install_kind: clang
+            packages: clang-22 libc++-22-dev libc++abi-22-dev
+            cxx: clang++-22
+            cxxflags: "-O2 -Wall -Wextra -Werror -pedantic -stdlib=libc++ -pthread"
+            output_dir: build/compile-time-clang
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install GCC
+        if: matrix.install_kind == 'gcc'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.packages }}
+
+      - name: Install Clang trunk
+        if: matrix.install_kind == 'clang'
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 22
+          sudo apt-get install -y ${{ matrix.packages }}
+
+      - name: Show compiler version
+        run: |
+          ${{ matrix.cxx }} --version
+
+      - name: Measure compile time
+        env:
+          UTF8_RANGES_COMPILE_TIME_ROUNDS: 5
+        run: |
+          bash tools/measure_compile_time.sh \
+            ${{ matrix.cxx }} \
+            ${{ matrix.output_dir }} \
+            ${{ matrix.output_dir }}/summary.md \
+            ${{ matrix.cxxflags }}
+
+      - name: Publish compile-time summary
+        run: |
+          {
+            echo "## Compile-time probe (${{ matrix.name }})"
+            echo
+            echo "Median of ${UTF8_RANGES_COMPILE_TIME_ROUNDS:-5} rounds with rotated probe order."
+            echo
+            cat "${{ matrix.output_dir }}/summary.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload compile-time artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: compile-time-${{ matrix.install_kind }}
+          path: ${{ matrix.output_dir }}
 
   docs_examples:
     name: Docs examples (${{ matrix.name }}, C++23)
@@ -649,7 +852,9 @@ jobs:
       - macos
       - linux
       - linux_32
+      - linux_arm64
       - linux_icu
+      - release_validation
       - docs_examples
       - coverage
       - comparative_benchmarks
