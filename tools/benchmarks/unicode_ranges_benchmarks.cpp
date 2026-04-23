@@ -15,7 +15,7 @@
 #include <string_view>
 #include <vector>
 
-#include "../../unicode_ranges_full.hpp"
+#include "../../unicode_ranges_all.hpp"
 
 using namespace std::literals;
 using namespace unicode_ranges;

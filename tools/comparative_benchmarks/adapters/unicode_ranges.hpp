@@ -1,7 +1,7 @@
 #ifndef UTF8_RANGES_COMPARATIVE_BENCHMARKS_ADAPTERS_UNICODE_RANGES_HPP
 #define UTF8_RANGES_COMPARATIVE_BENCHMARKS_ADAPTERS_UNICODE_RANGES_HPP
 
-#include "../../../unicode_ranges_full.hpp"
+#include "../../../unicode_ranges_all.hpp"
 #include "../framework.hpp"
 
 namespace comparative_benchmarks::adapters

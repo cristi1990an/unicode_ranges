@@ -10,8 +10,9 @@ The repository now also ships a first-party CMake build and install/export packa
 
 Umbrella headers:
 
-- `unicode_ranges.hpp`: lighter borrowed/core surface
-- `unicode_ranges_full.hpp`: full umbrella, including owning strings
+- `unicode_ranges_borrowed.hpp`: lighter borrowed/core surface
+- `unicode_ranges_all.hpp`: full umbrella, including owning strings
+- `unicode_ranges.hpp` and `unicode_ranges_full.hpp`: legacy compatibility wrappers kept during the pre-`1.0` rename
 
 ## Why this library exists
 
@@ -48,6 +49,7 @@ This does not replace the rest of the library:
 
 - Docs site: [https://cristi1990an.github.io/unicode_ranges/](https://cristi1990an.github.io/unicode_ranges/)
 - Docs in repo: [docs/](docs/)
+- Stability policy: [STABILITY.md](STABILITY.md)
 - Changelog: [CHANGELOG.md](CHANGELOG.md)
 
 The large monolithic README has been replaced with a dedicated docs site so the library can document semantics, examples, and reference material on separate pages instead of one long file.
@@ -80,7 +82,7 @@ Unicode tables currently track Unicode `17.0.0`.
 ## Quick start
 
 ```cpp
-#include "unicode_ranges_full.hpp"
+#include "unicode_ranges_all.hpp"
 
 #include <print>
 
@@ -105,7 +107,7 @@ int main()
 For runtime validation of raw input:
 
 ```cpp
-#include "unicode_ranges.hpp"
+#include "unicode_ranges_borrowed.hpp"
 
 #include <print>
 #include <string>

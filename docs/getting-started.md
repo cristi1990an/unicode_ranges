@@ -29,10 +29,10 @@ Short version:
 ## Include the library
 
 ```cpp
-#include "unicode_ranges.hpp"
+#include "unicode_ranges_borrowed.hpp"
 ```
 
-Use `unicode_ranges_full.hpp` when you want the all-in umbrella, including owning string types such as `utf8_string`, `utf16_string`, and `utf32_string`.
+Use `unicode_ranges_all.hpp` when you want the all-in umbrella, including owning string types such as `utf8_string`, `utf16_string`, and `utf32_string`.
 
 ## Terminology cheat sheet
 

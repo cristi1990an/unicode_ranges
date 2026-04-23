@@ -106,6 +106,8 @@ LLVM_PROFILE_FILE="${PROFRAW_BENCH}" "${OUTPUT_DIR}/${BENCH_BINARY}" --quick --f
 "${LLVM_PROFDATA}" merge -sparse "${PROFRAW}" "${PROFRAW_BENCH}" -o "${PROFDATA}"
 
 mapfile -t COVERED_FILES < <(find unicode_ranges -name '*.hpp' -print | sort)
+COVERED_FILES+=("unicode_ranges_borrowed.hpp")
+COVERED_FILES+=("unicode_ranges_all.hpp")
 COVERED_FILES+=("unicode_ranges.hpp")
 
 "${LLVM_COV}" report \
