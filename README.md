@@ -11,7 +11,7 @@ The repository now also ships a first-party CMake build and install/export packa
 Umbrella headers:
 
 - `unicode_ranges_borrowed.hpp`: lighter borrowed/core surface
-- `unicode_ranges_all.hpp`: full umbrella, including owning strings
+- `unicode_ranges_all.hpp`: full umbrella, including owning strings and `unicode_ranges::characters`
 - `unicode_ranges.hpp` and `unicode_ranges_full.hpp`: legacy compatibility wrappers kept during the pre-`1.0` rename
 
 ## Why this library exists

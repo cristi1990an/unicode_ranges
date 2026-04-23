@@ -39,7 +39,7 @@ The public umbrella headers live at the repository root:
 Use:
 
 - `unicode_ranges_borrowed.hpp` for the lighter borrowed/core surface
-- `unicode_ranges_all.hpp` for the all-in umbrella, including owning strings
+- `unicode_ranges_all.hpp` for the all-in umbrella, including owning strings and `unicode_ranges::characters`
 
 ## Runtime backend: simdutf
 

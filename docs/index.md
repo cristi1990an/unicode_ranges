@@ -56,7 +56,7 @@ That backend choice is intentional: `simdutf` has been the strongest raw UTF val
 
 Everything public lives in namespace `unicode_ranges`. Literal operators live in `unicode_ranges::literals`. PMR owning-string aliases live in `unicode_ranges::pmr`.
 
-Use `unicode_ranges_all.hpp` if you want the all-in umbrella, including owning strings.
+Use `unicode_ranges_all.hpp` if you want the all-in umbrella, including owning strings and `unicode_ranges::characters`.
 
 !!! warning
     `unicode_ranges::details` is implementation detail only. It is not part of the supported public API.

@@ -12,6 +12,5 @@
 #include "unicode_ranges/utf8_string_view.hpp"
 #include "unicode_ranges/utf16_string_view.hpp"
 #include "unicode_ranges/utf32_string_view.hpp"
-#include "unicode_ranges/characters.hpp"
 
 #endif // UNICODE_RANGES_BORROWED_HPP

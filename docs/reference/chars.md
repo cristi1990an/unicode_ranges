@@ -4,6 +4,8 @@
 
 They are useful when you want to store or pass one Unicode scalar value without dropping down to raw UTF-8 bytes or UTF-16 code units.
 
+For the named `unicode_ranges::characters` catalog, include `unicode_ranges_all.hpp` or include `unicode_ranges/characters.hpp` directly. The lighter `unicode_ranges_borrowed.hpp` umbrella no longer pulls that catalog in automatically.
+
 When the character is known at compile time, the literal operators such as `_u8c`, `_u16c`, and `_u32c` are usually the nicest entry point. `from_scalar(...)` is the runtime path when the scalar value arrives as data.
 
 Unless a section explicitly narrows the discussion, the UTF-8, UTF-16, and UTF-32 character APIs are structurally parallel.
