@@ -675,6 +675,71 @@ jobs:
           ctest --test-dir ${{ matrix.consumer_dir }} -C Release --output-on-failure
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+  compile_time:
+    name: Compile-time probe (${{ matrix.name }}, C++23)
+    runs-on: ubuntu-24.04
+    continue-on-error: ${{ matrix.install_kind == 'clang' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: GCC
+            install_kind: gcc
+            packages: g++-14
+            cxx: g++-14
+            cxxflags: "-O2 -Wall -Wextra -Werror -pedantic -pthread"
+            output_dir: build/compile-time-gcc
+          - name: Clang trunk
+            install_kind: clang
+            packages: clang-22 libc++-22-dev libc++abi-22-dev
+            cxx: clang++-22
+            cxxflags: "-O2 -Wall -Wextra -Werror -pedantic -stdlib=libc++ -pthread"
+            output_dir: build/compile-time-clang
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install GCC
+        if: matrix.install_kind == 'gcc'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.packages }}
+
+      - name: Install Clang trunk
+        if: matrix.install_kind == 'clang'
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 22
+          sudo apt-get install -y ${{ matrix.packages }}
+
+      - name: Show compiler version
+        run: |
+          ${{ matrix.cxx }} --version
+
+      - name: Measure compile time
+        run: |
+          bash tools/measure_compile_time.sh \
+            ${{ matrix.cxx }} \
+            ${{ matrix.output_dir }} \
+            ${{ matrix.output_dir }}/summary.md \
+            ${{ matrix.cxxflags }}
+
+      - name: Publish compile-time summary
+        run: |
+          {
+            echo "## Compile-time probe (${{ matrix.name }})"
+            echo
+            cat "${{ matrix.output_dir }}/summary.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload compile-time artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: compile-time-${{ matrix.install_kind }}
+          path: ${{ matrix.output_dir }}
+
   docs_examples:
     name: Docs examples (${{ matrix.name }}, C++23)
     runs-on: ubuntu-24.04
