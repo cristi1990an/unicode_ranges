@@ -10,7 +10,7 @@ static_assert("Straße"_utf8_sv.eq_ignore_case(u8"strasse"_utf8_sv));
 
 int main()
 {
-	auto text = utf8_string::from_bytes(std::string_view{ "Gr\xC3\xBC\xC3\x9Fe" });
+	auto text = utf8_string::from_bytes(std::string_view{ "\x47\x72\xC3\xBC\xC3\x9F\x65" });
 	if (!text)
 	{
 		return 1;
