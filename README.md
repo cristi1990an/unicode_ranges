@@ -12,7 +12,7 @@ Umbrella headers:
 
 - `unicode_ranges_borrowed.hpp`: lighter borrowed/core surface
 - `unicode_ranges_all.hpp`: full umbrella, including owning strings and `unicode_ranges::characters`
-- `unicode_ranges.hpp` and `unicode_ranges_full.hpp`: legacy compatibility wrappers kept during the pre-`1.0` rename
+- `unicode_ranges.hpp` and `unicode_ranges_full.hpp`: legacy compatibility wrappers retained for older code
 
 ## Why this library exists
 

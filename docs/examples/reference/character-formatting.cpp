@@ -1,4 +1,4 @@
-#include "unicode_ranges_full.hpp"
+#include "unicode_ranges_all.hpp"
 
 #include <format>
 #include <functional>

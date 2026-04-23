@@ -1,7 +1,7 @@
 #include <array>
 #include <vector>
 
-#include "unicode_ranges_full.hpp"
+#include "unicode_ranges_all.hpp"
 
 using namespace unicode_ranges;
 using namespace unicode_ranges::literals;
