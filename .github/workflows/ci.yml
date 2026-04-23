@@ -475,6 +475,46 @@ jobs:
           UBSAN_OPTIONS: ${{ matrix.ubsan_options }}
           TSAN_OPTIONS: ${{ matrix.tsan_options }}
 
+  linux_arm64:
+    name: Linux ARM64 GCC (O2, C++23)
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install GCC
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++-14
+
+      - name: Show compiler version
+        run: |
+          g++-14 --version
+          cmake --version
+          rustc --version
+          pwsh --version
+
+      - name: Configure, build, and run tests for all Unicode versions (CMake)
+        run: |
+          for version in $UNICODE_TEST_VERSIONS; do
+            pwsh ./tools/update_unicode_data.ps1 -Version "$version"
+            pwsh ./tools/regenerate_unicode_tables.ps1 -DataRoot "$(pwd)/tools/unicode_data/$version" -UnicodeVersion "$version"
+            build_dir="build/cmake-linux-arm64-unicode_ranges_gcc_o2-${version//./_}"
+            cmake -S . -B "$build_dir" \
+              -DUTF8_RANGES_BUILD_TESTS=ON \
+              -DUTF8_RANGES_BUILD_BENCHMARKS=OFF \
+              -DUTF8_RANGES_ENABLE_ICU=OFF \
+              -DUTF8_RANGES_ENABLE_TEST_HOOKS=ON \
+              -DCMAKE_CXX_COMPILER=g++-14 \
+              -DCMAKE_CXX_FLAGS="-O2 -Wall -Wextra -Werror -pedantic -pthread -Wno-error=overflow -Wno-error=pedantic"
+            cmake --build "$build_dir" --config Release
+            ctest --test-dir "$build_dir" --build-config Release --output-on-failure
+          done
+
   linux_icu:
     name: ${{ matrix.name }} + ICU (O2, C++23)
     runs-on: ubuntu-24.04
@@ -743,6 +783,7 @@ jobs:
       - macos
       - linux
       - linux_32
+      - linux_arm64
       - linux_icu
       - release_validation
       - docs_examples
