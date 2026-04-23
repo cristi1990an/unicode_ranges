@@ -2,102 +2,45 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based loosely on Keep a Changelog, with an `Unreleased` section
-tracking local work before it is tagged or versioned.
+The format is based loosely on Keep a Changelog.
 
-## [Unreleased]
+## [1.0.0] - 2026-04-23
 
 ### Added
 
-- generator support for grapheme-segmentation property tables sourced from official Unicode data files
-- `tools/regenerate_unicode_tables.ps1` to regenerate `unicode_ranges/unicode_tables.hpp` as UTF-8 without BOM for Clang-cl compatibility
-- `utf8_string::reverse_graphemes()` / `reverse_graphemes(pos, count)` and matching `utf16_string` APIs
-- optional ICU-backed locale-aware casing APIs:
-  `to_lowercase(locale_id)`, `to_uppercase(locale_id)`, `to_titlecase(locale_id)`, and `case_fold(locale_id)`
-- `locale_id`, `operator ""_locale`, and `is_available_locale(...)` when ICU support is enabled
-- allocation-free case-insensitive comparison helpers:
-  `eq_ignore_case(...)`, `starts_with_ignore_case(...)`, `ends_with_ignore_case(...)`, and `compare_ignore_case(...)`
-- locale-aware overloads of the case-insensitive comparison helpers when ICU support is enabled
-- `unicode_ranges::characters::utf8::...` and `unicode_ranges::characters::utf16::...` curated convenience constants
-- `unicode_ranges::characters::utf32::...` curated convenience constants
-- scalar property queries on `utf8_char`, `utf16_char`, and `utf32_char`:
-  `general_category()`, `canonical_combining_class()`, `grapheme_break_property()`, `script()`,
-  `east_asian_width()`, `line_break_class()`, `bidi_class()`, `word_break_property()`,
-  `sentence_break_property()`, `is_emoji()`, `is_emoji_presentation()`, and `is_extended_pictographic()`
-- `utf8_string::get_allocator()`
-- `utf8_string::erase(index, count = npos)`
-- `utf8_string::insert(...)` and `utf8_string::insert_range(...)`
-- `utf8_string::assign(...)` and `utf8_string::assign_range(...)`
-- `utf8_string::replace(pos, count, utf8_string_view)`
-- `utf8_string::replace(pos, count, utf8_char)`
-- `utf8_string::replace(pos, utf8_string_view)`
-- `utf8_string::replace(pos, utf8_char)`
-- `utf8_string::replace_with_range(pos, count, range)`
-- `utf8_string::replace_with_range(pos, range)`
-- `utf8_string::operator+` with `utf8_string_view` and `utf8_char`
-- `utf8_string` / `utf8_string_view` mixed `operator==` and `operator<=>`
-- `operator ""_utf8_s` for owning UTF-8 string literals
-- `utf8_string_view::char_at_unchecked(index)`
-- `utf8_string_view::find(...)` and `rfind(...)` overloads for `char8_t`, `utf8_char`, and `utf8_string_view`
-- `utf8_string_view::ceil_char_boundary(...)` and `floor_char_boundary(...)`
-- `std::uses_allocator` specialization for `utf8_string`
-- `utf8_char::encode_utf16(...)`
-- `utf16_char`
-- `unicode_ranges::views::lossy_utf16_view`
-- `unicode_ranges::views::lossy_utf16`
-- `unicode_ranges::views::utf16_view`
-- `unicode_ranges::views::reversed_utf16_view`
-- `utf16_string_view`
-- `operator ""_utf16_sv`
-- `utf16_string`
-- `operator ""_utf16_s`
-- `utf32_char`
-- `unicode_ranges::views::lossy_utf32_view`
-- `unicode_ranges::views::lossy_utf32`
-- `unicode_ranges::views::utf32_view`
-- `unicode_ranges::views::reversed_utf32_view`
-- `utf32_string_view`
-- `operator ""_utf32_sv`
-- `utf32_string`
-- `operator ""_utf32_s`
-- `operator ""_u32c`
-- `operator ""_grapheme_utf32`
-- `std::formatter<utf8_char, wchar_t>`
-- `std::formatter<utf16_char, wchar_t>`
-- `std::formatter<utf32_char, wchar_t>`
-- a non-blocking MSVC `/analyze` static-analysis CI job
+- first-class UTF-16 and UTF-32 character, view, and owning-string types, including literals, lossy views, reversed views, conversions, casing, normalization, and documentation/examples alongside the existing UTF-8 surface
+- Unicode scalar property queries on `utf8_char`, `utf16_char`, and `utf32_char`, including general category, script, bidi class, segmentation properties, and emoji-related predicates
+- optional ICU-backed locale-aware casing APIs, locale tokens, locale-aware case-insensitive comparisons, and `is_available_locale(...)`
+- allocation-free case-insensitive comparison helpers: `eq_ignore_case(...)`, `starts_with_ignore_case(...)`, `ends_with_ignore_case(...)`, and `compare_ignore_case(...)`
+- curated `unicode_ranges::characters::utf8`, `unicode_ranges::characters::utf16`, and `unicode_ranges::characters::utf32` convenience constants
+- grapheme-reversal APIs and broader UTF-8 owning-string mutation support (`assign`, `insert`, `erase`, `replace`, `replace_with_range`, `operator+`, and allocator accessors)
+- first-party CMake build/install/export support, a release smoke consumer, and compile-time measurement probes in CI
+- non-blocking MSVC `/analyze` static-analysis CI coverage
 
 ### Changed
 
-- the build and integration model is now centered on a compiled `unicode_ranges` library target instead of asking every consumer to compile `unicode_ranges.cpp` directly
-- the repository now ships a first-party CMake build, install/export package, and linked test/benchmark targets for the compiled `unicode_ranges` library
-- runtime UTF-8 validation and UTF-8 <-> UTF-16/UTF-32 transcoding now use pinned `simdutf` `v7.7.0` as the production backend for those hot paths
-- the repository license is now documented consistently as `MIT OR Apache-2.0`, with third-party dependency notices collected in `THIRD_PARTY_NOTICES.md`
-- unchecked construction/access APIs now mirror the checked preconditions with debug-only assertions
-- GCC docs-example compilation is now treated as informational for the known libstdc++ formatting limitation
-- locale-aware titlecasing is available only as a whole-string ICU-backed operation; partial locale-aware titlecasing overloads are intentionally not exposed
-- the public umbrella header is now `unicode_ranges.hpp`
-- the Visual Studio project files are now named `unicode_ranges.*`
-- `utf8_char::byte_count()` has been renamed to `code_unit_count()`
-- `utf8_string_view::char_at(index)` now interprets `index` as a byte index and returns `std::nullopt` when the index is out of range or not a UTF-8 character boundary
-- `utf8_string` is now an alias for `basic_utf8_string<>`, which lets `std::ranges::to<utf8_string>()` work naturally
-- library headers now use ordinary include guards instead of `#pragma once`
-- UTF-8 views now live in `utf8_views.hpp`, and UTF-16 views live in `utf16_views.hpp`
-- the UTF-8 string layer is now split across `utf8_string_crtp.hpp`, `utf8_string_view.hpp`, and `utf8_string.hpp`
-- tests and documentation now prefer direct Unicode literals instead of `u8`-prefixed literals where possible
-- the library now exposes first-class UTF-32 types, literals, views, conversions, casing, normalization, locale-aware ICU transforms, and docs/examples alongside the existing UTF-8 and UTF-16 surfaces
+- `unicode_ranges` is now a compiled library with a first-party `unicode_ranges::unicode_ranges` target instead of a “compile `unicode_ranges.cpp` in every consumer” model
+- runtime UTF-8 validation and runtime UTF-8 <-> UTF-16/UTF-32 transcoding now use pinned vendored `simdutf` `v7.7.0`
+- the supported umbrella headers are now:
+  - `unicode_ranges_borrowed.hpp` for the lighter borrowed/core surface
+  - `unicode_ranges_all.hpp` for the all-in surface, including owning strings and `unicode_ranges::characters`
+  - `unicode_ranges.hpp` and `unicode_ranges_full.hpp` remain as compatibility wrappers during the rename
+- the repository now includes a stability contract in `STABILITY.md`, explicit release validation in CI, and a Linux ARM64 correctness lane
+- the generated Unicode tables are split between constexpr-facing data and compiled runtime accelerators
+- more runtime-only implementation moved out of headers into compiled translation units, including simdutf runtime glue, Unicode table accelerators, ICU runtime casing helpers, locale-aware comparison helpers, and common owning-string instantiations
+- unchecked construction/access APIs now mirror checked preconditions with debug-only assertions
+- the repository license and third-party notices are now documented consistently as `MIT OR Apache-2.0`
+
+### Fixed
+
+- GCC constexpr regressions introduced during the Unicode table split
+- missing runtime-table objects in coverage/docs/manual archive builds after adding `unicode_tables_runtime.cpp`
+- missing explicit instantiations for compiled owning-string helper templates on GCC
+- release-validation smoke-test literal parsing on GCC
+- compile-time measurement instability by switching to multi-round, rotated-order median reporting
 
 ### Documentation
 
-- updated the README and docs site to describe the compiled-library build model, the `simdutf` runtime backend, and the current licensing/dependency story
-- documented the optional ICU-backed locale-aware casing APIs, locale tokens, and ICU fallback behavior
-- added reference coverage and compiled examples for the new case-insensitive comparison helpers
-- added reference coverage and examples for the curated `characters::utf8` / `characters::utf16` / `characters::utf32` namespaces
-- added reference coverage and examples for the new scalar Unicode property queries
-- expanded onboarding with install/integration guidance, a terminology cheat sheet, common-task recipes, and clearer library rationale
-- expanded the `utf8_string_view` reference for `char_at` and `char_at_unchecked`
-- added documentation for `utf16_string_view`, `utf16_string`, `_utf16_sv`, and `_utf16_s`
-- added documentation for `utf32_string_view`, `utf32_string`, `_u32c`, `_utf32_sv`, `_utf32_s`, and `_grapheme_utf32`
-- documented the `utf8_string` mutation APIs, including `assign`, `insert`, `erase`, `replace`, `replace_with_range`, `operator+`, and `get_allocator`
-- added documentation for `utf16_char`, `utf16_view`, `reversed_utf16_view`, `lossy_utf16_view`, and the `_utf8_s` literal
-- added documentation for `utf32_char`, `utf32_view`, `reversed_utf32_view`, and `lossy_utf32_view`
+- updated the README and docs site for the compiled-library model, vendored `simdutf` backend, optional ICU support, and current `1.x` stability story
+- expanded install/integration guidance, onboarding, terminology, common tasks, and the reference pages for UTF-16/UTF-32, locale-aware casing, case-insensitive comparisons, `characters::*`, and scalar property queries
+- clarified the supported umbrella headers and the lighter-vs-all include split
