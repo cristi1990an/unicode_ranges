@@ -719,6 +719,8 @@ jobs:
           ${{ matrix.cxx }} --version
 
       - name: Measure compile time
+        env:
+          UTF8_RANGES_COMPILE_TIME_ROUNDS: 5
         run: |
           bash tools/measure_compile_time.sh \
             ${{ matrix.cxx }} \
@@ -730,6 +732,8 @@ jobs:
         run: |
           {
             echo "## Compile-time probe (${{ matrix.name }})"
+            echo
+            echo "Median of ${UTF8_RANGES_COMPILE_TIME_ROUNDS:-5} rounds with rotated probe order."
             echo
             cat "${{ matrix.output_dir }}/summary.md"
           } >> "$GITHUB_STEP_SUMMARY"
