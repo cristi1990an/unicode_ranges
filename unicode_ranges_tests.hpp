@@ -5625,6 +5625,57 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		UTF8_RANGES_TEST_ASSERT(encoded[1] == static_cast<char16_t>(0xDE00u));
 	}
 
+	UTF8_RANGES_TEST_ASSERT(std::format("{}", U"\u20AC"_u32c) == "\u20AC");
+	UTF8_RANGES_TEST_ASSERT(std::format("{:x}", U"\u20AC"_u32c) == "20ac");
+	{
+		utf32_char ch = U"A"_u32c;
+		++ch;
+		UTF8_RANGES_TEST_ASSERT(ch == U"B"_u32c);
+		--ch;
+		UTF8_RANGES_TEST_ASSERT(ch == U"A"_u32c);
+	}
+	UTF8_RANGES_TEST_ASSERT(std::format(L"{}", U"\u20AC"_u32c) == wide_from_scalar(0x20ACu));
+	UTF8_RANGES_TEST_ASSERT(std::format(L"{}", U"\U0001F600"_u32c) == wide_from_scalar(0x1F600u));
+	UTF8_RANGES_TEST_ASSERT(std::format(L"{:x}", U"\u20AC"_u32c) == L"20ac");
+	{
+		std::array<char32_t, 1> encoded{};
+		[[maybe_unused]] const auto n = U"\U0001F600"_u32c.encode_utf32<char32_t>(encoded.begin());
+		UTF8_RANGES_TEST_ASSERT(n == 1);
+		UTF8_RANGES_TEST_ASSERT(encoded[0] == static_cast<char32_t>(0x1F600u));
+	}
+	{
+		std::array<char16_t, 2> encoded{};
+		[[maybe_unused]] const auto n = U"\U0001F600"_u32c.encode_utf16<char16_t>(encoded.begin());
+		UTF8_RANGES_TEST_ASSERT(n == 2);
+		UTF8_RANGES_TEST_ASSERT(encoded[0] == static_cast<char16_t>(0xD83Du));
+		UTF8_RANGES_TEST_ASSERT(encoded[1] == static_cast<char16_t>(0xDE00u));
+	}
+	{
+		std::array<char, 4> encoded{};
+		[[maybe_unused]] const auto n = U"\U0001F600"_u32c.encode_utf8<char>(encoded.begin());
+		UTF8_RANGES_TEST_ASSERT(n == 4);
+		UTF8_RANGES_TEST_ASSERT(static_cast<unsigned char>(encoded[0]) == 0xF0u);
+		UTF8_RANGES_TEST_ASSERT(static_cast<unsigned char>(encoded[1]) == 0x9Fu);
+		UTF8_RANGES_TEST_ASSERT(static_cast<unsigned char>(encoded[2]) == 0x98u);
+		UTF8_RANGES_TEST_ASSERT(static_cast<unsigned char>(encoded[3]) == 0x80u);
+	}
+	{
+		utf8_char utf8 = U"\u20AC"_u32c;
+		utf16_char utf16 = U"\u20AC"_u32c;
+		UTF8_RANGES_TEST_ASSERT(utf8 == u8"\u20AC"_u8c);
+		UTF8_RANGES_TEST_ASSERT(utf16 == u"\u20AC"_u16c);
+	}
+	{
+		auto skipped = utf32_char::from_scalar_unchecked(0xD7FFu);
+		++skipped;
+		UTF8_RANGES_TEST_ASSERT(skipped.as_scalar() == 0xE000u);
+		--skipped;
+		UTF8_RANGES_TEST_ASSERT(skipped.as_scalar() == 0xD7FFu);
+	}
+	UTF8_RANGES_TEST_ASSERT(U"\u00E9"_u32c.ascii_lowercase() == U"\u00E9"_u32c);
+	UTF8_RANGES_TEST_ASSERT(U"\u00E9"_u32c.ascii_uppercase() == U"\u00E9"_u32c);
+	UTF8_RANGES_TEST_ASSERT(U"\u20AC"_u32c.code_unit_count() == 1);
+
 	// Direct UTF-8 view iteration, both forward and reverse.
 	{
 		constexpr std::u8string_view text = u8"A\u00E9\u20AC";
@@ -6260,6 +6311,72 @@ static_assert([] {
 		}));
 	}
 
+	// Owning UTF-32 string construction, formatting, and mutation coverage.
+	UTF8_RANGES_TEST_ASSERT(utf32_string{}.base().empty());
+	static_assert(std::same_as<utf32_string::value_type, utf32_char>);
+	static_assert(std::same_as<decltype(utf32_string{}.get_allocator()), std::allocator<char32_t>>);
+	static_assert(std::same_as<decltype(utf32_string{}.pop_back()), std::optional<utf32_char>>);
+	static_assert(std::same_as<decltype(utf32_string{}.reverse()), utf32_string&>);
+	static_assert(std::same_as<decltype(utf32_string{}.reverse_graphemes()), utf32_string&>);
+	static_assert(noexcept(utf32_string{}.reverse()));
+	static_assert(noexcept(utf32_string{}.reverse_graphemes()));
+	UTF8_RANGES_TEST_ASSERT(U"Aé😀"_utf32_s == utf32_text);
+	UTF8_RANGES_TEST_ASSERT(utf32_string{ utf32_text } == U"Aé😀"_utf32_s);
+	UTF8_RANGES_TEST_ASSERT((utf32_string{ u8"Aé😀"_utf8_sv } == U"Aé😀"_utf32_sv));
+	UTF8_RANGES_TEST_ASSERT((utf32_string{ u"Aé😀"_utf16_sv } == U"Aé😀"_utf32_sv));
+	UTF8_RANGES_TEST_ASSERT(std::format("{}", utf32_string{ utf32_text }) == "Aé😀");
+	{
+		const auto result = utf32_string::from_bytes(std::string_view{ "A\xC3\xA9\xF0\x9F\x98\x80", 7 });
+		UTF8_RANGES_TEST_ASSERT(result.has_value());
+		UTF8_RANGES_TEST_ASSERT(result.value() == U"Aé😀"_utf32_sv);
+	}
+	{
+		const auto result = utf32_string::from_bytes(std::wstring_view{ L"Aé😀" });
+		UTF8_RANGES_TEST_ASSERT(result.has_value());
+		UTF8_RANGES_TEST_ASSERT(result.value() == U"Aé😀"_utf32_sv);
+	}
+	UTF8_RANGES_TEST_ASSERT(utf32_string{ U"Aé😀"_utf32_sv }.to_utf8() == u8"Aé😀"_utf8_sv);
+	UTF8_RANGES_TEST_ASSERT(utf32_string{ U"Aé😀"_utf32_sv }.to_utf16() == u"Aé😀"_utf16_sv);
+	UTF8_RANGES_TEST_ASSERT(utf32_string{ U"Aé😀"_utf32_sv }.to_utf32_owned() == U"Aé😀"_utf32_sv);
+	{
+		utf32_string s;
+		s.assign(U"Aé😀"_utf32_sv);
+		UTF8_RANGES_TEST_ASSERT(s == U"Aé😀"_utf32_sv);
+	}
+	{
+		utf32_string s;
+		s.assign(U"Ω"_u32c);
+		UTF8_RANGES_TEST_ASSERT(s == U"Ω"_utf32_sv);
+	}
+	{
+		auto s = U"Aé😀"_utf32_s;
+		[[maybe_unused]] const auto removed = s.pop_back();
+		UTF8_RANGES_TEST_ASSERT(removed.has_value());
+		UTF8_RANGES_TEST_ASSERT(*removed == U"😀"_u32c);
+		UTF8_RANGES_TEST_ASSERT(s == U"Aé"_utf32_sv);
+	}
+	{
+		utf32_string s;
+		[[maybe_unused]] const auto removed = s.pop_back();
+		UTF8_RANGES_TEST_ASSERT(!removed.has_value());
+		UTF8_RANGES_TEST_ASSERT(s.empty());
+	}
+	{
+		auto s = U"Aé😀"_utf32_s;
+		s.reverse();
+		UTF8_RANGES_TEST_ASSERT(s == U"😀éA"_utf32_sv);
+	}
+	{
+		auto s = U"Aé😀"_utf32_s;
+		s.erase(1, 1);
+		UTF8_RANGES_TEST_ASSERT(s == U"A😀"_utf32_sv);
+	}
+	{
+		auto s = U"Aé😀"_utf32_s;
+		s.replace_inplace(1, 1, U"Ω"_utf32_sv);
+		UTF8_RANGES_TEST_ASSERT(s == U"AΩ😀"_utf32_sv);
+	}
+
 	// UTF-8 mutation failure cases should throw rather than silently splitting characters.
 	{
 		utf8_string s;
@@ -6555,6 +6672,21 @@ static_assert([] {
 			UTF8_RANGES_TEST_ASSERT(oss.str() == "Aé€");
 		}
 
+	UTF8_RANGES_TEST_ASSERT(std::format("{}", utf32_text) == "Aé😀");
+	UTF8_RANGES_TEST_ASSERT(std::hash<utf32_string_view>{}(utf32_text) == std::hash<utf32_string_view>{}(U"Aé😀"_utf32_sv));
+	{
+		std::ostringstream oss;
+		oss << utf32_text;
+		const std::string expected_utf8{ "A\xC3\xA9\xF0\x9F\x98\x80", 7 };
+		UTF8_RANGES_TEST_ASSERT(oss.str() == expected_utf8);
+	}
+	{
+		std::ostringstream oss;
+		oss << utf32_string{ utf32_text };
+		const std::string expected_utf8{ "A\xC3\xA9\xF0\x9F\x98\x80", 7 };
+		UTF8_RANGES_TEST_ASSERT(oss.str() == expected_utf8);
+	}
+
 	// Lossy views replace malformed input with the Unicode replacement character.
 	{
 		const std::string input{ "A\xFF\xE2\x28\xA1", 5 };
@@ -6606,6 +6738,10 @@ static_assert([] {
 	UTF8_RANGES_TEST_ASSERT(std::format("{}", utf8_char::replacement_character) == "�");
 	UTF8_RANGES_TEST_ASSERT(std::format("{:x}", utf8_char::replacement_character) == "fffd");
 	UTF8_RANGES_TEST_ASSERT(std::format("{:#08x}", utf8_char::replacement_character) == "0x00fffd");
+
+	UTF8_RANGES_TEST_ASSERT(std::format("{}", utf32_char::replacement_character) == "�");
+	UTF8_RANGES_TEST_ASSERT(std::format("{:x}", utf32_char::replacement_character) == "fffd");
+	UTF8_RANGES_TEST_ASSERT(std::format("{:#08x}", utf32_char::replacement_character) == "0x00fffd");
 
 	{
 		const std::string input{ "A\xFF\xE2\x28\xA1", 5 };
