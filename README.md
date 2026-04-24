@@ -124,6 +124,18 @@ int main()
 - Formatting, streaming, and hashing support for library types
 - Docs examples under `docs/examples/` are compiled in CI for sanity
 
+## At a glance
+
+| Category | UTF-8 | UTF-16 | UTF-32 |
+| --- | --- | --- | --- |
+| Character | `utf8_char` | `utf16_char` | `utf32_char` |
+| Borrowed text | `utf8_string_view` | `utf16_string_view` | `utf32_string_view` |
+| Owning text | `utf8_string` | `utf16_string` | `utf32_string` |
+| Forward scalar iteration | `views::utf8_view` | `views::utf16_view` | `views::utf32_view` |
+| Reverse scalar iteration | `views::reversed_utf8_view` | `views::reversed_utf16_view` | `views::reversed_utf32_view` |
+| Grapheme iteration | `views::grapheme_cluster_view<char8_t>` | `views::grapheme_cluster_view<char16_t>` | `views::grapheme_cluster_view<char32_t>` |
+| Lossy iteration | `views::lossy_utf8_view<CharT>` | `views::lossy_utf16_view<CharT>` | `views::lossy_utf32_view<CharT>` |
+
 ## Runtime Backend
 
 `unicode_ranges` now uses `simdutf` as its production runtime backend for the hot UTF boundary operations:
@@ -149,18 +161,6 @@ This does not replace the rest of the library:
 - Changelog: [CHANGELOG.md](CHANGELOG.md)
 
 The large monolithic README has been replaced with a dedicated docs site so the library can document semantics, examples, and reference material on separate pages instead of one long file.
-
-## At a glance
-
-| Category | UTF-8 | UTF-16 | UTF-32 |
-| --- | --- | --- | --- |
-| Character | `utf8_char` | `utf16_char` | `utf32_char` |
-| Borrowed text | `utf8_string_view` | `utf16_string_view` | `utf32_string_view` |
-| Owning text | `utf8_string` | `utf16_string` | `utf32_string` |
-| Forward scalar iteration | `views::utf8_view` | `views::utf16_view` | `views::utf32_view` |
-| Reverse scalar iteration | `views::reversed_utf8_view` | `views::reversed_utf16_view` | `views::reversed_utf32_view` |
-| Grapheme iteration | `views::grapheme_cluster_view<char8_t>` | `views::grapheme_cluster_view<char16_t>` | `views::grapheme_cluster_view<char32_t>` |
-| Lossy iteration | `views::lossy_utf8_view<CharT>` | `views::lossy_utf16_view<CharT>` | `views::lossy_utf32_view<CharT>` |
 
 ## Requirements
 
