@@ -37,6 +37,12 @@ Delimiter behavior is intentionally explicit. See the split sections in the [str
 --8<-- "examples/text-operations/split-and-trim.cpp"
 ```
 
+The split APIs also compose cleanly with standard range pipelines:
+
+```cpp
+--8<-- "examples/text-operations/views-pipeline.cpp"
+```
+
 ## Trim and prefix/suffix operations
 
 Available operations include:
