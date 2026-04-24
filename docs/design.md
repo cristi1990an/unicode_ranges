@@ -190,11 +190,13 @@ Supported:
 - Unicode predicates
 - default grapheme segmentation
 - Unicode casing and normalization
+- optional ICU-backed locale-aware casing
 - formatting / streaming / hashing for library-defined types
 
 Out of scope:
 
-- locale-specific casing and collation
+- locale-aware collation
+- built-in locale-specific casing tables without ICU
 - bidi or layout/shaping engines
 - regex engines
 - tailored segmentation rules beyond the default grapheme algorithm

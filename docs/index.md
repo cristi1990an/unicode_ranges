@@ -69,10 +69,12 @@ Use `unicode_ranges_all.hpp` if you want the all-in umbrella, including owning s
 - `constexpr`-friendly literals and core operations where practical
 - Table-driven Unicode properties and grapheme segmentation
 - Fast ASCII paths without degrading Unicode correctness
+- Optional ICU-backed locale-aware casing when ICU is enabled
 
 ## What it does not try to cover
 
-- Locale-specific casing or collation
+- Locale-aware collation
+- Built-in locale-specific casing tables without ICU
 - Bidirectional layout, shaping, or font/layout work
 - Regex or full text-search engines
 - Tailored segmentation beyond default Unicode grapheme rules

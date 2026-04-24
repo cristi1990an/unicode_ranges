@@ -104,6 +104,11 @@ int main()
 }
 ```
 
+`std::println("{}", text.chars())` and `std::println("{::s}", text.graphemes())`
+depend on C++23 range-formatting support in the active standard library. The
+library types have direct formatter support, but libstdc++ 14 currently does not
+format these custom helper views directly; libc++ trunk is covered by CI.
+
 For runtime validation of raw input without copying:
 
 ```cpp
@@ -116,7 +121,7 @@ using namespace unicode_ranges;
 
 int main()
 {
-    std::string raw = "Grüße din România 👋";
+    std::u8string raw = u8"Grüße din România 👋";
 
     auto text = utf8_string_view::from_bytes(raw);
     if (!text)

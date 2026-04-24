@@ -1,7 +1,7 @@
-#ifndef _UNICODE_RANGES_
-#define _UNICODE_RANGES_
+#ifndef UNICODE_RANGES_LEGACY_HPP
+#define UNICODE_RANGES_LEGACY_HPP
 
 // Legacy compatibility umbrella retained for older code; prefer unicode_ranges_borrowed.hpp.
 #include "unicode_ranges_borrowed.hpp"
 
-#endif // !_UNICODE_RANGES_
+#endif // UNICODE_RANGES_LEGACY_HPP

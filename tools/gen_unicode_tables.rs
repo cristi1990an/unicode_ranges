@@ -1977,8 +1977,14 @@ fn main() -> io::Result<()> {
         to_snake_case_identifier,
         Some("other"),
     );
-    println!("#ifndef UTF8_RANGES_UNICODE_TABLES_HPP");
-    println!("#define UTF8_RANGES_UNICODE_TABLES_HPP");
+    println!("#ifndef UTF8_RANGES_UNICODE_TABLES_CONSTEXPR_HPP");
+    println!("#define UTF8_RANGES_UNICODE_TABLES_CONSTEXPR_HPP");
+    println!();
+    println!("#include <array>");
+    println!("#include <cstddef>");
+    println!("#include <cstdint>");
+    println!("#include <tuple>");
+    println!("#include <type_traits>");
     println!();
     println!("namespace unicode_ranges");
     println!("{{");
@@ -2310,7 +2316,7 @@ fn main() -> io::Result<()> {
     println!("}}");
     println!("}}");
     println!();
-    println!("#endif // UTF8_RANGES_UNICODE_TABLES_HPP");
+    println!("#endif // UTF8_RANGES_UNICODE_TABLES_CONSTEXPR_HPP");
 
     Ok(())
 }

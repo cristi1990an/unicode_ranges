@@ -1,5 +1,11 @@
-#ifndef UTF8_RANGES_UNICODE_TABLES_HPP
-#define UTF8_RANGES_UNICODE_TABLES_HPP
+#ifndef UTF8_RANGES_UNICODE_TABLES_CONSTEXPR_HPP
+#define UTF8_RANGES_UNICODE_TABLES_CONSTEXPR_HPP
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <tuple>
+#include <type_traits>
 
 namespace unicode_ranges
 {
@@ -33477,4 +33483,4 @@ constexpr indic_conjunct_break_property indic_conjunct_break(std::uint32_t scala
 }
 }
 
-#endif // UTF8_RANGES_UNICODE_TABLES_HPP
+#endif // UTF8_RANGES_UNICODE_TABLES_CONSTEXPR_HPP

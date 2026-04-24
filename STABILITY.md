@@ -43,6 +43,8 @@ The stable public namespaces are:
 - `unicode_ranges`
 - `unicode_ranges::literals`
 - `unicode_ranges::pmr`
+- `unicode_ranges::views`
+- `unicode_ranges::characters`
 
 The following are **not** public API and may change at any time, including in
 minor and patch releases:
