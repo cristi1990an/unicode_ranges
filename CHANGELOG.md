@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based loosely on Keep a Changelog.
 
+## [1.0.1] - 2026-04-24
+
+### Fixed
+
+- fixed direct inclusion of `unicode_ranges/unicode_tables.hpp` by giving the generated constexpr table header a distinct include guard
+- made `unicode_ranges/unicode_tables_constexpr.hpp` self-contained for its standard-library dependencies
+- added regression coverage for including `unicode_ranges/unicode_tables.hpp` before the umbrella headers
+- corrected the README zero-copy validation example to pass `std::u8string` to `utf8_string_view::from_bytes(...)`
+- replaced the reserved legacy wrapper include guard in `unicode_ranges.hpp`
+
+### Documentation
+
+- clarified the libstdc++ 14 range-formatting limitation for helper views in the README quick start
+- aligned the docs scope language with optional ICU-backed locale-aware casing support
+- added `unicode_ranges::views` and `unicode_ranges::characters` to the documented `1.x` stable namespace contract
+
 ## [1.0.0] - 2026-04-23
 
 ### Added
