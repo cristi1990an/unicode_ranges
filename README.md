@@ -28,57 +28,6 @@ Many existing C and C++ Unicode/text APIs start from raw byte buffers or raw cod
 
 The goal is predictable Unicode handling with clear invariants and explicit failure modes. You do not pay for what you do not use: checked and unchecked paths are separate, borrowed and owning types are separate, ASCII-only and Unicode-aware operations are separate, and scalar-level and grapheme-level APIs are separate.
 
-## Runtime Backend
-
-`unicode_ranges` now uses `simdutf` as its production runtime backend for the hot UTF boundary operations:
-
-- UTF-8 validation
-- UTF-8 -> UTF-16 transcoding
-- UTF-8 -> UTF-32 transcoding
-
-That choice is deliberate. In the comparative benchmark suite, `simdutf` has been the strongest raw UTF codec baseline by a clear margin, and using it through its public API lets `unicode_ranges` keep its own validated types and error model while benefiting from best-in-class runtime UTF performance.
-
-This does not replace the rest of the library:
-
-- the public API remains `unicode_ranges`
-- the higher-level string/view/value types remain `unicode_ranges`
-- compile-time and `constexpr`-oriented functionality remains implemented in `unicode_ranges`
-- the runtime backend is specifically about the hot UTF validation/transcoding paths
-
-## Documentation
-
-- Docs site: [https://cristi1990an.github.io/unicode_ranges/](https://cristi1990an.github.io/unicode_ranges/)
-- Docs in repo: [docs/](docs/)
-- Stability policy: [STABILITY.md](STABILITY.md)
-- Changelog: [CHANGELOG.md](CHANGELOG.md)
-
-The large monolithic README has been replaced with a dedicated docs site so the library can document semantics, examples, and reference material on separate pages instead of one long file.
-
-## At a glance
-
-| Category | UTF-8 | UTF-16 | UTF-32 |
-| --- | --- | --- | --- |
-| Character | `utf8_char` | `utf16_char` | `utf32_char` |
-| Borrowed text | `utf8_string_view` | `utf16_string_view` | `utf32_string_view` |
-| Owning text | `utf8_string` | `utf16_string` | `utf32_string` |
-| Forward scalar iteration | `views::utf8_view` | `views::utf16_view` | `views::utf32_view` |
-| Reverse scalar iteration | `views::reversed_utf8_view` | `views::reversed_utf16_view` | `views::reversed_utf32_view` |
-| Grapheme iteration | `views::grapheme_cluster_view<char8_t>` | `views::grapheme_cluster_view<char16_t>` | `views::grapheme_cluster_view<char32_t>` |
-| Lossy iteration | `views::lossy_utf8_view<CharT>` | `views::lossy_utf16_view<CharT>` | `views::lossy_utf32_view<CharT>` |
-
-## Requirements
-
-This library requires a compiler and standard library with strong C++23 support.
-
-Minimum toolchains currently covered by CI:
-
-- MSVC with the MSVC STL: Visual Studio 2022 toolset `v143` or newer
-- Clang-cl with the MSVC STL: the `ClangCL` toolset from current Visual Studio 2022 builds
-- GCC with libstdc++: GCC 14 / libstdc++ 14 or newer
-- Clang with libc++: Clang 22 / libc++ 22 or newer
-
-Unicode tables currently track Unicode `17.0.0`.
-
 ## Quick start
 
 ```cpp
@@ -174,6 +123,57 @@ int main()
 - `constexpr`-friendly literals and core operations where practical
 - Formatting, streaming, and hashing support for library types
 - Docs examples under `docs/examples/` are compiled in CI for sanity
+
+## Runtime Backend
+
+`unicode_ranges` now uses `simdutf` as its production runtime backend for the hot UTF boundary operations:
+
+- UTF-8 validation
+- UTF-8 -> UTF-16 transcoding
+- UTF-8 -> UTF-32 transcoding
+
+That choice is deliberate. In the comparative benchmark suite, `simdutf` has been the strongest raw UTF codec baseline by a clear margin, and using it through its public API lets `unicode_ranges` keep its own validated types and error model while benefiting from best-in-class runtime UTF performance.
+
+This does not replace the rest of the library:
+
+- the public API remains `unicode_ranges`
+- the higher-level string/view/value types remain `unicode_ranges`
+- compile-time and `constexpr`-oriented functionality remains implemented in `unicode_ranges`
+- the runtime backend is specifically about the hot UTF validation/transcoding paths
+
+## Documentation
+
+- Docs site: [https://cristi1990an.github.io/unicode_ranges/](https://cristi1990an.github.io/unicode_ranges/)
+- Docs in repo: [docs/](docs/)
+- Stability policy: [STABILITY.md](STABILITY.md)
+- Changelog: [CHANGELOG.md](CHANGELOG.md)
+
+The large monolithic README has been replaced with a dedicated docs site so the library can document semantics, examples, and reference material on separate pages instead of one long file.
+
+## At a glance
+
+| Category | UTF-8 | UTF-16 | UTF-32 |
+| --- | --- | --- | --- |
+| Character | `utf8_char` | `utf16_char` | `utf32_char` |
+| Borrowed text | `utf8_string_view` | `utf16_string_view` | `utf32_string_view` |
+| Owning text | `utf8_string` | `utf16_string` | `utf32_string` |
+| Forward scalar iteration | `views::utf8_view` | `views::utf16_view` | `views::utf32_view` |
+| Reverse scalar iteration | `views::reversed_utf8_view` | `views::reversed_utf16_view` | `views::reversed_utf32_view` |
+| Grapheme iteration | `views::grapheme_cluster_view<char8_t>` | `views::grapheme_cluster_view<char16_t>` | `views::grapheme_cluster_view<char32_t>` |
+| Lossy iteration | `views::lossy_utf8_view<CharT>` | `views::lossy_utf16_view<CharT>` | `views::lossy_utf32_view<CharT>` |
+
+## Requirements
+
+This library requires a compiler and standard library with strong C++23 support.
+
+Minimum toolchains currently covered by CI:
+
+- MSVC with the MSVC STL: Visual Studio 2022 toolset `v143` or newer
+- Clang-cl with the MSVC STL: the `ClangCL` toolset from current Visual Studio 2022 builds
+- GCC with libstdc++: GCC 14 / libstdc++ 14 or newer
+- Clang with libc++: Clang 22 / libc++ 22 or newer
+
+Unicode tables currently track Unicode `17.0.0`.
 
 ## Build docs locally
 
