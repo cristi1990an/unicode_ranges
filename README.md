@@ -104,7 +104,7 @@ int main()
 }
 ```
 
-For runtime validation of raw input:
+For runtime validation of raw input without copying:
 
 ```cpp
 #include "unicode_ranges_borrowed.hpp"
@@ -118,7 +118,7 @@ int main()
 {
     std::string raw = "Grüße din România 👋";
 
-    auto text = utf8_string::from_bytes(raw);
+    auto text = utf8_string_view::from_bytes(raw);
     if (!text)
     {
         std::println(stderr,
