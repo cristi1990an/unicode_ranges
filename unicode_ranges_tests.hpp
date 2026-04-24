@@ -5935,6 +5935,21 @@ static_assert([] {
 		UTF8_RANGES_TEST_ASSERT(s == u8"Aéé"_utf8_sv);
 	}
 	{
+		auto s = u8"A!"_utf8_s;
+		s.insert(1, 2, u8"\u00E9"_u8c);
+		UTF8_RANGES_TEST_ASSERT(s == u8"A\u00E9\u00E9!"_utf8_sv);
+	}
+	{
+		auto s = u8"A!"_utf8_s;
+		s.insert_range(1, u"\u00E9\U0001F600"_utf16_sv.chars());
+		UTF8_RANGES_TEST_ASSERT(s == u8"A\u00E9\U0001F600!"_utf8_sv);
+	}
+	{
+		auto s = u8"A!"_utf8_s;
+		s.insert_range(1, U"\u00E9\U0001F600"_utf32_sv.chars());
+		UTF8_RANGES_TEST_ASSERT(s == u8"A\u00E9\U0001F600!"_utf8_sv);
+	}
+	{
 		const auto reversed = utf8_text.reversed_chars() | std::ranges::to<utf8_string>();
 		UTF8_RANGES_TEST_ASSERT(reversed == "€éA"_utf8_sv);
 	}
@@ -6312,6 +6327,22 @@ static_assert([] {
 		}));
 	}
 
+	{
+		auto s = u"A!"_utf16_s;
+		s.insert(1, 2, u"\U0001F600"_u16c);
+		UTF8_RANGES_TEST_ASSERT(s == u"A\U0001F600\U0001F600!"_utf16_sv);
+	}
+	{
+		auto s = u"A!"_utf16_s;
+		s.insert_range(1, u8"\u00E9\U0001F600"_utf8_sv.chars());
+		UTF8_RANGES_TEST_ASSERT(s == u"A\u00E9\U0001F600!"_utf16_sv);
+	}
+	{
+		auto s = u"A!"_utf16_s;
+		s.insert_range(1, U"\u00E9\U0001F600"_utf32_sv.chars());
+		UTF8_RANGES_TEST_ASSERT(s == u"A\u00E9\U0001F600!"_utf16_sv);
+	}
+
 	// Owning UTF-32 string construction, formatting, and mutation coverage.
 	UTF8_RANGES_TEST_ASSERT(utf32_string{}.base().empty());
 	static_assert(std::same_as<utf32_string::value_type, utf32_char>);
@@ -6376,6 +6407,22 @@ static_assert([] {
 		auto s = U"Aé😀"_utf32_s;
 		s.replace_inplace(1, 1, U"Ω"_utf32_sv);
 		UTF8_RANGES_TEST_ASSERT(s == U"AΩ😀"_utf32_sv);
+	}
+
+	{
+		auto s = U"A!"_utf32_s;
+		s.insert(1, 2, U"\U0001F600"_u32c);
+		UTF8_RANGES_TEST_ASSERT(s == U"A\U0001F600\U0001F600!"_utf32_sv);
+	}
+	{
+		auto s = U"A!"_utf32_s;
+		s.insert_range(1, u8"\u00E9\U0001F600"_utf8_sv.chars());
+		UTF8_RANGES_TEST_ASSERT(s == U"A\u00E9\U0001F600!"_utf32_sv);
+	}
+	{
+		auto s = U"A!"_utf32_s;
+		s.insert_range(1, u"\u00E9\U0001F600"_utf16_sv.chars());
+		UTF8_RANGES_TEST_ASSERT(s == U"A\u00E9\U0001F600!"_utf32_sv);
 	}
 
 	// UTF-8 mutation failure cases should throw rather than silently splitting characters.

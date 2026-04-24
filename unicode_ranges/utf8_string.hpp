@@ -242,6 +242,161 @@ private:
 		return static_cast<size_type>(bytes.data() - base_.data());
 	}
 
+	[[nodiscard]]
+	static constexpr size_type utf8_code_unit_count(std::uint32_t scalar) noexcept
+	{
+		if (scalar <= details::encoding_constants::ascii_scalar_max)
+		{
+			return details::encoding_constants::single_code_unit_count;
+		}
+
+		if (scalar <= details::encoding_constants::two_byte_scalar_max)
+		{
+			return details::encoding_constants::two_code_unit_count;
+		}
+
+		if (scalar <= details::encoding_constants::bmp_scalar_max)
+		{
+			return details::encoding_constants::three_code_unit_count;
+		}
+
+		return details::encoding_constants::max_utf8_code_units;
+	}
+
+	constexpr void add_inserted_size(size_type& inserted_size, size_type added) const
+	{
+		const auto max_inserted_size = base_.max_size() - base_.size();
+		if (inserted_size > max_inserted_size || added > max_inserted_size - inserted_size) [[unlikely]]
+		{
+			throw std::length_error("insert size exceeds max_size");
+		}
+
+		inserted_size += added;
+	}
+
+	[[nodiscard]]
+	constexpr size_type checked_repeated_insert_size(size_type count, size_type code_unit_count) const
+	{
+		const auto max_inserted_size = base_.max_size() - base_.size();
+		if (code_unit_count != 0 && count > max_inserted_size / code_unit_count) [[unlikely]]
+		{
+			throw std::length_error("insert size exceeds max_size");
+		}
+
+		return count * code_unit_count;
+	}
+
+	[[nodiscard]]
+	constexpr size_type utf16_inserted_utf8_size(std::u16string_view code_units) const
+	{
+		size_type inserted_size = 0;
+		size_type read_index = 0;
+		while (read_index < code_units.size())
+		{
+			const auto remaining = std::u16string_view{ code_units.data() + read_index, code_units.size() - read_index };
+			const auto ascii_run = details::ascii_prefix_length(remaining);
+			if (ascii_run != 0)
+			{
+				add_inserted_size(inserted_size, ascii_run);
+				read_index += ascii_run;
+				continue;
+			}
+
+			const auto first = static_cast<std::uint16_t>(code_units[read_index]);
+			const auto count = details::is_utf16_high_surrogate(first)
+				? details::encoding_constants::utf16_surrogate_code_unit_count
+				: details::encoding_constants::single_code_unit_count;
+			const auto scalar = details::decode_valid_utf16_char(code_units.data() + read_index, count);
+			add_inserted_size(inserted_size, utf8_code_unit_count(scalar));
+			read_index += count;
+		}
+
+		return inserted_size;
+	}
+
+	[[nodiscard]]
+	constexpr size_type utf32_inserted_utf8_size(std::u32string_view code_points) const
+	{
+		size_type inserted_size = 0;
+		for (char32_t code_point : code_points)
+		{
+			add_inserted_size(inserted_size, utf8_code_unit_count(static_cast<std::uint32_t>(code_point)));
+		}
+
+		return inserted_size;
+	}
+
+	template <typename Writer>
+	constexpr basic_utf8_string& insert_gap_and_write(size_type index, size_type inserted_size, Writer writer)
+	{
+		if (inserted_size == 0)
+		{
+			return *this;
+		}
+
+		const auto max_inserted_size = base_.max_size() - base_.size();
+		if (inserted_size > max_inserted_size) [[unlikely]]
+		{
+			throw std::length_error("insert size exceeds max_size");
+		}
+
+		const auto old_size = base_.size();
+		const auto tail_size = old_size - index;
+		base_.resize_and_overwrite(old_size + inserted_size,
+			[&](char8_t* buffer, std::size_t)
+			{
+				std::char_traits<char8_t>::move(buffer + index + inserted_size, buffer + index, tail_size);
+				[[maybe_unused]] const auto written = static_cast<size_type>(writer(buffer + index));
+				UTF8_RANGES_DEBUG_ASSERT(written == inserted_size);
+				return old_size + inserted_size;
+			});
+
+		return *this;
+	}
+
+	[[nodiscard]]
+	static constexpr size_type write_utf16_as_utf8(std::u16string_view code_units, char8_t* out) noexcept
+	{
+		size_type write_index = 0;
+		size_type read_index = 0;
+		while (read_index < code_units.size())
+		{
+			const auto remaining = std::u16string_view{ code_units.data() + read_index, code_units.size() - read_index };
+			const auto ascii_run = details::ascii_prefix_length(remaining);
+			if (ascii_run != 0)
+			{
+				details::copy_ascii_utf16_to_utf8(out + write_index, remaining.substr(0, ascii_run));
+				write_index += ascii_run;
+				read_index += ascii_run;
+				continue;
+			}
+
+			const auto first = static_cast<std::uint16_t>(code_units[read_index]);
+			const auto count = details::is_utf16_high_surrogate(first)
+				? details::encoding_constants::utf16_surrogate_code_unit_count
+				: details::encoding_constants::single_code_unit_count;
+			const auto scalar = details::decode_valid_utf16_char(code_units.data() + read_index, count);
+			write_index += details::encode_unicode_scalar_utf8_unchecked(scalar, out + write_index);
+			read_index += count;
+		}
+
+		return write_index;
+	}
+
+	[[nodiscard]]
+	static constexpr size_type write_utf32_as_utf8(std::u32string_view code_points, char8_t* out) noexcept
+	{
+		size_type write_index = 0;
+		for (char32_t code_point : code_points)
+		{
+			write_index += details::encode_unicode_scalar_utf8_unchecked(
+				static_cast<std::uint32_t>(code_point),
+				out + write_index);
+		}
+
+		return write_index;
+	}
+
 	constexpr basic_utf8_string& append_bytes(equivalent_string_view bytes)
 	{
 		if (overlaps_base(bytes))
@@ -1008,15 +1163,25 @@ public:
 			throw std::out_of_range("insert index must be at a UTF-8 character boundary");
 		}
 
-		base_type inserted{ base_.get_allocator() };
 		const auto sv = details::utf8_char_view(ch);
-		for (size_type i = 0; i != count; ++i)
+		if (sv.size() == details::encoding_constants::single_code_unit_count)
 		{
-			inserted.append(sv);
+			base_.insert(index, count, sv.front());
+			return *this;
 		}
 
-		base_.insert(index, inserted);
-		return *this;
+		const auto inserted_size = checked_repeated_insert_size(count, sv.size());
+		return insert_gap_and_write(index, inserted_size,
+			[&](char8_t* out) noexcept
+			{
+				for (size_type i = 0; i != count; ++i)
+				{
+					std::char_traits<char8_t>::copy(out, sv.data(), sv.size());
+					out += sv.size();
+				}
+
+				return inserted_size;
+			});
 	}
 
 	constexpr basic_utf8_string& insert_range(size_type index, views::utf8_view rg)
@@ -1046,17 +1211,34 @@ public:
 			throw std::out_of_range("insert index must be at a UTF-8 character boundary");
 		}
 
-		base_type inserted{ base_.get_allocator() };
-		inserted.reserve(rg.base().size() * 3u);
-		for (utf16_char ch : rg)
+		const auto code_units = rg.base();
+		const auto inserted_size = utf16_inserted_utf8_size(code_units);
+		return insert_gap_and_write(index, inserted_size,
+			[&](char8_t* out) noexcept
+			{
+				return write_utf16_as_utf8(code_units, out);
+			});
+	}
+
+	constexpr basic_utf8_string& insert_range(size_type index, views::utf32_view rg)
+	{
+		if (index > size()) [[unlikely]]
 		{
-			std::array<char8_t, 4> encoded{};
-			const auto encoded_count = ch.encode_utf8<char8_t>(encoded.begin());
-			inserted.append(encoded.data(), encoded.data() + encoded_count);
+			throw std::out_of_range("insert index out of range");
 		}
 
-		base_.insert(index, inserted);
-		return *this;
+		if (!this->is_char_boundary(index)) [[unlikely]]
+		{
+			throw std::out_of_range("insert index must be at a UTF-8 character boundary");
+		}
+
+		const auto code_points = rg.base();
+		const auto inserted_size = utf32_inserted_utf8_size(code_points);
+		return insert_gap_and_write(index, inserted_size,
+			[&](char8_t* out) noexcept
+			{
+				return write_utf32_as_utf8(code_points, out);
+			});
 	}
 
 	template <details::container_compatible_range<utf8_char> R>
