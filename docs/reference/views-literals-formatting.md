@@ -394,6 +394,7 @@ template <typename CharT> inline constexpr bool std::ranges::enable_borrowed_ran
 ### Behavior
 
 These specializations tell the ranges library that the helper views may safely borrow from the underlying storage instead of forcing owning semantics.
+Rvalue owning strings return separate move-only owning view wrappers; those wrappers intentionally own the source string and are not borrowed ranges.
 
 In other words:
 

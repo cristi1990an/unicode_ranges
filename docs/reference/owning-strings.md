@@ -204,7 +204,17 @@ constexpr basic_utf8_string(const basic_utf8_string& other, const Allocator& all
 constexpr basic_utf8_string(basic_utf8_string&& other, const Allocator& alloc) noexcept(/* conditional */);
 constexpr basic_utf8_string(utf8_string_view view, const Allocator& alloc = Allocator());
 constexpr basic_utf8_string(utf16_string_view view, const Allocator& alloc = Allocator());
+constexpr basic_utf8_string(utf32_string_view view, const Allocator& alloc = Allocator());
 constexpr basic_utf8_string(std::size_t count, utf8_char ch, const Allocator& alloc = Allocator());
+constexpr basic_utf8_string(std::from_range_t, views::utf8_view rg, const Allocator& alloc = Allocator());
+constexpr basic_utf8_string(
+    std::from_range_t,
+    views::owning_chars_view<basic_utf8_string>&& rg,
+    const Allocator& alloc = Allocator());
+constexpr basic_utf8_string(
+    std::from_range_t,
+    views::owning_reversed_chars_view<basic_utf8_string>&& rg,
+    const Allocator& alloc = Allocator());
 template <details::container_compatible_range<utf8_char> R>
 constexpr basic_utf8_string(std::from_range_t, R&& rg, const Allocator& alloc = Allocator());
 constexpr basic_utf8_string(std::initializer_list<utf8_char> ilist, const Allocator& alloc = Allocator());
@@ -220,6 +230,8 @@ constexpr basic_utf8_string(It it, Sent sent, const Allocator& alloc = Allocator
 - The count constructor repeats the validated character `count` times.
 - Range and iterator constructors append validated characters from the source range.
 - The cross-encoding view constructors transcode.
+- Dedicated same-encoding `chars()` and rvalue `reversed_chars()` view overloads may use direct storage paths instead of generic per-character materialization.
+- Rvalue owning views, such as `std::move(text).chars()` and `std::move(text).reversed_chars()`, may reuse storage when allocator compatibility allows it.
 
 ### Overload differences
 
@@ -259,12 +271,18 @@ Only the move-with-allocator constructor is conditionally `noexcept`.
 
 ```cpp
 constexpr basic_utf8_string& append_range(views::utf8_view rg);
+constexpr basic_utf8_string& append_range(views::owning_chars_view<basic_utf8_string>&& rg);
+constexpr basic_utf8_string& append_range(views::owning_reversed_chars_view<basic_utf8_string>&& rg);
 constexpr basic_utf8_string& append_range(views::utf16_view rg);
+constexpr basic_utf8_string& append_range(views::utf32_view rg);
 template <details::container_compatible_range<utf8_char> R>
 constexpr basic_utf8_string& append_range(R&& rg);
 
 constexpr basic_utf8_string& assign_range(views::utf8_view rg);
+constexpr basic_utf8_string& assign_range(views::owning_chars_view<basic_utf8_string>&& rg);
+constexpr basic_utf8_string& assign_range(views::owning_reversed_chars_view<basic_utf8_string>&& rg);
 constexpr basic_utf8_string& assign_range(views::utf16_view rg);
+constexpr basic_utf8_string& assign_range(views::utf32_view rg);
 template <details::container_compatible_range<utf8_char> R>
 constexpr basic_utf8_string& assign_range(R&& rg);
 
@@ -297,6 +315,7 @@ constexpr basic_utf8_string& operator+=(std::initializer_list<utf8_char> ilist);
 - `append_*` preserve the existing contents and add new validated text.
 - `assign_*` replace the existing contents.
 - `append_range` and `assign_range` accept both same-encoding and cross-encoding view helpers.
+- Same-encoding `chars()` and rvalue `reversed_chars()` views have dedicated overloads so direct materialization can avoid generic character-by-character paths.
 - `operator+=` delegates to the append surface.
 
 ### Overload differences
@@ -350,7 +369,10 @@ constexpr basic_utf8_string& insert(size_type index, utf8_string_view sv);
 constexpr basic_utf8_string& insert(size_type index, utf8_char ch);
 constexpr basic_utf8_string& insert(size_type index, size_type count, utf8_char ch);
 constexpr basic_utf8_string& insert_range(size_type index, views::utf8_view rg);
+constexpr basic_utf8_string& insert_range(size_type index, views::owning_chars_view<basic_utf8_string>&& rg);
+constexpr basic_utf8_string& insert_range(size_type index, views::owning_reversed_chars_view<basic_utf8_string>&& rg);
 constexpr basic_utf8_string& insert_range(size_type index, views::utf16_view rg);
+constexpr basic_utf8_string& insert_range(size_type index, views::utf32_view rg);
 template <details::container_compatible_range<utf8_char> R>
 constexpr basic_utf8_string& insert_range(size_type index, R&& rg);
 template <std::input_iterator It, std::sentinel_for<It> Sent>
@@ -373,6 +395,7 @@ constexpr basic_utf8_string& reverse_graphemes(size_type pos, size_type count = 
 - `reverse()` reverses characters, not raw code units.
 - `reverse_graphemes()` reverses grapheme clusters, not raw code units.
 - `pop_back()` removes and returns the last validated character when present.
+- Same-encoding `insert_range` overloads can use direct storage paths for `chars()` and rvalue `reversed_chars()` views.
 
 ### Overload differences
 

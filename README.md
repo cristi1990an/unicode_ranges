@@ -119,6 +119,7 @@ int main()
 - Checked, unchecked, and lossy construction paths at the UTF boundary
 - Search, split, trim, replace, reverse, and boundary-query APIs
 - Unicode casing, ASCII fast paths, normalization, and full case folding
+- Direct materialization paths for common same-encoding `chars()` / `reversed_chars()` range operations
 - Boundary encoding APIs for external formats, with built-in ASCII and Windows-1252 codecs
 - `constexpr`-friendly literals and core operations where practical
 - Formatting, streaming, and hashing support for library types

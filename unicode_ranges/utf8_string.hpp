@@ -230,8 +230,13 @@ private:
 		&& !std::is_lvalue_reference_v<R>;
 
 	template <typename R>
+	static constexpr bool rvalue_owned_reversed_utf8_chars_range =
+		std::same_as<std::remove_cvref_t<R>, views::owning_reversed_chars_view<basic_utf8_string>>
+		&& !std::is_lvalue_reference_v<R>;
+
+	template <typename R>
 	static constexpr bool optimized_utf8_chars_range =
-		direct_utf8_chars_range<R> || rvalue_owned_utf8_chars_range<R>;
+		direct_utf8_chars_range<R> || rvalue_owned_utf8_chars_range<R> || rvalue_owned_reversed_utf8_chars_range<R>;
 
 	[[nodiscard]]
 	constexpr bool overlaps_base(equivalent_string_view bytes) const noexcept
@@ -511,6 +516,44 @@ private:
 		return insert_bytes(index, equivalent_string_view{ source });
 	}
 
+	constexpr basic_utf8_string& assign_owned_reversed_utf8_chars(views::owning_reversed_chars_view<basic_utf8_string>&& rg)
+	{
+		auto owner = details::release_owned_string_view_owner(std::move(rg));
+		const auto& source = owner.base();
+		if (can_steal_storage_from(source))
+		{
+			base_ = std::move(owner).base();
+		}
+		else
+		{
+			base_.assign(equivalent_string_view{ source });
+		}
+
+		return reverse();
+	}
+
+	constexpr basic_utf8_string& append_owned_reversed_utf8_chars(views::owning_reversed_chars_view<basic_utf8_string>&& rg)
+	{
+		if (base_.empty())
+		{
+			return assign_owned_reversed_utf8_chars(std::move(rg));
+		}
+
+		auto reversed = basic_utf8_string{ std::from_range, std::move(rg), base_.get_allocator() };
+		return append_bytes(reversed.base());
+	}
+
+	constexpr basic_utf8_string& insert_owned_reversed_utf8_chars(size_type index, views::owning_reversed_chars_view<basic_utf8_string>&& rg)
+	{
+		if (base_.empty())
+		{
+			return assign_owned_reversed_utf8_chars(std::move(rg));
+		}
+
+		auto reversed = basic_utf8_string{ std::from_range, std::move(rg), base_.get_allocator() };
+		return insert_bytes(index, reversed.base());
+	}
+
 	template <typename ResultAllocator>
 	[[nodiscard]]
 	constexpr basic_utf8_string<ResultAllocator> replace_bytes_copy(
@@ -756,6 +799,15 @@ public:
 		assign_owned_utf8_chars(std::move(rg));
 	}
 
+	constexpr basic_utf8_string(
+		std::from_range_t,
+		views::owning_reversed_chars_view<basic_utf8_string>&& rg,
+		const Allocator& alloc = Allocator())
+		: base_(alloc)
+	{
+		assign_owned_reversed_utf8_chars(std::move(rg));
+	}
+
 	template <details::container_compatible_range<utf8_char> R>
 		requires (!optimized_utf8_chars_range<R>)
 	constexpr basic_utf8_string(std::from_range_t, R&& rg, const Allocator& alloc = Allocator())
@@ -782,6 +834,11 @@ public:
 	constexpr basic_utf8_string& append_range(views::owning_chars_view<basic_utf8_string>&& rg)
 	{
 		return append_owned_utf8_chars(std::move(rg));
+	}
+
+	constexpr basic_utf8_string& append_range(views::owning_reversed_chars_view<basic_utf8_string>&& rg)
+	{
+		return append_owned_reversed_utf8_chars(std::move(rg));
 	}
 
 	constexpr basic_utf8_string& append_range(views::utf16_view rg);
@@ -867,6 +924,11 @@ public:
 	constexpr basic_utf8_string& assign_range(views::owning_chars_view<basic_utf8_string>&& rg)
 	{
 		return assign_owned_utf8_chars(std::move(rg));
+	}
+
+	constexpr basic_utf8_string& assign_range(views::owning_reversed_chars_view<basic_utf8_string>&& rg)
+	{
+		return assign_owned_reversed_utf8_chars(std::move(rg));
 	}
 
 	constexpr basic_utf8_string& assign_range(views::utf16_view rg);
@@ -1351,6 +1413,21 @@ public:
 		}
 
 		return insert_owned_utf8_chars(index, std::move(rg));
+	}
+
+	constexpr basic_utf8_string& insert_range(size_type index, views::owning_reversed_chars_view<basic_utf8_string>&& rg)
+	{
+		if (index > size()) [[unlikely]]
+		{
+			throw std::out_of_range("insert index out of range");
+		}
+
+		if (!this->is_char_boundary(index)) [[unlikely]]
+		{
+			throw std::out_of_range("insert index must be at a UTF-8 character boundary");
+		}
+
+		return insert_owned_reversed_utf8_chars(index, std::move(rg));
 	}
 
 	template <details::container_compatible_range<utf8_char> R>

@@ -94,7 +94,9 @@ Library-defined UTF-8, UTF-16, and UTF-32 types support formatting and printing 
 
 - `utf8_string_view` / `utf16_string_view` / `utf32_string_view` borrow existing storage.
 - `utf8_string` / `utf16_string` / `utf32_string` own and mutate storage.
-- `chars()`, `graphemes()`, `char_indices()`, and `grapheme_indices()` are borrowing range views.
+- On lvalue text, `chars()`, `graphemes()`, `char_indices()`, and `grapheme_indices()` are borrowing range views.
+- On rvalue owning strings, those members return move-only owning views so temporary strings do not dangle.
+- Materializing an owning string from a same-encoding `chars()` or rvalue `reversed_chars()` view can use a direct storage path.
 
 Do not keep borrowed ranges alive after the source storage dies or after the owning string mutates.
 
