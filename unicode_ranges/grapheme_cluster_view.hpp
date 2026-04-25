@@ -153,21 +153,45 @@ namespace views
 namespace details
 {
 	template <typename Derived, typename View>
-	constexpr auto utf8_string_crtp<Derived, View>::graphemes() const noexcept -> views::grapheme_cluster_view<char8_t>
+	constexpr auto utf8_string_crtp<Derived, View>::graphemes() const& noexcept -> views::grapheme_cluster_view<char8_t>
 	{
 		return views::grapheme_cluster_view<char8_t>::from_code_units_unchecked(byte_view());
 	}
 
 	template <typename Derived, typename View>
-	constexpr auto utf16_string_crtp<Derived, View>::graphemes() const noexcept -> views::grapheme_cluster_view<char16_t>
+	constexpr auto utf8_string_crtp<Derived, View>::graphemes() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		-> views::owning_grapheme_cluster_view<Derived>
+		requires (!std::same_as<Derived, View>)
+	{
+		return views::owning_grapheme_cluster_view<Derived>{ std::move(static_cast<Derived&>(*this)) };
+	}
+
+	template <typename Derived, typename View>
+	constexpr auto utf16_string_crtp<Derived, View>::graphemes() const& noexcept -> views::grapheme_cluster_view<char16_t>
 	{
 		return views::grapheme_cluster_view<char16_t>::from_code_units_unchecked(code_unit_view());
 	}
 
 	template <typename Derived, typename View>
-	constexpr auto utf32_string_crtp<Derived, View>::graphemes() const noexcept -> views::grapheme_cluster_view<char32_t>
+	constexpr auto utf16_string_crtp<Derived, View>::graphemes() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		-> views::owning_grapheme_cluster_view<Derived>
+		requires (!std::same_as<Derived, View>)
+	{
+		return views::owning_grapheme_cluster_view<Derived>{ std::move(static_cast<Derived&>(*this)) };
+	}
+
+	template <typename Derived, typename View>
+	constexpr auto utf32_string_crtp<Derived, View>::graphemes() const& noexcept -> views::grapheme_cluster_view<char32_t>
 	{
 		return views::grapheme_cluster_view<char32_t>::from_code_units_unchecked(code_unit_view());
+	}
+
+	template <typename Derived, typename View>
+	constexpr auto utf32_string_crtp<Derived, View>::graphemes() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		-> views::owning_grapheme_cluster_view<Derived>
+		requires (!std::same_as<Derived, View>)
+	{
+		return views::owning_grapheme_cluster_view<Derived>{ std::move(static_cast<Derived&>(*this)) };
 	}
 }
 

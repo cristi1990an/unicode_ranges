@@ -66,6 +66,14 @@ UTF8_RANGES_TEST_NOINLINE inline void utf8_ranges_test_assert(
 namespace unicode_ranges_test_details
 {
 
+template <typename T>
+concept move_only_non_borrowed_view =
+	std::ranges::view<T> &&
+	std::ranges::range<T> &&
+	std::movable<T> &&
+	!std::copy_constructible<T> &&
+	!std::ranges::borrowed_range<T>;
+
 struct explicit_opt_out_ascii_encoder
 {
 	using code_unit_type = char8_t;
@@ -886,6 +894,128 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 	static_assert(std::ranges::common_range<views::lossy_utf32_view<char32_t>>);
 	static_assert(std::ranges::bidirectional_range<views::lossy_utf32_view<char32_t>>);
 	static_assert(std::ranges::random_access_range<views::lossy_utf32_view<char32_t>>);
+
+	using utf8_owned_chars_view = decltype(utf8_string{}.chars());
+	using utf8_owned_reversed_chars_view = decltype(utf8_string{}.reversed_chars());
+	using utf8_owned_graphemes_view = decltype(utf8_string{}.graphemes());
+	using utf8_owned_char_indices_view = decltype(utf8_string{}.char_indices());
+	using utf8_owned_grapheme_indices_view = decltype(utf8_string{}.grapheme_indices());
+	using utf8_owned_split_view = decltype(utf8_string{}.split(u8" "_u8c));
+	using utf8_owned_split_text_view = decltype(utf8_string{}.split(u8" "_utf8_sv));
+	using utf8_owned_rsplit_view = decltype(utf8_string{}.rsplit(u8" "_u8c));
+	using utf8_owned_split_trimmed_view = decltype(utf8_string{}.split_trimmed(u8" "_u8c));
+	using utf8_owned_split_whitespace_view = decltype(utf8_string{}.split_whitespace());
+	using utf8_owned_split_ascii_whitespace_view = decltype(utf8_string{}.split_ascii_whitespace());
+	using utf8_owned_split_terminator_view = decltype(utf8_string{}.split_terminator(u8" "_u8c));
+	using utf8_owned_rsplit_terminator_view = decltype(utf8_string{}.rsplit_terminator(u8" "_u8c));
+	using utf8_owned_splitn_view = decltype(utf8_string{}.splitn(2, u8" "_u8c));
+	using utf8_owned_rsplitn_view = decltype(utf8_string{}.rsplitn(2, u8" "_u8c));
+	using utf8_owned_split_inclusive_view = decltype(utf8_string{}.split_inclusive(u8" "_u8c));
+	using utf16_owned_chars_view = decltype(utf16_string{}.chars());
+	using utf16_owned_reversed_chars_view = decltype(utf16_string{}.reversed_chars());
+	using utf16_owned_graphemes_view = decltype(utf16_string{}.graphemes());
+	using utf16_owned_char_indices_view = decltype(utf16_string{}.char_indices());
+	using utf16_owned_grapheme_indices_view = decltype(utf16_string{}.grapheme_indices());
+	using utf16_owned_split_view = decltype(utf16_string{}.split(u" "_u16c));
+	using utf16_owned_split_text_view = decltype(utf16_string{}.split(u" "_utf16_sv));
+	using utf16_owned_rsplit_view = decltype(utf16_string{}.rsplit(u" "_u16c));
+	using utf16_owned_split_whitespace_view = decltype(utf16_string{}.split_whitespace());
+	using utf32_owned_chars_view = decltype(utf32_string{}.chars());
+	using utf32_owned_reversed_chars_view = decltype(utf32_string{}.reversed_chars());
+	using utf32_owned_graphemes_view = decltype(utf32_string{}.graphemes());
+	using utf32_owned_char_indices_view = decltype(utf32_string{}.char_indices());
+	using utf32_owned_grapheme_indices_view = decltype(utf32_string{}.grapheme_indices());
+	using utf32_owned_split_view = decltype(utf32_string{}.split(U" "_u32c));
+	using utf32_owned_split_text_view = decltype(utf32_string{}.split(U" "_utf32_sv));
+	using utf32_owned_rsplit_view = decltype(utf32_string{}.rsplit(U" "_u32c));
+	using utf32_owned_split_whitespace_view = decltype(utf32_string{}.split_whitespace());
+
+	static_assert(std::ranges::view<utf8_owned_chars_view>);
+	static_assert(std::ranges::range<utf8_owned_chars_view>);
+	static_assert(std::movable<utf8_owned_chars_view>);
+	static_assert(!std::copy_constructible<utf8_owned_chars_view>);
+	static_assert(!std::ranges::borrowed_range<utf8_owned_chars_view>);
+	static_assert(std::ranges::view<utf8_owned_reversed_chars_view>);
+	static_assert(std::ranges::range<utf8_owned_reversed_chars_view>);
+	static_assert(std::movable<utf8_owned_reversed_chars_view>);
+	static_assert(!std::copy_constructible<utf8_owned_reversed_chars_view>);
+	static_assert(!std::ranges::borrowed_range<utf8_owned_reversed_chars_view>);
+	static_assert(std::ranges::view<utf8_owned_graphemes_view>);
+	static_assert(std::ranges::range<utf8_owned_graphemes_view>);
+	static_assert(std::movable<utf8_owned_graphemes_view>);
+	static_assert(!std::copy_constructible<utf8_owned_graphemes_view>);
+	static_assert(!std::ranges::borrowed_range<utf8_owned_graphemes_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf8_owned_char_indices_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf8_owned_grapheme_indices_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf8_owned_split_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf8_owned_split_text_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf8_owned_rsplit_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf8_owned_split_trimmed_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf8_owned_split_whitespace_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf8_owned_split_ascii_whitespace_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf8_owned_split_terminator_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf8_owned_rsplit_terminator_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf8_owned_splitn_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf8_owned_rsplitn_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf8_owned_split_inclusive_view>);
+
+	static_assert(std::ranges::view<utf16_owned_chars_view>);
+	static_assert(std::ranges::range<utf16_owned_chars_view>);
+	static_assert(std::movable<utf16_owned_chars_view>);
+	static_assert(!std::copy_constructible<utf16_owned_chars_view>);
+	static_assert(!std::ranges::borrowed_range<utf16_owned_chars_view>);
+	static_assert(std::ranges::view<utf16_owned_reversed_chars_view>);
+	static_assert(std::ranges::range<utf16_owned_reversed_chars_view>);
+	static_assert(std::movable<utf16_owned_reversed_chars_view>);
+	static_assert(!std::copy_constructible<utf16_owned_reversed_chars_view>);
+	static_assert(!std::ranges::borrowed_range<utf16_owned_reversed_chars_view>);
+	static_assert(std::ranges::view<utf16_owned_graphemes_view>);
+	static_assert(std::ranges::range<utf16_owned_graphemes_view>);
+	static_assert(std::movable<utf16_owned_graphemes_view>);
+	static_assert(!std::copy_constructible<utf16_owned_graphemes_view>);
+	static_assert(!std::ranges::borrowed_range<utf16_owned_graphemes_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf16_owned_char_indices_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf16_owned_grapheme_indices_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf16_owned_split_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf16_owned_split_text_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf16_owned_rsplit_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf16_owned_split_whitespace_view>);
+
+	static_assert(std::ranges::view<utf32_owned_chars_view>);
+	static_assert(std::ranges::range<utf32_owned_chars_view>);
+	static_assert(std::ranges::sized_range<utf32_owned_chars_view>);
+	static_assert(std::ranges::common_range<utf32_owned_chars_view>);
+	static_assert(std::movable<utf32_owned_chars_view>);
+	static_assert(!std::copy_constructible<utf32_owned_chars_view>);
+	static_assert(!std::ranges::borrowed_range<utf32_owned_chars_view>);
+	static_assert(std::ranges::view<utf32_owned_reversed_chars_view>);
+	static_assert(std::ranges::range<utf32_owned_reversed_chars_view>);
+	static_assert(std::ranges::sized_range<utf32_owned_reversed_chars_view>);
+	static_assert(std::ranges::common_range<utf32_owned_reversed_chars_view>);
+	static_assert(std::movable<utf32_owned_reversed_chars_view>);
+	static_assert(!std::copy_constructible<utf32_owned_reversed_chars_view>);
+	static_assert(!std::ranges::borrowed_range<utf32_owned_reversed_chars_view>);
+	static_assert(std::ranges::view<utf32_owned_graphemes_view>);
+	static_assert(std::ranges::range<utf32_owned_graphemes_view>);
+	static_assert(std::movable<utf32_owned_graphemes_view>);
+	static_assert(!std::copy_constructible<utf32_owned_graphemes_view>);
+	static_assert(!std::ranges::borrowed_range<utf32_owned_graphemes_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf32_owned_char_indices_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf32_owned_grapheme_indices_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf32_owned_split_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf32_owned_split_text_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf32_owned_rsplit_view>);
+	static_assert(unicode_ranges_test_details::move_only_non_borrowed_view<utf32_owned_split_whitespace_view>);
+
+	static_assert(std::ranges::borrowed_range<decltype(utf8_string_view{}.chars())>);
+	static_assert(std::ranges::borrowed_range<decltype(utf8_string_view{}.reversed_chars())>);
+	static_assert(std::ranges::borrowed_range<decltype(utf8_string_view{}.graphemes())>);
+	static_assert(std::ranges::borrowed_range<decltype(utf16_string_view{}.chars())>);
+	static_assert(std::ranges::borrowed_range<decltype(utf16_string_view{}.reversed_chars())>);
+	static_assert(std::ranges::borrowed_range<decltype(utf16_string_view{}.graphemes())>);
+	static_assert(std::ranges::borrowed_range<decltype(utf32_string_view{}.chars())>);
+	static_assert(std::ranges::borrowed_range<decltype(utf32_string_view{}.reversed_chars())>);
+	static_assert(std::ranges::borrowed_range<decltype(utf32_string_view{}.graphemes())>);
 	static_assert(std::ranges::view<decltype(utf32_text.chars())>);
 	static_assert(std::ranges::range<decltype(utf32_text.chars())>);
 	static_assert(std::ranges::sized_range<decltype(utf32_text.chars())>);
@@ -3212,6 +3342,141 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		UTF8_RANGES_TEST_ASSERT(runtime_utf32_text.reversed_chars().begin()[0] == U"\U0001F600"_u32c);
 		UTF8_RANGES_TEST_ASSERT(runtime_utf32_text.char_indices().begin()[2].first == 2);
 		UTF8_RANGES_TEST_ASSERT(runtime_utf32_text.char_indices().begin()[2].second == U"\U0001F600"_u32c);
+
+		{
+			auto view = u8"Ana are multe mere"_utf8_sv.to_utf8_owned()
+				.replace_all(u8"mere"_utf8_sv, u8"pere"_utf8_sv)
+				.chars();
+			auto str = utf8_string{};
+			str.assign_range(view);
+			UTF8_RANGES_TEST_ASSERT(str == u8"Ana are multe pere"_utf8_sv);
+		}
+		{
+			auto source = u8"A\u00E9\u20AC"_utf8_sv.to_utf8_owned();
+			auto chars = std::move(source).reversed_chars();
+			const auto materialized = std::move(chars) | std::ranges::to<utf8_string>();
+			UTF8_RANGES_TEST_ASSERT(materialized == u8"\u20AC\u00E9A"_utf8_sv);
+		}
+		{
+			auto graphemes = u8"e\u0301\U0001F1F7\U0001F1F4!"_utf8_sv.to_utf8_owned().graphemes();
+			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(graphemes, std::array{
+				u8"e\u0301"_grapheme_utf8,
+				u8"\U0001F1F7\U0001F1F4"_grapheme_utf8,
+				u8"!"_grapheme_utf8
+			}));
+		}
+		{
+			auto indices = u8"A\u00E9"_utf8_sv.to_utf8_owned().char_indices();
+			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(indices, std::array{
+				std::pair<std::size_t, utf8_char>{ 0, u8"A"_u8c },
+				std::pair<std::size_t, utf8_char>{ 1, u8"\u00E9"_u8c }
+			}));
+		}
+		{
+			auto indices = u8"e\u0301!"_utf8_sv.to_utf8_owned().grapheme_indices();
+			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(indices, std::array{
+				std::pair<std::size_t, utf8_string_view>{ 0, u8"e\u0301"_utf8_sv },
+				std::pair<std::size_t, utf8_string_view>{ 3, u8"!"_utf8_sv }
+			}));
+		}
+		{
+			auto parts = u8" Ana  are  mere "_utf8_sv.to_utf8_owned().split_ascii_whitespace();
+			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(parts, std::array{
+				u8"Ana"_utf8_sv,
+				u8"are"_utf8_sv,
+				u8"mere"_utf8_sv
+			}));
+		}
+		{
+			auto parts = u8"Ana,are,mere"_utf8_sv.to_utf8_owned().split(u8","_u8c);
+			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(parts, std::array{
+				u8"Ana"_utf8_sv,
+				u8"are"_utf8_sv,
+				u8"mere"_utf8_sv
+			}));
+		}
+		{
+			auto parts = u8"Ana::are::mere"_utf8_sv.to_utf8_owned().rsplit(u8"::"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(parts, std::array{
+				u8"mere"_utf8_sv,
+				u8"are"_utf8_sv,
+				u8"Ana"_utf8_sv
+			}));
+		}
+		{
+			auto parts = u8"Ana,are,mere"_utf8_sv.to_utf8_owned().splitn(2, u8","_u8c);
+			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(parts, std::array{
+				u8"Ana"_utf8_sv,
+				u8"are,mere"_utf8_sv
+			}));
+		}
+		{
+			auto parts = u8"Ana,are,mere"_utf8_sv.to_utf8_owned().split_inclusive(u8","_u8c);
+			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(parts, std::array{
+				u8"Ana,"_utf8_sv,
+				u8"are,"_utf8_sv,
+				u8"mere"_utf8_sv
+			}));
+		}
+		{
+			auto source = u"A\u00E9\U0001F600"_utf16_sv.to_utf16_owned();
+			auto chars = std::move(source).reversed_chars();
+			const auto materialized = std::move(chars) | std::ranges::to<utf16_string>();
+			UTF8_RANGES_TEST_ASSERT(materialized == u"\U0001F600\u00E9A"_utf16_sv);
+		}
+		{
+			auto graphemes = u"e\u0301\U0001F1F7\U0001F1F4!"_utf16_sv.to_utf16_owned().graphemes();
+			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(graphemes, std::array{
+				u"e\u0301"_grapheme_utf16,
+				u"\U0001F1F7\U0001F1F4"_grapheme_utf16,
+				u"!"_grapheme_utf16
+			}));
+		}
+		{
+			auto parts = u"Ana are mere"_utf16_sv.to_utf16_owned().split_whitespace();
+			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(parts, std::array{
+				u"Ana"_utf16_sv,
+				u"are"_utf16_sv,
+				u"mere"_utf16_sv
+			}));
+		}
+		{
+			auto parts = u"Ana,are,mere"_utf16_sv.to_utf16_owned().rsplitn(2, u","_u16c);
+			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(parts, std::array{
+				u"mere"_utf16_sv,
+				u"Ana,are"_utf16_sv
+			}));
+		}
+		{
+			auto source = U"A\u00E9\U0001F600"_utf32_sv.to_utf32_owned();
+			auto chars = std::move(source).chars();
+			const auto materialized = std::move(chars) | std::ranges::to<utf32_string>();
+			UTF8_RANGES_TEST_ASSERT(materialized == U"A\u00E9\U0001F600"_utf32_sv);
+		}
+		{
+			auto graphemes = U"e\u0301\U0001F1F7\U0001F1F4!"_utf32_sv.to_utf32_owned().graphemes();
+			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(graphemes, std::array{
+				U"e\u0301"_grapheme_utf32,
+				U"\U0001F1F7\U0001F1F4"_grapheme_utf32,
+				U"!"_grapheme_utf32
+			}));
+		}
+		{
+			auto parts = U"Ana are mere"_utf32_sv.to_utf32_owned().split_whitespace();
+			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(parts, std::array{
+				U"Ana"_utf32_sv,
+				U"are"_utf32_sv,
+				U"mere"_utf32_sv
+			}));
+		}
+		{
+			auto parts = U"Ana,are,mere"_utf32_sv.to_utf32_owned().split_terminator(U","_u32c);
+			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(parts, std::array{
+				U"Ana"_utf32_sv,
+				U"are"_utf32_sv,
+				U"mere"_utf32_sv
+			}));
+		}
 
 		UTF8_RANGES_TEST_ASSERT(u8"A"_u8c.ascii_lowercase() == u8"a"_u8c);
 		UTF8_RANGES_TEST_ASSERT(u8"z"_u8c.ascii_uppercase() == u8"Z"_u8c);

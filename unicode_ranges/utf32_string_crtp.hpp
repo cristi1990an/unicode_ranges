@@ -2904,19 +2904,37 @@ public:
 	static constexpr size_type npos = static_cast<size_type>(-1);
 
 	[[nodiscard]]
-	constexpr auto chars() const noexcept
+	constexpr auto chars() const& noexcept
 	{
 		return views::utf32_view::from_code_points_unchecked(code_unit_view());
 	}
 
 	[[nodiscard]]
-	constexpr auto reversed_chars() const noexcept
+	constexpr auto chars() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		return views::owning_chars_view<Derived>{ std::move(static_cast<Derived&>(*this)) };
+	}
+
+	[[nodiscard]]
+	constexpr auto reversed_chars() const& noexcept
 	{
 		return views::reversed_utf32_view{ chars() };
 	}
 
 	[[nodiscard]]
-	constexpr auto graphemes() const noexcept -> views::grapheme_cluster_view<char32_t>;
+	constexpr auto reversed_chars() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		return views::owning_reversed_chars_view<Derived>{ std::move(static_cast<Derived&>(*this)) };
+	}
+
+	[[nodiscard]]
+	constexpr auto graphemes() const& noexcept -> views::grapheme_cluster_view<char32_t>;
+	[[nodiscard]]
+	constexpr auto graphemes() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		-> views::owning_grapheme_cluster_view<Derived>
+		requires (!std::same_as<Derived, View>);
 	template <typename Allocator = std::allocator<char32_t>>
 	[[nodiscard]]
 	constexpr basic_utf32_string<Allocator> to_utf32_owned(const Allocator& alloc = Allocator()) const;
@@ -3050,15 +3068,29 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr auto char_indices() const noexcept
+	constexpr auto char_indices() const& noexcept
 	{
 		return utf32_char_indices_view::from_code_points_unchecked(code_unit_view());
 	}
 
 	[[nodiscard]]
-	constexpr auto grapheme_indices() const noexcept
+	constexpr auto char_indices() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		return views::owning_char_indices_view<Derived>{ std::move(static_cast<Derived&>(*this)) };
+	}
+
+	[[nodiscard]]
+	constexpr auto grapheme_indices() const& noexcept
 	{
 		return utf32_grapheme_indices_view<View>::from_code_points_unchecked(code_unit_view());
+	}
+
+	[[nodiscard]]
+	constexpr auto grapheme_indices() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		return views::owning_grapheme_indices_view<Derived>{ std::move(static_cast<Derived&>(*this)) };
 	}
 
 	[[nodiscard]]
@@ -3540,7 +3572,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr auto split(utf32_char ch) const noexcept
+	constexpr auto split(utf32_char ch) const& noexcept
 	{
 		return utf32_split_char_view<View, false>::from_delimiter_storage(
 			code_unit_view(),
@@ -3548,24 +3580,58 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr auto split(View sv) const noexcept
+	constexpr auto split(utf32_char ch) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::split_view_accessor<utf32_char>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ ch }
+		};
+	}
+
+	[[nodiscard]]
+	constexpr auto split(View sv) const& noexcept
 	{
 		return utf32_split_view<View, false>::from_delimiter_storage(
 			code_unit_view(),
 			details::borrowed_utf32_split_delimiter{ sv.base() });
 	}
 
+	[[nodiscard]]
+	constexpr auto split(View sv) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::split_view_accessor<View>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ sv }
+		};
+	}
+
 	template <details::utf32_char_predicate Pred>
 	[[nodiscard]]
-	constexpr auto split(Pred pred) const noexcept
+	constexpr auto split(Pred pred) const& noexcept
 	{
 		return details::basic_utf32_predicate_split_view<View, false, std::remove_cvref_t<Pred>>::from_predicate(
 			code_unit_view(),
 			std::move(pred));
 	}
 
+	template <details::utf32_char_predicate Pred>
 	[[nodiscard]]
-	constexpr auto split_trimmed(utf32_char ch) const noexcept
+	constexpr auto split(Pred pred) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::split_view_accessor<std::remove_cvref_t<Pred>>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ std::move(pred) }
+		};
+	}
+
+	[[nodiscard]]
+	constexpr auto split_trimmed(utf32_char ch) const& noexcept
 	{
 		return details::utf32_split_trimmed_char_view<View>::from_delimiter_storage(
 			code_unit_view(),
@@ -3573,55 +3639,141 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr auto split_trimmed(View sv) const noexcept
+	constexpr auto split_trimmed(utf32_char ch) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::split_trimmed_view_accessor<utf32_char>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ ch }
+		};
+	}
+
+	[[nodiscard]]
+	constexpr auto split_trimmed(View sv) const& noexcept
 	{
 		return details::utf32_split_trimmed_view<View>::from_delimiter_storage(
 			code_unit_view(),
 			details::borrowed_utf32_split_delimiter{ sv.base() });
 	}
 
+	[[nodiscard]]
+	constexpr auto split_trimmed(View sv) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::split_trimmed_view_accessor<View>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ sv }
+		};
+	}
+
 	template <details::utf32_char_predicate Pred>
 	[[nodiscard]]
-	constexpr auto split_trimmed(Pred pred) const noexcept
+	constexpr auto split_trimmed(Pred pred) const& noexcept
 	{
 		return details::basic_utf32_predicate_split_trimmed_view<View, std::remove_cvref_t<Pred>>::from_predicate(
 			code_unit_view(),
 			std::move(pred));
 	}
 
+	template <details::utf32_char_predicate Pred>
 	[[nodiscard]]
-	constexpr auto split_whitespace() const noexcept
+	constexpr auto split_trimmed(Pred pred) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::split_trimmed_view_accessor<std::remove_cvref_t<Pred>>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ std::move(pred) }
+		};
+	}
+
+	[[nodiscard]]
+	constexpr auto split_whitespace() const& noexcept
 	{
 		return utf32_whitespace_split_view<View, false>::from_code_points_unchecked(code_unit_view());
 	}
 
 	[[nodiscard]]
-	constexpr auto split_ascii_whitespace() const noexcept
+	constexpr auto split_whitespace() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		return details::owning_string_view<Derived, details::split_whitespace_view_accessor>{
+			std::move(static_cast<Derived&>(*this))
+		};
+	}
+
+	[[nodiscard]]
+	constexpr auto split_ascii_whitespace() const& noexcept
 	{
 		return utf32_whitespace_split_view<View, true>::from_code_points_unchecked(code_unit_view());
 	}
 
 	[[nodiscard]]
-	constexpr auto rsplit(utf32_char ch) const noexcept
+	constexpr auto split_ascii_whitespace() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		return details::owning_string_view<Derived, details::split_ascii_whitespace_view_accessor>{
+			std::move(static_cast<Derived&>(*this))
+		};
+	}
+
+	[[nodiscard]]
+	constexpr auto rsplit(utf32_char ch) const& noexcept
 	{
 		return std::views::reverse(split(ch));
 	}
 
 	[[nodiscard]]
-	constexpr auto rsplit(View sv) const noexcept
+	constexpr auto rsplit(utf32_char ch) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::rsplit_view_accessor<utf32_char>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ ch }
+		};
+	}
+
+	[[nodiscard]]
+	constexpr auto rsplit(View sv) const& noexcept
 	{
 		return std::views::reverse(split(sv));
 	}
 
+	[[nodiscard]]
+	constexpr auto rsplit(View sv) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::rsplit_view_accessor<View>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ sv }
+		};
+	}
+
 	template <details::utf32_char_predicate Pred>
 	[[nodiscard]]
-	constexpr auto rsplit(Pred pred) const noexcept
+	constexpr auto rsplit(Pred pred) const& noexcept
 	{
 		return std::views::reverse(split(std::move(pred)));
 	}
 
+	template <details::utf32_char_predicate Pred>
 	[[nodiscard]]
-	constexpr auto split_terminator(utf32_char ch) const noexcept
+	constexpr auto rsplit(Pred pred) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::rsplit_view_accessor<std::remove_cvref_t<Pred>>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ std::move(pred) }
+		};
+	}
+
+	[[nodiscard]]
+	constexpr auto split_terminator(utf32_char ch) const& noexcept
 	{
 		return utf32_split_char_view<View, true>::from_delimiter_storage(
 			code_unit_view(),
@@ -3629,43 +3781,111 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr auto split_terminator(View sv) const noexcept
+	constexpr auto split_terminator(utf32_char ch) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::split_terminator_view_accessor<utf32_char>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ ch }
+		};
+	}
+
+	[[nodiscard]]
+	constexpr auto split_terminator(View sv) const& noexcept
 	{
 		return utf32_split_view<View, true>::from_delimiter_storage(
 			code_unit_view(),
 			details::borrowed_utf32_split_delimiter{ sv.base() });
 	}
 
+	[[nodiscard]]
+	constexpr auto split_terminator(View sv) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::split_terminator_view_accessor<View>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ sv }
+		};
+	}
+
 	template <details::utf32_char_predicate Pred>
 	[[nodiscard]]
-	constexpr auto split_terminator(Pred pred) const noexcept
+	constexpr auto split_terminator(Pred pred) const& noexcept
 	{
 		return details::basic_utf32_predicate_split_view<View, true, std::remove_cvref_t<Pred>>::from_predicate(
 			code_unit_view(),
 			std::move(pred));
 	}
 
+	template <details::utf32_char_predicate Pred>
 	[[nodiscard]]
-	constexpr auto rsplit_terminator(utf32_char ch) const noexcept
+	constexpr auto split_terminator(Pred pred) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::split_terminator_view_accessor<std::remove_cvref_t<Pred>>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ std::move(pred) }
+		};
+	}
+
+	[[nodiscard]]
+	constexpr auto rsplit_terminator(utf32_char ch) const& noexcept
 	{
 		return std::views::reverse(split_terminator(ch));
 	}
 
 	[[nodiscard]]
-	constexpr auto rsplit_terminator(View sv) const noexcept
+	constexpr auto rsplit_terminator(utf32_char ch) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::rsplit_terminator_view_accessor<utf32_char>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ ch }
+		};
+	}
+
+	[[nodiscard]]
+	constexpr auto rsplit_terminator(View sv) const& noexcept
 	{
 		return std::views::reverse(split_terminator(sv));
 	}
 
+	[[nodiscard]]
+	constexpr auto rsplit_terminator(View sv) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::rsplit_terminator_view_accessor<View>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ sv }
+		};
+	}
+
 	template <details::utf32_char_predicate Pred>
 	[[nodiscard]]
-	constexpr auto rsplit_terminator(Pred pred) const noexcept
+	constexpr auto rsplit_terminator(Pred pred) const& noexcept
 	{
 		return std::views::reverse(split_terminator(std::move(pred)));
 	}
 
+	template <details::utf32_char_predicate Pred>
 	[[nodiscard]]
-	constexpr auto splitn(size_type count, utf32_char ch) const noexcept
+	constexpr auto rsplit_terminator(Pred pred) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::rsplit_terminator_view_accessor<std::remove_cvref_t<Pred>>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ std::move(pred) }
+		};
+	}
+
+	[[nodiscard]]
+	constexpr auto splitn(size_type count, utf32_char ch) const& noexcept
 	{
 		return utf32_splitn_char_view<View, false>::from_delimiter_storage(
 			code_unit_view(),
@@ -3674,7 +3894,18 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr auto splitn(size_type count, View sv) const noexcept
+	constexpr auto splitn(size_type count, utf32_char ch) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::splitn_view_accessor<utf32_char>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ count, ch }
+		};
+	}
+
+	[[nodiscard]]
+	constexpr auto splitn(size_type count, View sv) const& noexcept
 	{
 		return utf32_splitn_view<View, false>::from_delimiter_storage(
 			code_unit_view(),
@@ -3682,9 +3913,20 @@ public:
 			count);
 	}
 
+	[[nodiscard]]
+	constexpr auto splitn(size_type count, View sv) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::splitn_view_accessor<View>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ count, sv }
+		};
+	}
+
 	template <details::utf32_char_predicate Pred>
 	[[nodiscard]]
-	constexpr auto splitn(size_type count, Pred pred) const noexcept
+	constexpr auto splitn(size_type count, Pred pred) const& noexcept
 	{
 		return details::basic_utf32_predicate_splitn_view<View, false, std::remove_cvref_t<Pred>>::from_predicate(
 			code_unit_view(),
@@ -3692,8 +3934,20 @@ public:
 			count);
 	}
 
+	template <details::utf32_char_predicate Pred>
 	[[nodiscard]]
-	constexpr auto split_inclusive(utf32_char ch) const noexcept
+	constexpr auto splitn(size_type count, Pred pred) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::splitn_view_accessor<std::remove_cvref_t<Pred>>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ count, std::move(pred) }
+		};
+	}
+
+	[[nodiscard]]
+	constexpr auto split_inclusive(utf32_char ch) const& noexcept
 	{
 		return utf32_split_inclusive_char_view<View>::from_delimiter_storage(
 			code_unit_view(),
@@ -3701,23 +3955,57 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr auto split_inclusive(View sv) const noexcept
+	constexpr auto split_inclusive(utf32_char ch) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::split_inclusive_view_accessor<utf32_char>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ ch }
+		};
+	}
+
+	[[nodiscard]]
+	constexpr auto split_inclusive(View sv) const& noexcept
 	{
 		return utf32_split_inclusive_view<View>::from_delimiter_storage(
 			code_unit_view(),
 			details::borrowed_utf32_split_delimiter{ sv.base() });
 	}
 
+	[[nodiscard]]
+	constexpr auto split_inclusive(View sv) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::split_inclusive_view_accessor<View>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ sv }
+		};
+	}
+
 	template <details::utf32_char_predicate Pred>
 	[[nodiscard]]
-	constexpr auto split_inclusive(Pred pred) const noexcept
+	constexpr auto split_inclusive(Pred pred) const& noexcept
 	{
 		return details::basic_utf32_predicate_split_inclusive_view<View, std::remove_cvref_t<Pred>>::from_predicate(
 			code_unit_view(),
 			std::move(pred));
 	}
 
-	constexpr auto rsplitn(size_type count, utf32_char ch) const noexcept
+	template <details::utf32_char_predicate Pred>
+	[[nodiscard]]
+	constexpr auto split_inclusive(Pred pred) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::split_inclusive_view_accessor<std::remove_cvref_t<Pred>>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ std::move(pred) }
+		};
+	}
+
+	constexpr auto rsplitn(size_type count, utf32_char ch) const& noexcept
 	{
 		return utf32_splitn_char_view<View, true>::from_delimiter_storage(
 			code_unit_view(),
@@ -3725,7 +4013,17 @@ public:
 			count);
 	}
 
-	constexpr auto rsplitn(size_type count, View sv) const noexcept
+	constexpr auto rsplitn(size_type count, utf32_char ch) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::rsplitn_view_accessor<utf32_char>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ count, ch }
+		};
+	}
+
+	constexpr auto rsplitn(size_type count, View sv) const& noexcept
 	{
 		return utf32_splitn_view<View, true>::from_delimiter_storage(
 			code_unit_view(),
@@ -3733,13 +4031,34 @@ public:
 			count);
 	}
 
+	constexpr auto rsplitn(size_type count, View sv) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::rsplitn_view_accessor<View>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ count, sv }
+		};
+	}
+
 	template <details::utf32_char_predicate Pred>
-	constexpr auto rsplitn(size_type count, Pred pred) const noexcept
+	constexpr auto rsplitn(size_type count, Pred pred) const& noexcept
 	{
 		return details::basic_utf32_predicate_splitn_view<View, true, std::remove_cvref_t<Pred>>::from_predicate(
 			code_unit_view(),
 			std::move(pred),
 			count);
+	}
+
+	template <details::utf32_char_predicate Pred>
+	constexpr auto rsplitn(size_type count, Pred pred) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::rsplitn_view_accessor<std::remove_cvref_t<Pred>>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ count, std::move(pred) }
+		};
 	}
 
 	constexpr auto matches(utf32_char ch) const noexcept

@@ -355,6 +355,20 @@ enum class normalization_form
 	nfkd
 };
 
+namespace details
+{
+	struct chars_view_accessor;
+	struct reversed_chars_view_accessor;
+	struct graphemes_view_accessor;
+	struct char_indices_view_accessor;
+	struct grapheme_indices_view_accessor;
+	struct split_whitespace_view_accessor;
+	struct split_ascii_whitespace_view_accessor;
+
+	template <typename Owner, typename Accessor>
+	class owning_string_view;
+}
+
 namespace views
 {
 	class utf8_view;
@@ -363,6 +377,21 @@ namespace views
 
 	template <typename CharT>
 	class grapheme_cluster_view;
+
+	template <typename Owner>
+	using owning_chars_view = details::owning_string_view<Owner, details::chars_view_accessor>;
+
+	template <typename Owner>
+	using owning_reversed_chars_view = details::owning_string_view<Owner, details::reversed_chars_view_accessor>;
+
+	template <typename Owner>
+	using owning_grapheme_cluster_view = details::owning_string_view<Owner, details::graphemes_view_accessor>;
+
+	template <typename Owner>
+	using owning_char_indices_view = details::owning_string_view<Owner, details::char_indices_view_accessor>;
+
+	template <typename Owner>
+	using owning_grapheme_indices_view = details::owning_string_view<Owner, details::grapheme_indices_view_accessor>;
 
 	class utf16_view;
 
@@ -382,6 +411,239 @@ namespace views
 
 namespace details
 {
+	struct chars_view_accessor
+	{
+		template <typename Owner>
+		constexpr auto operator()(const Owner& owner) const noexcept(noexcept(owner.chars()))
+		{
+			return owner.chars();
+		}
+	};
+
+	struct reversed_chars_view_accessor
+	{
+		template <typename Owner>
+		constexpr auto operator()(const Owner& owner) const noexcept(noexcept(owner.reversed_chars()))
+		{
+			return owner.reversed_chars();
+		}
+	};
+
+	struct graphemes_view_accessor
+	{
+		template <typename Owner>
+		constexpr auto operator()(const Owner& owner) const noexcept(noexcept(owner.graphemes()))
+		{
+			return owner.graphemes();
+		}
+	};
+
+	struct char_indices_view_accessor
+	{
+		template <typename Owner>
+		constexpr auto operator()(const Owner& owner) const noexcept(noexcept(owner.char_indices()))
+		{
+			return owner.char_indices();
+		}
+	};
+
+	struct grapheme_indices_view_accessor
+	{
+		template <typename Owner>
+		constexpr auto operator()(const Owner& owner) const noexcept(noexcept(owner.grapheme_indices()))
+		{
+			return owner.grapheme_indices();
+		}
+	};
+
+	template <typename Delimiter>
+	struct split_view_accessor
+	{
+		Delimiter delimiter;
+
+		template <typename Owner>
+		constexpr auto operator()(const Owner& owner) const noexcept(noexcept(owner.split(delimiter)))
+		{
+			return owner.split(delimiter);
+		}
+	};
+
+	template <typename Delimiter>
+	struct rsplit_view_accessor
+	{
+		Delimiter delimiter;
+
+		template <typename Owner>
+		constexpr auto operator()(const Owner& owner) const noexcept(noexcept(owner.rsplit(delimiter)))
+		{
+			return owner.rsplit(delimiter);
+		}
+	};
+
+	template <typename Delimiter>
+	struct split_trimmed_view_accessor
+	{
+		Delimiter delimiter;
+
+		template <typename Owner>
+		constexpr auto operator()(const Owner& owner) const noexcept(noexcept(owner.split_trimmed(delimiter)))
+		{
+			return owner.split_trimmed(delimiter);
+		}
+	};
+
+	template <typename Delimiter>
+	struct split_terminator_view_accessor
+	{
+		Delimiter delimiter;
+
+		template <typename Owner>
+		constexpr auto operator()(const Owner& owner) const noexcept(noexcept(owner.split_terminator(delimiter)))
+		{
+			return owner.split_terminator(delimiter);
+		}
+	};
+
+	template <typename Delimiter>
+	struct split_inclusive_view_accessor
+	{
+		Delimiter delimiter;
+
+		template <typename Owner>
+		constexpr auto operator()(const Owner& owner) const noexcept(noexcept(owner.split_inclusive(delimiter)))
+		{
+			return owner.split_inclusive(delimiter);
+		}
+	};
+
+	template <typename Delimiter>
+	struct rsplit_terminator_view_accessor
+	{
+		Delimiter delimiter;
+
+		template <typename Owner>
+		constexpr auto operator()(const Owner& owner) const noexcept(noexcept(owner.rsplit_terminator(delimiter)))
+		{
+			return owner.rsplit_terminator(delimiter);
+		}
+	};
+
+	template <typename Delimiter>
+	struct splitn_view_accessor
+	{
+		std::size_t count = 0;
+		Delimiter delimiter;
+
+		template <typename Owner>
+		constexpr auto operator()(const Owner& owner) const noexcept(noexcept(owner.splitn(count, delimiter)))
+		{
+			return owner.splitn(count, delimiter);
+		}
+	};
+
+	template <typename Delimiter>
+	struct rsplitn_view_accessor
+	{
+		std::size_t count = 0;
+		Delimiter delimiter;
+
+		template <typename Owner>
+		constexpr auto operator()(const Owner& owner) const noexcept(noexcept(owner.rsplitn(count, delimiter)))
+		{
+			return owner.rsplitn(count, delimiter);
+		}
+	};
+
+	struct split_whitespace_view_accessor
+	{
+		template <typename Owner>
+		constexpr auto operator()(const Owner& owner) const noexcept(noexcept(owner.split_whitespace()))
+		{
+			return owner.split_whitespace();
+		}
+	};
+
+	struct split_ascii_whitespace_view_accessor
+	{
+		template <typename Owner>
+		constexpr auto operator()(const Owner& owner) const noexcept(noexcept(owner.split_ascii_whitespace()))
+		{
+			return owner.split_ascii_whitespace();
+		}
+	};
+
+	template <typename Owner, typename Accessor>
+	class owning_string_view : public std::ranges::view_interface<owning_string_view<Owner, Accessor>>
+	{
+		using view_type = decltype(std::declval<const Accessor&>()(std::declval<const Owner&>()));
+
+	public:
+		owning_string_view() = delete;
+
+		constexpr explicit owning_string_view(Owner&& owner)
+			noexcept(std::is_nothrow_move_constructible_v<Owner> && noexcept(std::declval<const Accessor&>()(std::declval<const Owner&>())))
+			: owner_(std::move(owner)), accessor_(), view_(accessor_(owner_))
+		{}
+
+		constexpr owning_string_view(Owner&& owner, Accessor accessor)
+			noexcept(std::is_nothrow_move_constructible_v<Owner>
+				&& std::is_nothrow_move_constructible_v<Accessor>
+				&& noexcept(std::declval<const Accessor&>()(std::declval<const Owner&>())))
+			: owner_(std::move(owner)), accessor_(std::move(accessor)), view_(accessor_(owner_))
+		{}
+
+		owning_string_view(const owning_string_view&) = delete;
+		owning_string_view& operator=(const owning_string_view&) = delete;
+
+		constexpr owning_string_view(owning_string_view&& other)
+			noexcept(std::is_nothrow_move_constructible_v<Owner>
+				&& std::is_nothrow_move_constructible_v<Accessor>
+				&& noexcept(std::declval<const Accessor&>()(std::declval<const Owner&>())))
+			: owner_(std::move(other.owner_)),
+			  accessor_(std::move(other.accessor_)),
+			  view_(accessor_(owner_))
+		{}
+
+		constexpr owning_string_view& operator=(owning_string_view&& other)
+			noexcept(std::is_nothrow_move_assignable_v<Owner>
+				&& std::is_nothrow_move_assignable_v<Accessor>
+				&& std::is_nothrow_move_assignable_v<view_type>
+				&& noexcept(std::declval<const Accessor&>()(std::declval<const Owner&>())))
+		{
+			owner_ = std::move(other.owner_);
+			accessor_ = std::move(other.accessor_);
+			view_ = accessor_(owner_);
+			return *this;
+		}
+
+		constexpr auto begin() const noexcept(noexcept(std::declval<const view_type&>().begin()))
+		{
+			return view_.begin();
+		}
+
+		constexpr auto end() const noexcept(noexcept(std::declval<const view_type&>().end()))
+		{
+			return view_.end();
+		}
+
+		constexpr auto size() const noexcept(noexcept(std::declval<const view_type&>().size()))
+			requires requires(const view_type& view) { view.size(); }
+		{
+			return view_.size();
+		}
+
+		constexpr auto reserve_hint() const noexcept(noexcept(std::declval<const view_type&>().reserve_hint()))
+			requires requires(const view_type& view) { view.reserve_hint(); }
+		{
+			return view_.reserve_hint();
+		}
+
+	private:
+		Owner owner_;
+		Accessor accessor_;
+		view_type view_;
+	};
+
 	[[nodiscard]]
 	constexpr utf8_string_view utf8_string_view_from_bytes_unchecked(std::u8string_view bytes) noexcept;
 
