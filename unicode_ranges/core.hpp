@@ -367,6 +367,10 @@ namespace details
 
 	template <typename Owner, typename Accessor>
 	class owning_string_view;
+
+	template <typename Owner, typename Accessor>
+	[[nodiscard]]
+	constexpr Owner&& release_owned_string_view_owner(owning_string_view<Owner, Accessor>&& view) noexcept;
 }
 
 namespace views
@@ -577,6 +581,10 @@ namespace details
 	{
 		using view_type = decltype(std::declval<const Accessor&>()(std::declval<const Owner&>()));
 
+		template <typename FriendOwner, typename FriendAccessor>
+		friend constexpr FriendOwner&& release_owned_string_view_owner(
+			owning_string_view<FriendOwner, FriendAccessor>&& view) noexcept;
+
 	public:
 		owning_string_view() = delete;
 
@@ -643,6 +651,13 @@ namespace details
 		Accessor accessor_;
 		view_type view_;
 	};
+
+	template <typename Owner, typename Accessor>
+	[[nodiscard]]
+	constexpr Owner&& release_owned_string_view_owner(owning_string_view<Owner, Accessor>&& view) noexcept
+	{
+		return std::move(view.owner_);
+	}
 
 	[[nodiscard]]
 	constexpr utf8_string_view utf8_string_view_from_bytes_unchecked(std::u8string_view bytes) noexcept;

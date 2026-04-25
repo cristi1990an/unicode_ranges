@@ -220,6 +220,19 @@ class basic_utf8_string : public details::utf8_string_crtp<basic_utf8_string<All
 	}
 
 private:
+	template <typename R>
+	static constexpr bool direct_utf8_chars_range =
+		std::same_as<std::remove_cvref_t<R>, views::utf8_view>;
+
+	template <typename R>
+	static constexpr bool rvalue_owned_utf8_chars_range =
+		std::same_as<std::remove_cvref_t<R>, views::owning_chars_view<basic_utf8_string>>
+		&& !std::is_lvalue_reference_v<R>;
+
+	template <typename R>
+	static constexpr bool optimized_utf8_chars_range =
+		direct_utf8_chars_range<R> || rvalue_owned_utf8_chars_range<R>;
+
 	[[nodiscard]]
 	constexpr bool overlaps_base(equivalent_string_view bytes) const noexcept
 	{
@@ -440,6 +453,62 @@ private:
 		}
 
 		return *this;
+	}
+
+	[[nodiscard]]
+	constexpr bool can_steal_storage_from(const base_type& source) const
+	{
+		if constexpr (std::allocator_traits<Allocator>::is_always_equal::value)
+		{
+			(void)source;
+			return true;
+		}
+		else
+		{
+			return base_.get_allocator() == source.get_allocator();
+		}
+	}
+
+	constexpr basic_utf8_string& assign_owned_utf8_chars(views::owning_chars_view<basic_utf8_string>&& rg)
+	{
+		auto owner = details::release_owned_string_view_owner(std::move(rg));
+		const auto& source = owner.base();
+		if (can_steal_storage_from(source))
+		{
+			base_ = std::move(owner).base();
+		}
+		else
+		{
+			base_.assign(equivalent_string_view{ source });
+		}
+
+		return *this;
+	}
+
+	constexpr basic_utf8_string& append_owned_utf8_chars(views::owning_chars_view<basic_utf8_string>&& rg)
+	{
+		auto owner = details::release_owned_string_view_owner(std::move(rg));
+		const auto& source = owner.base();
+		if (base_.empty() && can_steal_storage_from(source))
+		{
+			base_ = std::move(owner).base();
+			return *this;
+		}
+
+		return append_bytes(equivalent_string_view{ source });
+	}
+
+	constexpr basic_utf8_string& insert_owned_utf8_chars(size_type index, views::owning_chars_view<basic_utf8_string>&& rg)
+	{
+		auto owner = details::release_owned_string_view_owner(std::move(rg));
+		const auto& source = owner.base();
+		if (base_.empty() && can_steal_storage_from(source))
+		{
+			base_ = std::move(owner).base();
+			return *this;
+		}
+
+		return insert_bytes(index, equivalent_string_view{ source });
 	}
 
 	template <typename ResultAllocator>
@@ -672,7 +741,23 @@ public:
 		append(count, ch);
 	}
 
+	constexpr basic_utf8_string(std::from_range_t, views::utf8_view rg, const Allocator& alloc = Allocator())
+		: base_(alloc)
+	{
+		append_range(rg);
+	}
+
+	constexpr basic_utf8_string(
+		std::from_range_t,
+		views::owning_chars_view<basic_utf8_string>&& rg,
+		const Allocator& alloc = Allocator())
+		: base_(alloc)
+	{
+		assign_owned_utf8_chars(std::move(rg));
+	}
+
 	template <details::container_compatible_range<utf8_char> R>
+		requires (!optimized_utf8_chars_range<R>)
 	constexpr basic_utf8_string(std::from_range_t, R&& rg, const Allocator& alloc = Allocator())
 		: base_(alloc)
 	{
@@ -694,11 +779,17 @@ public:
 
 	constexpr basic_utf8_string& append_range(views::utf8_view rg);
 
+	constexpr basic_utf8_string& append_range(views::owning_chars_view<basic_utf8_string>&& rg)
+	{
+		return append_owned_utf8_chars(std::move(rg));
+	}
+
 	constexpr basic_utf8_string& append_range(views::utf16_view rg);
 
 	constexpr basic_utf8_string& append_range(views::utf32_view rg);
 
 	template <details::container_compatible_range<utf8_char> R>
+		requires (!optimized_utf8_chars_range<R>)
 	constexpr basic_utf8_string& append_range(R&& rg)
 	{
 		if constexpr (details::contiguous_sized_range_of<R, utf8_char>)
@@ -773,11 +864,17 @@ public:
 
 	constexpr basic_utf8_string& assign_range(views::utf8_view rg);
 
+	constexpr basic_utf8_string& assign_range(views::owning_chars_view<basic_utf8_string>&& rg)
+	{
+		return assign_owned_utf8_chars(std::move(rg));
+	}
+
 	constexpr basic_utf8_string& assign_range(views::utf16_view rg);
 
 	constexpr basic_utf8_string& assign_range(views::utf32_view rg);
 
 	template <details::container_compatible_range<utf8_char> R>
+		requires (!optimized_utf8_chars_range<R>)
 	constexpr basic_utf8_string& assign_range(R&& rg)
 	{
 		if constexpr (details::contiguous_sized_range_of<R, utf8_char>)
@@ -1241,7 +1338,23 @@ public:
 			});
 	}
 
+	constexpr basic_utf8_string& insert_range(size_type index, views::owning_chars_view<basic_utf8_string>&& rg)
+	{
+		if (index > size()) [[unlikely]]
+		{
+			throw std::out_of_range("insert index out of range");
+		}
+
+		if (!this->is_char_boundary(index)) [[unlikely]]
+		{
+			throw std::out_of_range("insert index must be at a UTF-8 character boundary");
+		}
+
+		return insert_owned_utf8_chars(index, std::move(rg));
+	}
+
 	template <details::container_compatible_range<utf8_char> R>
+		requires (!optimized_utf8_chars_range<R>)
 	constexpr basic_utf8_string& insert_range(size_type index, R&& rg)
 	{
 		if (index > size()) [[unlikely]]

@@ -3352,6 +3352,35 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			UTF8_RANGES_TEST_ASSERT(str == u8"Ana are multe pere"_utf8_sv);
 		}
 		{
+			auto source = u8"Ana are multe mere"_utf8_sv.to_utf8_owned();
+			auto chars = source.chars();
+			const utf8_string copied(std::from_range, chars);
+			UTF8_RANGES_TEST_ASSERT(copied == u8"Ana are multe mere"_utf8_sv);
+		}
+		{
+			auto source = u8"Ana are multe mere"_utf8_sv.to_utf8_owned();
+			const utf8_string moved(std::from_range, std::move(source).chars());
+			UTF8_RANGES_TEST_ASSERT(moved == u8"Ana are multe mere"_utf8_sv);
+		}
+		{
+			auto source = u8"Ana are multe mere"_utf8_sv.to_utf8_owned();
+			auto appended = u8"Text: "_utf8_s;
+			appended.append_range(std::move(source).chars());
+			UTF8_RANGES_TEST_ASSERT(appended == u8"Text: Ana are multe mere"_utf8_sv);
+		}
+		{
+			auto source = u8"Ana are multe mere"_utf8_sv.to_utf8_owned();
+			auto assigned = u8"placeholder"_utf8_s;
+			assigned.assign_range(std::move(source).chars());
+			UTF8_RANGES_TEST_ASSERT(assigned == u8"Ana are multe mere"_utf8_sv);
+		}
+		{
+			auto source = u8"Ana are multe mere"_utf8_sv.to_utf8_owned();
+			auto inserted = u8"[]"_utf8_s;
+			inserted.insert_range(1, std::move(source).chars());
+			UTF8_RANGES_TEST_ASSERT(inserted == u8"[Ana are multe mere]"_utf8_sv);
+		}
+		{
 			auto source = u8"A\u00E9\u20AC"_utf8_sv.to_utf8_owned();
 			auto chars = std::move(source).reversed_chars();
 			const auto materialized = std::move(chars) | std::ranges::to<utf8_string>();
