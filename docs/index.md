@@ -31,7 +31,7 @@ That backend choice is intentional: `simdutf` has been the strongest raw UTF val
 - [Boundary Encodings](extensible-encodings.md): built-in codecs, custom encoder/decoder requirements, generated APIs, and boundary-specific error handling.
 - [Benchmarking](benchmarking.md): the cross-library benchmark charter, comparison rules, toolchain matrix, and planned benchmark families.
 - [Licensing](licensing.md): repository dual-license model, runtime dependency license notes, and third-party notices.
-- Stability policy: the repository root `STABILITY.md` defines the intended `1.x` support and compatibility contract.
+- Stability policy: the repository root `STABILITY.md` defines the intended support and compatibility surface while the API stabilizes.
 - [Text Operations](text-operations.md): search, split, trim, replace, reverse, and boundary queries.
 - [Casing and Normalization](casing-and-normalization.md): Unicode casing, case folding, and normalization forms.
 - [Reference](reference/index.md): grouped API reference by type family.

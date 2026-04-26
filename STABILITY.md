@@ -1,31 +1,14 @@
-# Stability And Support Policy
+# Stability And Support Notes
 
-This document defines the intended `1.x` stability contract for `unicode_ranges`.
+This document describes the intended public support surface while `unicode_ranges`
+continues to stabilize.
 
-Before `v1.0.0` is tagged, this document is a release target and review checklist.
-After `v1.0.0`, it becomes the policy for future `1.x` releases.
-
-## What `v1.0.0` Means
-
-For `unicode_ranges`, `v1.0.0` means:
-
-- the public API and naming are stable
-- the supported integration path is explicit
-- the dependency policy is explicit
-- the supported toolchain matrix is explicit
-- the documented behavior and error model are stable
-- future `1.x` releases aim for source compatibility
-
-It does **not** mean:
-
-- ABI stability across all toolchains, CRTs, standard libraries, and build modes
-- prebuilt binaries for every platform
-- no future API additions
-- perfect compile times
+No formal source-compatibility promise is active yet. The API can still change
+when correctness, safety, naming, or long-term maintainability require it.
 
 ## Public API Surface
 
-The stable public include entry points are:
+The intended public include entry points are:
 
 - `unicode_ranges_borrowed.hpp`
 - `unicode_ranges_all.hpp`
@@ -35,10 +18,10 @@ The repository currently also ships compatibility wrappers:
 - `unicode_ranges.hpp`
 - `unicode_ranges_full.hpp`
 
-Those wrappers are transitional and are not intended to be the primary `1.x`
-umbrella names.
+Those wrappers are transitional and are not intended to be the primary umbrella
+names long term.
 
-The stable public namespaces are:
+The intended public namespaces are:
 
 - `unicode_ranges`
 - `unicode_ranges::literals`
@@ -46,8 +29,7 @@ The stable public namespaces are:
 - `unicode_ranges::views`
 - `unicode_ranges::characters`
 
-The following are **not** public API and may change at any time, including in
-minor and patch releases:
+The following are not public API and may change at any time:
 
 - `unicode_ranges::details`
 - files under `tools/`
@@ -56,12 +38,12 @@ minor and patch releases:
 - private/generated build outputs
 
 Headers under `unicode_ranges/` are installed and may be included directly, but
-the umbrella headers above are the long-term compatibility contract. File-level
+the umbrella headers above are the preferred compatibility boundary. File-level
 layout below the umbrella headers is not a stability promise on its own.
 
-## Supported Build And Integration Contract
+## Build And Integration Surface
 
-The authoritative supported build and integration surface is:
+The authoritative build and integration surface is:
 
 - CMake
 - target: `unicode_ranges::unicode_ranges`
@@ -69,17 +51,16 @@ The authoritative supported build and integration surface is:
   - `find_package(unicode_ranges CONFIG REQUIRED)`
 
 The repository also ships Visual Studio project files for Windows convenience
-and maintainer workflow. We intend to keep them working, but when there is a
-conflict between those project files and the first-party CMake build, the CMake
-build is authoritative.
+and maintainer workflow. When there is a conflict between those project files
+and the first-party CMake build, the CMake build is authoritative.
 
-For `1.x`, the following are part of the supported integration contract:
+The intended integration model is:
 
-- building the library from source
-- linking the compiled `unicode_ranges` library target
-- consuming the installed/exported CMake package
+- build the library from source
+- link the compiled `unicode_ranges` library target
+- consume the installed/exported CMake package when useful
 
-The following are not part of the `1.x` release contract today:
+The project does not currently promise:
 
 - prebuilt binaries
 - package-manager distribution for every ecosystem
@@ -99,10 +80,10 @@ Current dependency policy:
 - ICU is optional and only affects the locale-aware feature surface
 
 The specific vendored dependency revision is not itself part of the public C++
-API contract. It may change in minor or patch releases as long as:
+API contract. It may change as long as:
 
 - licensing remains compatible with the documented project policy
-- supported public behavior is preserved
+- intended public behavior is preserved
 - the documented integration story remains accurate
 
 ## Supported Toolchains
@@ -114,23 +95,23 @@ The minimum toolchains currently exercised in CI are:
 - GCC with libstdc++: GCC 14 / libstdc++ 14 or newer
 - Clang with libc++: Clang 22 / libc++ 22 or newer
 
-We may add support for newer toolchains in minor releases.
+Support can expand as newer toolchains become available.
 
-Dropping an already-supported toolchain should normally require a major release,
-unless continued support becomes impossible because of an upstream dependency,
-security issue, or permanently broken toolchain behavior outside this project's
-control.
+Dropping an already-supported toolchain should be treated as a compatibility
+decision unless continued support becomes impossible because of an upstream
+dependency, security issue, or permanently broken toolchain behavior outside
+this project's control.
 
-## Compatibility Rules For `1.x`
+## Compatibility Goals
 
-Within `1.x`, the project aims to preserve source compatibility for:
+The project aims to preserve source compatibility for:
 
 - documented public types
 - documented public functions and overloads
 - documented public namespaces
 - the primary CMake target and package name
 
-Within `1.x`, the project may still:
+The project may still:
 
 - add new APIs
 - add new overloads
@@ -140,10 +121,9 @@ Within `1.x`, the project may still:
 - change private file layout
 - update vendored dependency revisions
 
-Breaking changes to documented public API should require a major release.
+Breaking changes to documented public API should be deliberate and documented.
 
-The main compatibility promise for `1.x` is **source compatibility**, not ABI
-compatibility.
+The main compatibility target is source compatibility, not ABI compatibility.
 
 ## Unicode Data And Behavioral Drift
 
@@ -161,47 +141,12 @@ when the Unicode standard itself changes.
 Those standards-aligned behavioral updates are expected and are not treated as
 accidental regressions by default.
 
-SemVer policy for Unicode data updates:
-
-- usually `minor`
-- `major` only if the update forces a documented breaking API or support-policy change
-
-## Versioning Policy
-
-The project follows SemVer in this sense:
-
-- `major`
-  - breaking public API changes
-  - breaking supported integration/build contract changes
-  - major support-policy changes
-- `minor`
-  - additive API/features
-  - Unicode data updates
-  - new supported toolchains
-  - vendored dependency updates with no intended breaking public API impact
-- `patch`
-  - bug fixes
-  - documentation fixes
-  - build fixes
-  - performance improvements
-  - dependency fixes with no intended feature-level or compatibility impact
-
-## Release Artifacts
-
-For the current release model, the official release artifacts are:
-
-- a tagged source release
-- GitHub source archives for that tag
-- the first-party CMake install/export package produced from source
-
-The project does not currently promise official prebuilt binaries.
-
 ## Performance And Compile-Time Expectations
 
 Performance matters. Compile-time cost also matters.
 
-However, neither runtime performance numbers nor compile-time measurements are a
-strict SemVer contract by themselves.
+Neither runtime performance numbers nor compile-time measurements are a strict
+compatibility contract by themselves.
 
 The project will treat major regressions seriously, but reserves the right to:
 
@@ -209,11 +154,11 @@ The project will treat major regressions seriously, but reserves the right to:
 - change internal fast paths
 - rebalance implementation tradeoffs
 
-as long as the documented public API, behavior, and support contract are preserved.
+as long as the documented public API, behavior, and support story are preserved.
 
-## Non-Goals Of The `1.x` Contract
+## Non-Goals
 
-The following are intentionally not promised by this document:
+The following are intentionally not promised:
 
 - ABI stability across compilers and standard libraries
 - binary compatibility between all build configurations
@@ -222,17 +167,17 @@ The following are intentionally not promised by this document:
 - support for `unicode_ranges::details`
 - permanent stability of internal implementation choices
 
-## Release Gate For `v1.0.0`
+## Stable API Gate
 
-The repository is ready for `v1.0.0` when:
+The repository is ready for stable public versioning when:
 
-- this contract is accepted
+- this compatibility policy is accepted
 - docs and README reflect the same support story
-- the release path is validated from a fresh clone:
+- install/package validation passes from a fresh clone:
   - configure
   - build
   - test
   - install
   - consumer `find_package(...)` smoke test
 - the compile-time cost of the common include surfaces is measured and accepted
-- the project version, changelog, and release notes are prepared for tagging
+- outstanding breaking API questions are resolved

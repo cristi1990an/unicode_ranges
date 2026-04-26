@@ -581,8 +581,8 @@ jobs:
             ctest --test-dir "$build_dir" --build-config Release --output-on-failure
           done
 
-  release_validation:
-    name: Release validation (${{ matrix.name }})
+  install_validation:
+    name: Install validation (${{ matrix.name }})
     runs-on: ${{ matrix.runs_on }}
     strategy:
       fail-fast: false
@@ -593,16 +593,16 @@ jobs:
             shell: bash
             install_kind: gcc
             cxx: g++-14
-            build_dir: build/release-validation-linux
-            install_dir: build/release-install-linux
-            consumer_dir: build/release-smoke-consumer-linux
+            build_dir: build/install-validation-linux
+            install_dir: build/package-install-linux
+            consumer_dir: build/package-smoke-consumer-linux
           - name: Windows
             runs_on: windows-latest
             shell: powershell
             install_kind: msvc
-            build_dir: build/release-validation-windows
-            install_dir: build/release-install-windows
-            consumer_dir: build/release-smoke-consumer-windows
+            build_dir: build/install-validation-windows
+            install_dir: build/package-install-windows
+            consumer_dir: build/package-smoke-consumer-windows
 
     steps:
       - name: Checkout
@@ -632,7 +632,7 @@ jobs:
           cmake --version
           ctest --version
 
-      - name: Release validation (Linux)
+      - name: Install validation (Linux)
         if: matrix.install_kind == 'gcc'
         run: |
           cmake -S . -B "${{ matrix.build_dir }}" \
@@ -646,7 +646,7 @@ jobs:
           ctest --test-dir "${{ matrix.build_dir }}" --build-config Release --output-on-failure
           cmake --install "${{ matrix.build_dir }}" --prefix "$(pwd)/${{ matrix.install_dir }}"
 
-          cmake -S tools/release_smoke_consumer -B "${{ matrix.consumer_dir }}" \
+          cmake -S tools/package_smoke_consumer -B "${{ matrix.consumer_dir }}" \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
             -DCMAKE_CXX_FLAGS="-O2 -Wall -Wextra -Werror -pedantic -pthread -Wno-error=overflow -Wno-error=pedantic" \
@@ -654,7 +654,7 @@ jobs:
           cmake --build "${{ matrix.consumer_dir }}" --config Release
           ctest --test-dir "${{ matrix.consumer_dir }}" --build-config Release --output-on-failure
 
-      - name: Release validation (Windows)
+      - name: Install validation (Windows)
         if: matrix.install_kind == 'msvc'
         shell: powershell
         run: |
@@ -668,7 +668,7 @@ jobs:
           cmake --install ${{ matrix.build_dir }} --config Release --prefix $installPrefix
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-          cmake -S tools/release_smoke_consumer -B ${{ matrix.consumer_dir }} -G "Visual Studio 17 2022" -A x64 "-DCMAKE_PREFIX_PATH=$installPrefix"
+          cmake -S tools/package_smoke_consumer -B ${{ matrix.consumer_dir }} -G "Visual Studio 17 2022" -A x64 "-DCMAKE_PREFIX_PATH=$installPrefix"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --build ${{ matrix.consumer_dir }} --config Release
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -854,7 +854,7 @@ jobs:
       - linux_32
       - linux_arm64
       - linux_icu
-      - release_validation
+      - install_validation
       - docs_examples
       - coverage
       - comparative_benchmarks

@@ -159,7 +159,6 @@ This does not replace the rest of the library:
 - Docs site: [https://cristi1990an.github.io/unicode_ranges/](https://cristi1990an.github.io/unicode_ranges/)
 - Docs in repo: [docs/](docs/)
 - Stability policy: [STABILITY.md](STABILITY.md)
-- Changelog: [CHANGELOG.md](CHANGELOG.md)
 
 The large monolithic README has been replaced with a dedicated docs site so the library can document semantics, examples, and reference material on separate pages instead of one long file.
 

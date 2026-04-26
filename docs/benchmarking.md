@@ -309,7 +309,7 @@ Current comparative suite:
 - initial `unicode_ranges` baseline adapters for strict UTF-8 validation and strict UTF-8 owned transcoding
 - initial third-party baselines:
   - `simdutf`
-    - pinned to release `v7.7.0`
+    - pinned to upstream `v7.7.0`
     - vendored in the repository under `third_party/simdutf` for the shipped runtime backend
     - the comparative CI may still fetch an explicit baseline copy when exercising the standalone `simdutf` row
     - wired for strict UTF-8 validation and strict UTF-8 transcoding

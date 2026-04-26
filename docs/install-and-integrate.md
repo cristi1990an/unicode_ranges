@@ -8,7 +8,6 @@
 ## Current packaging status
 
 - There is no first-party package-manager distribution yet.
-- There may be no tagged release that matches the commit you want to consume.
 - Runtime UTF validation and UTF-8 <-> UTF-16/UTF-32 transcoding use pinned vendored `simdutf` `v7.7.0` under `third_party/simdutf`.
 - The repository ships first-party Visual Studio and CMake build definitions for the compiled library target.
 
@@ -148,7 +147,7 @@ include(FetchContent)
 FetchContent_Declare(
     unicode_ranges_src
     GIT_REPOSITORY https://github.com/cristi1990an/unicode_ranges.git
-    GIT_TAG <pinned-tag-or-commit>
+    GIT_TAG <pinned-commit>
 )
 
 FetchContent_MakeAvailable(unicode_ranges_src)
@@ -158,7 +157,7 @@ target_link_libraries(your_target PRIVATE unicode_ranges::unicode_ranges)
 
 This uses the first-party library target instead of rebuilding ad hoc target logic in your own project.
 
-Do not track `main` in production builds. Pin an exact tag or commit that you have validated in your own CI.
+Do not track `main` in production builds. Pin an exact commit that you have validated in your own CI.
 
 ## Optional ICU-backed locale casing
 

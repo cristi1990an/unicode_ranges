@@ -6,9 +6,9 @@ components keep their own licenses.
 ## Current state
 
 - `simdutf` is a pinned vendored runtime dependency and is also reused by the comparative benchmark suite.
-- the shipped compiled runtime backend currently uses `simdutf` through its public API and vendored singleheader release layout under `third_party/simdutf`
+- the shipped compiled runtime backend currently uses `simdutf` through its public API and vendored singleheader layout under `third_party/simdutf`
 - Comparative benchmark dependencies besides `simdutf` are fetched separately.
-- The repository tracks the vendored upstream `simdutf` singleheader release files under `third_party/simdutf`.
+- The repository tracks the vendored upstream `simdutf` singleheader files under `third_party/simdutf`.
 - Any additional copied or adapted third-party source files must carry an
   explicit provenance header as described below.
 
@@ -23,7 +23,7 @@ Use a header in this shape at the top of every copied or adapted file:
 // Provenance:
 // - Adapted from: <project name>
 // - Original file: <upstream path or URL>
-// - Upstream version: <tag / commit / release>
+// - Upstream version: <tag / commit / archive>
 // - Original license: <license expression>
 // - Changes for unicode_ranges: <short summary>
 ```
@@ -45,7 +45,7 @@ The repository currently tracks the following vendored upstream distribution fil
 - `third_party/simdutf/LICENSE-MIT`
 - `third_party/simdutf/LICENSE-APACHE`
 
-These are upstream release files from the pinned `simdutf` `v7.7.0` singleheader distribution and license texts, not locally adapted source files.
+These are upstream files from the pinned `simdutf` `v7.7.0` singleheader distribution and license texts, not locally adapted source files.
 
 ## Runtime and comparative benchmark dependencies
 
@@ -61,7 +61,7 @@ benchmark suite, or both.
 - Consumption model:
   - compiled runtime dependency
   - vendored under `third_party/simdutf`
-  - uses the published `simdutf.h` + `simdutf.cpp` singleheader release layout
+  - uses the published `simdutf.h` + `simdutf.cpp` singleheader layout
 - Local metadata:
   - `comparative_benchmarks/dependencies.json`
 
