@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based loosely on Keep a Changelog.
 
+## [1.0.2] - 2026-04-27
+
+### Added
+
+- added the forward `match_indices(...)` member family for UTF-8, UTF-16, and UTF-32 strings and string views
+- extended match-family character-set overloads to accept copyable forward ranges of character values, including safe temporary arrays owned by the returned view
+
+### Changed
+
+- rvalue owning strings now return move-only owning views from character, grapheme, split, and match view member functions to avoid dangling views from temporaries
+- optimized owning-string insert paths, same-encoding view materialization, rvalue `reversed_chars()` materialization, and selected cross-encoding range mutation paths
+- expanded simdutf-backed runtime internals for UTF-16/UTF-32 validation, UTF-16/UTF-32 bulk conversion, guarded ASCII-only checks, and UTF-8/UTF-16 character counting while keeping constexpr scalar fallbacks
+
+### Fixed
+
+- fixed owning-string predicate replacement overload visibility so `replace_all(pred, to)` and `replace_n(count, pred, to)` work directly on UTF-8, UTF-16, and UTF-32 owning strings
+- added regression coverage for the affected predicate replacement overloads across character, view, rvalue, and allocator-return forms
+
 ## [1.0.1] - 2026-04-24
 
 ### Fixed

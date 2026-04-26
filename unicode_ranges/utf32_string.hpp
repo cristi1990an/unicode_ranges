@@ -2241,6 +2241,46 @@ public:
 		return static_cast<const crtp&>(*this).template replace_all<Allocator>(from, to, base_.get_allocator());
 	}
 
+	template <details::utf32_char_predicate Pred>
+	[[nodiscard]]
+	constexpr basic_utf32_string replace_all(Pred pred, utf32_char to) const&
+	{
+		return static_cast<const crtp&>(*this).template replace_all<std::remove_cvref_t<Pred>, Allocator>(
+			std::move(pred),
+			to,
+			base_.get_allocator());
+	}
+
+	template <details::utf32_char_predicate Pred>
+	[[nodiscard]]
+	constexpr basic_utf32_string replace_all(Pred pred, utf32_string_view to) const&
+	{
+		return static_cast<const crtp&>(*this).template replace_all<std::remove_cvref_t<Pred>, Allocator>(
+			std::move(pred),
+			to,
+			base_.get_allocator());
+	}
+
+	template <details::utf32_char_predicate Pred>
+	[[nodiscard]]
+	constexpr basic_utf32_string replace_all(Pred pred, utf32_char to) &&
+	{
+		return static_cast<const crtp&>(*this).template replace_all<std::remove_cvref_t<Pred>, Allocator>(
+			std::move(pred),
+			to,
+			base_.get_allocator());
+	}
+
+	template <details::utf32_char_predicate Pred>
+	[[nodiscard]]
+	constexpr basic_utf32_string replace_all(Pred pred, utf32_string_view to) &&
+	{
+		return static_cast<const crtp&>(*this).template replace_all<std::remove_cvref_t<Pred>, Allocator>(
+			std::move(pred),
+			to,
+			base_.get_allocator());
+	}
+
 	[[nodiscard]]
 	constexpr basic_utf32_string replace_n(size_type count, utf32_char from, utf32_char to) const&
 	{
@@ -2344,6 +2384,50 @@ public:
 		}
 
 		return static_cast<const crtp&>(*this).template replace_n<Allocator>(count, from, to, base_.get_allocator());
+	}
+
+	template <details::utf32_char_predicate Pred>
+	[[nodiscard]]
+	constexpr basic_utf32_string replace_n(size_type count, Pred pred, utf32_char to) const&
+	{
+		return static_cast<const crtp&>(*this).template replace_n<std::remove_cvref_t<Pred>, Allocator>(
+			count,
+			std::move(pred),
+			to,
+			base_.get_allocator());
+	}
+
+	template <details::utf32_char_predicate Pred>
+	[[nodiscard]]
+	constexpr basic_utf32_string replace_n(size_type count, Pred pred, utf32_string_view to) const&
+	{
+		return static_cast<const crtp&>(*this).template replace_n<std::remove_cvref_t<Pred>, Allocator>(
+			count,
+			std::move(pred),
+			to,
+			base_.get_allocator());
+	}
+
+	template <details::utf32_char_predicate Pred>
+	[[nodiscard]]
+	constexpr basic_utf32_string replace_n(size_type count, Pred pred, utf32_char to) &&
+	{
+		return static_cast<const crtp&>(*this).template replace_n<std::remove_cvref_t<Pred>, Allocator>(
+			count,
+			std::move(pred),
+			to,
+			base_.get_allocator());
+	}
+
+	template <details::utf32_char_predicate Pred>
+	[[nodiscard]]
+	constexpr basic_utf32_string replace_n(size_type count, Pred pred, utf32_string_view to) &&
+	{
+		return static_cast<const crtp&>(*this).template replace_n<std::remove_cvref_t<Pred>, Allocator>(
+			count,
+			std::move(pred),
+			to,
+			base_.get_allocator());
 	}
 
 	template <typename OtherAllocator>

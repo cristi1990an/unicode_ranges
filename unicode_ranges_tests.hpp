@@ -1207,6 +1207,33 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 	static_assert(std::same_as<decltype(utf32_text.replace_all(U"\u00E9"_u32c, U"!"_u32c)), utf32_string>);
 	static_assert(std::same_as<decltype(utf32_text.replace_n(1, U"\u00E9"_u32c, U"!"_u32c)), utf32_string>);
 	static_assert([] {
+		constexpr auto is_ascii_digit = [](utf32_char ch) constexpr noexcept { return ch.is_ascii_digit(); };
+		return std::same_as<
+			decltype(utf32_text.replace_all(is_ascii_digit, U"!"_u32c)),
+			utf32_string>
+			&& std::same_as<
+				decltype(utf32_text.replace_all(is_ascii_digit, U"!"_utf32_sv)),
+				utf32_string>
+			&& std::same_as<
+				decltype(utf32_text.replace_all(is_ascii_digit, U"!"_u32c, std::pmr::polymorphic_allocator<char32_t>{})),
+				pmr::utf32_string>
+			&& std::same_as<
+				decltype(utf32_text.replace_n(2, is_ascii_digit, U"!"_u32c)),
+				utf32_string>
+			&& std::same_as<
+				decltype(utf32_text.replace_n(2, is_ascii_digit, U"!"_utf32_sv)),
+				utf32_string>
+			&& std::same_as<
+				decltype(utf32_text.replace_n(2, is_ascii_digit, U"!"_u32c, std::pmr::polymorphic_allocator<char32_t>{})),
+				pmr::utf32_string>
+			&& std::same_as<
+				decltype(utf32_string{}.replace_all(is_ascii_digit, U"!"_u32c)),
+				utf32_string>
+			&& std::same_as<
+				decltype(utf32_string{}.replace_n(2, is_ascii_digit, U"!"_utf32_sv)),
+				utf32_string>;
+	}());
+	static_assert([] {
 		constexpr std::array any_of{ U"a"_u32c, U"b"_u32c };
 		return std::same_as<
 			decltype(utf32_text.replace_all(std::span{ any_of }, U"!"_u32c)),
@@ -1702,6 +1729,33 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		decltype(utf8_text.replace_n(2, u8"\u00E9"_u8c, u8"!"_u8c, std::pmr::polymorphic_allocator<char8_t>{})),
 		pmr::utf8_string>);
 	static_assert([] {
+		constexpr auto is_ascii_digit = [](utf8_char ch) constexpr noexcept { return ch.is_ascii_digit(); };
+		return std::same_as<
+			decltype(utf8_text.replace_all(is_ascii_digit, u8"!"_u8c)),
+			utf8_string>
+			&& std::same_as<
+				decltype(utf8_text.replace_all(is_ascii_digit, u8"!"_utf8_sv)),
+				utf8_string>
+			&& std::same_as<
+				decltype(utf8_text.replace_all(is_ascii_digit, u8"!"_u8c, std::pmr::polymorphic_allocator<char8_t>{})),
+				pmr::utf8_string>
+			&& std::same_as<
+				decltype(utf8_text.replace_n(2, is_ascii_digit, u8"!"_u8c)),
+				utf8_string>
+			&& std::same_as<
+				decltype(utf8_text.replace_n(2, is_ascii_digit, u8"!"_utf8_sv)),
+				utf8_string>
+			&& std::same_as<
+				decltype(utf8_text.replace_n(2, is_ascii_digit, u8"!"_u8c, std::pmr::polymorphic_allocator<char8_t>{})),
+				pmr::utf8_string>
+			&& std::same_as<
+				decltype(utf8_string{}.replace_all(is_ascii_digit, u8"!"_u8c)),
+				utf8_string>
+			&& std::same_as<
+				decltype(utf8_string{}.replace_n(2, is_ascii_digit, u8"!"_utf8_sv)),
+				utf8_string>;
+	}());
+	static_assert([] {
 		constexpr std::array any_of{ u8"a"_u8c, u8"b"_u8c };
 		return std::same_as<
 			decltype(utf8_text.replace_all(std::span{ any_of }, u8"!"_u8c)),
@@ -1919,6 +1973,33 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 	static_assert(std::same_as<
 		decltype(utf16_text.replace_n(2, u"\u00E9"_u16c, u"!"_u16c, std::pmr::polymorphic_allocator<char16_t>{})),
 		pmr::utf16_string>);
+	static_assert([] {
+		constexpr auto is_ascii_digit = [](utf16_char ch) constexpr noexcept { return ch.is_ascii_digit(); };
+		return std::same_as<
+			decltype(utf16_text.replace_all(is_ascii_digit, u"!"_u16c)),
+			utf16_string>
+			&& std::same_as<
+				decltype(utf16_text.replace_all(is_ascii_digit, u"!"_utf16_sv)),
+				utf16_string>
+			&& std::same_as<
+				decltype(utf16_text.replace_all(is_ascii_digit, u"!"_u16c, std::pmr::polymorphic_allocator<char16_t>{})),
+				pmr::utf16_string>
+			&& std::same_as<
+				decltype(utf16_text.replace_n(2, is_ascii_digit, u"!"_u16c)),
+				utf16_string>
+			&& std::same_as<
+				decltype(utf16_text.replace_n(2, is_ascii_digit, u"!"_utf16_sv)),
+				utf16_string>
+			&& std::same_as<
+				decltype(utf16_text.replace_n(2, is_ascii_digit, u"!"_u16c, std::pmr::polymorphic_allocator<char16_t>{})),
+				pmr::utf16_string>
+			&& std::same_as<
+				decltype(utf16_string{}.replace_all(is_ascii_digit, u"!"_u16c)),
+				utf16_string>
+			&& std::same_as<
+				decltype(utf16_string{}.replace_n(2, is_ascii_digit, u"!"_utf16_sv)),
+				utf16_string>;
+	}());
 	static_assert([] {
 		constexpr std::array any_of{ u"a"_u16c, u"b"_u16c };
 		return std::same_as<
@@ -3515,6 +3596,21 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			UTF8_RANGES_TEST_ASSERT(str == u8"Ana are multe pere"_utf8_sv);
 		}
 		{
+			constexpr auto is_ascii_digit = [](utf8_char ch) constexpr noexcept { return ch.is_ascii_digit(); };
+			auto source = u8"123-456"_utf8_s;
+			UTF8_RANGES_TEST_ASSERT(source.replace_all(is_ascii_digit, u8"x"_u8c) == u8"xxx-xxx"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(source.replace_all(is_ascii_digit, u8"xy"_utf8_sv) == u8"xyxyxy-xyxyxy"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(source.replace_n(2, is_ascii_digit, u8"x"_u8c) == u8"xx3-456"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(source.replace_n(2, is_ascii_digit, u8"xy"_utf8_sv) == u8"xyxy3-456"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(
+				source.replace_all(is_ascii_digit, u8"x"_u8c, std::pmr::polymorphic_allocator<char8_t>{})
+				== u8"xxx-xxx"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(std::move(source).replace_all(is_ascii_digit, u8"x"_u8c) == u8"xxx-xxx"_utf8_sv);
+
+			auto source_n = u8"123-456"_utf8_s;
+			UTF8_RANGES_TEST_ASSERT(std::move(source_n).replace_n(2, is_ascii_digit, u8"xy"_utf8_sv) == u8"xyxy3-456"_utf8_sv);
+		}
+		{
 			auto source = u8"Ana are multe mere"_utf8_sv.to_utf8_owned();
 			auto chars = source.chars();
 			const utf8_string copied(std::from_range, chars);
@@ -3889,6 +3985,21 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			}));
 		}
 		{
+			constexpr auto is_ascii_digit = [](utf16_char ch) constexpr noexcept { return ch.is_ascii_digit(); };
+			auto source = u"123-456"_utf16_s;
+			UTF8_RANGES_TEST_ASSERT(source.replace_all(is_ascii_digit, u"x"_u16c) == u"xxx-xxx"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(source.replace_all(is_ascii_digit, u"xy"_utf16_sv) == u"xyxyxy-xyxyxy"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(source.replace_n(2, is_ascii_digit, u"x"_u16c) == u"xx3-456"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(source.replace_n(2, is_ascii_digit, u"xy"_utf16_sv) == u"xyxy3-456"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(
+				source.replace_all(is_ascii_digit, u"x"_u16c, std::pmr::polymorphic_allocator<char16_t>{})
+				== u"xxx-xxx"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(std::move(source).replace_all(is_ascii_digit, u"x"_u16c) == u"xxx-xxx"_utf16_sv);
+
+			auto source_n = u"123-456"_utf16_s;
+			UTF8_RANGES_TEST_ASSERT(std::move(source_n).replace_n(2, is_ascii_digit, u"xy"_utf16_sv) == u"xyxy3-456"_utf16_sv);
+		}
+		{
 			auto source = U"A\u00E9\U0001F600"_utf32_sv.to_utf32_owned();
 			auto chars = std::move(source).chars();
 			const auto materialized = std::move(chars) | std::ranges::to<utf32_string>();
@@ -4049,6 +4160,21 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 				std::pair<std::size_t, utf32_string_view>{ 2, U"a"_utf32_sv },
 				std::pair<std::size_t, utf32_string_view>{ 0, U"A"_utf32_sv }
 			}));
+		}
+		{
+			constexpr auto is_ascii_digit = [](utf32_char ch) constexpr noexcept { return ch.is_ascii_digit(); };
+			auto source = U"123-456"_utf32_s;
+			UTF8_RANGES_TEST_ASSERT(source.replace_all(is_ascii_digit, U"x"_u32c) == U"xxx-xxx"_utf32_sv);
+			UTF8_RANGES_TEST_ASSERT(source.replace_all(is_ascii_digit, U"xy"_utf32_sv) == U"xyxyxy-xyxyxy"_utf32_sv);
+			UTF8_RANGES_TEST_ASSERT(source.replace_n(2, is_ascii_digit, U"x"_u32c) == U"xx3-456"_utf32_sv);
+			UTF8_RANGES_TEST_ASSERT(source.replace_n(2, is_ascii_digit, U"xy"_utf32_sv) == U"xyxy3-456"_utf32_sv);
+			UTF8_RANGES_TEST_ASSERT(
+				source.replace_all(is_ascii_digit, U"x"_u32c, std::pmr::polymorphic_allocator<char32_t>{})
+				== U"xxx-xxx"_utf32_sv);
+			UTF8_RANGES_TEST_ASSERT(std::move(source).replace_all(is_ascii_digit, U"x"_u32c) == U"xxx-xxx"_utf32_sv);
+
+			auto source_n = U"123-456"_utf32_s;
+			UTF8_RANGES_TEST_ASSERT(std::move(source_n).replace_n(2, is_ascii_digit, U"xy"_utf32_sv) == U"xyxy3-456"_utf32_sv);
 		}
 
 		UTF8_RANGES_TEST_ASSERT(u8"A"_u8c.ascii_lowercase() == u8"a"_u8c);

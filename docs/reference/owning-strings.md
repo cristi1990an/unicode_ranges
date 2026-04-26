@@ -695,8 +695,10 @@ constexpr basic_utf8_string replace_all(std::span<const utf8_char> from, utf8_ch
 constexpr basic_utf8_string replace_all(std::span<const utf8_char> from, utf8_string_view to) &&;
 
 template <typename OtherAllocator> constexpr basic_utf8_string<OtherAllocator> replace_all(..., const OtherAllocator& alloc) const;
-template <details::utf8_char_predicate Pred> constexpr basic_utf8_string replace_all(Pred pred, utf8_char to) const;
-template <details::utf8_char_predicate Pred> constexpr basic_utf8_string replace_all(Pred pred, utf8_string_view to) const;
+template <details::utf8_char_predicate Pred> constexpr basic_utf8_string replace_all(Pred pred, utf8_char to) const&;
+template <details::utf8_char_predicate Pred> constexpr basic_utf8_string replace_all(Pred pred, utf8_string_view to) const&;
+template <details::utf8_char_predicate Pred> constexpr basic_utf8_string replace_all(Pred pred, utf8_char to) &&;
+template <details::utf8_char_predicate Pred> constexpr basic_utf8_string replace_all(Pred pred, utf8_string_view to) &&;
 template <details::utf8_char_predicate Pred, typename OtherAllocator>
 constexpr basic_utf8_string<OtherAllocator> replace_all(Pred pred, ..., const OtherAllocator& alloc) const;
 
@@ -715,8 +717,10 @@ constexpr basic_utf8_string replace_n(size_type count, std::span<const utf8_char
 constexpr basic_utf8_string replace_n(size_type count, std::span<const utf8_char> from, utf8_string_view to) &&;
 
 template <typename OtherAllocator> constexpr basic_utf8_string<OtherAllocator> replace_n(..., const OtherAllocator& alloc) const;
-template <details::utf8_char_predicate Pred> constexpr basic_utf8_string replace_n(size_type count, Pred pred, utf8_char to) const;
-template <details::utf8_char_predicate Pred> constexpr basic_utf8_string replace_n(size_type count, Pred pred, utf8_string_view to) const;
+template <details::utf8_char_predicate Pred> constexpr basic_utf8_string replace_n(size_type count, Pred pred, utf8_char to) const&;
+template <details::utf8_char_predicate Pred> constexpr basic_utf8_string replace_n(size_type count, Pred pred, utf8_string_view to) const&;
+template <details::utf8_char_predicate Pred> constexpr basic_utf8_string replace_n(size_type count, Pred pred, utf8_char to) &&;
+template <details::utf8_char_predicate Pred> constexpr basic_utf8_string replace_n(size_type count, Pred pred, utf8_string_view to) &&;
 template <details::utf8_char_predicate Pred, typename OtherAllocator>
 constexpr basic_utf8_string<OtherAllocator> replace_n(size_type count, Pred pred, ..., const OtherAllocator& alloc) const;
 
