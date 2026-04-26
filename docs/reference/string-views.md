@@ -782,13 +782,26 @@ constexpr auto matches(Char ch) const& noexcept;
 constexpr auto matches(Char ch) && noexcept; // owning strings
 constexpr auto matches(View sv) const& noexcept;
 constexpr auto matches(View sv) && noexcept; // owning strings
+template <std::ranges::viewable_range R> constexpr auto matches(R&& chars) const& noexcept;
+template <std::ranges::viewable_range R> constexpr auto matches(R&& chars) && noexcept; // owning strings
 template <Predicate Pred> constexpr auto matches(Pred pred) const& noexcept;
 template <Predicate Pred> constexpr auto matches(Pred pred) && noexcept; // owning strings
+
+constexpr auto match_indices(Char ch) const& noexcept;
+constexpr auto match_indices(Char ch) && noexcept; // owning strings
+constexpr auto match_indices(View sv) const& noexcept;
+constexpr auto match_indices(View sv) && noexcept; // owning strings
+template <std::ranges::viewable_range R> constexpr auto match_indices(R&& chars) const& noexcept;
+template <std::ranges::viewable_range R> constexpr auto match_indices(R&& chars) && noexcept; // owning strings
+template <Predicate Pred> constexpr auto match_indices(Pred pred) const& noexcept;
+template <Predicate Pred> constexpr auto match_indices(Pred pred) && noexcept; // owning strings
 
 constexpr auto rmatches(Char ch) const& noexcept;
 constexpr auto rmatches(Char ch) && noexcept; // owning strings
 constexpr auto rmatches(View sv) const& noexcept;
 constexpr auto rmatches(View sv) && noexcept; // owning strings
+template <std::ranges::viewable_range R> constexpr auto rmatches(R&& chars) const& noexcept;
+template <std::ranges::viewable_range R> constexpr auto rmatches(R&& chars) && noexcept; // owning strings
 template <Predicate Pred> constexpr auto rmatches(Pred pred) const& noexcept;
 template <Predicate Pred> constexpr auto rmatches(Pred pred) && noexcept; // owning strings
 
@@ -796,6 +809,8 @@ constexpr auto rmatch_indices(Char ch) const& noexcept;
 constexpr auto rmatch_indices(Char ch) && noexcept; // owning strings
 constexpr auto rmatch_indices(View sv) const& noexcept;
 constexpr auto rmatch_indices(View sv) && noexcept; // owning strings
+template <std::ranges::viewable_range R> constexpr auto rmatch_indices(R&& chars) const& noexcept;
+template <std::ranges::viewable_range R> constexpr auto rmatch_indices(R&& chars) && noexcept; // owning strings
 template <Predicate Pred> constexpr auto rmatch_indices(Pred pred) const& noexcept;
 template <Predicate Pred> constexpr auto rmatch_indices(Pred pred) && noexcept; // owning strings
 
@@ -817,13 +832,15 @@ constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) const n
 
 ### Behavior
 
-- `matches` and `rmatches` yield matching borrowed subviews.
+- `matches` and `rmatches` yield matching subviews, not character values. This is true even when the pattern is a single `Char`, a character-set range, or a predicate that matches one character.
+- `match_indices` yields forward-ordered `(offset, subview)` pairs.
 - `rmatch_indices` yields reverse-ordered `(offset, subview)` pairs.
+- Match-family range overloads treat the input as an "any of these characters" set. The stored delimiter set must be a copyable forward view of `Char` values after view adaptation.
 - On owning strings, rvalue-qualified match views are move-only owning views that keep the source string alive.
 - `split_once` and `rsplit_once` split around the first or last match.
 - `split_once_at` validates that `delim` is a character boundary.
 - `split_once_at_unchecked` assumes the supplied offset is already valid.
-- The range-returning members in this section are lazy `std::ranges::view_interface`-based borrowed views.
+- The range-returning members in this section are lazy `std::ranges::view_interface`-based views. Owning-string receivers and temporary delimiter-set ranges may make the returned view non-borrowed.
 
 ### Overload differences
 
@@ -837,6 +854,14 @@ The examples below use `constexpr auto text = "😄=🇷🇴=✨"_utf8_sv;`.
 | `split_once(Pred pred)` | split at the first character satisfying the predicate | `text.split_once([](utf8_char ch) { return ch.is_ascii_punctuation(); })` |
 
 The same distinctions apply to `rsplit_once(...)`, but from the end.
+
+The match-family range overloads use the same character-set idea lazily:
+
+```cpp
+auto marks = text.match_indices(std::array{ "="_u8c, "âœ¨"_u8c });
+```
+
+Temporary arrays are owned by the returned view. Lvalue ranges are referenced using normal range lifetime rules, and raw `std::initializer_list` delimiter sets are intentionally unsupported.
 
 ### Inspiration
 

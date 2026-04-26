@@ -14,6 +14,7 @@
 #include <expected>
 #include <format>
 #include <functional>
+#include <initializer_list>
 #include <iterator>
 #include <limits>
 #include <memory>
@@ -816,6 +817,18 @@ namespace details
 	};
 
 	template <typename Delimiter>
+	struct match_indices_view_accessor
+	{
+		Delimiter delimiter;
+
+		template <typename Owner>
+		constexpr auto operator()(const Owner& owner) const noexcept(noexcept(owner.match_indices(delimiter)))
+		{
+			return owner.match_indices(delimiter);
+		}
+	};
+
+	template <typename Delimiter>
 	struct rmatches_view_accessor
 	{
 		Delimiter delimiter;
@@ -838,6 +851,149 @@ namespace details
 			return owner.rmatch_indices(delimiter);
 		}
 	};
+
+	template <typename T>
+	struct is_initializer_list : std::false_type {};
+
+	template <typename T>
+	struct is_initializer_list<std::initializer_list<T>> : std::true_type {};
+
+	template <typename T>
+	inline constexpr bool is_initializer_list_v = is_initializer_list<std::remove_cvref_t<T>>::value;
+
+	template <std::ranges::forward_range Range>
+	class copyable_owning_view : public std::ranges::view_interface<copyable_owning_view<Range>>
+	{
+	public:
+		copyable_owning_view() requires std::default_initializable<Range> = default;
+
+		constexpr explicit copyable_owning_view(Range range)
+			noexcept(std::is_nothrow_move_constructible_v<Range>)
+			: range_(std::move(range))
+		{}
+
+		constexpr auto begin() noexcept(noexcept(std::ranges::begin(range_)))
+		{
+			return std::ranges::begin(range_);
+		}
+
+		constexpr auto begin() const noexcept(noexcept(std::ranges::begin(range_)))
+			requires std::ranges::range<const Range>
+		{
+			return std::ranges::begin(range_);
+		}
+
+		constexpr auto end() noexcept(noexcept(std::ranges::end(range_)))
+		{
+			return std::ranges::end(range_);
+		}
+
+		constexpr auto end() const noexcept(noexcept(std::ranges::end(range_)))
+			requires std::ranges::range<const Range>
+		{
+			return std::ranges::end(range_);
+		}
+
+		constexpr auto size() noexcept(noexcept(std::ranges::size(range_)))
+			requires std::ranges::sized_range<Range>
+		{
+			return std::ranges::size(range_);
+		}
+
+		constexpr auto size() const noexcept(noexcept(std::ranges::size(range_)))
+			requires std::ranges::sized_range<const Range>
+		{
+			return std::ranges::size(range_);
+		}
+
+	private:
+		Range range_;
+	};
+
+	template <typename Range>
+	struct char_set_storage
+	{
+		using type = std::conditional_t<
+			std::ranges::view<std::remove_cvref_t<Range>>,
+			std::remove_cvref_t<Range>,
+			std::conditional_t<
+				std::is_lvalue_reference_v<Range>,
+				std::ranges::ref_view<std::remove_reference_t<Range>>,
+				copyable_owning_view<std::remove_cvref_t<Range>>>>;
+	};
+
+	template <typename Range>
+	using char_set_storage_t = typename char_set_storage<Range>::type;
+
+	template <typename SetView, typename Char>
+	concept char_set_forward_view =
+		std::ranges::view<SetView> &&
+		std::ranges::forward_range<const SetView> &&
+		std::copy_constructible<SetView> &&
+		std::same_as<std::remove_cvref_t<std::ranges::range_reference_t<const SetView>>, Char>;
+
+	template <typename Range, typename Char>
+	concept char_set_viewable_range =
+		std::ranges::viewable_range<Range> &&
+		!is_initializer_list_v<Range> &&
+		std::ranges::forward_range<std::remove_reference_t<Range>> &&
+		char_set_forward_view<char_set_storage_t<Range>, Char>;
+
+	template <typename Char, char_set_forward_view<Char> SetView>
+	class char_set_matcher
+	{
+	public:
+		constexpr explicit char_set_matcher(SetView chars)
+			noexcept(std::is_nothrow_move_constructible_v<SetView>)
+			: chars_(std::move(chars))
+		{}
+
+		constexpr bool operator()(Char ch) const noexcept
+		{
+			for (const auto& candidate : chars_)
+			{
+				if (candidate == ch)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+	private:
+		UTF8_RANGES_NO_UNIQUE_ADDRESS SetView chars_;
+	};
+
+	template <typename Range>
+	constexpr char_set_storage_t<Range> make_char_set_storage(Range&& chars)
+		noexcept(std::is_nothrow_constructible_v<char_set_storage_t<Range>, Range>)
+	{
+		using storage_type = char_set_storage_t<Range>;
+		if constexpr (std::ranges::view<std::remove_cvref_t<Range>>)
+		{
+			return storage_type{ std::forward<Range>(chars) };
+		}
+		else if constexpr (std::is_lvalue_reference_v<Range>)
+		{
+			return storage_type{ chars };
+		}
+		else
+		{
+			return storage_type{ std::forward<Range>(chars) };
+		}
+	}
+
+	template <typename Char, typename Range>
+		requires char_set_viewable_range<Range, Char>
+	constexpr auto make_char_set_matcher(Range&& chars)
+		noexcept(noexcept(details::make_char_set_storage(std::forward<Range>(chars))))
+	{
+		using storage_type = char_set_storage_t<Range>;
+		return char_set_matcher<Char, storage_type>{
+			details::make_char_set_storage(std::forward<Range>(chars))
+		};
+	}
 
 	struct split_whitespace_view_accessor
 	{

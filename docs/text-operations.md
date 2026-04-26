@@ -27,7 +27,7 @@ String views expose a broad split/match surface:
 - `splitn`, `rsplitn`
 - `split_inclusive`
 - `split_trimmed`
-- `matches`, `rmatches`, `rmatch_indices`
+- `matches`, `match_indices`, `rmatches`, `rmatch_indices`
 - `split_once`, `rsplit_once`
 - `split_whitespace`, `split_ascii_whitespace`
 

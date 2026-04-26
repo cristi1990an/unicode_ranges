@@ -4203,6 +4203,101 @@ public:
 		};
 	}
 
+	template <std::ranges::viewable_range R>
+		requires details::char_set_viewable_range<R, utf16_char>
+	constexpr auto matches(R&& chars) const& noexcept(noexcept(details::make_char_set_matcher<utf16_char>(std::forward<R>(chars))))
+	{
+		return matches(details::make_char_set_matcher<utf16_char>(std::forward<R>(chars)));
+	}
+
+	template <std::ranges::viewable_range R>
+		requires details::char_set_viewable_range<R, utf16_char>
+	constexpr auto matches(R&& chars) && noexcept(std::is_nothrow_move_constructible_v<Derived>
+		&& noexcept(details::make_char_set_matcher<utf16_char>(std::forward<R>(chars))))
+		requires (!std::same_as<Derived, View>)
+	{
+		auto matcher = details::make_char_set_matcher<utf16_char>(std::forward<R>(chars));
+		using accessor_type = details::matches_view_accessor<decltype(matcher)>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ std::move(matcher) }
+		};
+	}
+
+	constexpr auto match_indices(utf16_char ch) const& noexcept
+	{
+		return utf16_match_indices_char_view<View, false>::from_delimiter_storage(
+			code_unit_view(),
+			details::owned_utf16_split_char_delimiter{ ch });
+	}
+
+	constexpr auto match_indices(utf16_char ch) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::match_indices_view_accessor<utf16_char>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ ch }
+		};
+	}
+
+	constexpr auto match_indices(View sv) const& noexcept
+	{
+		return utf16_match_indices_view<View, false>::from_delimiter_storage(
+			code_unit_view(),
+			details::borrowed_utf16_split_delimiter{ sv.base() });
+	}
+
+	constexpr auto match_indices(View sv) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::match_indices_view_accessor<View>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ sv }
+		};
+	}
+
+	template <details::utf16_char_predicate Pred>
+	constexpr auto match_indices(Pred pred) const& noexcept
+	{
+		return details::basic_utf16_predicate_match_indices_view<View, false, std::remove_cvref_t<Pred>>::from_predicate(
+			code_unit_view(),
+			std::move(pred));
+	}
+
+	template <details::utf16_char_predicate Pred>
+	constexpr auto match_indices(Pred pred) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::match_indices_view_accessor<std::remove_cvref_t<Pred>>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ std::move(pred) }
+		};
+	}
+
+	template <std::ranges::viewable_range R>
+		requires details::char_set_viewable_range<R, utf16_char>
+	constexpr auto match_indices(R&& chars) const& noexcept(noexcept(details::make_char_set_matcher<utf16_char>(std::forward<R>(chars))))
+	{
+		return match_indices(details::make_char_set_matcher<utf16_char>(std::forward<R>(chars)));
+	}
+
+	template <std::ranges::viewable_range R>
+		requires details::char_set_viewable_range<R, utf16_char>
+	constexpr auto match_indices(R&& chars) && noexcept(std::is_nothrow_move_constructible_v<Derived>
+		&& noexcept(details::make_char_set_matcher<utf16_char>(std::forward<R>(chars))))
+		requires (!std::same_as<Derived, View>)
+	{
+		auto matcher = details::make_char_set_matcher<utf16_char>(std::forward<R>(chars));
+		using accessor_type = details::match_indices_view_accessor<decltype(matcher)>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ std::move(matcher) }
+		};
+	}
+
 	constexpr auto rmatches(utf16_char ch) const& noexcept
 	{
 		return rmatch_indices(ch) | std::views::values;
@@ -4250,6 +4345,27 @@ public:
 		return details::owning_string_view<Derived, accessor_type>{
 			std::move(static_cast<Derived&>(*this)),
 			accessor_type{ std::move(pred) }
+		};
+	}
+
+	template <std::ranges::viewable_range R>
+		requires details::char_set_viewable_range<R, utf16_char>
+	constexpr auto rmatches(R&& chars) const& noexcept(noexcept(details::make_char_set_matcher<utf16_char>(std::forward<R>(chars))))
+	{
+		return rmatches(details::make_char_set_matcher<utf16_char>(std::forward<R>(chars)));
+	}
+
+	template <std::ranges::viewable_range R>
+		requires details::char_set_viewable_range<R, utf16_char>
+	constexpr auto rmatches(R&& chars) && noexcept(std::is_nothrow_move_constructible_v<Derived>
+		&& noexcept(details::make_char_set_matcher<utf16_char>(std::forward<R>(chars))))
+		requires (!std::same_as<Derived, View>)
+	{
+		auto matcher = details::make_char_set_matcher<utf16_char>(std::forward<R>(chars));
+		using accessor_type = details::rmatches_view_accessor<decltype(matcher)>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ std::move(matcher) }
 		};
 	}
 
@@ -4303,6 +4419,27 @@ public:
 		return details::owning_string_view<Derived, accessor_type>{
 			std::move(static_cast<Derived&>(*this)),
 			accessor_type{ std::move(pred) }
+		};
+	}
+
+	template <std::ranges::viewable_range R>
+		requires details::char_set_viewable_range<R, utf16_char>
+	constexpr auto rmatch_indices(R&& chars) const& noexcept(noexcept(details::make_char_set_matcher<utf16_char>(std::forward<R>(chars))))
+	{
+		return rmatch_indices(details::make_char_set_matcher<utf16_char>(std::forward<R>(chars)));
+	}
+
+	template <std::ranges::viewable_range R>
+		requires details::char_set_viewable_range<R, utf16_char>
+	constexpr auto rmatch_indices(R&& chars) && noexcept(std::is_nothrow_move_constructible_v<Derived>
+		&& noexcept(details::make_char_set_matcher<utf16_char>(std::forward<R>(chars))))
+		requires (!std::same_as<Derived, View>)
+	{
+		auto matcher = details::make_char_set_matcher<utf16_char>(std::forward<R>(chars));
+		using accessor_type = details::rmatch_indices_view_accessor<decltype(matcher)>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ std::move(matcher) }
 		};
 	}
 
