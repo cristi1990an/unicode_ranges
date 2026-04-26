@@ -284,6 +284,27 @@ namespace unicode_ranges
 		const auto code_points = rg.base();
 		if (!std::is_constant_evaluated())
 		{
+			if (auto appended_size = details::simdutf_utf8_length_from_valid_utf32_if_available(code_points))
+			{
+				if (*appended_size > base_.max_size() - base_.size()) [[unlikely]]
+				{
+					throw std::length_error("insert size exceeds max_size");
+				}
+
+				const auto original_size = base_.size();
+				base_.resize_and_overwrite(original_size + *appended_size,
+					[&](char8_t* buffer, std::size_t) noexcept
+					{
+						const auto converted = details::simdutf_convert_valid_utf32_to_utf8_if_available(
+							code_points,
+							buffer + original_size);
+						UTF8_RANGES_DEBUG_ASSERT(converted.has_value());
+						return original_size + *converted;
+					});
+
+				return *this;
+			}
+
 			// UTF-32 gives us trivially chunkable input, so we can parallelize the
 			// measure+encode pipeline without any code-unit boundary fixups.
 			const auto plan = details::make_utf32_parallel_plan(code_points.size());
@@ -363,6 +384,26 @@ namespace unicode_ranges
 		const auto code_points = rg.base();
 		if (!std::is_constant_evaluated())
 		{
+			if (auto output_size = details::simdutf_utf8_length_from_valid_utf32_if_available(code_points))
+			{
+				if (*output_size > base_.max_size()) [[unlikely]]
+				{
+					throw std::length_error("insert size exceeds max_size");
+				}
+
+				replacement.resize_and_overwrite(*output_size,
+					[&](char8_t* buffer, std::size_t) noexcept
+					{
+						const auto converted = details::simdutf_convert_valid_utf32_to_utf8_if_available(
+							code_points,
+							buffer);
+						UTF8_RANGES_DEBUG_ASSERT(converted.has_value());
+						return *converted;
+					});
+				base_ = std::move(replacement);
+				return *this;
+			}
+
 			const auto plan = details::make_utf32_parallel_plan(code_points.size());
 			if (plan.worker_count != 1)
 			{
@@ -437,6 +478,27 @@ namespace unicode_ranges
 		const auto code_points = rg.base();
 		if (!std::is_constant_evaluated())
 		{
+			if (auto appended_size = details::simdutf_utf16_length_from_valid_utf32_if_available(code_points))
+			{
+				if (*appended_size > base_.max_size() - base_.size()) [[unlikely]]
+				{
+					throw std::length_error("insert size exceeds max_size");
+				}
+
+				const auto original_size = base_.size();
+				base_.resize_and_overwrite(original_size + *appended_size,
+					[&](char16_t* buffer, std::size_t) noexcept
+					{
+						const auto converted = details::simdutf_convert_valid_utf32_to_utf16_if_available(
+							code_points,
+							buffer + original_size);
+						UTF8_RANGES_DEBUG_ASSERT(converted.has_value());
+						return original_size + *converted;
+					});
+
+				return *this;
+			}
+
 			const auto plan = details::make_utf32_parallel_plan(code_points.size());
 			if (plan.worker_count != 1)
 			{
@@ -514,6 +576,26 @@ namespace unicode_ranges
 		const auto code_points = rg.base();
 		if (!std::is_constant_evaluated())
 		{
+			if (auto output_size = details::simdutf_utf16_length_from_valid_utf32_if_available(code_points))
+			{
+				if (*output_size > base_.max_size()) [[unlikely]]
+				{
+					throw std::length_error("insert size exceeds max_size");
+				}
+
+				replacement.resize_and_overwrite(*output_size,
+					[&](char16_t* buffer, std::size_t) noexcept
+					{
+						const auto converted = details::simdutf_convert_valid_utf32_to_utf16_if_available(
+							code_points,
+							buffer);
+						UTF8_RANGES_DEBUG_ASSERT(converted.has_value());
+						return *converted;
+					});
+				base_ = std::move(replacement);
+				return *this;
+			}
+
 			const auto plan = details::make_utf32_parallel_plan(code_points.size());
 			if (plan.worker_count != 1)
 			{
@@ -2144,31 +2226,14 @@ namespace unicode_ranges
 		}
 
 		const auto bytes = rg.base();
+		const auto appended_size = utf8_inserted_utf32_size(bytes);
 		const auto original_size = base_.size();
-		base_.resize_and_overwrite(original_size + bytes.size(),
+		base_.resize_and_overwrite(original_size + appended_size,
 			[&](char32_t* buffer, std::size_t) noexcept
 			{
-				std::size_t write_index = original_size;
-				std::size_t read_index = 0;
-				while (read_index < bytes.size())
-				{
-					const auto remaining = std::u8string_view{ bytes.data() + read_index, bytes.size() - read_index };
-					const auto ascii_run = details::ascii_prefix_length(remaining);
-					if (ascii_run != 0)
-					{
-						for (std::size_t i = 0; i != ascii_run; ++i)
-						{
-							buffer[write_index + i] = static_cast<char32_t>(remaining[i]);
-						}
-						write_index += ascii_run;
-						read_index += ascii_run;
-						continue;
-					}
-					const auto count = details::utf8_byte_count_from_lead(static_cast<std::uint8_t>(bytes[read_index]));
-					buffer[write_index++] = static_cast<char32_t>(details::decode_valid_utf8_char(bytes.data() + read_index, count));
-					read_index += count;
-				}
-				return write_index;
+				const auto written = write_utf8_as_utf32(bytes, buffer + original_size);
+				UTF8_RANGES_DEBUG_ASSERT(written == appended_size);
+				return original_size + written;
 			});
 		return *this;
 	}
@@ -2185,34 +2250,14 @@ namespace unicode_ranges
 		}
 
 		const auto code_units = rg.base();
+		const auto appended_size = utf16_inserted_utf32_size(code_units);
 		const auto original_size = base_.size();
-		base_.resize_and_overwrite(original_size + code_units.size(),
+		base_.resize_and_overwrite(original_size + appended_size,
 			[&](char32_t* buffer, std::size_t) noexcept
 			{
-				std::size_t write_index = original_size;
-				std::size_t read_index = 0;
-				while (read_index < code_units.size())
-				{
-					const auto remaining = std::u16string_view{ code_units.data() + read_index, code_units.size() - read_index };
-					const auto ascii_run = details::ascii_prefix_length(remaining);
-					if (ascii_run != 0)
-					{
-						for (std::size_t i = 0; i != ascii_run; ++i)
-						{
-							buffer[write_index + i] = static_cast<char32_t>(remaining[i]);
-						}
-						write_index += ascii_run;
-						read_index += ascii_run;
-						continue;
-					}
-					const auto first = static_cast<std::uint16_t>(code_units[read_index]);
-					const auto count = details::is_utf16_high_surrogate(first)
-						? details::encoding_constants::utf16_surrogate_code_unit_count
-						: details::encoding_constants::single_code_unit_count;
-					buffer[write_index++] = static_cast<char32_t>(details::decode_valid_utf16_char(code_units.data() + read_index, count));
-					read_index += count;
-				}
-				return write_index;
+				const auto written = write_utf16_as_utf32(code_units, buffer + original_size);
+				UTF8_RANGES_DEBUG_ASSERT(written == appended_size);
+				return original_size + written;
 			});
 		return *this;
 	}
@@ -2245,30 +2290,11 @@ namespace unicode_ranges
 
 		base_type replacement{ base_.get_allocator() };
 		const auto bytes = rg.base();
-		replacement.resize_and_overwrite(bytes.size(),
+		const auto replacement_size = utf8_inserted_utf32_size(bytes, base_.max_size());
+		replacement.resize_and_overwrite(replacement_size,
 			[&](char32_t* buffer, std::size_t) noexcept
 			{
-				std::size_t write_index = 0;
-				std::size_t read_index = 0;
-				while (read_index < bytes.size())
-				{
-					const auto remaining = std::u8string_view{ bytes.data() + read_index, bytes.size() - read_index };
-					const auto ascii_run = details::ascii_prefix_length(remaining);
-					if (ascii_run != 0)
-					{
-						for (std::size_t i = 0; i != ascii_run; ++i)
-						{
-							buffer[write_index + i] = static_cast<char32_t>(remaining[i]);
-						}
-						write_index += ascii_run;
-						read_index += ascii_run;
-						continue;
-					}
-					const auto count = details::utf8_byte_count_from_lead(static_cast<std::uint8_t>(bytes[read_index]));
-					buffer[write_index++] = static_cast<char32_t>(details::decode_valid_utf8_char(bytes.data() + read_index, count));
-					read_index += count;
-				}
-				return write_index;
+				return write_utf8_as_utf32(bytes, buffer);
 			});
 		base_ = std::move(replacement);
 		return *this;
@@ -2287,33 +2313,11 @@ namespace unicode_ranges
 
 		base_type replacement{ base_.get_allocator() };
 		const auto code_units = rg.base();
-		replacement.resize_and_overwrite(code_units.size(),
+		const auto replacement_size = utf16_inserted_utf32_size(code_units, base_.max_size());
+		replacement.resize_and_overwrite(replacement_size,
 			[&](char32_t* buffer, std::size_t) noexcept
 			{
-				std::size_t write_index = 0;
-				std::size_t read_index = 0;
-				while (read_index < code_units.size())
-				{
-					const auto remaining = std::u16string_view{ code_units.data() + read_index, code_units.size() - read_index };
-					const auto ascii_run = details::ascii_prefix_length(remaining);
-					if (ascii_run != 0)
-					{
-						for (std::size_t i = 0; i != ascii_run; ++i)
-						{
-							buffer[write_index + i] = static_cast<char32_t>(remaining[i]);
-						}
-						write_index += ascii_run;
-						read_index += ascii_run;
-						continue;
-					}
-					const auto first = static_cast<std::uint16_t>(code_units[read_index]);
-					const auto count = details::is_utf16_high_surrogate(first)
-						? details::encoding_constants::utf16_surrogate_code_unit_count
-						: details::encoding_constants::single_code_unit_count;
-					buffer[write_index++] = static_cast<char32_t>(details::decode_valid_utf16_char(code_units.data() + read_index, count));
-					read_index += count;
-				}
-				return write_index;
+				return write_utf16_as_utf32(code_units, buffer);
 			});
 		base_ = std::move(replacement);
 		return *this;

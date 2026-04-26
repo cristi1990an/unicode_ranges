@@ -230,6 +230,7 @@ constexpr basic_utf8_string(It it, Sent sent, const Allocator& alloc = Allocator
 - The count constructor repeats the validated character `count` times.
 - Range and iterator constructors append validated characters from the source range.
 - The cross-encoding view constructors transcode.
+- Runtime cross-encoding construction and range mutation may use compiled bulk transcoding paths; constexpr evaluation keeps scalar fallbacks.
 - Dedicated same-encoding `chars()` and rvalue `reversed_chars()` view overloads may use direct storage paths instead of generic per-character materialization.
 - Rvalue owning views, such as `std::move(text).chars()` and `std::move(text).reversed_chars()`, may reuse storage when allocator compatibility allows it.
 
@@ -780,11 +781,25 @@ constexpr basic_utf8_string& replace_inplace(size_type pos, utf8_string_view oth
 constexpr basic_utf8_string& replace_inplace(size_type pos, utf8_char other);
 
 constexpr basic_utf8_string& replace_with_range_inplace(size_type pos, size_type count, views::utf8_view rg);
+constexpr basic_utf8_string& replace_with_range_inplace(
+    size_type pos,
+    size_type count,
+    views::owning_chars_view<basic_utf8_string>&& rg);
+constexpr basic_utf8_string& replace_with_range_inplace(
+    size_type pos,
+    size_type count,
+    views::owning_reversed_chars_view<basic_utf8_string>&& rg);
 constexpr basic_utf8_string& replace_with_range_inplace(size_type pos, size_type count, views::utf16_view rg);
 template <details::container_compatible_range<utf8_char> R>
 constexpr basic_utf8_string& replace_with_range_inplace(size_type pos, size_type count, R&& rg);
 
 constexpr basic_utf8_string& replace_with_range_inplace(size_type pos, views::utf8_view rg);
+constexpr basic_utf8_string& replace_with_range_inplace(
+    size_type pos,
+    views::owning_chars_view<basic_utf8_string>&& rg);
+constexpr basic_utf8_string& replace_with_range_inplace(
+    size_type pos,
+    views::owning_reversed_chars_view<basic_utf8_string>&& rg);
 constexpr basic_utf8_string& replace_with_range_inplace(size_type pos, views::utf16_view rg);
 template <details::container_compatible_range<utf8_char> R>
 constexpr basic_utf8_string& replace_with_range_inplace(size_type pos, R&& rg);
@@ -797,6 +812,7 @@ constexpr basic_utf8_string& replace_with_range_inplace(size_type pos, R&& rg);
 - Count-based overloads replace a validated substring `[pos, pos + count)` after clamping `count` to the remaining length.
 - Single-position overloads replace the one validated character that starts at `pos`.
 - `replace_with_range_inplace` accepts validated character ranges, including cross-encoding helper views.
+- Same-encoding `chars()` and rvalue `reversed_chars()` view overloads can use direct materialization paths.
 
 ### Overload differences
 
@@ -814,6 +830,8 @@ The examples below use `utf8_string text = "wow 😄✨"_utf8_s;`.
 | `replace_with_range_inplace(pos, rg)` | replace the single validated character at `pos` with a validated range | `text.replace_with_range_inplace(4, "🎉"_utf8_sv.chars());` |
 
 The range overloads are special because the replacement is driven by validated characters, not by raw code units. Cross-encoding helper views let the caller describe the replacement in the other encoding without building a temporary owning string first.
+
+Rvalue owning same-encoding views, such as `std::move(other).chars()` and `std::move(other).reversed_chars()`, are accepted directly and may reuse owned storage where the replacement shape allows it.
 
 ### Inspiration
 

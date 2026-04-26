@@ -49,34 +49,14 @@ namespace unicode_ranges
 		}
 
 		const auto code_units = rg.base();
+		const auto appended_size = utf16_inserted_utf8_size(code_units);
 		const auto original_size = base_.size();
-		base_.resize_and_overwrite(original_size + code_units.size() * details::encoding_constants::three_code_unit_count,
+		base_.resize_and_overwrite(original_size + appended_size,
 			[&](char8_t* buffer, std::size_t) noexcept
 			{
-				std::size_t write_index = original_size;
-				std::size_t read_index = 0;
-				while (read_index < code_units.size())
-				{
-					const auto remaining = std::u16string_view{ code_units.data() + read_index, code_units.size() - read_index };
-					const auto ascii_run = details::ascii_prefix_length(remaining);
-					if (ascii_run != 0)
-					{
-						details::copy_ascii_utf16_to_utf8(buffer + write_index, remaining.substr(0, ascii_run));
-						write_index += ascii_run;
-						read_index += ascii_run;
-						continue;
-					}
-
-					const auto first = static_cast<std::uint16_t>(code_units[read_index]);
-					const auto count = details::is_utf16_high_surrogate(first)
-						? details::encoding_constants::utf16_surrogate_code_unit_count
-						: details::encoding_constants::single_code_unit_count;
-					const auto scalar = details::decode_valid_utf16_char(code_units.data() + read_index, count);
-					write_index += details::encode_unicode_scalar_utf8_unchecked(scalar, buffer + write_index);
-					read_index += count;
-				}
-
-				return write_index;
+				const auto written = write_utf16_as_utf8(code_units, buffer + original_size);
+				UTF8_RANGES_DEBUG_ASSERT(written == appended_size);
+				return original_size + written;
 			});
 
 		return *this;
@@ -113,33 +93,11 @@ namespace unicode_ranges
 
 		base_type replacement{ base_.get_allocator() };
 		const auto code_units = rg.base();
-		replacement.resize_and_overwrite(code_units.size() * details::encoding_constants::three_code_unit_count,
+		const auto replacement_size = utf16_inserted_utf8_size(code_units, base_.max_size());
+		replacement.resize_and_overwrite(replacement_size,
 			[&](char8_t* buffer, std::size_t) noexcept
 			{
-				std::size_t write_index = 0;
-				std::size_t read_index = 0;
-				while (read_index < code_units.size())
-				{
-					const auto remaining = std::u16string_view{ code_units.data() + read_index, code_units.size() - read_index };
-					const auto ascii_run = details::ascii_prefix_length(remaining);
-					if (ascii_run != 0)
-					{
-						details::copy_ascii_utf16_to_utf8(buffer + write_index, remaining.substr(0, ascii_run));
-						write_index += ascii_run;
-						read_index += ascii_run;
-						continue;
-					}
-
-					const auto first = static_cast<std::uint16_t>(code_units[read_index]);
-					const auto count = details::is_utf16_high_surrogate(first)
-						? details::encoding_constants::utf16_surrogate_code_unit_count
-						: details::encoding_constants::single_code_unit_count;
-					const auto scalar = details::decode_valid_utf16_char(code_units.data() + read_index, count);
-					write_index += details::encode_unicode_scalar_utf8_unchecked(scalar, buffer + write_index);
-					read_index += count;
-				}
-
-				return write_index;
+				return write_utf16_as_utf8(code_units, buffer);
 			});
 		base_ = std::move(replacement);
 		return *this;
@@ -195,31 +153,14 @@ namespace unicode_ranges
 		}
 
 		const auto bytes = rg.base();
+		const auto appended_size = utf8_inserted_utf16_size(bytes);
 		const auto original_size = base_.size();
-		base_.resize_and_overwrite(original_size + bytes.size(),
+		base_.resize_and_overwrite(original_size + appended_size,
 			[&](char16_t* buffer, std::size_t) noexcept
 			{
-				std::size_t write_index = original_size;
-				std::size_t read_index = 0;
-				while (read_index < bytes.size())
-				{
-					const auto remaining = std::u8string_view{ bytes.data() + read_index, bytes.size() - read_index };
-					const auto ascii_run = details::ascii_prefix_length(remaining);
-					if (ascii_run != 0)
-					{
-						details::copy_ascii_utf8_to_utf16(buffer + write_index, remaining.substr(0, ascii_run));
-						write_index += ascii_run;
-						read_index += ascii_run;
-						continue;
-					}
-
-					const auto count = details::utf8_byte_count_from_lead(static_cast<std::uint8_t>(bytes[read_index]));
-					const auto scalar = details::decode_valid_utf8_char(bytes.data() + read_index, count);
-					write_index += details::encode_unicode_scalar_utf16_unchecked(scalar, buffer + write_index);
-					read_index += count;
-				}
-
-				return write_index;
+				const auto written = write_utf8_as_utf16(bytes, buffer + original_size);
+				UTF8_RANGES_DEBUG_ASSERT(written == appended_size);
+				return original_size + written;
 			});
 
 		return *this;
@@ -256,30 +197,11 @@ namespace unicode_ranges
 
 		base_type replacement{ base_.get_allocator() };
 		const auto bytes = rg.base();
-		replacement.resize_and_overwrite(bytes.size(),
+		const auto replacement_size = utf8_inserted_utf16_size(bytes, base_.max_size());
+		replacement.resize_and_overwrite(replacement_size,
 			[&](char16_t* buffer, std::size_t) noexcept
 			{
-				std::size_t write_index = 0;
-				std::size_t read_index = 0;
-				while (read_index < bytes.size())
-				{
-					const auto remaining = std::u8string_view{ bytes.data() + read_index, bytes.size() - read_index };
-					const auto ascii_run = details::ascii_prefix_length(remaining);
-					if (ascii_run != 0)
-					{
-						details::copy_ascii_utf8_to_utf16(buffer + write_index, remaining.substr(0, ascii_run));
-						write_index += ascii_run;
-						read_index += ascii_run;
-						continue;
-					}
-
-					const auto count = details::utf8_byte_count_from_lead(static_cast<std::uint8_t>(bytes[read_index]));
-					const auto scalar = details::decode_valid_utf8_char(bytes.data() + read_index, count);
-					write_index += details::encode_unicode_scalar_utf16_unchecked(scalar, buffer + write_index);
-					read_index += count;
-				}
-
-				return write_index;
+				return write_utf8_as_utf16(bytes, buffer);
 			});
 		base_ = std::move(replacement);
 		return *this;
@@ -2899,42 +2821,6 @@ namespace unicode_ranges
 				}
 			}
 		}
-
-		template <typename Reader>
-		constexpr std::weak_ordering compare_case_folded_sequences(Reader lhs, Reader rhs) noexcept
-		{
-			std::uint32_t lhs_scalar = 0;
-			std::uint32_t rhs_scalar = 0;
-		while (true)
-		{
-			const auto lhs_has_scalar = lhs.next(lhs_scalar);
-			const auto rhs_has_scalar = rhs.next(rhs_scalar);
-			if (!lhs_has_scalar || !rhs_has_scalar)
-			{
-				if (lhs_has_scalar)
-				{
-					return std::weak_ordering::greater;
-				}
-
-				if (rhs_has_scalar)
-				{
-					return std::weak_ordering::less;
-				}
-
-				return std::weak_ordering::equivalent;
-			}
-
-			if (lhs_scalar < rhs_scalar)
-			{
-				return std::weak_ordering::less;
-			}
-
-			if (lhs_scalar > rhs_scalar)
-			{
-				return std::weak_ordering::greater;
-			}
-		}
-	}
 
 	template <typename Reader>
 	constexpr bool folded_sequence_starts_with(Reader text, Reader prefix) noexcept

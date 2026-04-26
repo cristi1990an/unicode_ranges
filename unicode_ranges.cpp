@@ -73,6 +73,35 @@ namespace
 	}
 
 	[[nodiscard]]
+	auto map_simdutf_utf16_error(simdutf::result result, std::u16string_view input) noexcept -> utf16_error
+	{
+		const auto index = (std::min)(result.count, input.size());
+		if (index < input.size()
+			&& is_utf16_high_surrogate(static_cast<std::uint16_t>(input[index]))
+			&& index + 1 == input.size())
+		{
+			return utf16_error{
+				.code = utf16_error_code::truncated_surrogate_pair,
+				.first_invalid_code_unit_index = index
+			};
+		}
+
+		return utf16_error{
+			.code = utf16_error_code::invalid_sequence,
+			.first_invalid_code_unit_index = index
+		};
+	}
+
+	[[nodiscard]]
+	auto map_simdutf_utf32_error(simdutf::result result) noexcept -> utf32_error
+	{
+		return utf32_error{
+			.code = utf32_error_code::invalid_scalar,
+			.first_invalid_code_point_index = result.count
+		};
+	}
+
+	[[nodiscard]]
 	auto validate_utf8_runtime_impl(const char* bytes, std::size_t size) noexcept
 		-> std::expected<void, utf8_error>
 	{
@@ -83,6 +112,32 @@ namespace
 		}
 
 		return std::unexpected(map_simdutf_utf8_error(result));
+	}
+
+	[[nodiscard]]
+	auto validate_utf16_runtime_impl(std::u16string_view code_units) noexcept
+		-> std::expected<void, utf16_error>
+	{
+		const auto result = simdutf::validate_utf16_with_errors(code_units.data(), code_units.size());
+		if (result.error == simdutf::SUCCESS) [[likely]]
+		{
+			return {};
+		}
+
+		return std::unexpected(map_simdutf_utf16_error(result, code_units));
+	}
+
+	[[nodiscard]]
+	auto validate_utf32_runtime_impl(std::u32string_view code_points) noexcept
+		-> std::expected<void, utf32_error>
+	{
+		const auto result = simdutf::validate_utf32_with_errors(code_points.data(), code_points.size());
+		if (result.error == simdutf::SUCCESS) [[likely]]
+		{
+			return {};
+		}
+
+		return std::unexpected(map_simdutf_utf32_error(result));
 	}
 }
 
@@ -539,6 +594,23 @@ std::weak_ordering utf32_compare_ignore_case_runtime(std::u32string_view lhs, st
 
 #endif
 
+bool simdutf_validate_ascii_runtime(std::string_view bytes) noexcept
+{
+	return simdutf::validate_ascii(bytes.data(), bytes.size());
+}
+
+bool simdutf_validate_ascii_runtime(std::u8string_view bytes) noexcept
+{
+	return simdutf::validate_ascii(
+		reinterpret_cast<const char*>(bytes.data()),
+		bytes.size());
+}
+
+bool simdutf_validate_utf16_as_ascii_runtime(std::u16string_view code_units) noexcept
+{
+	return simdutf::validate_utf16_as_ascii(code_units.data(), code_units.size());
+}
+
 auto simdutf_validate_utf8_runtime(std::string_view bytes) noexcept
 	-> std::expected<void, utf8_error>
 {
@@ -549,6 +621,30 @@ auto simdutf_validate_utf8_runtime(std::u8string_view bytes) noexcept
 	-> std::expected<void, utf8_error>
 {
 	return validate_utf8_runtime_impl(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+}
+
+auto simdutf_validate_utf16_runtime(std::u16string_view code_units) noexcept
+	-> std::expected<void, utf16_error>
+{
+	return validate_utf16_runtime_impl(code_units);
+}
+
+auto simdutf_validate_utf32_runtime(std::u32string_view code_points) noexcept
+	-> std::expected<void, utf32_error>
+{
+	return validate_utf32_runtime_impl(code_points);
+}
+
+std::size_t simdutf_count_utf8_runtime(std::u8string_view bytes) noexcept
+{
+	return simdutf::count_utf8(
+		reinterpret_cast<const char*>(bytes.data()),
+		bytes.size());
+}
+
+std::size_t simdutf_count_utf16_runtime(std::u16string_view code_units) noexcept
+{
+	return simdutf::count_utf16(code_units.data(), code_units.size());
 }
 
 std::size_t simdutf_utf16_length_from_valid_utf8_runtime(std::u8string_view bytes) noexcept
@@ -563,6 +659,26 @@ std::size_t simdutf_utf32_length_from_valid_utf8_runtime(std::u8string_view byte
 	return simdutf::utf32_length_from_utf8(
 		reinterpret_cast<const char*>(bytes.data()),
 		bytes.size());
+}
+
+std::size_t simdutf_utf8_length_from_valid_utf16_runtime(std::u16string_view code_units) noexcept
+{
+	return simdutf::utf8_length_from_utf16(code_units.data(), code_units.size());
+}
+
+std::size_t simdutf_utf32_length_from_valid_utf16_runtime(std::u16string_view code_units) noexcept
+{
+	return simdutf::utf32_length_from_utf16(code_units.data(), code_units.size());
+}
+
+std::size_t simdutf_utf8_length_from_valid_utf32_runtime(std::u32string_view code_points) noexcept
+{
+	return simdutf::utf8_length_from_utf32(code_points.data(), code_points.size());
+}
+
+std::size_t simdutf_utf16_length_from_valid_utf32_runtime(std::u32string_view code_points) noexcept
+{
+	return simdutf::utf16_length_from_utf32(code_points.data(), code_points.size());
 }
 
 std::size_t simdutf_convert_valid_utf8_to_utf16_runtime(
@@ -586,6 +702,54 @@ std::size_t simdutf_convert_valid_utf8_to_utf32_runtime(
 		bytes.size(),
 		output);
 	UTF8_RANGES_DEBUG_ASSERT(count == simdutf_utf32_length_from_valid_utf8_runtime(bytes));
+	return count;
+}
+
+std::size_t simdutf_convert_valid_utf16_to_utf8_runtime(
+	std::u16string_view code_units,
+	char8_t* output) noexcept
+{
+	const auto count = simdutf::convert_valid_utf16_to_utf8(
+		code_units.data(),
+		code_units.size(),
+		reinterpret_cast<char*>(output));
+	UTF8_RANGES_DEBUG_ASSERT(count == simdutf_utf8_length_from_valid_utf16_runtime(code_units));
+	return count;
+}
+
+std::size_t simdutf_convert_valid_utf16_to_utf32_runtime(
+	std::u16string_view code_units,
+	char32_t* output) noexcept
+{
+	const auto count = simdutf::convert_valid_utf16_to_utf32(
+		code_units.data(),
+		code_units.size(),
+		output);
+	UTF8_RANGES_DEBUG_ASSERT(count == simdutf_utf32_length_from_valid_utf16_runtime(code_units));
+	return count;
+}
+
+std::size_t simdutf_convert_valid_utf32_to_utf8_runtime(
+	std::u32string_view code_points,
+	char8_t* output) noexcept
+{
+	const auto count = simdutf::convert_valid_utf32_to_utf8(
+		code_points.data(),
+		code_points.size(),
+		reinterpret_cast<char*>(output));
+	UTF8_RANGES_DEBUG_ASSERT(count == simdutf_utf8_length_from_valid_utf32_runtime(code_points));
+	return count;
+}
+
+std::size_t simdutf_convert_valid_utf32_to_utf16_runtime(
+	std::u32string_view code_points,
+	char16_t* output) noexcept
+{
+	const auto count = simdutf::convert_valid_utf32_to_utf16(
+		code_points.data(),
+		code_points.size(),
+		output);
+	UTF8_RANGES_DEBUG_ASSERT(count == simdutf_utf16_length_from_valid_utf32_runtime(code_points));
 	return count;
 }
 
@@ -623,33 +787,13 @@ namespace
 	void append_utf16_view_to_utf8_runtime_impl(OutputString& output, std::u16string_view code_units)
 	{
 		const auto original_size = output.size();
-		output.resize_and_overwrite(original_size + code_units.size() * encoding_constants::three_code_unit_count,
+		const auto appended_size = simdutf_utf8_length_from_valid_utf16_runtime(code_units);
+		output.resize_and_overwrite(original_size + appended_size,
 			[&](char8_t* buffer, std::size_t) noexcept
 			{
-				std::size_t write_index = original_size;
-				std::size_t read_index = 0;
-				while (read_index < code_units.size())
-				{
-					const auto remaining = std::u16string_view{ code_units.data() + read_index, code_units.size() - read_index };
-					const auto ascii_run = ascii_prefix_length(remaining);
-					if (ascii_run != 0)
-					{
-						copy_ascii_utf16_to_utf8(buffer + write_index, remaining.substr(0, ascii_run));
-						write_index += ascii_run;
-						read_index += ascii_run;
-						continue;
-					}
-
-					const auto first = static_cast<std::uint16_t>(code_units[read_index]);
-					const auto count = is_utf16_high_surrogate(first)
-						? encoding_constants::utf16_surrogate_code_unit_count
-						: encoding_constants::single_code_unit_count;
-					const auto scalar = decode_valid_utf16_char(code_units.data() + read_index, count);
-					write_index += encode_unicode_scalar_utf8_unchecked(scalar, buffer + write_index);
-					read_index += count;
-				}
-
-				return write_index;
+				const auto written = simdutf_convert_valid_utf16_to_utf8_runtime(code_units, buffer + original_size);
+				UTF8_RANGES_DEBUG_ASSERT(written == appended_size);
+				return original_size + written;
 			});
 	}
 
@@ -657,33 +801,13 @@ namespace
 	void assign_utf16_view_to_utf8_runtime_impl(OutputString& output, std::u16string_view code_units)
 	{
 		OutputString replacement{ output.get_allocator() };
-		replacement.resize_and_overwrite(code_units.size() * encoding_constants::three_code_unit_count,
+		const auto output_size = simdutf_utf8_length_from_valid_utf16_runtime(code_units);
+		replacement.resize_and_overwrite(output_size,
 			[&](char8_t* buffer, std::size_t) noexcept
 			{
-				std::size_t write_index = 0;
-				std::size_t read_index = 0;
-				while (read_index < code_units.size())
-				{
-					const auto remaining = std::u16string_view{ code_units.data() + read_index, code_units.size() - read_index };
-					const auto ascii_run = ascii_prefix_length(remaining);
-					if (ascii_run != 0)
-					{
-						copy_ascii_utf16_to_utf8(buffer + write_index, remaining.substr(0, ascii_run));
-						write_index += ascii_run;
-						read_index += ascii_run;
-						continue;
-					}
-
-					const auto first = static_cast<std::uint16_t>(code_units[read_index]);
-					const auto count = is_utf16_high_surrogate(first)
-						? encoding_constants::utf16_surrogate_code_unit_count
-						: encoding_constants::single_code_unit_count;
-					const auto scalar = decode_valid_utf16_char(code_units.data() + read_index, count);
-					write_index += encode_unicode_scalar_utf8_unchecked(scalar, buffer + write_index);
-					read_index += count;
-				}
-
-				return write_index;
+				const auto written = simdutf_convert_valid_utf16_to_utf8_runtime(code_units, buffer);
+				UTF8_RANGES_DEBUG_ASSERT(written == output_size);
+				return written;
 			});
 		output = std::move(replacement);
 	}
@@ -692,30 +816,13 @@ namespace
 	void append_utf8_view_to_utf16_runtime_impl(OutputString& output, std::u8string_view bytes)
 	{
 		const auto original_size = output.size();
-		output.resize_and_overwrite(original_size + bytes.size(),
+		const auto appended_size = simdutf_utf16_length_from_valid_utf8_runtime(bytes);
+		output.resize_and_overwrite(original_size + appended_size,
 			[&](char16_t* buffer, std::size_t) noexcept
 			{
-				std::size_t write_index = original_size;
-				std::size_t read_index = 0;
-				while (read_index < bytes.size())
-				{
-					const auto remaining = std::u8string_view{ bytes.data() + read_index, bytes.size() - read_index };
-					const auto ascii_run = ascii_prefix_length(remaining);
-					if (ascii_run != 0)
-					{
-						copy_ascii_utf8_to_utf16(buffer + write_index, remaining.substr(0, ascii_run));
-						write_index += ascii_run;
-						read_index += ascii_run;
-						continue;
-					}
-
-					const auto count = utf8_byte_count_from_lead(static_cast<std::uint8_t>(bytes[read_index]));
-					const auto scalar = decode_valid_utf8_char(bytes.data() + read_index, count);
-					write_index += encode_unicode_scalar_utf16_unchecked(scalar, buffer + write_index);
-					read_index += count;
-				}
-
-				return write_index;
+				const auto written = simdutf_convert_valid_utf8_to_utf16_runtime(bytes, buffer + original_size);
+				UTF8_RANGES_DEBUG_ASSERT(written == appended_size);
+				return original_size + written;
 			});
 	}
 
@@ -723,30 +830,13 @@ namespace
 	void assign_utf8_view_to_utf16_runtime_impl(OutputString& output, std::u8string_view bytes)
 	{
 		OutputString replacement{ output.get_allocator() };
-		replacement.resize_and_overwrite(bytes.size(),
+		const auto output_size = simdutf_utf16_length_from_valid_utf8_runtime(bytes);
+		replacement.resize_and_overwrite(output_size,
 			[&](char16_t* buffer, std::size_t) noexcept
 			{
-				std::size_t write_index = 0;
-				std::size_t read_index = 0;
-				while (read_index < bytes.size())
-				{
-					const auto remaining = std::u8string_view{ bytes.data() + read_index, bytes.size() - read_index };
-					const auto ascii_run = ascii_prefix_length(remaining);
-					if (ascii_run != 0)
-					{
-						copy_ascii_utf8_to_utf16(buffer + write_index, remaining.substr(0, ascii_run));
-						write_index += ascii_run;
-						read_index += ascii_run;
-						continue;
-					}
-
-					const auto count = utf8_byte_count_from_lead(static_cast<std::uint8_t>(bytes[read_index]));
-					const auto scalar = decode_valid_utf8_char(bytes.data() + read_index, count);
-					write_index += encode_unicode_scalar_utf16_unchecked(scalar, buffer + write_index);
-					read_index += count;
-				}
-
-				return write_index;
+				const auto written = simdutf_convert_valid_utf8_to_utf16_runtime(bytes, buffer);
+				UTF8_RANGES_DEBUG_ASSERT(written == output_size);
+				return written;
 			});
 		output = std::move(replacement);
 	}
@@ -754,62 +844,14 @@ namespace
 	template <typename OutputString>
 	void append_utf32_view_to_utf8_runtime_impl(OutputString& output, std::u32string_view code_points)
 	{
-		const auto plan = make_utf32_parallel_plan(code_points.size());
-		if (plan.worker_count != 1)
-		{
-			auto chunk_sizes = std::make_unique<std::size_t[]>(plan.worker_count);
-			fill_parallel_utf32_chunk_results(
-				code_points,
-				plan,
-				chunk_sizes.get(),
-				[](std::u32string_view chunk) noexcept
-				{
-					return scalar_sequence_utf8_size(chunk);
-				});
-
-			auto chunk_offsets = std::make_unique<std::size_t[]>(plan.worker_count);
-			std::size_t appended_size = 0;
-			for (std::size_t chunk_index = 0; chunk_index != plan.worker_count; ++chunk_index)
-			{
-				chunk_offsets[chunk_index] = appended_size;
-				appended_size += chunk_sizes[chunk_index];
-			}
-
-			const auto original_size = output.size();
-			output.resize(original_size + appended_size);
-			write_parallel_utf32_chunks(
-				code_points,
-				plan,
-				chunk_offsets.get(),
-				output.data() + original_size,
-				[](std::u32string_view chunk, char8_t* out) noexcept
-				{
-					std::size_t write_index = 0;
-					for (char32_t code_point : chunk)
-					{
-						write_index += encode_unicode_scalar_utf8_unchecked(
-							static_cast<std::uint32_t>(code_point),
-							out + write_index);
-					}
-				});
-
-			return;
-		}
-
-		const auto appended_size = scalar_sequence_utf8_size(code_points);
 		const auto original_size = output.size();
+		const auto appended_size = simdutf_utf8_length_from_valid_utf32_runtime(code_points);
 		output.resize_and_overwrite(original_size + appended_size,
 			[&](char8_t* buffer, std::size_t) noexcept
 			{
-				std::size_t write_index = original_size;
-				for (char32_t code_point : code_points)
-				{
-					write_index += encode_unicode_scalar_utf8_unchecked(
-						static_cast<std::uint32_t>(code_point),
-						buffer + write_index);
-				}
-
-				return write_index;
+				const auto written = simdutf_convert_valid_utf32_to_utf8_runtime(code_points, buffer + original_size);
+				UTF8_RANGES_DEBUG_ASSERT(written == appended_size);
+				return original_size + written;
 			});
 	}
 
@@ -817,60 +859,13 @@ namespace
 	void assign_utf32_view_to_utf8_runtime_impl(OutputString& output, std::u32string_view code_points)
 	{
 		OutputString replacement{ output.get_allocator() };
-		const auto plan = make_utf32_parallel_plan(code_points.size());
-		if (plan.worker_count != 1)
-		{
-			auto chunk_sizes = std::make_unique<std::size_t[]>(plan.worker_count);
-			fill_parallel_utf32_chunk_results(
-				code_points,
-				plan,
-				chunk_sizes.get(),
-				[](std::u32string_view chunk) noexcept
-				{
-					return scalar_sequence_utf8_size(chunk);
-				});
-
-			auto chunk_offsets = std::make_unique<std::size_t[]>(plan.worker_count);
-			std::size_t output_size = 0;
-			for (std::size_t chunk_index = 0; chunk_index != plan.worker_count; ++chunk_index)
-			{
-				chunk_offsets[chunk_index] = output_size;
-				output_size += chunk_sizes[chunk_index];
-			}
-
-			replacement.resize(output_size);
-			write_parallel_utf32_chunks(
-				code_points,
-				plan,
-				chunk_offsets.get(),
-				replacement.data(),
-				[](std::u32string_view chunk, char8_t* out) noexcept
-				{
-					std::size_t write_index = 0;
-					for (char32_t code_point : chunk)
-					{
-						write_index += encode_unicode_scalar_utf8_unchecked(
-							static_cast<std::uint32_t>(code_point),
-							out + write_index);
-					}
-				});
-
-			output = std::move(replacement);
-			return;
-		}
-
-		replacement.resize_and_overwrite(scalar_sequence_utf8_size(code_points),
+		const auto output_size = simdutf_utf8_length_from_valid_utf32_runtime(code_points);
+		replacement.resize_and_overwrite(output_size,
 			[&](char8_t* buffer, std::size_t) noexcept
 			{
-				std::size_t write_index = 0;
-				for (char32_t code_point : code_points)
-				{
-					write_index += encode_unicode_scalar_utf8_unchecked(
-						static_cast<std::uint32_t>(code_point),
-						buffer + write_index);
-				}
-
-				return write_index;
+				const auto written = simdutf_convert_valid_utf32_to_utf8_runtime(code_points, buffer);
+				UTF8_RANGES_DEBUG_ASSERT(written == output_size);
+				return written;
 			});
 		output = std::move(replacement);
 	}
@@ -878,62 +873,14 @@ namespace
 	template <typename OutputString>
 	void append_utf32_view_to_utf16_runtime_impl(OutputString& output, std::u32string_view code_points)
 	{
-		const auto plan = make_utf32_parallel_plan(code_points.size());
-		if (plan.worker_count != 1)
-		{
-			auto chunk_sizes = std::make_unique<std::size_t[]>(plan.worker_count);
-			fill_parallel_utf32_chunk_results(
-				code_points,
-				plan,
-				chunk_sizes.get(),
-				[](std::u32string_view chunk) noexcept
-				{
-					return scalar_sequence_utf16_size(chunk);
-				});
-
-			auto chunk_offsets = std::make_unique<std::size_t[]>(plan.worker_count);
-			std::size_t appended_size = 0;
-			for (std::size_t chunk_index = 0; chunk_index != plan.worker_count; ++chunk_index)
-			{
-				chunk_offsets[chunk_index] = appended_size;
-				appended_size += chunk_sizes[chunk_index];
-			}
-
-			const auto original_size = output.size();
-			output.resize(original_size + appended_size);
-			write_parallel_utf32_chunks(
-				code_points,
-				plan,
-				chunk_offsets.get(),
-				output.data() + original_size,
-				[](std::u32string_view chunk, char16_t* out) noexcept
-				{
-					std::size_t write_index = 0;
-					for (char32_t code_point : chunk)
-					{
-						write_index += encode_unicode_scalar_utf16_unchecked(
-							static_cast<std::uint32_t>(code_point),
-							out + write_index);
-					}
-				});
-
-			return;
-		}
-
-		const auto appended_size = scalar_sequence_utf16_size(code_points);
 		const auto original_size = output.size();
+		const auto appended_size = simdutf_utf16_length_from_valid_utf32_runtime(code_points);
 		output.resize_and_overwrite(original_size + appended_size,
 			[&](char16_t* buffer, std::size_t) noexcept
 			{
-				std::size_t write_index = original_size;
-				for (char32_t code_point : code_points)
-				{
-					write_index += encode_unicode_scalar_utf16_unchecked(
-						static_cast<std::uint32_t>(code_point),
-						buffer + write_index);
-				}
-
-				return write_index;
+				const auto written = simdutf_convert_valid_utf32_to_utf16_runtime(code_points, buffer + original_size);
+				UTF8_RANGES_DEBUG_ASSERT(written == appended_size);
+				return original_size + written;
 			});
 	}
 
@@ -941,60 +888,13 @@ namespace
 	void assign_utf32_view_to_utf16_runtime_impl(OutputString& output, std::u32string_view code_points)
 	{
 		OutputString replacement{ output.get_allocator() };
-		const auto plan = make_utf32_parallel_plan(code_points.size());
-		if (plan.worker_count != 1)
-		{
-			auto chunk_sizes = std::make_unique<std::size_t[]>(plan.worker_count);
-			fill_parallel_utf32_chunk_results(
-				code_points,
-				plan,
-				chunk_sizes.get(),
-				[](std::u32string_view chunk) noexcept
-				{
-					return scalar_sequence_utf16_size(chunk);
-				});
-
-			auto chunk_offsets = std::make_unique<std::size_t[]>(plan.worker_count);
-			std::size_t output_size = 0;
-			for (std::size_t chunk_index = 0; chunk_index != plan.worker_count; ++chunk_index)
-			{
-				chunk_offsets[chunk_index] = output_size;
-				output_size += chunk_sizes[chunk_index];
-			}
-
-			replacement.resize(output_size);
-			write_parallel_utf32_chunks(
-				code_points,
-				plan,
-				chunk_offsets.get(),
-				replacement.data(),
-				[](std::u32string_view chunk, char16_t* out) noexcept
-				{
-					std::size_t write_index = 0;
-					for (char32_t code_point : chunk)
-					{
-						write_index += encode_unicode_scalar_utf16_unchecked(
-							static_cast<std::uint32_t>(code_point),
-							out + write_index);
-					}
-				});
-
-			output = std::move(replacement);
-			return;
-		}
-
-		replacement.resize_and_overwrite(scalar_sequence_utf16_size(code_points),
+		const auto output_size = simdutf_utf16_length_from_valid_utf32_runtime(code_points);
+		replacement.resize_and_overwrite(output_size,
 			[&](char16_t* buffer, std::size_t) noexcept
 			{
-				std::size_t write_index = 0;
-				for (char32_t code_point : code_points)
-				{
-					write_index += encode_unicode_scalar_utf16_unchecked(
-						static_cast<std::uint32_t>(code_point),
-						buffer + write_index);
-				}
-
-				return write_index;
+				const auto written = simdutf_convert_valid_utf32_to_utf16_runtime(code_points, buffer);
+				UTF8_RANGES_DEBUG_ASSERT(written == output_size);
+				return written;
 			});
 		output = std::move(replacement);
 	}
@@ -1003,31 +903,13 @@ namespace
 	void append_utf8_view_to_utf32_runtime_impl(OutputString& output, std::u8string_view bytes)
 	{
 		const auto original_size = output.size();
-		output.resize_and_overwrite(original_size + bytes.size(),
+		const auto appended_size = simdutf_utf32_length_from_valid_utf8_runtime(bytes);
+		output.resize_and_overwrite(original_size + appended_size,
 			[&](char32_t* buffer, std::size_t) noexcept
 			{
-				std::size_t write_index = original_size;
-				std::size_t read_index = 0;
-				while (read_index < bytes.size())
-				{
-					const auto remaining = std::u8string_view{ bytes.data() + read_index, bytes.size() - read_index };
-					const auto ascii_run = ascii_prefix_length(remaining);
-					if (ascii_run != 0)
-					{
-						for (std::size_t i = 0; i != ascii_run; ++i)
-						{
-							buffer[write_index + i] = static_cast<char32_t>(remaining[i]);
-						}
-						write_index += ascii_run;
-						read_index += ascii_run;
-						continue;
-					}
-
-					const auto count = utf8_byte_count_from_lead(static_cast<std::uint8_t>(bytes[read_index]));
-					buffer[write_index++] = static_cast<char32_t>(decode_valid_utf8_char(bytes.data() + read_index, count));
-					read_index += count;
-				}
-				return write_index;
+				const auto written = simdutf_convert_valid_utf8_to_utf32_runtime(bytes, buffer + original_size);
+				UTF8_RANGES_DEBUG_ASSERT(written == appended_size);
+				return original_size + written;
 			});
 	}
 
@@ -1035,31 +917,13 @@ namespace
 	void assign_utf8_view_to_utf32_runtime_impl(OutputString& output, std::u8string_view bytes)
 	{
 		OutputString replacement{ output.get_allocator() };
-		replacement.resize_and_overwrite(bytes.size(),
+		const auto output_size = simdutf_utf32_length_from_valid_utf8_runtime(bytes);
+		replacement.resize_and_overwrite(output_size,
 			[&](char32_t* buffer, std::size_t) noexcept
 			{
-				std::size_t write_index = 0;
-				std::size_t read_index = 0;
-				while (read_index < bytes.size())
-				{
-					const auto remaining = std::u8string_view{ bytes.data() + read_index, bytes.size() - read_index };
-					const auto ascii_run = ascii_prefix_length(remaining);
-					if (ascii_run != 0)
-					{
-						for (std::size_t i = 0; i != ascii_run; ++i)
-						{
-							buffer[write_index + i] = static_cast<char32_t>(remaining[i]);
-						}
-						write_index += ascii_run;
-						read_index += ascii_run;
-						continue;
-					}
-
-					const auto count = utf8_byte_count_from_lead(static_cast<std::uint8_t>(bytes[read_index]));
-					buffer[write_index++] = static_cast<char32_t>(decode_valid_utf8_char(bytes.data() + read_index, count));
-					read_index += count;
-				}
-				return write_index;
+				const auto written = simdutf_convert_valid_utf8_to_utf32_runtime(bytes, buffer);
+				UTF8_RANGES_DEBUG_ASSERT(written == output_size);
+				return written;
 			});
 		output = std::move(replacement);
 	}
@@ -1068,34 +932,13 @@ namespace
 	void append_utf16_view_to_utf32_runtime_impl(OutputString& output, std::u16string_view code_units)
 	{
 		const auto original_size = output.size();
-		output.resize_and_overwrite(original_size + code_units.size(),
+		const auto appended_size = simdutf_utf32_length_from_valid_utf16_runtime(code_units);
+		output.resize_and_overwrite(original_size + appended_size,
 			[&](char32_t* buffer, std::size_t) noexcept
 			{
-				std::size_t write_index = original_size;
-				std::size_t read_index = 0;
-				while (read_index < code_units.size())
-				{
-					const auto remaining = std::u16string_view{ code_units.data() + read_index, code_units.size() - read_index };
-					const auto ascii_run = ascii_prefix_length(remaining);
-					if (ascii_run != 0)
-					{
-						for (std::size_t i = 0; i != ascii_run; ++i)
-						{
-							buffer[write_index + i] = static_cast<char32_t>(remaining[i]);
-						}
-						write_index += ascii_run;
-						read_index += ascii_run;
-						continue;
-					}
-
-					const auto first = static_cast<std::uint16_t>(code_units[read_index]);
-					const auto count = is_utf16_high_surrogate(first)
-						? encoding_constants::utf16_surrogate_code_unit_count
-						: encoding_constants::single_code_unit_count;
-					buffer[write_index++] = static_cast<char32_t>(decode_valid_utf16_char(code_units.data() + read_index, count));
-					read_index += count;
-				}
-				return write_index;
+				const auto written = simdutf_convert_valid_utf16_to_utf32_runtime(code_units, buffer + original_size);
+				UTF8_RANGES_DEBUG_ASSERT(written == appended_size);
+				return original_size + written;
 			});
 	}
 
@@ -1103,34 +946,13 @@ namespace
 	void assign_utf16_view_to_utf32_runtime_impl(OutputString& output, std::u16string_view code_units)
 	{
 		OutputString replacement{ output.get_allocator() };
-		replacement.resize_and_overwrite(code_units.size(),
+		const auto output_size = simdutf_utf32_length_from_valid_utf16_runtime(code_units);
+		replacement.resize_and_overwrite(output_size,
 			[&](char32_t* buffer, std::size_t) noexcept
 			{
-				std::size_t write_index = 0;
-				std::size_t read_index = 0;
-				while (read_index < code_units.size())
-				{
-					const auto remaining = std::u16string_view{ code_units.data() + read_index, code_units.size() - read_index };
-					const auto ascii_run = ascii_prefix_length(remaining);
-					if (ascii_run != 0)
-					{
-						for (std::size_t i = 0; i != ascii_run; ++i)
-						{
-							buffer[write_index + i] = static_cast<char32_t>(remaining[i]);
-						}
-						write_index += ascii_run;
-						read_index += ascii_run;
-						continue;
-					}
-
-					const auto first = static_cast<std::uint16_t>(code_units[read_index]);
-					const auto count = is_utf16_high_surrogate(first)
-						? encoding_constants::utf16_surrogate_code_unit_count
-						: encoding_constants::single_code_unit_count;
-					buffer[write_index++] = static_cast<char32_t>(decode_valid_utf16_char(code_units.data() + read_index, count));
-					read_index += count;
-				}
-				return write_index;
+				const auto written = simdutf_convert_valid_utf16_to_utf32_runtime(code_units, buffer);
+				UTF8_RANGES_DEBUG_ASSERT(written == output_size);
+				return written;
 			});
 		output = std::move(replacement);
 	}

@@ -264,12 +264,17 @@ private:
 	constexpr void add_inserted_size(size_type& inserted_size, size_type added) const
 	{
 		const auto max_inserted_size = base_.max_size() - base_.size();
-		if (inserted_size > max_inserted_size || added > max_inserted_size - inserted_size) [[unlikely]]
+		add_output_size(inserted_size, added, max_inserted_size);
+	}
+
+	constexpr void add_output_size(size_type& output_size, size_type added, size_type max_output_size) const
+	{
+		if (output_size > max_output_size || added > max_output_size - output_size) [[unlikely]]
 		{
 			throw std::length_error("insert size exceeds max_size");
 		}
 
-		inserted_size += added;
+		output_size += added;
 	}
 
 	[[nodiscard]]
@@ -287,10 +292,21 @@ private:
 	[[nodiscard]]
 	constexpr size_type utf8_inserted_utf16_size(std::u8string_view bytes) const
 	{
+		return utf8_inserted_utf16_size(bytes, base_.max_size() - base_.size());
+	}
+
+	[[nodiscard]]
+	constexpr size_type utf8_inserted_utf16_size(std::u8string_view bytes, size_type max_output_size) const
+	{
 		if (!std::is_constant_evaluated())
 		{
 			if (auto output_size = details::simdutf_utf16_length_from_valid_utf8_if_available(bytes))
 			{
+				if (*output_size > max_output_size) [[unlikely]]
+				{
+					throw std::length_error("insert size exceeds max_size");
+				}
+
 				return static_cast<size_type>(*output_size);
 			}
 		}
@@ -303,14 +319,14 @@ private:
 			const auto ascii_run = details::ascii_prefix_length(remaining);
 			if (ascii_run != 0)
 			{
-				add_inserted_size(inserted_size, ascii_run);
+				add_output_size(inserted_size, ascii_run, max_output_size);
 				read_index += ascii_run;
 				continue;
 			}
 
 			const auto count = details::utf8_byte_count_from_lead(static_cast<std::uint8_t>(bytes[read_index]));
 			const auto scalar = details::decode_valid_utf8_char(bytes.data() + read_index, count);
-			add_inserted_size(inserted_size, utf16_code_unit_count(scalar));
+			add_output_size(inserted_size, utf16_code_unit_count(scalar), max_output_size);
 			read_index += count;
 		}
 
@@ -320,10 +336,32 @@ private:
 	[[nodiscard]]
 	constexpr size_type utf32_inserted_utf16_size(std::u32string_view code_points) const
 	{
+		return utf32_inserted_utf16_size(code_points, base_.max_size() - base_.size());
+	}
+
+	[[nodiscard]]
+	constexpr size_type utf32_inserted_utf16_size(std::u32string_view code_points, size_type max_output_size) const
+	{
+		if (!std::is_constant_evaluated())
+		{
+			if (auto output_size = details::simdutf_utf16_length_from_valid_utf32_if_available(code_points))
+			{
+				if (*output_size > max_output_size) [[unlikely]]
+				{
+					throw std::length_error("insert size exceeds max_size");
+				}
+
+				return static_cast<size_type>(*output_size);
+			}
+		}
+
 		size_type inserted_size = 0;
 		for (char32_t code_point : code_points)
 		{
-			add_inserted_size(inserted_size, utf16_code_unit_count(static_cast<std::uint32_t>(code_point)));
+			add_output_size(
+				inserted_size,
+				utf16_code_unit_count(static_cast<std::uint32_t>(code_point)),
+				max_output_size);
 		}
 
 		return inserted_size;
@@ -374,6 +412,14 @@ private:
 	[[nodiscard]]
 	static constexpr size_type write_utf32_as_utf16(std::u32string_view code_points, char16_t* out) noexcept
 	{
+		if (!std::is_constant_evaluated())
+		{
+			if (auto converted = details::simdutf_convert_valid_utf32_to_utf16_if_available(code_points, out))
+			{
+				return static_cast<size_type>(*converted);
+			}
+		}
+
 		size_type write_index = 0;
 		for (char32_t code_point : code_points)
 		{
@@ -522,6 +568,33 @@ private:
 
 		auto reversed = basic_utf16_string{ std::from_range, std::move(rg), base_.get_allocator() };
 		return insert_code_units(index, reversed.base());
+	}
+
+	constexpr basic_utf16_string& replace_owned_utf16_chars(size_type pos, size_type count, views::owning_chars_view<basic_utf16_string>&& rg)
+	{
+		auto owner = details::release_owned_string_view_owner(std::move(rg));
+		const auto& source = owner.base();
+		if (pos == 0 && count == size() && can_steal_storage_from(source))
+		{
+			base_ = std::move(owner).base();
+			return *this;
+		}
+
+		return replace_code_units(pos, count, equivalent_string_view{ source });
+	}
+
+	constexpr basic_utf16_string& replace_owned_reversed_utf16_chars(
+		size_type pos,
+		size_type count,
+		views::owning_reversed_chars_view<basic_utf16_string>&& rg)
+	{
+		if (pos == 0 && count == size())
+		{
+			return assign_owned_reversed_utf16_chars(std::move(rg));
+		}
+
+		auto reversed = basic_utf16_string{ std::from_range, std::move(rg), base_.get_allocator() };
+		return replace_code_units(pos, count, reversed.base());
 	}
 
 	template <typename ResultAllocator>
@@ -2528,6 +2601,47 @@ public:
 		return replace_code_units(pos, replace_count, rg.base());
 	}
 
+	constexpr basic_utf16_string& replace_with_range_inplace(size_type pos, size_type count, views::owning_chars_view<basic_utf16_string>&& rg)
+	{
+		if (pos > size()) [[unlikely]]
+		{
+			throw std::out_of_range("replace index out of range");
+		}
+
+		const auto remaining = size() - pos;
+		const auto replace_count = (count == npos || count > remaining) ? remaining : count;
+		const auto end = pos + replace_count;
+
+		if (!this->is_char_boundary(pos) || !this->is_char_boundary(end)) [[unlikely]]
+		{
+			throw std::out_of_range("replace range must be a valid UTF-16 substring");
+		}
+
+		return replace_owned_utf16_chars(pos, replace_count, std::move(rg));
+	}
+
+	constexpr basic_utf16_string& replace_with_range_inplace(
+		size_type pos,
+		size_type count,
+		views::owning_reversed_chars_view<basic_utf16_string>&& rg)
+	{
+		if (pos > size()) [[unlikely]]
+		{
+			throw std::out_of_range("replace index out of range");
+		}
+
+		const auto remaining = size() - pos;
+		const auto replace_count = (count == npos || count > remaining) ? remaining : count;
+		const auto end = pos + replace_count;
+
+		if (!this->is_char_boundary(pos) || !this->is_char_boundary(end)) [[unlikely]]
+		{
+			throw std::out_of_range("replace range must be a valid UTF-16 substring");
+		}
+
+		return replace_owned_reversed_utf16_chars(pos, replace_count, std::move(rg));
+	}
+
 	constexpr basic_utf16_string& replace_with_range_inplace(size_type pos, size_type count, views::utf8_view rg)
 	{
 		if (pos > size()) [[unlikely]]
@@ -2544,20 +2658,22 @@ public:
 			throw std::out_of_range("replace range must be a valid UTF-16 substring");
 		}
 
+		const auto bytes = rg.base();
+		const auto retained_size = size() - replace_count;
+		const auto replacement_size = utf8_inserted_utf16_size(bytes, base_.max_size() - retained_size);
 		base_type replacement{ base_.get_allocator() };
-		replacement.reserve(rg.base().size());
-		for (utf8_char ch : rg)
-		{
-			std::array<char16_t, 2> encoded{};
-			const auto encoded_count = ch.encode_utf16<char16_t>(encoded.begin());
-			replacement.append(encoded.data(), encoded.data() + encoded_count);
-		}
+		replacement.resize_and_overwrite(replacement_size,
+			[&](char16_t* buffer, std::size_t) noexcept
+			{
+				return write_utf8_as_utf16(bytes, buffer);
+			});
 
 		base_.replace(pos, replace_count, replacement);
 		return *this;
 	}
 
 	template <details::container_compatible_range<utf16_char> R>
+		requires (!optimized_utf16_chars_range<R>)
 	constexpr basic_utf16_string& replace_with_range_inplace(size_type pos, size_type count, R&& rg)
 	{
 		if (pos > size()) [[unlikely]]
@@ -2629,6 +2745,38 @@ public:
 		return replace_with_range_inplace(pos, replace_count, rg);
 	}
 
+	constexpr basic_utf16_string& replace_with_range_inplace(size_type pos, views::owning_chars_view<basic_utf16_string>&& rg)
+	{
+		if (pos >= size()) [[unlikely]]
+		{
+			throw std::out_of_range("replace index out of range");
+		}
+
+		if (!this->is_char_boundary(pos)) [[unlikely]]
+		{
+			throw std::out_of_range("replace index must be at a UTF-16 character boundary");
+		}
+
+		const auto replace_count = this->char_at_unchecked(pos).code_unit_count();
+		return replace_owned_utf16_chars(pos, replace_count, std::move(rg));
+	}
+
+	constexpr basic_utf16_string& replace_with_range_inplace(size_type pos, views::owning_reversed_chars_view<basic_utf16_string>&& rg)
+	{
+		if (pos >= size()) [[unlikely]]
+		{
+			throw std::out_of_range("replace index out of range");
+		}
+
+		if (!this->is_char_boundary(pos)) [[unlikely]]
+		{
+			throw std::out_of_range("replace index must be at a UTF-16 character boundary");
+		}
+
+		const auto replace_count = this->char_at_unchecked(pos).code_unit_count();
+		return replace_owned_reversed_utf16_chars(pos, replace_count, std::move(rg));
+	}
+
 	constexpr basic_utf16_string& replace_with_range_inplace(size_type pos, views::utf8_view rg)
 	{
 		if (pos >= size()) [[unlikely]]
@@ -2646,6 +2794,7 @@ public:
 	}
 
 	template <details::container_compatible_range<utf16_char> R>
+		requires (!optimized_utf16_chars_range<R>)
 	constexpr basic_utf16_string& replace_with_range_inplace(size_type pos, R&& rg)
 	{
 		if (pos >= size()) [[unlikely]]

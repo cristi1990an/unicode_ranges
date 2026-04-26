@@ -778,17 +778,26 @@ All listed overloads are declared `noexcept`.
 ### Synopsis
 
 ```cpp
-constexpr auto matches(Char ch) const noexcept;
-constexpr auto matches(View sv) const noexcept;
-template <Predicate Pred> constexpr auto matches(Pred pred) const noexcept;
+constexpr auto matches(Char ch) const& noexcept;
+constexpr auto matches(Char ch) && noexcept; // owning strings
+constexpr auto matches(View sv) const& noexcept;
+constexpr auto matches(View sv) && noexcept; // owning strings
+template <Predicate Pred> constexpr auto matches(Pred pred) const& noexcept;
+template <Predicate Pred> constexpr auto matches(Pred pred) && noexcept; // owning strings
 
-constexpr auto rmatches(Char ch) const noexcept;
-constexpr auto rmatches(View sv) const noexcept;
-template <Predicate Pred> constexpr auto rmatches(Pred pred) const noexcept;
+constexpr auto rmatches(Char ch) const& noexcept;
+constexpr auto rmatches(Char ch) && noexcept; // owning strings
+constexpr auto rmatches(View sv) const& noexcept;
+constexpr auto rmatches(View sv) && noexcept; // owning strings
+template <Predicate Pred> constexpr auto rmatches(Pred pred) const& noexcept;
+template <Predicate Pred> constexpr auto rmatches(Pred pred) && noexcept; // owning strings
 
-constexpr auto rmatch_indices(Char ch) const noexcept;
-constexpr auto rmatch_indices(View sv) const noexcept;
-template <Predicate Pred> constexpr auto rmatch_indices(Pred pred) const noexcept;
+constexpr auto rmatch_indices(Char ch) const& noexcept;
+constexpr auto rmatch_indices(Char ch) && noexcept; // owning strings
+constexpr auto rmatch_indices(View sv) const& noexcept;
+constexpr auto rmatch_indices(View sv) && noexcept; // owning strings
+template <Predicate Pred> constexpr auto rmatch_indices(Pred pred) const& noexcept;
+template <Predicate Pred> constexpr auto rmatch_indices(Pred pred) && noexcept; // owning strings
 
 constexpr std::optional<std::pair<View, View>> split_once(Char ch) const noexcept;
 constexpr std::optional<std::pair<View, View>> split_once(View sv) const noexcept;
@@ -810,6 +819,7 @@ constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) const n
 
 - `matches` and `rmatches` yield matching borrowed subviews.
 - `rmatch_indices` yields reverse-ordered `(offset, subview)` pairs.
+- On owning strings, rvalue-qualified match views are move-only owning views that keep the source string alive.
 - `split_once` and `rsplit_once` split around the first or last match.
 - `split_once_at` validates that `delim` is a character boundary.
 - `split_once_at_unchecked` assumes the supplied offset is already valid.

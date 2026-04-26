@@ -214,6 +214,17 @@ namespace details
 #endif
 	}
 
+	inline constexpr std::size_t simdutf_ascii_minimum_size = 64;
+
+	[[nodiscard]]
+	bool simdutf_validate_ascii_runtime(std::string_view bytes) noexcept;
+
+	[[nodiscard]]
+	bool simdutf_validate_ascii_runtime(std::u8string_view bytes) noexcept;
+
+	[[nodiscard]]
+	bool simdutf_validate_utf16_as_ascii_runtime(std::u16string_view code_units) noexcept;
+
 	[[nodiscard]]
 	std::expected<void, utf8_error> simdutf_validate_utf8_runtime(std::string_view bytes) noexcept;
 
@@ -221,10 +232,34 @@ namespace details
 	std::expected<void, utf8_error> simdutf_validate_utf8_runtime(std::u8string_view bytes) noexcept;
 
 	[[nodiscard]]
+	std::expected<void, utf16_error> simdutf_validate_utf16_runtime(std::u16string_view code_units) noexcept;
+
+	[[nodiscard]]
+	std::expected<void, utf32_error> simdutf_validate_utf32_runtime(std::u32string_view code_points) noexcept;
+
+	[[nodiscard]]
+	std::size_t simdutf_count_utf8_runtime(std::u8string_view bytes) noexcept;
+
+	[[nodiscard]]
+	std::size_t simdutf_count_utf16_runtime(std::u16string_view code_units) noexcept;
+
+	[[nodiscard]]
 	std::size_t simdutf_utf16_length_from_valid_utf8_runtime(std::u8string_view bytes) noexcept;
 
 	[[nodiscard]]
 	std::size_t simdutf_utf32_length_from_valid_utf8_runtime(std::u8string_view bytes) noexcept;
+
+	[[nodiscard]]
+	std::size_t simdutf_utf8_length_from_valid_utf16_runtime(std::u16string_view code_units) noexcept;
+
+	[[nodiscard]]
+	std::size_t simdutf_utf32_length_from_valid_utf16_runtime(std::u16string_view code_units) noexcept;
+
+	[[nodiscard]]
+	std::size_t simdutf_utf8_length_from_valid_utf32_runtime(std::u32string_view code_points) noexcept;
+
+	[[nodiscard]]
+	std::size_t simdutf_utf16_length_from_valid_utf32_runtime(std::u32string_view code_points) noexcept;
 
 	[[nodiscard]]
 	std::size_t simdutf_convert_valid_utf8_to_utf16_runtime(
@@ -235,6 +270,26 @@ namespace details
 	std::size_t simdutf_convert_valid_utf8_to_utf32_runtime(
 		std::u8string_view bytes,
 		char32_t* output) noexcept;
+
+	[[nodiscard]]
+	std::size_t simdutf_convert_valid_utf16_to_utf8_runtime(
+		std::u16string_view code_units,
+		char8_t* output) noexcept;
+
+	[[nodiscard]]
+	std::size_t simdutf_convert_valid_utf16_to_utf32_runtime(
+		std::u16string_view code_units,
+		char32_t* output) noexcept;
+
+	[[nodiscard]]
+	std::size_t simdutf_convert_valid_utf32_to_utf8_runtime(
+		std::u32string_view code_points,
+		char8_t* output) noexcept;
+
+	[[nodiscard]]
+	std::size_t simdutf_convert_valid_utf32_to_utf16_runtime(
+		std::u32string_view code_points,
+		char16_t* output) noexcept;
 
 	[[nodiscard]]
 	std::expected<std::size_t, utf8_error> simdutf_convert_utf8_to_utf16_checked_runtime(
@@ -271,6 +326,96 @@ namespace details
 	}
 
 	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr auto simdutf_validate_utf16_if_available(std::u16string_view code_units) noexcept
+		-> std::optional<std::expected<void, utf16_error>>
+	{
+		if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+		{
+			return simdutf_validate_utf16_runtime(code_units);
+		}
+
+		return std::nullopt;
+	}
+
+	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr auto simdutf_validate_utf32_if_available(std::u32string_view code_points) noexcept
+		-> std::optional<std::expected<void, utf32_error>>
+	{
+		if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+		{
+			return simdutf_validate_utf32_runtime(code_points);
+		}
+
+		return std::nullopt;
+	}
+
+	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr auto simdutf_validate_ascii_if_available(std::string_view bytes) noexcept
+		-> std::optional<bool>
+	{
+		if (!std::is_constant_evaluated()
+			&& bytes.size() >= simdutf_ascii_minimum_size
+			&& simdutf_runtime_enabled_for_target())
+		{
+			return simdutf_validate_ascii_runtime(bytes);
+		}
+
+		return std::nullopt;
+	}
+
+	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr auto simdutf_validate_ascii_if_available(std::u8string_view bytes) noexcept
+		-> std::optional<bool>
+	{
+		if (!std::is_constant_evaluated()
+			&& bytes.size() >= simdutf_ascii_minimum_size
+			&& simdutf_runtime_enabled_for_target())
+		{
+			return simdutf_validate_ascii_runtime(bytes);
+		}
+
+		return std::nullopt;
+	}
+
+	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr auto simdutf_validate_utf16_as_ascii_if_available(std::u16string_view code_units) noexcept
+		-> std::optional<bool>
+	{
+		if (!std::is_constant_evaluated()
+			&& code_units.size() >= simdutf_ascii_minimum_size
+			&& simdutf_runtime_enabled_for_target())
+		{
+			return simdutf_validate_utf16_as_ascii_runtime(code_units);
+		}
+
+		return std::nullopt;
+	}
+
+	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr auto simdutf_count_utf8_if_available(std::u8string_view bytes) noexcept
+		-> std::optional<std::size_t>
+	{
+		if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+		{
+			return simdutf_count_utf8_runtime(bytes);
+		}
+
+		return std::nullopt;
+	}
+
+	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr auto simdutf_count_utf16_if_available(std::u16string_view code_units) noexcept
+		-> std::optional<std::size_t>
+	{
+		if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+		{
+			return simdutf_count_utf16_runtime(code_units);
+		}
+
+		return std::nullopt;
+	}
+
+	[[nodiscard]]
 	UTF8_RANGES_FORCEINLINE constexpr auto simdutf_utf16_length_from_valid_utf8_if_available(std::u8string_view bytes) noexcept
 		-> std::optional<std::size_t>
 	{
@@ -289,6 +434,54 @@ namespace details
 		if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
 		{
 			return simdutf_utf32_length_from_valid_utf8_runtime(bytes);
+		}
+
+		return std::nullopt;
+	}
+
+	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr auto simdutf_utf8_length_from_valid_utf16_if_available(std::u16string_view code_units) noexcept
+		-> std::optional<std::size_t>
+	{
+		if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+		{
+			return simdutf_utf8_length_from_valid_utf16_runtime(code_units);
+		}
+
+		return std::nullopt;
+	}
+
+	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr auto simdutf_utf32_length_from_valid_utf16_if_available(std::u16string_view code_units) noexcept
+		-> std::optional<std::size_t>
+	{
+		if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+		{
+			return simdutf_utf32_length_from_valid_utf16_runtime(code_units);
+		}
+
+		return std::nullopt;
+	}
+
+	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr auto simdutf_utf8_length_from_valid_utf32_if_available(std::u32string_view code_points) noexcept
+		-> std::optional<std::size_t>
+	{
+		if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+		{
+			return simdutf_utf8_length_from_valid_utf32_runtime(code_points);
+		}
+
+		return std::nullopt;
+	}
+
+	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr auto simdutf_utf16_length_from_valid_utf32_if_available(std::u32string_view code_points) noexcept
+		-> std::optional<std::size_t>
+	{
+		if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+		{
+			return simdutf_utf16_length_from_valid_utf32_runtime(code_points);
 		}
 
 		return std::nullopt;
@@ -315,6 +508,58 @@ namespace details
 		if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
 		{
 			return simdutf_convert_valid_utf8_to_utf32_runtime(bytes, output);
+		}
+
+		return std::nullopt;
+	}
+
+	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr auto simdutf_convert_valid_utf16_to_utf8_if_available(
+		std::u16string_view code_units,
+		char8_t* output) noexcept -> std::optional<std::size_t>
+	{
+		if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+		{
+			return simdutf_convert_valid_utf16_to_utf8_runtime(code_units, output);
+		}
+
+		return std::nullopt;
+	}
+
+	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr auto simdutf_convert_valid_utf16_to_utf32_if_available(
+		std::u16string_view code_units,
+		char32_t* output) noexcept -> std::optional<std::size_t>
+	{
+		if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+		{
+			return simdutf_convert_valid_utf16_to_utf32_runtime(code_units, output);
+		}
+
+		return std::nullopt;
+	}
+
+	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr auto simdutf_convert_valid_utf32_to_utf8_if_available(
+		std::u32string_view code_points,
+		char8_t* output) noexcept -> std::optional<std::size_t>
+	{
+		if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+		{
+			return simdutf_convert_valid_utf32_to_utf8_runtime(code_points, output);
+		}
+
+		return std::nullopt;
+	}
+
+	[[nodiscard]]
+	UTF8_RANGES_FORCEINLINE constexpr auto simdutf_convert_valid_utf32_to_utf16_if_available(
+		std::u32string_view code_points,
+		char16_t* output) noexcept -> std::optional<std::size_t>
+	{
+		if (!std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+		{
+			return simdutf_convert_valid_utf32_to_utf16_runtime(code_points, output);
 		}
 
 		return std::nullopt;
@@ -558,6 +803,42 @@ namespace details
 		}
 	};
 
+	template <typename Delimiter>
+	struct matches_view_accessor
+	{
+		Delimiter delimiter;
+
+		template <typename Owner>
+		constexpr auto operator()(const Owner& owner) const noexcept(noexcept(owner.matches(delimiter)))
+		{
+			return owner.matches(delimiter);
+		}
+	};
+
+	template <typename Delimiter>
+	struct rmatches_view_accessor
+	{
+		Delimiter delimiter;
+
+		template <typename Owner>
+		constexpr auto operator()(const Owner& owner) const noexcept(noexcept(owner.rmatches(delimiter)))
+		{
+			return owner.rmatches(delimiter);
+		}
+	};
+
+	template <typename Delimiter>
+	struct rmatch_indices_view_accessor
+	{
+		Delimiter delimiter;
+
+		template <typename Owner>
+		constexpr auto operator()(const Owner& owner) const noexcept(noexcept(owner.rmatch_indices(delimiter)))
+		{
+			return owner.rmatch_indices(delimiter);
+		}
+	};
+
 	struct split_whitespace_view_accessor
 	{
 		template <typename Owner>
@@ -733,7 +1014,6 @@ namespace details
 		inline constexpr std::uint8_t utf8_four_byte_lead_before_f4_max = 0xF3u;
 		inline constexpr std::uint8_t utf8_two_byte_prefix_mask = 0xE0u;
 		inline constexpr std::uint8_t utf8_three_byte_prefix_mask = 0xF0u;
-		inline constexpr std::uint8_t utf8_four_byte_prefix_mask = 0xF8u;
 		inline constexpr std::uint8_t utf8_two_byte_prefix_value = 0xC0u;
 		inline constexpr std::uint8_t utf8_three_byte_prefix_value = 0xE0u;
 		inline constexpr std::uint8_t utf8_four_byte_prefix_value = 0xF0u;
@@ -1003,6 +1283,35 @@ namespace details
 	template <typename CharT>
 	UTF8_RANGES_FORCEINLINE constexpr bool is_ascii_only(std::basic_string_view<CharT> value) noexcept
 	{
+		if (!std::is_constant_evaluated())
+		{
+			if constexpr (std::same_as<CharT, char8_t>)
+			{
+				if (auto ascii = simdutf_validate_ascii_if_available(value))
+				{
+					return *ascii;
+				}
+			}
+			else if constexpr (sizeof(CharT) == 1)
+			{
+				const auto bytes = std::string_view{
+					reinterpret_cast<const char*>(value.data()),
+					value.size()
+				};
+				if (auto ascii = simdutf_validate_ascii_if_available(bytes))
+				{
+					return *ascii;
+				}
+			}
+			else if constexpr (std::same_as<CharT, char16_t>)
+			{
+				if (auto ascii = simdutf_validate_utf16_as_ascii_if_available(value))
+				{
+					return *ascii;
+				}
+			}
+		}
+
 		return ascii_prefix_length(value) == value.size();
 	}
 
@@ -1654,11 +1963,6 @@ namespace details
 		copy_ascii_bytes_to_utf32_runtime(out, bytes);
 	}
 
-	inline constexpr void copy_ascii_utf8_to_utf32_scalar(char32_t* out, std::u8string_view bytes) noexcept
-	{
-		copy_ascii_bytes_to_utf32_scalar(out, bytes);
-	}
-
 	inline constexpr void copy_ascii_utf8_to_utf32(char32_t* out, std::u8string_view bytes) noexcept
 	{
 		copy_ascii_bytes_to_utf32(out, bytes);
@@ -1961,16 +2265,6 @@ namespace details
 	inline constexpr bool is_utf16_low_surrogate(std::uint16_t value) noexcept
 	{
 		return value >= encoding_constants::low_surrogate_min && value <= encoding_constants::low_surrogate_max;
-	}
-
-	inline constexpr bool is_utf32_high_surrogate(std::uint16_t) noexcept
-	{
-		return false;
-	}
-
-	inline constexpr bool is_utf32_low_surrogate(std::uint16_t) noexcept
-	{
-		return false;
 	}
 
 	template<typename CharT>
@@ -2327,6 +2621,14 @@ namespace details
 	template<typename CharT>
 	inline constexpr std::expected<void, utf16_error> validate_utf16(std::basic_string_view<CharT> value) noexcept
 	{
+		if constexpr (std::same_as<CharT, char16_t>)
+		{
+			if (auto runtime = details::simdutf_validate_utf16_if_available(value); runtime)
+			{
+				return *runtime;
+			}
+		}
+
 		std::size_t index = 0;
 		while (index < value.size())
 		{
@@ -2353,6 +2655,14 @@ namespace details
 	template<typename CharT>
 	inline constexpr std::expected<void, utf32_error> validate_utf32(std::basic_string_view<CharT> value) noexcept
 	{
+		if constexpr (std::same_as<CharT, char32_t>)
+		{
+			if (auto runtime = details::simdutf_validate_utf32_if_available(value); runtime)
+			{
+				return *runtime;
+			}
+		}
+
 		for (std::size_t index = 0; index != value.size(); ++index)
 		{
 			if (!is_valid_unicode_scalar(static_cast<std::uint32_t>(value[index])))
@@ -3360,19 +3670,6 @@ namespace details
 		}
 
 		return result;
-	}
-
-	template <typename Allocator>
-	inline constexpr auto copy_validated_utf32_code_points(
-		std::u32string_view code_points,
-		const Allocator& alloc) -> std::expected<utf32_base_string<Allocator>, utf32_error>
-	{
-		if (auto validation = validate_utf32(code_points); !validation)
-		{
-			return std::unexpected(validation.error());
-		}
-
-		return utf32_base_string<Allocator>{ code_points, alloc };
 	}
 
 	template <typename Allocator>
@@ -4416,6 +4713,11 @@ namespace details
 			if (std::is_constant_evaluated())
 			{
 				return char_count_scalar(text);
+			}
+
+			if (auto count = simdutf_count_utf16_if_available(text))
+			{
+				return *count;
 			}
 
 			return char_count_runtime(text);

@@ -4147,7 +4147,7 @@ public:
 		};
 	}
 
-	constexpr auto matches(utf16_char ch) const noexcept
+	constexpr auto matches(utf16_char ch) const& noexcept
 	{
 		return utf16_match_indices_char_view<View, false>::from_delimiter_storage(
 			code_unit_view(),
@@ -4155,7 +4155,17 @@ public:
 			| std::views::values;
 	}
 
-	constexpr auto matches(View sv) const noexcept
+	constexpr auto matches(utf16_char ch) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::matches_view_accessor<utf16_char>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ ch }
+		};
+	}
+
+	constexpr auto matches(View sv) const& noexcept
 	{
 		return utf16_match_indices_view<View, false>::from_delimiter_storage(
 			code_unit_view(),
@@ -4163,8 +4173,18 @@ public:
 			| std::views::values;
 	}
 
+	constexpr auto matches(View sv) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::matches_view_accessor<View>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ sv }
+		};
+	}
+
 	template <details::utf16_char_predicate Pred>
-	constexpr auto matches(Pred pred) const noexcept
+	constexpr auto matches(Pred pred) const& noexcept
 	{
 		return details::basic_utf16_predicate_match_indices_view<View, false, std::remove_cvref_t<Pred>>::from_predicate(
 			code_unit_view(),
@@ -4172,18 +4192,49 @@ public:
 			| std::views::values;
 	}
 
-	constexpr auto rmatches(utf16_char ch) const noexcept
+	template <details::utf16_char_predicate Pred>
+	constexpr auto matches(Pred pred) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::matches_view_accessor<std::remove_cvref_t<Pred>>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ std::move(pred) }
+		};
+	}
+
+	constexpr auto rmatches(utf16_char ch) const& noexcept
 	{
 		return rmatch_indices(ch) | std::views::values;
 	}
 
-	constexpr auto rmatches(View sv) const noexcept
+	constexpr auto rmatches(utf16_char ch) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::rmatches_view_accessor<utf16_char>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ ch }
+		};
+	}
+
+	constexpr auto rmatches(View sv) const& noexcept
 	{
 		return rmatch_indices(sv) | std::views::values;
 	}
 
+	constexpr auto rmatches(View sv) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::rmatches_view_accessor<View>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ sv }
+		};
+	}
+
 	template <details::utf16_char_predicate Pred>
-	constexpr auto rmatches(Pred pred) const noexcept
+	constexpr auto rmatches(Pred pred) const& noexcept
 	{
 		return details::basic_utf16_predicate_match_indices_view<View, true, std::remove_cvref_t<Pred>>::from_predicate(
 			code_unit_view(),
@@ -4191,26 +4242,68 @@ public:
 			| std::views::values;
 	}
 
-	constexpr auto rmatch_indices(utf16_char ch) const noexcept
+	template <details::utf16_char_predicate Pred>
+	constexpr auto rmatches(Pred pred) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::rmatches_view_accessor<std::remove_cvref_t<Pred>>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ std::move(pred) }
+		};
+	}
+
+	constexpr auto rmatch_indices(utf16_char ch) const& noexcept
 	{
 		return utf16_match_indices_char_view<View, true>::from_delimiter_storage(
 			code_unit_view(),
 			details::owned_utf16_split_char_delimiter{ ch });
 	}
 
-	constexpr auto rmatch_indices(View sv) const noexcept
+	constexpr auto rmatch_indices(utf16_char ch) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::rmatch_indices_view_accessor<utf16_char>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ ch }
+		};
+	}
+
+	constexpr auto rmatch_indices(View sv) const& noexcept
 	{
 		return utf16_match_indices_view<View, true>::from_delimiter_storage(
 			code_unit_view(),
 			details::borrowed_utf16_split_delimiter{ sv.base() });
 	}
 
+	constexpr auto rmatch_indices(View sv) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::rmatch_indices_view_accessor<View>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ sv }
+		};
+	}
+
 	template <details::utf16_char_predicate Pred>
-	constexpr auto rmatch_indices(Pred pred) const noexcept
+	constexpr auto rmatch_indices(Pred pred) const& noexcept
 	{
 		return details::basic_utf16_predicate_match_indices_view<View, true, std::remove_cvref_t<Pred>>::from_predicate(
 			code_unit_view(),
 			std::move(pred));
+	}
+
+	template <details::utf16_char_predicate Pred>
+	constexpr auto rmatch_indices(Pred pred) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		using accessor_type = details::rmatch_indices_view_accessor<std::remove_cvref_t<Pred>>;
+		return details::owning_string_view<Derived, accessor_type>{
+			std::move(static_cast<Derived&>(*this)),
+			accessor_type{ std::move(pred) }
+		};
 	}
 
 	[[nodiscard]]
