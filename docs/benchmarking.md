@@ -4,7 +4,7 @@ This page defines how `unicode_ranges` will be benchmarked against other librari
 
 Current implementation note:
 
-- `unicode_ranges` now uses `simdutf` as its production runtime backend for the hot UTF validation and UTF-8 -> UTF-16/UTF-32 transcoding paths.
+- `unicode_ranges` now uses `simdutf` as its production runtime backend for hot UTF validation, UTF-8/UTF-16/UTF-32 transcoding, selected ASCII checks, and UTF-8/UTF-16 character-count paths.
 - That means current comparative rows in those families measure `unicode_ranges` integration overhead, API shape, allocation behavior, and fallback decisions against raw `simdutf` public API usage; they are not a claim that `unicode_ranges` and `simdutf` are independent low-level codec implementations.
 
 The benchmark suite is intended to answer a narrow question:
@@ -334,7 +334,7 @@ Current comparative suite:
 
 Important current caveat:
 
-- because `unicode_ranges` now uses `simdutf` as the production runtime backend for UTF validation and UTF-8 -> UTF-16/UTF-32 transcoding, those comparative families should be read primarily as:
+- because `unicode_ranges` now uses `simdutf` as the production runtime backend for UTF validation, UTF-8/UTF-16/UTF-32 transcoding, selected ASCII checks, and UTF-8/UTF-16 character counting, those comparative families should be read primarily as:
   - wrapper overhead comparisons
   - API-shape and allocation-model comparisons
   - fallback-policy comparisons

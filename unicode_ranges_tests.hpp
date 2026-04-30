@@ -74,6 +74,167 @@ concept move_only_non_borrowed_view =
 	!std::copy_constructible<T> &&
 	!std::ranges::borrowed_range<T>;
 
+template <typename Text, typename Delimiter>
+concept can_split_once =
+	requires(Text&& text, Delimiter&& delimiter)
+	{
+		std::forward<Text>(text).split_once(std::forward<Delimiter>(delimiter));
+	};
+
+template <typename Text, typename Delimiter>
+concept can_rsplit_once =
+	requires(Text&& text, Delimiter&& delimiter)
+	{
+		std::forward<Text>(text).rsplit_once(std::forward<Delimiter>(delimiter));
+	};
+
+template <typename Text>
+concept can_split_once_at =
+	requires(Text&& text)
+	{
+		std::forward<Text>(text).split_once_at(std::size_t{});
+	};
+
+template <typename Text>
+concept can_split_once_at_unchecked =
+	requires(Text&& text)
+	{
+		std::forward<Text>(text).split_once_at_unchecked(std::size_t{});
+	};
+
+template <typename Text>
+concept can_grapheme_at =
+	requires(Text&& text)
+	{
+		std::forward<Text>(text).grapheme_at(std::size_t{});
+	};
+
+template <typename Text>
+concept can_grapheme_substr =
+	requires(Text&& text)
+	{
+		std::forward<Text>(text).grapheme_substr(std::size_t{});
+		std::forward<Text>(text).grapheme_substr(std::size_t{}, std::size_t{});
+	};
+
+template <typename Char>
+struct true_char_predicate
+{
+	[[nodiscard]]
+	constexpr bool operator()(Char) const noexcept
+	{
+		return true;
+	}
+};
+
+template <typename Char>
+struct throwing_char_predicate
+{
+	[[nodiscard]]
+	constexpr bool operator()(Char) const
+	{
+		return true;
+	}
+};
+
+template <typename Owned, typename View, typename Char>
+consteval bool borrowed_one_shot_members_are_rvalue_safe()
+{
+	using span_type = std::span<const Char>;
+	using predicate_type = true_char_predicate<Char>;
+
+	return can_split_once<Owned&, Char>
+		&& can_split_once<Owned&, View>
+		&& can_split_once<Owned&, span_type>
+		&& can_split_once<Owned&, predicate_type>
+		&& can_split_once<View, Char>
+		&& !can_split_once<Owned, Char>
+		&& !can_split_once<Owned, View>
+		&& !can_split_once<Owned, span_type>
+		&& !can_split_once<Owned, predicate_type>
+		&& !can_split_once<const Owned, Char>
+		&& can_rsplit_once<Owned&, Char>
+		&& can_rsplit_once<Owned&, View>
+		&& can_rsplit_once<Owned&, span_type>
+		&& can_rsplit_once<Owned&, predicate_type>
+		&& can_rsplit_once<View, Char>
+		&& !can_rsplit_once<Owned, Char>
+		&& !can_rsplit_once<Owned, View>
+		&& !can_rsplit_once<Owned, span_type>
+		&& !can_rsplit_once<Owned, predicate_type>
+		&& !can_rsplit_once<const Owned, Char>
+		&& can_split_once_at<Owned&>
+		&& can_split_once_at<View>
+		&& !can_split_once_at<Owned>
+		&& !can_split_once_at<const Owned>
+		&& can_split_once_at_unchecked<Owned&>
+		&& can_split_once_at_unchecked<View>
+		&& !can_split_once_at_unchecked<Owned>
+		&& !can_split_once_at_unchecked<const Owned>
+		&& can_grapheme_at<Owned&>
+		&& can_grapheme_at<View>
+		&& !can_grapheme_at<Owned>
+		&& !can_grapheme_at<const Owned>
+		&& can_grapheme_substr<Owned&>
+		&& can_grapheme_substr<View>
+		&& can_grapheme_substr<Owned>
+		&& can_grapheme_substr<const Owned>;
+}
+
+template <typename Owned, typename View, typename Char>
+consteval bool slice_members_preserve_receiver_ownership()
+{
+	using opt_owned = std::optional<Owned>;
+	using opt_view = std::optional<View>;
+	using span_type = std::span<const Char>;
+	using predicate_type = true_char_predicate<Char>;
+	using throwing_predicate_type = throwing_char_predicate<Char>;
+
+	return std::same_as<decltype(std::declval<const View&>().strip_prefix(std::declval<Char>())), opt_view>
+		&& std::same_as<decltype(std::declval<View>().strip_prefix(std::declval<View>())), opt_view>
+		&& std::same_as<decltype(std::declval<const Owned&>().strip_prefix(std::declval<Char>())), opt_owned>
+		&& std::same_as<decltype(std::declval<Owned>().strip_prefix(std::declval<View>())), opt_owned>
+		&& std::same_as<decltype(std::declval<const Owned&>().strip_suffix(std::declval<Char>())), opt_owned>
+		&& std::same_as<decltype(std::declval<Owned>().strip_suffix(std::declval<View>())), opt_owned>
+		&& std::same_as<decltype(std::declval<const Owned&>().strip_circumfix(std::declval<Char>(), std::declval<Char>())), opt_owned>
+		&& std::same_as<decltype(std::declval<Owned>().strip_circumfix(std::declval<View>(), std::declval<View>())), opt_owned>
+		&& std::same_as<decltype(std::declval<const View&>().trim_prefix(std::declval<Char>())), View>
+		&& std::same_as<decltype(std::declval<View>().trim_suffix(std::declval<View>())), View>
+		&& std::same_as<decltype(std::declval<const Owned&>().trim_prefix(std::declval<Char>())), Owned>
+		&& std::same_as<decltype(std::declval<Owned>().trim_suffix(std::declval<View>())), Owned>
+		&& std::same_as<decltype(std::declval<const Owned&>().trim_start_matches(std::declval<Char>())), Owned>
+		&& std::same_as<decltype(std::declval<Owned>().trim_start_matches(std::declval<View>())), Owned>
+		&& std::same_as<decltype(std::declval<const Owned&>().trim_start_matches(std::declval<span_type>())), Owned>
+		&& std::same_as<decltype(std::declval<Owned>().trim_start_matches(std::declval<predicate_type>())), Owned>
+		&& std::same_as<decltype(std::declval<const Owned&>().trim_end_matches(std::declval<Char>())), Owned>
+		&& std::same_as<decltype(std::declval<Owned>().trim_end_matches(std::declval<View>())), Owned>
+		&& std::same_as<decltype(std::declval<const Owned&>().trim_matches(std::declval<span_type>())), Owned>
+		&& std::same_as<decltype(std::declval<Owned>().trim_matches(std::declval<predicate_type>())), Owned>
+		&& std::same_as<decltype(std::declval<const View&>().trim()), View>
+		&& std::same_as<decltype(std::declval<View>().trim_ascii()), View>
+		&& std::same_as<decltype(std::declval<const Owned&>().trim_start()), Owned>
+		&& std::same_as<decltype(std::declval<Owned>().trim_end()), Owned>
+		&& std::same_as<decltype(std::declval<const Owned&>().trim()), Owned>
+		&& std::same_as<decltype(std::declval<Owned>().trim_ascii_start()), Owned>
+		&& std::same_as<decltype(std::declval<const Owned&>().trim_ascii_end()), Owned>
+		&& std::same_as<decltype(std::declval<Owned>().trim_ascii()), Owned>
+		&& std::same_as<decltype(std::declval<const View&>().substr(std::size_t{})), opt_view>
+		&& std::same_as<decltype(std::declval<View>().grapheme_substr(std::size_t{}, std::size_t{})), opt_view>
+		&& std::same_as<decltype(std::declval<const Owned&>().substr(std::size_t{})), opt_owned>
+		&& std::same_as<decltype(std::declval<Owned>().substr(std::size_t{}, std::size_t{})), opt_owned>
+		&& std::same_as<decltype(std::declval<const Owned&>().grapheme_substr(std::size_t{})), opt_owned>
+		&& std::same_as<decltype(std::declval<Owned>().grapheme_substr(std::size_t{}, std::size_t{})), opt_owned>
+		&& noexcept(std::declval<const View&>().trim())
+		&& noexcept(std::declval<View>().trim_matches(std::declval<predicate_type>()))
+		&& !noexcept(std::declval<View>().trim_matches(std::declval<throwing_predicate_type>()))
+		&& !noexcept(std::declval<const Owned&>().trim())
+		&& noexcept(std::declval<Owned>().trim())
+		&& noexcept(std::declval<Owned>().substr(std::size_t{}))
+		&& noexcept(std::declval<Owned>().grapheme_substr(std::size_t{}, std::size_t{}))
+		&& noexcept(std::declval<Owned>().trim_matches(std::declval<predicate_type>()))
+		&& !noexcept(std::declval<Owned>().trim_matches(std::declval<throwing_predicate_type>()));
+}
+
 template <typename T>
 struct test_allocator
 {
@@ -863,6 +1024,30 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 	static_assert(!unicode_character<char8_t>);
 	static_assert(!unicode_character<char16_t>);
 	static_assert(!unicode_character<char32_t>);
+	static_assert(unicode_ranges_test_details::borrowed_one_shot_members_are_rvalue_safe<
+		utf8_string,
+		utf8_string_view,
+		utf8_char>());
+	static_assert(unicode_ranges_test_details::borrowed_one_shot_members_are_rvalue_safe<
+		utf16_string,
+		utf16_string_view,
+		utf16_char>());
+	static_assert(unicode_ranges_test_details::borrowed_one_shot_members_are_rvalue_safe<
+		utf32_string,
+		utf32_string_view,
+		utf32_char>());
+	static_assert(unicode_ranges_test_details::slice_members_preserve_receiver_ownership<
+		utf8_string,
+		utf8_string_view,
+		utf8_char>());
+	static_assert(unicode_ranges_test_details::slice_members_preserve_receiver_ownership<
+		utf16_string,
+		utf16_string_view,
+		utf16_char>());
+	static_assert(unicode_ranges_test_details::slice_members_preserve_receiver_ownership<
+		utf32_string,
+		utf32_string_view,
+		utf32_char>());
 	static_assert(std::same_as<decltype(characters::utf8::emojis::clown_face), const utf8_char>);
 	static_assert(std::same_as<decltype(characters::utf16::emojis::clown_face), const utf16_char>);
 	static_assert(std::same_as<decltype(characters::utf32::emojis::clown_face), const utf32_char>);
@@ -5329,6 +5514,55 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		UTF8_RANGES_TEST_ASSERT(runtime_utf32_text.to_utf16() == u"A\u00E9\U0001F600"_utf16_sv);
 		UTF8_RANGES_TEST_ASSERT(runtime_utf32_text.to_utf32_owned() == runtime_utf32_text);
 		UTF8_RANGES_TEST_ASSERT(runtime_utf32_text.replace_all(U"\u00E9"_u32c, U"!"_u32c) == U"A!\U0001F600"_utf32_sv);
+		{
+			auto text = u8"---middle---"_utf8_s;
+			text.reserve(128);
+			const auto capacity = text.capacity();
+			auto trimmed = std::move(text).trim_matches(u8"-"_u8c);
+			UTF8_RANGES_TEST_ASSERT(trimmed == u8"middle"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(trimmed.capacity() == capacity);
+		}
+		{
+			auto text = u"---middle---"_utf16_s;
+			text.reserve(128);
+			const auto capacity = text.capacity();
+			auto trimmed = std::move(text).trim_matches(u"-"_u16c);
+			UTF8_RANGES_TEST_ASSERT(trimmed == u"middle"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(trimmed.capacity() == capacity);
+		}
+		{
+			auto text = U"---middle---"_utf32_s;
+			text.reserve(128);
+			const auto capacity = text.capacity();
+			auto trimmed = std::move(text).trim_matches(U"-"_u32c);
+			UTF8_RANGES_TEST_ASSERT(trimmed == U"middle"_utf32_sv);
+			UTF8_RANGES_TEST_ASSERT(trimmed.capacity() == capacity);
+		}
+		{
+			auto text = u8"<<<payload>>>"_utf8_s;
+			text.reserve(128);
+			const auto capacity = text.capacity();
+			const auto stripped = std::move(text).strip_circumfix(u8"<<<"_utf8_sv, u8">>>"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(stripped.has_value());
+			UTF8_RANGES_TEST_ASSERT(stripped.value() == u8"payload"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(stripped->capacity() == capacity);
+		}
+		{
+			auto text = u"\u00E9\U0001F600!"_utf16_s;
+			text.reserve(128);
+			const auto capacity = text.capacity();
+			const auto suffix = std::move(text).substr(1).value();
+			UTF8_RANGES_TEST_ASSERT(suffix == u"\U0001F600!"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(suffix.capacity() == capacity);
+		}
+		{
+			auto text = U"e\u0301\U0001F1F7\U0001F1F4!"_utf32_s;
+			text.reserve(128);
+			const auto capacity = text.capacity();
+			const auto flag = std::move(text).grapheme_substr(2, 2).value();
+			UTF8_RANGES_TEST_ASSERT(flag == U"\U0001F1F7\U0001F1F4"_utf32_sv);
+			UTF8_RANGES_TEST_ASSERT(flag.capacity() == capacity);
+		}
 		UTF8_RANGES_TEST_ASSERT(U"Stra\u00DFe"_utf32_sv.eq_ignore_case(U"STRASSE"_utf32_sv));
 		UTF8_RANGES_TEST_ASSERT(U"Stra\u00DFe"_utf32_sv.starts_with_ignore_case(U"str"_utf32_sv));
 		UTF8_RANGES_TEST_ASSERT(U"Stra\u00DFe"_utf32_sv.ends_with_ignore_case(U"SSE"_utf32_sv));

@@ -152,11 +152,16 @@ template<> struct std::formatter<utf32_string_view, char>;
 ### Synopsis
 
 ```cpp
-constexpr auto chars() const noexcept;
-constexpr auto reversed_chars() const noexcept;
-constexpr auto graphemes() const noexcept;
-constexpr auto char_indices() const noexcept;
-constexpr auto grapheme_indices() const noexcept;
+constexpr auto chars() const& noexcept;
+constexpr auto chars() && noexcept(/* conditional */); // owning strings only
+constexpr auto reversed_chars() const& noexcept;
+constexpr auto reversed_chars() && noexcept(/* conditional */); // owning strings only
+constexpr auto graphemes() const& noexcept;
+constexpr auto graphemes() && noexcept(/* conditional */); // owning strings only
+constexpr auto char_indices() const& noexcept;
+constexpr auto char_indices() && noexcept(/* conditional */); // owning strings only
+constexpr auto grapheme_indices() const& noexcept;
+constexpr auto grapheme_indices() && noexcept(/* conditional */); // owning strings only
 ```
 
 ### Behavior
@@ -166,7 +171,8 @@ constexpr auto grapheme_indices() const noexcept;
 - `graphemes()` iterates default Unicode grapheme clusters.
 - `char_indices()` yields [`std::pair`](https://en.cppreference.com/w/cpp/utility/pair) objects of the form `(offset, Char)`.
 - `grapheme_indices()` yields [`std::pair`](https://en.cppreference.com/w/cpp/utility/pair) objects of the form `(offset, View)`.
-- All returned ranges borrow from the underlying view.
+- View and owning-lvalue receivers return ranges that borrow from the receiver.
+- Owning-rvalue receivers return move-only owning views that keep the moved string alive and do not model `std::ranges::borrowed_range`.
 - All five returned range types are lazy views derived from [`std::ranges::view_interface`](https://en.cppreference.com/w/cpp/ranges/view_interface).
 - These five core iteration families expose forward iterators, so they are multi-pass and may be traversed more than once as long as the underlying source view remains alive.
 - For UTF-32, `chars()`, `reversed_chars()`, and `char_indices()` are stronger: they are sized common random-access views because UTF-32 stores one scalar per code unit.
@@ -186,7 +192,8 @@ None.
 
 ### `noexcept`
 
-All listed members are `noexcept`.
+- View and owning-lvalue receiver overloads are `noexcept`.
+- Owning-rvalue receiver overloads are conditionally `noexcept`; with the default owning string types, they are `noexcept`.
 
 ### Example
 
@@ -567,23 +574,32 @@ All listed members are `noexcept`.
 ```cpp
 constexpr std::optional<utf8_char> char_at(size_type index) const noexcept;
 constexpr utf8_char char_at_unchecked(size_type index) const noexcept;
-constexpr std::optional<utf8_string_view> grapheme_at(size_type index) const noexcept;
-constexpr std::optional<utf8_string_view> substr(size_type pos, size_type count = npos) const noexcept;
-constexpr std::optional<utf8_string_view> grapheme_substr(size_type pos, size_type count = npos) const noexcept;
+constexpr std::optional<utf8_string_view> grapheme_at(size_type index) const& noexcept;
+constexpr std::optional<utf8_string_view> grapheme_at(size_type index) && = delete;      // owning strings only
+constexpr std::optional<utf8_string_view> grapheme_at(size_type index) const&& = delete; // owning strings only
 constexpr std::optional<utf8_char> front() const noexcept;
 constexpr utf8_char front_unchecked() const noexcept;
 constexpr std::optional<utf8_char> back() const noexcept;
 constexpr utf8_char back_unchecked() const noexcept;
 
+// View receivers
+constexpr std::optional<utf8_string_view> substr(size_type pos, size_type count = npos) const& noexcept;
+constexpr std::optional<utf8_string_view> grapheme_substr(size_type pos, size_type count = npos) const& noexcept;
+
+// Owning string receivers
+constexpr std::optional<utf8_string> substr(size_type pos, size_type count = npos) const&;
+constexpr std::optional<utf8_string> substr(size_type pos, size_type count = npos) && noexcept(/* conditional */);
+constexpr std::optional<utf8_string> grapheme_substr(size_type pos, size_type count = npos) const&;
+constexpr std::optional<utf8_string> grapheme_substr(size_type pos, size_type count = npos) && noexcept(/* conditional */);
+
 constexpr std::optional<utf16_char> char_at(size_type index) const noexcept;
 constexpr utf16_char char_at_unchecked(size_type index) const noexcept;
-constexpr std::optional<utf16_string_view> grapheme_at(size_type index) const noexcept;
-constexpr std::optional<utf16_string_view> substr(size_type pos, size_type count = npos) const noexcept;
-constexpr std::optional<utf16_string_view> grapheme_substr(size_type pos, size_type count = npos) const noexcept;
 constexpr std::optional<utf16_char> front() const noexcept;
 constexpr utf16_char front_unchecked() const noexcept;
 constexpr std::optional<utf16_char> back() const noexcept;
 constexpr utf16_char back_unchecked() const noexcept;
+
+// UTF-16 and UTF-32 expose the same ref-qualified access and substring families.
 ```
 
 ### Behavior
@@ -592,23 +608,33 @@ constexpr utf16_char back_unchecked() const noexcept;
 - `char_at_unchecked()`, `front_unchecked()`, and `back_unchecked()` assume their preconditions hold.
 - `substr()` requires both ends of the slice to be character boundaries.
 - `grapheme_at()` and `grapheme_substr()` require grapheme boundaries.
+- `grapheme_at()` returns a borrowed view into the receiver. On owning strings, the `&&` and `const&&` overloads are deleted so a temporary owning string cannot produce a dangling subview.
+- `substr()` and `grapheme_substr()` are ownership-preserving: view receivers return views, owning receivers return owning strings.
+- Owning rvalue `substr()` and `grapheme_substr()` are for disposable strings. They adjust the existing owned buffer where possible and do not create an additional owning copy.
 
 ### Return value
 
-Returns the requested character or borrowed subview when the request is valid, otherwise [`std::nullopt`](https://en.cppreference.com/w/cpp/utility/optional/nullopt).
+Returns the requested character, borrowed subview, or owning slice when the request is valid, otherwise [`std::nullopt`](https://en.cppreference.com/w/cpp/utility/optional/nullopt).
 
 ### Complexity
 
 - Checked element access is constant to linear in the size of the selected character.
 - Grapheme checks are linear in nearby segmentation work.
+- Owning lvalue `substr()` and `grapheme_substr()` copy the selected slice.
+- Owning rvalue `substr()` and `grapheme_substr()` are linear in the amount of boundary work plus the cost of adjusting the existing storage.
 
 ### Exceptions
 
-None.
+- View accessors do not throw.
+- Owning lvalue `substr()` and `grapheme_substr()` may throw allocator or container exceptions.
+- Owning rvalue `substr()` and `grapheme_substr()` do not allocate in the bound-adjustment path; their `noexcept` status follows the owning string move constructor.
 
 ### `noexcept`
 
-All listed members are `noexcept`.
+- View accessors are `noexcept`.
+- Deleted owning-rvalue `grapheme_at()` signatures cannot be called.
+- Owning lvalue `substr()` and `grapheme_substr()` are not `noexcept`.
+- Owning rvalue `substr()` and `grapheme_substr()` are conditionally `noexcept`; with the default owning string types, they are `noexcept`.
 
 ## Prefix And Suffix Tests
 
@@ -688,51 +714,57 @@ Only predicate overloads can throw, and only if the predicate throws.
 ### Synopsis
 
 ```cpp
-constexpr auto split(Char ch) const noexcept;
-constexpr auto split(View sv) const noexcept;
-template <Predicate Pred> constexpr auto split(Pred pred) const noexcept;
+constexpr auto split(Char ch) const& noexcept;
+constexpr auto split(Char ch) && noexcept(/* conditional */); // owning strings only
+constexpr auto split(View sv) const& noexcept;
+constexpr auto split(View sv) && noexcept(/* conditional */); // owning strings only
+template <Predicate Pred> constexpr auto split(Pred pred) const& noexcept;
+template <Predicate Pred> constexpr auto split(Pred pred) && noexcept(/* conditional */); // owning strings only
 
-constexpr auto split_trimmed(Char ch) const noexcept;
-constexpr auto split_trimmed(View sv) const noexcept;
-template <Predicate Pred> constexpr auto split_trimmed(Pred pred) const noexcept;
+constexpr auto split_trimmed(Char ch) const& noexcept;
+constexpr auto split_trimmed(View sv) const& noexcept;
+template <Predicate Pred> constexpr auto split_trimmed(Pred pred) const& noexcept;
 
-constexpr auto split_whitespace() const noexcept;
-constexpr auto split_ascii_whitespace() const noexcept;
+constexpr auto split_whitespace() const& noexcept;
+constexpr auto split_ascii_whitespace() const& noexcept;
 
-constexpr auto rsplit(Char ch) const noexcept;
-constexpr auto rsplit(View sv) const noexcept;
-template <Predicate Pred> constexpr auto rsplit(Pred pred) const noexcept;
+constexpr auto rsplit(Char ch) const& noexcept;
+constexpr auto rsplit(View sv) const& noexcept;
+template <Predicate Pred> constexpr auto rsplit(Pred pred) const& noexcept;
 
-constexpr auto split_terminator(Char ch) const noexcept;
-constexpr auto split_terminator(View sv) const noexcept;
-template <Predicate Pred> constexpr auto split_terminator(Pred pred) const noexcept;
+constexpr auto split_terminator(Char ch) const& noexcept;
+constexpr auto split_terminator(View sv) const& noexcept;
+template <Predicate Pred> constexpr auto split_terminator(Pred pred) const& noexcept;
 
-constexpr auto rsplit_terminator(Char ch) const noexcept;
-constexpr auto rsplit_terminator(View sv) const noexcept;
-template <Predicate Pred> constexpr auto rsplit_terminator(Pred pred) const noexcept;
+constexpr auto rsplit_terminator(Char ch) const& noexcept;
+constexpr auto rsplit_terminator(View sv) const& noexcept;
+template <Predicate Pred> constexpr auto rsplit_terminator(Pred pred) const& noexcept;
 
-constexpr auto splitn(size_type count, Char ch) const noexcept;
-constexpr auto splitn(size_type count, View sv) const noexcept;
-template <Predicate Pred> constexpr auto splitn(size_type count, Pred pred) const noexcept;
+constexpr auto splitn(size_type count, Char ch) const& noexcept;
+constexpr auto splitn(size_type count, View sv) const& noexcept;
+template <Predicate Pred> constexpr auto splitn(size_type count, Pred pred) const& noexcept;
 
-constexpr auto rsplitn(size_type count, Char ch) const noexcept;
-constexpr auto rsplitn(size_type count, View sv) const noexcept;
-template <Predicate Pred> constexpr auto rsplitn(size_type count, Pred pred) const noexcept;
+constexpr auto rsplitn(size_type count, Char ch) const& noexcept;
+constexpr auto rsplitn(size_type count, View sv) const& noexcept;
+template <Predicate Pred> constexpr auto rsplitn(size_type count, Pred pred) const& noexcept;
 
-constexpr auto split_inclusive(Char ch) const noexcept;
-constexpr auto split_inclusive(View sv) const noexcept;
-template <Predicate Pred> constexpr auto split_inclusive(Pred pred) const noexcept;
+constexpr auto split_inclusive(Char ch) const& noexcept;
+constexpr auto split_inclusive(View sv) const& noexcept;
+template <Predicate Pred> constexpr auto split_inclusive(Pred pred) const& noexcept;
+
+// Every listed split-view family exposes the same owning-string && pattern as split(...).
 ```
 
 ### Behavior
 
-- These members return lazy split ranges over borrowed subviews.
+- These members return lazy split ranges over subviews of the source text.
 - The returned split types are `std::ranges::view_interface`-based views rather than eagerly materialized containers.
 - `split_trimmed` trims whitespace around each field.
 - `split_whitespace` uses Unicode whitespace; `split_ascii_whitespace` uses ASCII whitespace only.
 - `split_terminator` suppresses a trailing empty field caused only by a trailing delimiter.
 - `split_inclusive` keeps the delimiter in the yielded field.
 - `splitn` and `rsplitn` stop after `count` fields.
+- On owning rvalues, split-view APIs return move-only owning views that keep the moved string alive for iteration.
 
 ### Overload differences
 
@@ -752,7 +784,7 @@ This family leans heavily on Rust's [`str`](https://doc.rust-lang.org/stable/cor
 
 ### Return value
 
-Returns a borrowed range; iteration performs the actual split.
+Returns a lazy range; iteration performs the actual split. View and owning-lvalue receivers produce borrowed subviews into the receiver. Owning-rvalue receivers produce a move-only, non-borrowed owning view that owns the source string.
 
 ### Complexity
 
@@ -761,11 +793,12 @@ Returns a borrowed range; iteration performs the actual split.
 
 ### Exceptions
 
-None, unless a predicate object throws when invoked.
+Construction does not allocate. Predicate objects may throw later when the returned range is iterated.
 
 ### `noexcept`
 
-All listed overloads are declared `noexcept`.
+- View and owning-lvalue receiver overloads are `noexcept`.
+- Owning-rvalue receiver overloads are conditionally `noexcept`; with the default owning string types, they are `noexcept`.
 
 ### Example
 
@@ -778,12 +811,15 @@ All listed overloads are declared `noexcept`.
 ### Synopsis
 
 ```cpp
+// character_set_range<R, Char> means a viewable forward range of validated Char values.
 constexpr auto matches(Char ch) const& noexcept;
 constexpr auto matches(Char ch) && noexcept; // owning strings
 constexpr auto matches(View sv) const& noexcept;
 constexpr auto matches(View sv) && noexcept; // owning strings
-template <std::ranges::viewable_range R> constexpr auto matches(R&& chars) const& noexcept;
-template <std::ranges::viewable_range R> constexpr auto matches(R&& chars) && noexcept; // owning strings
+template <std::ranges::viewable_range R> requires character_set_range<R, Char>
+constexpr auto matches(R&& chars) const& noexcept;
+template <std::ranges::viewable_range R> requires character_set_range<R, Char>
+constexpr auto matches(R&& chars) && noexcept; // owning strings
 template <Predicate Pred> constexpr auto matches(Pred pred) const& noexcept;
 template <Predicate Pred> constexpr auto matches(Pred pred) && noexcept; // owning strings
 
@@ -791,8 +827,10 @@ constexpr auto match_indices(Char ch) const& noexcept;
 constexpr auto match_indices(Char ch) && noexcept; // owning strings
 constexpr auto match_indices(View sv) const& noexcept;
 constexpr auto match_indices(View sv) && noexcept; // owning strings
-template <std::ranges::viewable_range R> constexpr auto match_indices(R&& chars) const& noexcept;
-template <std::ranges::viewable_range R> constexpr auto match_indices(R&& chars) && noexcept; // owning strings
+template <std::ranges::viewable_range R> requires character_set_range<R, Char>
+constexpr auto match_indices(R&& chars) const& noexcept;
+template <std::ranges::viewable_range R> requires character_set_range<R, Char>
+constexpr auto match_indices(R&& chars) && noexcept; // owning strings
 template <Predicate Pred> constexpr auto match_indices(Pred pred) const& noexcept;
 template <Predicate Pred> constexpr auto match_indices(Pred pred) && noexcept; // owning strings
 
@@ -800,8 +838,10 @@ constexpr auto rmatches(Char ch) const& noexcept;
 constexpr auto rmatches(Char ch) && noexcept; // owning strings
 constexpr auto rmatches(View sv) const& noexcept;
 constexpr auto rmatches(View sv) && noexcept; // owning strings
-template <std::ranges::viewable_range R> constexpr auto rmatches(R&& chars) const& noexcept;
-template <std::ranges::viewable_range R> constexpr auto rmatches(R&& chars) && noexcept; // owning strings
+template <std::ranges::viewable_range R> requires character_set_range<R, Char>
+constexpr auto rmatches(R&& chars) const& noexcept;
+template <std::ranges::viewable_range R> requires character_set_range<R, Char>
+constexpr auto rmatches(R&& chars) && noexcept; // owning strings
 template <Predicate Pred> constexpr auto rmatches(Pred pred) const& noexcept;
 template <Predicate Pred> constexpr auto rmatches(Pred pred) && noexcept; // owning strings
 
@@ -809,25 +849,39 @@ constexpr auto rmatch_indices(Char ch) const& noexcept;
 constexpr auto rmatch_indices(Char ch) && noexcept; // owning strings
 constexpr auto rmatch_indices(View sv) const& noexcept;
 constexpr auto rmatch_indices(View sv) && noexcept; // owning strings
-template <std::ranges::viewable_range R> constexpr auto rmatch_indices(R&& chars) const& noexcept;
-template <std::ranges::viewable_range R> constexpr auto rmatch_indices(R&& chars) && noexcept; // owning strings
+template <std::ranges::viewable_range R> requires character_set_range<R, Char>
+constexpr auto rmatch_indices(R&& chars) const& noexcept;
+template <std::ranges::viewable_range R> requires character_set_range<R, Char>
+constexpr auto rmatch_indices(R&& chars) && noexcept; // owning strings
 template <Predicate Pred> constexpr auto rmatch_indices(Pred pred) const& noexcept;
 template <Predicate Pred> constexpr auto rmatch_indices(Pred pred) && noexcept; // owning strings
 
-constexpr std::optional<std::pair<View, View>> split_once(Char ch) const noexcept;
-constexpr std::optional<std::pair<View, View>> split_once(View sv) const noexcept;
-constexpr std::optional<std::pair<View, View>> split_once(std::span<const Char> chars) const noexcept;
+constexpr std::optional<std::pair<View, View>> split_once(Char ch) const& noexcept;
+constexpr std::optional<std::pair<View, View>> split_once(View sv) const& noexcept;
+constexpr std::optional<std::pair<View, View>> split_once(std::span<const Char> chars) const& noexcept;
 template <Predicate Pred>
-constexpr std::optional<std::pair<View, View>> split_once(Pred pred) const noexcept;
+constexpr std::optional<std::pair<View, View>> split_once(Pred pred) const& noexcept;
+template <typename... Args>
+constexpr std::optional<std::pair<View, View>> split_once(Args&&...) && = delete;      // owning strings only
+template <typename... Args>
+constexpr std::optional<std::pair<View, View>> split_once(Args&&...) const&& = delete; // owning strings only
 
-constexpr std::optional<std::pair<View, View>> rsplit_once(Char ch) const noexcept;
-constexpr std::optional<std::pair<View, View>> rsplit_once(View sv) const noexcept;
-constexpr std::optional<std::pair<View, View>> rsplit_once(std::span<const Char> chars) const noexcept;
+constexpr std::optional<std::pair<View, View>> rsplit_once(Char ch) const& noexcept;
+constexpr std::optional<std::pair<View, View>> rsplit_once(View sv) const& noexcept;
+constexpr std::optional<std::pair<View, View>> rsplit_once(std::span<const Char> chars) const& noexcept;
 template <Predicate Pred>
-constexpr std::optional<std::pair<View, View>> rsplit_once(Pred pred) const noexcept;
+constexpr std::optional<std::pair<View, View>> rsplit_once(Pred pred) const& noexcept;
+template <typename... Args>
+constexpr std::optional<std::pair<View, View>> rsplit_once(Args&&...) && = delete;      // owning strings only
+template <typename... Args>
+constexpr std::optional<std::pair<View, View>> rsplit_once(Args&&...) const&& = delete; // owning strings only
 
-constexpr std::optional<std::pair<View, View>> split_once_at(size_type delim) const noexcept;
-constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) const noexcept;
+constexpr std::optional<std::pair<View, View>> split_once_at(size_type delim) const& noexcept;
+constexpr std::optional<std::pair<View, View>> split_once_at(size_type delim) && = delete;      // owning strings only
+constexpr std::optional<std::pair<View, View>> split_once_at(size_type delim) const&& = delete; // owning strings only
+constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) const& noexcept;
+constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) && = delete;      // owning strings only
+constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) const&& = delete; // owning strings only
 ```
 
 ### Behavior
@@ -835,12 +889,13 @@ constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) const n
 - `matches` and `rmatches` yield matching subviews, not character values. This is true even when the pattern is a single `Char`, a character-set range, or a predicate that matches one character.
 - `match_indices` yields forward-ordered `(offset, subview)` pairs.
 - `rmatch_indices` yields reverse-ordered `(offset, subview)` pairs.
-- Match-family range overloads treat the input as an "any of these characters" set. The stored delimiter set must be a copyable forward view of `Char` values after view adaptation.
+- Match-family range overloads treat the input as an "any of these characters" set. The input must be a viewable forward range of validated `Char` values; the stored delimiter set must become a copyable forward view after adaptation.
 - On owning strings, rvalue-qualified match views are move-only owning views that keep the source string alive.
 - `split_once` and `rsplit_once` split around the first or last match.
 - `split_once_at` validates that `delim` is a character boundary.
 - `split_once_at_unchecked` assumes the supplied offset is already valid.
 - The range-returning members in this section are lazy `std::ranges::view_interface`-based views. Owning-string receivers and temporary delimiter-set ranges may make the returned view non-borrowed.
+- One-shot split APIs return pairs of borrowed subviews. On owning strings, their `&&` and `const&&` overloads are deleted so a temporary owning string cannot produce dangling pair elements.
 
 ### Overload differences
 
@@ -861,7 +916,13 @@ The match-family range overloads use the same character-set idea lazily:
 auto marks = text.match_indices(std::array{ "="_u8c, "âœ¨"_u8c });
 ```
 
-Temporary arrays are owned by the returned view. Lvalue ranges are referenced using normal range lifetime rules, and raw `std::initializer_list` delimiter sets are intentionally unsupported.
+Temporary non-view ranges, including `std::array{...}` delimiter sets, are owned by the returned view. Lvalue ranges are referenced using normal range lifetime rules, and raw `std::initializer_list` delimiter sets are intentionally unsupported.
+
+For one-shot split APIs, bind the owning string first or call through a view when the source storage is known to outlive the result. The same compiled example also shows the ownership-preserving trim and substring overloads:
+
+```cpp
+--8<-- "examples/text-operations/ref-qualified-ownership.cpp"
+```
 
 ### Inspiration
 
@@ -882,46 +943,82 @@ None, unless a predicate object throws when invoked.
 
 ### `noexcept`
 
-All listed overloads are declared `noexcept`.
+- Match-family `Char`, `View`, and predicate overloads are `noexcept`.
+- Match-family character-set range overloads are conditionally `noexcept` based on adapting the delimiter range.
+- Match-family owning-rvalue overloads are conditionally `noexcept`; with the default owning string types, they are `noexcept`.
+- One-shot split APIs are `noexcept` for valid receiver categories.
+- Deleted owning-rvalue one-shot split signatures cannot be called.
 
 ## Strip And Trim Families
 
 ### Synopsis
 
 ```cpp
-constexpr std::optional<View> strip_prefix(Char ch) const noexcept;
-constexpr std::optional<View> strip_prefix(View sv) const noexcept;
-constexpr std::optional<View> strip_suffix(Char ch) const noexcept;
-constexpr std::optional<View> strip_suffix(View sv) const noexcept;
-constexpr std::optional<View> strip_circumfix(Char prefix, Char suffix) const noexcept;
-constexpr std::optional<View> strip_circumfix(View prefix, View suffix) const noexcept;
+// View receivers
+constexpr std::optional<View> strip_prefix(Char ch) const& noexcept;
+constexpr std::optional<View> strip_prefix(View sv) const& noexcept;
+constexpr std::optional<View> strip_suffix(Char ch) const& noexcept;
+constexpr std::optional<View> strip_suffix(View sv) const& noexcept;
+constexpr std::optional<View> strip_circumfix(Char prefix, Char suffix) const& noexcept;
+constexpr std::optional<View> strip_circumfix(View prefix, View suffix) const& noexcept;
 
-constexpr View trim_prefix(Char ch) const noexcept;
-constexpr View trim_prefix(View sv) const noexcept;
-constexpr View trim_suffix(Char ch) const noexcept;
-constexpr View trim_suffix(View sv) const noexcept;
+constexpr View trim_prefix(Char ch) const& noexcept;
+constexpr View trim_prefix(View sv) const& noexcept;
+constexpr View trim_suffix(Char ch) const& noexcept;
+constexpr View trim_suffix(View sv) const& noexcept;
 
-constexpr View trim_start_matches(Char ch) const noexcept;
-constexpr View trim_start_matches(View sv) const noexcept;
-constexpr View trim_start_matches(std::span<const Char> chars) const noexcept;
-template <Predicate Pred> constexpr View trim_start_matches(Pred pred) const noexcept;
+constexpr View trim_start_matches(Char ch) const& noexcept;
+constexpr View trim_start_matches(View sv) const& noexcept;
+constexpr View trim_start_matches(std::span<const Char> chars) const& noexcept;
+template <Predicate Pred> constexpr View trim_start_matches(Pred pred) const& noexcept(/* conditional */);
 
-constexpr View trim_end_matches(Char ch) const noexcept;
-constexpr View trim_end_matches(View sv) const noexcept;
-constexpr View trim_end_matches(std::span<const Char> chars) const noexcept;
-template <Predicate Pred> constexpr View trim_end_matches(Pred pred) const noexcept;
+constexpr View trim_end_matches(Char ch) const& noexcept;
+constexpr View trim_end_matches(View sv) const& noexcept;
+constexpr View trim_end_matches(std::span<const Char> chars) const& noexcept;
+template <Predicate Pred> constexpr View trim_end_matches(Pred pred) const& noexcept(/* conditional */);
 
-constexpr View trim_matches(Char ch) const noexcept;
-constexpr View trim_matches(View sv) const noexcept;
-constexpr View trim_matches(std::span<const Char> chars) const noexcept;
-template <Predicate Pred> constexpr View trim_matches(Pred pred) const noexcept;
+constexpr View trim_matches(Char ch) const& noexcept;
+constexpr View trim_matches(View sv) const& noexcept;
+constexpr View trim_matches(std::span<const Char> chars) const& noexcept;
+template <Predicate Pred> constexpr View trim_matches(Pred pred) const& noexcept(/* conditional */);
 
-constexpr View trim_start() const noexcept;
-constexpr View trim_end() const noexcept;
-constexpr View trim() const noexcept;
-constexpr View trim_ascii_start() const noexcept;
-constexpr View trim_ascii_end() const noexcept;
-constexpr View trim_ascii() const noexcept;
+constexpr View trim_start() const& noexcept;
+constexpr View trim_end() const& noexcept;
+constexpr View trim() const& noexcept;
+constexpr View trim_ascii_start() const& noexcept;
+constexpr View trim_ascii_end() const& noexcept;
+constexpr View trim_ascii() const& noexcept;
+
+// Owning string receivers return the matching utf*_string instead of View.
+constexpr std::optional<String> strip_prefix(...) const&;
+constexpr std::optional<String> strip_prefix(...) && noexcept(/* conditional */);
+constexpr std::optional<String> strip_suffix(...) const&;
+constexpr std::optional<String> strip_suffix(...) && noexcept(/* conditional */);
+constexpr std::optional<String> strip_circumfix(...) const&;
+constexpr std::optional<String> strip_circumfix(...) && noexcept(/* conditional */);
+
+constexpr String trim_prefix(...) const&;
+constexpr String trim_prefix(...) && noexcept(/* conditional */);
+constexpr String trim_suffix(...) const&;
+constexpr String trim_suffix(...) && noexcept(/* conditional */);
+constexpr String trim_start_matches(...) const&;
+constexpr String trim_start_matches(...) && noexcept(/* conditional */);
+constexpr String trim_end_matches(...) const&;
+constexpr String trim_end_matches(...) && noexcept(/* conditional */);
+constexpr String trim_matches(...) const&;
+constexpr String trim_matches(...) && noexcept(/* conditional */);
+constexpr String trim_start() const&;
+constexpr String trim_start() && noexcept(/* conditional */);
+constexpr String trim_end() const&;
+constexpr String trim_end() && noexcept(/* conditional */);
+constexpr String trim() const&;
+constexpr String trim() && noexcept(/* conditional */);
+constexpr String trim_ascii_start() const&;
+constexpr String trim_ascii_start() && noexcept(/* conditional */);
+constexpr String trim_ascii_end() const&;
+constexpr String trim_ascii_end() && noexcept(/* conditional */);
+constexpr String trim_ascii() const&;
+constexpr String trim_ascii() && noexcept(/* conditional */);
 ```
 
 ### Behavior
@@ -930,6 +1027,9 @@ constexpr View trim_ascii() const noexcept;
 - `trim_prefix` and `trim_suffix` keep the original view when no removal happens.
 - `trim_*_matches` remove repeated matches from one or both ends.
 - `trim_*` uses Unicode whitespace; `trim_ascii*` uses ASCII whitespace only.
+- View receivers return borrowed subviews and never allocate.
+- Owning lvalue receivers return owning strings and leave the receiver unchanged.
+- Owning rvalue receivers return owning strings and adjust the existing buffer where possible. This is the preferred form when the source string is disposable.
 
 ### Overload differences
 
@@ -954,7 +1054,9 @@ This family is strongly inspired by Rust's [`str`](https://doc.rust-lang.org/sta
 
 ### Return value
 
-Returns a borrowed subview into the original storage.
+Returns a borrowed subview for view receivers, or an owning string for owning receivers.
+
+Owning rvalue results do not refer to the moved-from object. If a strip operation does not match, it returns [`std::nullopt`](https://en.cppreference.com/w/cpp/utility/optional/nullopt) without producing a result string.
 
 ### Complexity
 
@@ -962,11 +1064,15 @@ Linear in the number of leading or trailing characters examined.
 
 ### Exceptions
 
-None, unless a predicate object throws when invoked.
+- View receivers do not throw, unless a predicate object throws when invoked.
+- Owning lvalue receivers may throw allocator or container exceptions because they produce an owning copy.
+- Owning rvalue receivers do not allocate in the bound-adjustment path; predicate overloads can still throw if the predicate throws.
 
 ### `noexcept`
 
-All listed overloads are declared `noexcept`.
+- View receiver overloads are `noexcept` except predicate forms, which are conditionally `noexcept`.
+- Owning lvalue receiver overloads are not `noexcept`.
+- Owning rvalue receiver overloads are conditionally `noexcept`; with the default owning string types, the non-predicate forms and non-throwing predicate forms are `noexcept`.
 
 ## Owning Transformations
 

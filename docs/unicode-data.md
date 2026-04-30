@@ -41,7 +41,7 @@ Typical workflow:
 1. Refresh the raw Unicode data under `tools/unicode_data/<version>/`.
 2. Rerun `tools/regenerate_unicode_tables.ps1`.
 3. Commit the regenerated `unicode_ranges/unicode_tables_constexpr.hpp`.
-4. Update the changelog and any affected documentation.
+4. Update any affected documentation.
 
 ## Why tables are checked in
 

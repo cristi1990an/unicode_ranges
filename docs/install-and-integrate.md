@@ -8,7 +8,7 @@
 ## Current packaging status
 
 - There is no first-party package-manager distribution yet.
-- Runtime UTF validation and UTF-8 <-> UTF-16/UTF-32 transcoding use pinned vendored `simdutf` `v7.7.0` under `third_party/simdutf`.
+- Runtime UTF validation, UTF-8/UTF-16/UTF-32 transcoding, selected ASCII checks, and UTF-8/UTF-16 character counting use pinned vendored `simdutf` `v7.7.0` under `third_party/simdutf`.
 - The repository ships first-party Visual Studio and CMake build definitions for the compiled library target.
 
 So the practical choices right now are:
@@ -44,9 +44,9 @@ Use:
 
 The compiled `unicode_ranges` library target uses `simdutf` for the hot runtime UTF boundary operations:
 
-- UTF-8 validation
-- UTF-8 -> UTF-16 transcoding
-- UTF-8 -> UTF-32 transcoding
+- UTF-8, UTF-16, and UTF-32 validation
+- UTF-8, UTF-16, and UTF-32 transcoding on runtime paths
+- UTF-8/UTF-16 character counting and selected ASCII-only checks
 
 That is not accidental dependency creep. `simdutf` has been the strongest raw UTF codec baseline in the comparative benchmark suite, and using its public API lets `unicode_ranges` keep its own validated string/view/value types and error model while taking advantage of excellent runtime UTF performance.
 

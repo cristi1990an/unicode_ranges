@@ -20,7 +20,7 @@ The design goal is not "maximum abstraction". It is predictable Unicode handling
 
 The public surface is still header-first, but the runtime UTF hot paths now live in the compiled `unicode_ranges` library target, built from `unicode_ranges.cpp` and backed by pinned vendored `simdutf` (`v7.7.0`) under `third_party/simdutf`. Consumers should link that library target, or an equivalent library in their own build. There is no separate `simdutf` include-path step for normal use.
 
-That backend choice is intentional: `simdutf` has been the strongest raw UTF validation/transcoding baseline in the comparative benchmark suite, so `unicode_ranges` now uses it directly for those runtime hot paths while keeping the higher-level validated type model and the rest of the Unicode algorithms in `unicode_ranges` itself.
+That backend choice is intentional: `simdutf` has been the strongest raw UTF validation/transcoding baseline in the comparative benchmark suite, so `unicode_ranges` now uses it directly for those runtime hot paths plus selected counting and ASCII-scan paths while keeping the higher-level validated type model and the rest of the Unicode algorithms in `unicode_ranges` itself.
 
 ## New users: start here
 

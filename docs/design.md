@@ -33,9 +33,9 @@ The library is built around a few explicit rules:
 
 The library now has a compiled runtime backend. The hot runtime UTF boundary operations live in the compiled `unicode_ranges` library target and use `simdutf` as the backend for:
 
-- UTF-8 validation
-- UTF-8 -> UTF-16 transcoding
-- UTF-8 -> UTF-32 transcoding
+- UTF-8, UTF-16, and UTF-32 validation
+- UTF-8, UTF-16, and UTF-32 transcoding on runtime paths
+- UTF-8/UTF-16 character counting and selected ASCII-only checks
 
 This is a pragmatic design decision. In the comparative benchmark suite, `simdutf` has been the strongest raw UTF codec baseline, so the library now uses it through its public API instead of re-implementing the same runtime dispatch ladder itself.
 
@@ -44,7 +44,7 @@ That backend choice does not change the core model:
 - the public API is still `unicode_ranges`
 - validated types and higher-level algorithms still belong to `unicode_ranges`
 - compile-time and `constexpr`-oriented behavior remains implemented locally
-- the `simdutf` dependency is specifically about the runtime hot path for contiguous UTF validation/transcoding
+- the `simdutf` dependency is specifically about the runtime hot path for contiguous UTF validation, transcoding, counting, and ASCII scans
 
 ## Ownership model
 
@@ -72,6 +72,8 @@ and both:
 
 - `substr(...)`
 - `grapheme_substr(...)`
+
+Borrowed views and owning strings intentionally differ for bound-adjusting APIs. Calling `strip_*`, `trim_*`, `substr`, or `grapheme_substr` on a view returns another view. Calling the same API on an owning string returns an owning string, and rvalue owning receivers reuse their existing buffer when the operation is just a prefix/suffix bound adjustment. APIs that only make sense as borrowed subview producers, such as `split_once`, `rsplit_once`, `split_once_at`, and `grapheme_at`, are deleted on owning rvalues to prevent dangling results.
 
 ## Iteration and encoded storage
 

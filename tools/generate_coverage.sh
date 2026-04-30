@@ -109,6 +109,7 @@ mapfile -t COVERED_FILES < <(find unicode_ranges -name '*.hpp' -print | sort)
 COVERED_FILES+=("unicode_ranges_borrowed.hpp")
 COVERED_FILES+=("unicode_ranges_all.hpp")
 COVERED_FILES+=("unicode_ranges.hpp")
+COVERED_FILES+=("unicode_ranges_full.hpp")
 
 "${LLVM_COV}" report \
 	"${OUTPUT_DIR}/${BINARY}" \

@@ -361,6 +361,109 @@ May throw allocator or container exceptions.
 
 Not `noexcept`.
 
+## Bound-Adjusting Text Operations
+
+### Synopsis
+
+```cpp
+constexpr std::optional<basic_utf8_string> strip_prefix(utf8_char ch) const&;
+constexpr std::optional<basic_utf8_string> strip_prefix(utf8_string_view sv) const&;
+constexpr std::optional<basic_utf8_string> strip_prefix(utf8_char ch) && noexcept(/* conditional */);
+constexpr std::optional<basic_utf8_string> strip_prefix(utf8_string_view sv) && noexcept(/* conditional */);
+
+constexpr std::optional<basic_utf8_string> strip_suffix(utf8_char ch) const&;
+constexpr std::optional<basic_utf8_string> strip_suffix(utf8_string_view sv) const&;
+constexpr std::optional<basic_utf8_string> strip_suffix(utf8_char ch) && noexcept(/* conditional */);
+constexpr std::optional<basic_utf8_string> strip_suffix(utf8_string_view sv) && noexcept(/* conditional */);
+
+constexpr std::optional<basic_utf8_string> strip_circumfix(utf8_char prefix, utf8_char suffix) const&;
+constexpr std::optional<basic_utf8_string> strip_circumfix(utf8_string_view prefix, utf8_string_view suffix) const&;
+constexpr std::optional<basic_utf8_string> strip_circumfix(utf8_char prefix, utf8_char suffix) && noexcept(/* conditional */);
+constexpr std::optional<basic_utf8_string> strip_circumfix(utf8_string_view prefix, utf8_string_view suffix) && noexcept(/* conditional */);
+
+constexpr basic_utf8_string trim_prefix(...) const&;
+constexpr basic_utf8_string trim_prefix(...) && noexcept(/* conditional */);
+constexpr basic_utf8_string trim_suffix(...) const&;
+constexpr basic_utf8_string trim_suffix(...) && noexcept(/* conditional */);
+constexpr basic_utf8_string trim_start_matches(...) const&;
+constexpr basic_utf8_string trim_start_matches(...) && noexcept(/* conditional */);
+constexpr basic_utf8_string trim_end_matches(...) const&;
+constexpr basic_utf8_string trim_end_matches(...) && noexcept(/* conditional */);
+constexpr basic_utf8_string trim_matches(...) const&;
+constexpr basic_utf8_string trim_matches(...) && noexcept(/* conditional */);
+constexpr basic_utf8_string trim_start() const&;
+constexpr basic_utf8_string trim_start() && noexcept(/* conditional */);
+constexpr basic_utf8_string trim_end() const&;
+constexpr basic_utf8_string trim_end() && noexcept(/* conditional */);
+constexpr basic_utf8_string trim() const&;
+constexpr basic_utf8_string trim() && noexcept(/* conditional */);
+constexpr basic_utf8_string trim_ascii_start() const&;
+constexpr basic_utf8_string trim_ascii_start() && noexcept(/* conditional */);
+constexpr basic_utf8_string trim_ascii_end() const&;
+constexpr basic_utf8_string trim_ascii_end() && noexcept(/* conditional */);
+constexpr basic_utf8_string trim_ascii() const&;
+constexpr basic_utf8_string trim_ascii() && noexcept(/* conditional */);
+
+constexpr std::optional<basic_utf8_string> substr(size_type pos, size_type count = npos) const&;
+constexpr std::optional<basic_utf8_string> substr(size_type pos, size_type count = npos) && noexcept(/* conditional */);
+constexpr std::optional<basic_utf8_string> grapheme_substr(size_type pos, size_type count = npos) const&;
+constexpr std::optional<basic_utf8_string> grapheme_substr(size_type pos, size_type count = npos) && noexcept(/* conditional */);
+
+std::optional<utf8_string_view> grapheme_at(size_type index) && = delete;
+std::optional<utf8_string_view> grapheme_at(size_type index) const&& = delete;
+std::optional<std::pair<utf8_string_view, utf8_string_view>> split_once(...) && = delete;
+std::optional<std::pair<utf8_string_view, utf8_string_view>> split_once(...) const&& = delete;
+std::optional<std::pair<utf8_string_view, utf8_string_view>> rsplit_once(...) && = delete;
+std::optional<std::pair<utf8_string_view, utf8_string_view>> rsplit_once(...) const&& = delete;
+std::optional<std::pair<utf8_string_view, utf8_string_view>> split_once_at(size_type delim) && = delete;
+std::optional<std::pair<utf8_string_view, utf8_string_view>> split_once_at(size_type delim) const&& = delete;
+std::pair<utf8_string_view, utf8_string_view> split_once_at_unchecked(size_type delim) && = delete;
+std::pair<utf8_string_view, utf8_string_view> split_once_at_unchecked(size_type delim) const&& = delete;
+
+// The UTF-16 and UTF-32 owning string types expose the same receiver-qualified families.
+```
+
+### Behavior
+
+- `const&` overloads keep the source string unchanged and return a new owning result.
+- `&&` overloads are for disposable source strings and may reuse the existing allocation.
+- `const&&` bound-adjusting calls use the `const&` copy-producing overloads because a const object cannot be reused in place.
+- Bound-adjusting `&&` overloads do not return views into the moved-from source; the result owns its storage.
+- APIs that necessarily return borrowed subviews, such as `split_once`, `rsplit_once`, `split_once_at`, and `grapheme_at`, delete their owning-rvalue overloads instead of allowing dangling results.
+
+### Overload differences
+
+The examples below use `utf8_string text = u8"  cafe  "_utf8_s;`.
+
+| Overload | Meaning | Example |
+| --- | --- | --- |
+| `const&` strip/trim/substr | copy the selected owned text and keep `text` usable unchanged | `auto copy = text.trim();` |
+| `&&` strip/trim/substr | consume a disposable string and avoid an extra owning copy where possible | `auto trimmed = std::move(text).trim();` |
+| deleted `&&` one-shot split/access | reject APIs whose result would be borrowed from a temporary owning string | `std::move(text).split_once(u8"="_u8c)` is ill-formed |
+
+### Complexity
+
+- `const&` overloads are linear in the selected text and may allocate.
+- `&&` overloads are linear in boundary and trimming work, and avoid an additional allocation for pure prefix/suffix bound adjustments.
+
+### Exceptions
+
+- `const&` overloads may throw allocator or container exceptions.
+- `&&` bound-adjusting overloads do not allocate in the bound-adjustment path.
+- Predicate overloads may throw if the predicate throws.
+
+### `noexcept`
+
+- `const&` overloads are not `noexcept`.
+- `&&` overloads are conditionally `noexcept`; with the default owning string types, non-predicate bound-adjusting overloads are `noexcept`.
+- Predicate `&&` overloads are `noexcept` only when both moving the owning string and invoking the predicate are `noexcept`.
+
+### Example
+
+```cpp
+--8<-- "examples/text-operations/ref-qualified-ownership.cpp"
+```
+
 ## Insertion, Erasure, And Reversal
 
 ### Synopsis

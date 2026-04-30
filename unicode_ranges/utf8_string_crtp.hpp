@@ -2828,6 +2828,14 @@ public:
 	using difference_type = std::ptrdiff_t;
 	static constexpr size_type npos = static_cast<size_type>(-1);
 
+private:
+	static constexpr bool owning_slice_noexcept = std::is_nothrow_move_constructible_v<Derived>;
+
+	template <typename Pred>
+	static constexpr bool predicate_noexcept =
+		noexcept(std::invoke(std::declval<Pred&>(), std::declval<utf8_char>()));
+
+public:
 	[[nodiscard]]
 	constexpr auto chars() const& noexcept
 	{
@@ -4307,13 +4315,13 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> split_once(utf8_char ch) const noexcept
+	constexpr std::optional<std::pair<View, View>> split_once(utf8_char ch) const& noexcept
 	{
 		return split_once(View::from_bytes_unchecked(details::utf8_char_view(ch)));
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> split_once(View sv) const noexcept
+	constexpr std::optional<std::pair<View, View>> split_once(View sv) const& noexcept
 	{
 		const auto delimiter = sv.base();
 		const auto pos = details::find_utf8_split_delimiter(byte_view(), delimiter, 0);
@@ -4330,7 +4338,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> split_once(std::span<const utf8_char> chars) const noexcept
+	constexpr std::optional<std::pair<View, View>> split_once(std::span<const utf8_char> chars) const& noexcept
 	{
 		if (chars.empty())
 		{
@@ -4347,7 +4355,7 @@ public:
 
 	template <details::utf8_char_predicate Pred>
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> split_once(Pred pred) const noexcept
+	constexpr std::optional<std::pair<View, View>> split_once(Pred pred) const& noexcept
 	{
 		const auto match = details::find_utf8_predicate_match(byte_view(), 0, pred);
 		if (match.pos == npos)
@@ -4362,14 +4370,24 @@ public:
 		};
 	}
 
+	template <typename... Args>
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> rsplit_once(utf8_char ch) const noexcept
+	constexpr std::optional<std::pair<View, View>> split_once(Args&&...) && noexcept
+		requires (!std::same_as<Derived, View>) = delete;
+
+	template <typename... Args>
+	[[nodiscard]]
+	constexpr std::optional<std::pair<View, View>> split_once(Args&&...) const&& noexcept
+		requires (!std::same_as<Derived, View>) = delete;
+
+	[[nodiscard]]
+	constexpr std::optional<std::pair<View, View>> rsplit_once(utf8_char ch) const& noexcept
 	{
 		return rsplit_once(View::from_bytes_unchecked(details::utf8_char_view(ch)));
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> rsplit_once(View sv) const noexcept
+	constexpr std::optional<std::pair<View, View>> rsplit_once(View sv) const& noexcept
 	{
 		const auto delimiter = sv.base();
 		const auto pos = details::rfind_utf8_split_delimiter(byte_view(), delimiter, byte_view().size());
@@ -4386,7 +4404,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> rsplit_once(std::span<const utf8_char> chars) const noexcept
+	constexpr std::optional<std::pair<View, View>> rsplit_once(std::span<const utf8_char> chars) const& noexcept
 	{
 		if (chars.empty())
 		{
@@ -4403,7 +4421,7 @@ public:
 
 	template <details::utf8_char_predicate Pred>
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> rsplit_once(Pred pred) const noexcept
+	constexpr std::optional<std::pair<View, View>> rsplit_once(Pred pred) const& noexcept
 	{
 		const auto match = details::rfind_utf8_predicate_match(byte_view(), byte_view().size(), pred);
 		if (match.pos == npos)
@@ -4418,8 +4436,18 @@ public:
 		};
 	}
 
+	template <typename... Args>
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> split_once_at(size_type delim) const noexcept
+	constexpr std::optional<std::pair<View, View>> rsplit_once(Args&&...) && noexcept
+		requires (!std::same_as<Derived, View>) = delete;
+
+	template <typename... Args>
+	[[nodiscard]]
+	constexpr std::optional<std::pair<View, View>> rsplit_once(Args&&...) const&& noexcept
+		requires (!std::same_as<Derived, View>) = delete;
+
+	[[nodiscard]]
+	constexpr std::optional<std::pair<View, View>> split_once_at(size_type delim) const& noexcept
 	{
 		if (!is_char_boundary(delim)) [[unlikely]]
 		{
@@ -4430,7 +4458,15 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) const noexcept
+	constexpr std::optional<std::pair<View, View>> split_once_at(size_type delim) && noexcept
+		requires (!std::same_as<Derived, View>) = delete;
+
+	[[nodiscard]]
+	constexpr std::optional<std::pair<View, View>> split_once_at(size_type delim) const&& noexcept
+		requires (!std::same_as<Derived, View>) = delete;
+
+	[[nodiscard]]
+	constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) const& noexcept
 	{
 		UTF8_RANGES_DEBUG_ASSERT(is_char_boundary(delim));
 
@@ -4440,6 +4476,14 @@ public:
 			View::from_bytes_unchecked(bytes.substr(delim))
 		};
 	}
+
+	[[nodiscard]]
+	constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) && noexcept
+		requires (!std::same_as<Derived, View>) = delete;
+
+	[[nodiscard]]
+	constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) const&& noexcept
+		requires (!std::same_as<Derived, View>) = delete;
 
 	[[nodiscard]] constexpr basic_utf8_string<> replace_all(utf8_char from, utf8_char to) const;
 	[[nodiscard]] constexpr basic_utf8_string<> replace_all(utf8_char from, View to) const;
@@ -4536,41 +4580,63 @@ public:
 	constexpr basic_utf8_string<Allocator> replace_n(size_type count, Pred pred, View to, const Allocator& alloc) const;
 
 	[[nodiscard]]
-	constexpr std::optional<View> strip_prefix(utf8_char ch) const noexcept
+	constexpr auto strip_prefix(utf8_char ch) const& noexcept(std::same_as<Derived, View>)
 	{
 		return strip_prefix(View::from_bytes_unchecked(details::utf8_char_view(ch)));
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<View> strip_prefix(View sv) const noexcept
+	constexpr std::optional<Derived> strip_prefix(utf8_char ch) && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
 	{
-		if (!starts_with(sv))
-		{
-			return std::nullopt;
-		}
-
-		return View::from_bytes_unchecked(byte_view().substr(sv.base().size()));
+		auto stripped = strip_prefix_view(View::from_bytes_unchecked(details::utf8_char_view(ch)));
+		return std::move(*this).move_optional_owned_view(stripped);
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<View> strip_suffix(utf8_char ch) const noexcept
+	constexpr auto strip_prefix(View sv) const& noexcept(std::same_as<Derived, View>)
+	{
+		return optional_view_or_owned(strip_prefix_view(sv));
+	}
+
+	[[nodiscard]]
+	constexpr std::optional<Derived> strip_prefix(View sv) && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
+	{
+		auto stripped = strip_prefix_view(sv);
+		return std::move(*this).move_optional_owned_view(stripped);
+	}
+
+	[[nodiscard]]
+	constexpr auto strip_suffix(utf8_char ch) const& noexcept(std::same_as<Derived, View>)
 	{
 		return strip_suffix(View::from_bytes_unchecked(details::utf8_char_view(ch)));
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<View> strip_suffix(View sv) const noexcept
+	constexpr std::optional<Derived> strip_suffix(utf8_char ch) && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
 	{
-		if (!ends_with(sv))
-		{
-			return std::nullopt;
-		}
-
-		return View::from_bytes_unchecked(byte_view().substr(0, size() - sv.base().size()));
+		auto stripped = strip_suffix_view(View::from_bytes_unchecked(details::utf8_char_view(ch)));
+		return std::move(*this).move_optional_owned_view(stripped);
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<View> strip_circumfix(utf8_char prefix, utf8_char suffix) const noexcept
+	constexpr auto strip_suffix(View sv) const& noexcept(std::same_as<Derived, View>)
+	{
+		return optional_view_or_owned(strip_suffix_view(sv));
+	}
+
+	[[nodiscard]]
+	constexpr std::optional<Derived> strip_suffix(View sv) && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
+	{
+		auto stripped = strip_suffix_view(sv);
+		return std::move(*this).move_optional_owned_view(stripped);
+	}
+
+	[[nodiscard]]
+	constexpr auto strip_circumfix(utf8_char prefix, utf8_char suffix) const& noexcept(std::same_as<Derived, View>)
 	{
 		return strip_circumfix(
 			View::from_bytes_unchecked(details::utf8_char_view(prefix)),
@@ -4578,234 +4644,341 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<View> strip_circumfix(View prefix, View suffix) const noexcept
+	constexpr std::optional<Derived> strip_circumfix(utf8_char prefix, utf8_char suffix) && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
 	{
-		const auto stripped = strip_prefix(prefix);
-		if (!stripped.has_value())
-		{
-			return std::nullopt;
-		}
-
-		return stripped->strip_suffix(suffix);
+		auto stripped = strip_circumfix_view(
+			View::from_bytes_unchecked(details::utf8_char_view(prefix)),
+			View::from_bytes_unchecked(details::utf8_char_view(suffix)));
+		return std::move(*this).move_optional_owned_view(stripped);
 	}
 
 	[[nodiscard]]
-	constexpr View trim_prefix(utf8_char ch) const noexcept
+	constexpr auto strip_circumfix(View prefix, View suffix) const& noexcept(std::same_as<Derived, View>)
+	{
+		return optional_view_or_owned(strip_circumfix_view(prefix, suffix));
+	}
+
+	[[nodiscard]]
+	constexpr std::optional<Derived> strip_circumfix(View prefix, View suffix) && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
+	{
+		auto stripped = strip_circumfix_view(prefix, suffix);
+		return std::move(*this).move_optional_owned_view(stripped);
+	}
+
+	[[nodiscard]]
+	constexpr auto trim_prefix(utf8_char ch) const& noexcept(std::same_as<Derived, View>)
 	{
 		return trim_prefix(View::from_bytes_unchecked(details::utf8_char_view(ch)));
 	}
 
 	[[nodiscard]]
-	constexpr View trim_prefix(View sv) const noexcept
+	constexpr Derived trim_prefix(utf8_char ch) && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
 	{
-		return strip_prefix(sv).value_or(view_from_whole_string());
+		auto trimmed = trim_prefix_view(View::from_bytes_unchecked(details::utf8_char_view(ch)));
+		return std::move(*this).move_owned_view(trimmed);
 	}
 
 	[[nodiscard]]
-	constexpr View trim_suffix(utf8_char ch) const noexcept
+	constexpr auto trim_prefix(View sv) const& noexcept(std::same_as<Derived, View>)
+	{
+		return view_or_owned(trim_prefix_view(sv));
+	}
+
+	[[nodiscard]]
+	constexpr Derived trim_prefix(View sv) && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
+	{
+		auto trimmed = trim_prefix_view(sv);
+		return std::move(*this).move_owned_view(trimmed);
+	}
+
+	[[nodiscard]]
+	constexpr auto trim_suffix(utf8_char ch) const& noexcept(std::same_as<Derived, View>)
 	{
 		return trim_suffix(View::from_bytes_unchecked(details::utf8_char_view(ch)));
 	}
 
 	[[nodiscard]]
-	constexpr View trim_suffix(View sv) const noexcept
+	constexpr Derived trim_suffix(utf8_char ch) && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
 	{
-		return strip_suffix(sv).value_or(view_from_whole_string());
+		auto trimmed = trim_suffix_view(View::from_bytes_unchecked(details::utf8_char_view(ch)));
+		return std::move(*this).move_owned_view(trimmed);
 	}
 
 	[[nodiscard]]
-	constexpr View trim_start_matches(utf8_char ch) const noexcept
+	constexpr auto trim_suffix(View sv) const& noexcept(std::same_as<Derived, View>)
 	{
-		const auto pos = find_first_not_of(ch);
-		return pos == npos
-			? empty_view()
-			: View::from_bytes_unchecked(byte_view().substr(pos));
+		return view_or_owned(trim_suffix_view(sv));
 	}
 
 	[[nodiscard]]
-	constexpr View trim_start_matches(View sv) const noexcept
+	constexpr Derived trim_suffix(View sv) && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
 	{
-		auto result = byte_view();
-		const auto needle = sv.base();
-		if (needle.empty())
-		{
-			return view_from_whole_string();
-		}
-
-		while (result.starts_with(needle))
-		{
-			result.remove_prefix(needle.size());
-		}
-
-		return View::from_bytes_unchecked(result);
+		auto trimmed = trim_suffix_view(sv);
+		return std::move(*this).move_owned_view(trimmed);
 	}
 
 	[[nodiscard]]
-	constexpr View trim_start_matches(std::span<const utf8_char> chars) const noexcept
+	constexpr auto trim_start_matches(utf8_char ch) const& noexcept(std::same_as<Derived, View>)
 	{
-		if (chars.empty())
-		{
-			return view_from_whole_string();
-		}
+		return view_or_owned(trim_start_matches_view(ch));
+	}
 
-		if (chars.size() == 1)
-		{
-			return trim_start_matches(chars.front());
-		}
+	[[nodiscard]]
+	constexpr Derived trim_start_matches(utf8_char ch) && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
+	{
+		auto trimmed = trim_start_matches_view(ch);
+		return std::move(*this).move_owned_view(trimmed);
+	}
 
-		return trim_start_matches(details::utf8_char_span_matcher{ chars });
+	[[nodiscard]]
+	constexpr auto trim_start_matches(View sv) const& noexcept(std::same_as<Derived, View>)
+	{
+		return view_or_owned(trim_start_matches_view(sv));
+	}
+
+	[[nodiscard]]
+	constexpr Derived trim_start_matches(View sv) && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
+	{
+		auto trimmed = trim_start_matches_view(sv);
+		return std::move(*this).move_owned_view(trimmed);
+	}
+
+	[[nodiscard]]
+	constexpr auto trim_start_matches(std::span<const utf8_char> chars) const& noexcept(std::same_as<Derived, View>)
+	{
+		return view_or_owned(trim_start_matches_view(chars));
+	}
+
+	[[nodiscard]]
+	constexpr Derived trim_start_matches(std::span<const utf8_char> chars) && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
+	{
+		auto trimmed = trim_start_matches_view(chars);
+		return std::move(*this).move_owned_view(trimmed);
 	}
 
 	template <details::utf8_char_predicate Pred>
 	[[nodiscard]]
-	constexpr View trim_start_matches(Pred pred) const noexcept
+	constexpr auto trim_start_matches(Pred pred) const& noexcept(std::same_as<Derived, View> && predicate_noexcept<Pred>)
 	{
-		std::size_t pos = 0;
-		while (pos < byte_view().size())
-		{
-			const auto ch = details::utf8_char_from_bytes_at(byte_view(), pos);
-			const auto count = ch.code_unit_count();
-			if (!std::invoke(pred, ch))
-			{
-				break;
-			}
-
-			pos += count;
-		}
-
-		return View::from_bytes_unchecked(byte_view().substr(pos));
-	}
-
-	[[nodiscard]]
-	constexpr View trim_end_matches(utf8_char ch) const noexcept
-	{
-		const auto pos = find_last_not_of(ch);
-		if (pos == npos)
-		{
-			return empty_view();
-		}
-
-		return View::from_bytes_unchecked(byte_view().substr(0, pos + char_at_unchecked(pos).code_unit_count()));
-	}
-
-	[[nodiscard]]
-	constexpr View trim_end_matches(View sv) const noexcept
-	{
-		auto result = byte_view();
-		const auto needle = sv.base();
-		if (needle.empty())
-		{
-			return view_from_whole_string();
-		}
-
-		while (result.ends_with(needle))
-		{
-			result.remove_suffix(needle.size());
-		}
-
-		return View::from_bytes_unchecked(result);
-	}
-
-	[[nodiscard]]
-	constexpr View trim_end_matches(std::span<const utf8_char> chars) const noexcept
-	{
-		if (chars.empty())
-		{
-			return view_from_whole_string();
-		}
-
-		if (chars.size() == 1)
-		{
-			return trim_end_matches(chars.front());
-		}
-
-		return trim_end_matches(details::utf8_char_span_matcher{ chars });
+		return view_or_owned(trim_start_matches_view(pred));
 	}
 
 	template <details::utf8_char_predicate Pred>
 	[[nodiscard]]
-	constexpr View trim_end_matches(Pred pred) const noexcept
+	constexpr Derived trim_start_matches(Pred pred) && noexcept(owning_slice_noexcept && predicate_noexcept<Pred>)
+		requires (!std::same_as<Derived, View>)
 	{
-		std::size_t end = byte_view().size();
-		while (end != 0)
-		{
-			const auto pos = details::previous_utf8_scalar_boundary(byte_view(), end);
-			const auto ch = details::utf8_char_from_bytes_at(byte_view(), pos);
-			if (!std::invoke(pred, ch))
-			{
-				break;
-			}
-
-			end = pos;
-		}
-
-		return View::from_bytes_unchecked(byte_view().substr(0, end));
+		auto trimmed = trim_start_matches_view(pred);
+		return std::move(*this).move_owned_view(trimmed);
 	}
 
 	[[nodiscard]]
-	constexpr View trim_matches(utf8_char ch) const noexcept
+	constexpr auto trim_end_matches(utf8_char ch) const& noexcept(std::same_as<Derived, View>)
 	{
-		return trim_start_matches(ch).trim_end_matches(ch);
+		return view_or_owned(trim_end_matches_view(ch));
 	}
 
 	[[nodiscard]]
-	constexpr View trim_matches(View sv) const noexcept
+	constexpr Derived trim_end_matches(utf8_char ch) && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
 	{
-		return trim_start_matches(sv).trim_end_matches(sv);
+		auto trimmed = trim_end_matches_view(ch);
+		return std::move(*this).move_owned_view(trimmed);
 	}
 
 	[[nodiscard]]
-	constexpr View trim_matches(std::span<const utf8_char> chars) const noexcept
+	constexpr auto trim_end_matches(View sv) const& noexcept(std::same_as<Derived, View>)
 	{
-		return trim_start_matches(chars).trim_end_matches(chars);
+		return view_or_owned(trim_end_matches_view(sv));
+	}
+
+	[[nodiscard]]
+	constexpr Derived trim_end_matches(View sv) && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
+	{
+		auto trimmed = trim_end_matches_view(sv);
+		return std::move(*this).move_owned_view(trimmed);
+	}
+
+	[[nodiscard]]
+	constexpr auto trim_end_matches(std::span<const utf8_char> chars) const& noexcept(std::same_as<Derived, View>)
+	{
+		return view_or_owned(trim_end_matches_view(chars));
+	}
+
+	[[nodiscard]]
+	constexpr Derived trim_end_matches(std::span<const utf8_char> chars) && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
+	{
+		auto trimmed = trim_end_matches_view(chars);
+		return std::move(*this).move_owned_view(trimmed);
 	}
 
 	template <details::utf8_char_predicate Pred>
 	[[nodiscard]]
-	constexpr View trim_matches(Pred pred) const noexcept
+	constexpr auto trim_end_matches(Pred pred) const& noexcept(std::same_as<Derived, View> && predicate_noexcept<Pred>)
 	{
-		return trim_start_matches(pred).trim_end_matches(pred);
+		return view_or_owned(trim_end_matches_view(pred));
+	}
+
+	template <details::utf8_char_predicate Pred>
+	[[nodiscard]]
+	constexpr Derived trim_end_matches(Pred pred) && noexcept(owning_slice_noexcept && predicate_noexcept<Pred>)
+		requires (!std::same_as<Derived, View>)
+	{
+		auto trimmed = trim_end_matches_view(pred);
+		return std::move(*this).move_owned_view(trimmed);
 	}
 
 	[[nodiscard]]
-	constexpr View trim_start() const noexcept
+	constexpr auto trim_matches(utf8_char ch) const& noexcept(std::same_as<Derived, View>)
 	{
-		const auto pos = details::find_utf8_non_whitespace_boundary(byte_view(), 0, false);
-		return pos == npos
-			? empty_view()
-			: View::from_bytes_unchecked(byte_view().substr(pos));
+		return view_or_owned(trim_matches_view(ch));
 	}
 
 	[[nodiscard]]
-	constexpr View trim_end() const noexcept
+	constexpr Derived trim_matches(utf8_char ch) && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
 	{
-		return View::from_bytes_unchecked(byte_view().substr(0, details::utf8_trim_end_boundary(byte_view(), false)));
-	}
-
-	constexpr View trim() const noexcept
-	{
-		return trim_start().trim_end();
+		auto trimmed = trim_matches_view(ch);
+		return std::move(*this).move_owned_view(trimmed);
 	}
 
 	[[nodiscard]]
-	constexpr View trim_ascii_start() const noexcept
+	constexpr auto trim_matches(View sv) const& noexcept(std::same_as<Derived, View>)
 	{
-		const auto pos = details::find_utf8_non_whitespace_boundary(byte_view(), 0, true);
-		return pos == npos
-			? empty_view()
-			: View::from_bytes_unchecked(byte_view().substr(pos));
+		return view_or_owned(trim_matches_view(sv));
 	}
 
 	[[nodiscard]]
-	constexpr View trim_ascii_end() const noexcept
+	constexpr Derived trim_matches(View sv) && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
 	{
-		return View::from_bytes_unchecked(byte_view().substr(0, details::utf8_trim_end_boundary(byte_view(), true)));
+		auto trimmed = trim_matches_view(sv);
+		return std::move(*this).move_owned_view(trimmed);
 	}
 
 	[[nodiscard]]
-	constexpr View trim_ascii() const noexcept
+	constexpr auto trim_matches(std::span<const utf8_char> chars) const& noexcept(std::same_as<Derived, View>)
 	{
-		return trim_ascii_start().trim_ascii_end();
+		return view_or_owned(trim_matches_view(chars));
+	}
+
+	[[nodiscard]]
+	constexpr Derived trim_matches(std::span<const utf8_char> chars) && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
+	{
+		auto trimmed = trim_matches_view(chars);
+		return std::move(*this).move_owned_view(trimmed);
+	}
+
+	template <details::utf8_char_predicate Pred>
+	[[nodiscard]]
+	constexpr auto trim_matches(Pred pred) const& noexcept(std::same_as<Derived, View> && predicate_noexcept<Pred>)
+	{
+		return view_or_owned(trim_matches_view(pred));
+	}
+
+	template <details::utf8_char_predicate Pred>
+	[[nodiscard]]
+	constexpr Derived trim_matches(Pred pred) && noexcept(owning_slice_noexcept && predicate_noexcept<Pred>)
+		requires (!std::same_as<Derived, View>)
+	{
+		auto trimmed = trim_matches_view(pred);
+		return std::move(*this).move_owned_view(trimmed);
+	}
+
+	[[nodiscard]]
+	constexpr auto trim_start() const& noexcept(std::same_as<Derived, View>)
+	{
+		return view_or_owned(trim_start_view());
+	}
+
+	[[nodiscard]]
+	constexpr Derived trim_start() && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
+	{
+		auto trimmed = trim_start_view();
+		return std::move(*this).move_owned_view(trimmed);
+	}
+
+	[[nodiscard]]
+	constexpr auto trim_end() const& noexcept(std::same_as<Derived, View>)
+	{
+		return view_or_owned(trim_end_view());
+	}
+
+	[[nodiscard]]
+	constexpr Derived trim_end() && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
+	{
+		auto trimmed = trim_end_view();
+		return std::move(*this).move_owned_view(trimmed);
+	}
+
+	[[nodiscard]]
+	constexpr auto trim() const& noexcept(std::same_as<Derived, View>)
+	{
+		return view_or_owned(trim_view());
+	}
+
+	[[nodiscard]]
+	constexpr Derived trim() && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
+	{
+		auto trimmed = trim_view();
+		return std::move(*this).move_owned_view(trimmed);
+	}
+
+	[[nodiscard]]
+	constexpr auto trim_ascii_start() const& noexcept(std::same_as<Derived, View>)
+	{
+		return view_or_owned(trim_ascii_start_view());
+	}
+
+	[[nodiscard]]
+	constexpr Derived trim_ascii_start() && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
+	{
+		auto trimmed = trim_ascii_start_view();
+		return std::move(*this).move_owned_view(trimmed);
+	}
+
+	[[nodiscard]]
+	constexpr auto trim_ascii_end() const& noexcept(std::same_as<Derived, View>)
+	{
+		return view_or_owned(trim_ascii_end_view());
+	}
+
+	[[nodiscard]]
+	constexpr Derived trim_ascii_end() && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
+	{
+		auto trimmed = trim_ascii_end_view();
+		return std::move(*this).move_owned_view(trimmed);
+	}
+
+	[[nodiscard]]
+	constexpr auto trim_ascii() const& noexcept(std::same_as<Derived, View>)
+	{
+		return view_or_owned(trim_ascii_view());
+	}
+
+	[[nodiscard]]
+	constexpr Derived trim_ascii() && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
+	{
+		auto trimmed = trim_ascii_view();
+		return std::move(*this).move_owned_view(trimmed);
 	}
 
 	[[nodiscard]]
@@ -4831,7 +5004,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<View> grapheme_at(size_type index) const noexcept
+	constexpr std::optional<View> grapheme_at(size_type index) const& noexcept
 	{
 		const auto bytes = byte_view();
 		if (index >= bytes.size() || !details::is_grapheme_boundary(bytes, index)) [[unlikely]]
@@ -4844,52 +5017,39 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<View> substr(size_type pos, size_type count = npos) const noexcept
+	constexpr std::optional<View> grapheme_at(size_type index) && noexcept
+		requires (!std::same_as<Derived, View>) = delete;
+
+	[[nodiscard]]
+	constexpr std::optional<View> grapheme_at(size_type index) const&& noexcept
+		requires (!std::same_as<Derived, View>) = delete;
+
+	[[nodiscard]]
+	constexpr auto substr(size_type pos, size_type count = npos) const& noexcept(std::same_as<Derived, View>)
 	{
-		const auto bytes = byte_view();
-		if (pos > bytes.size()) [[unlikely]]
-		{
-			return std::nullopt;
-		}
-
-		if (pos != 0 && pos != bytes.size()
-			&& !details::is_utf8_lead_byte(static_cast<std::uint8_t>(bytes[pos]))) [[unlikely]]
-		{
-			return std::nullopt;
-		}
-
-		const auto remaining = bytes.size() - pos;
-		const auto length = (count == npos || count > remaining) ? remaining : count;
-		const auto end = pos + length;
-
-		if (end != 0 && end != bytes.size()
-			&& !details::is_utf8_lead_byte(static_cast<std::uint8_t>(bytes[end]))) [[unlikely]]
-		{
-			return std::nullopt;
-		}
-
-		return View::from_bytes_unchecked(std::u8string_view{ bytes.data() + pos, end - pos });
+		return optional_view_or_owned(substr_view(pos, count));
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<View> grapheme_substr(size_type pos, size_type count = npos) const noexcept
+	constexpr std::optional<Derived> substr(size_type pos, size_type count = npos) && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
 	{
-		const auto bytes = byte_view();
-		if (!details::is_grapheme_boundary(bytes, pos)) [[unlikely]]
-		{
-			return std::nullopt;
-		}
+		auto result = substr_view(pos, count);
+		return std::move(*this).move_optional_owned_view(result);
+	}
 
-		const auto remaining = bytes.size() - pos;
-		const auto length = (count == npos || count > remaining) ? remaining : count;
-		const auto end = pos + length;
+	[[nodiscard]]
+	constexpr auto grapheme_substr(size_type pos, size_type count = npos) const& noexcept(std::same_as<Derived, View>)
+	{
+		return optional_view_or_owned(grapheme_substr_view(pos, count));
+	}
 
-		if (!details::is_grapheme_boundary(bytes, end)) [[unlikely]]
-		{
-			return std::nullopt;
-		}
-
-		return View::from_bytes_unchecked(std::u8string_view{ bytes.data() + pos, end - pos });
+	[[nodiscard]]
+	constexpr std::optional<Derived> grapheme_substr(size_type pos, size_type count = npos) && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
+	{
+		auto result = grapheme_substr_view(pos, count);
+		return std::move(*this).move_optional_owned_view(result);
 	}
 
 	[[nodiscard]]
@@ -5053,6 +5213,377 @@ public:
 	}
 
 protected:
+	[[nodiscard]]
+	constexpr auto view_or_owned(View view) const noexcept(std::same_as<Derived, View>)
+	{
+		if constexpr (std::same_as<Derived, View>)
+		{
+			return view;
+		}
+		else
+		{
+			return Derived{ view, self().base().get_allocator() };
+		}
+	}
+
+	[[nodiscard]]
+	constexpr auto optional_view_or_owned(std::optional<View> view) const noexcept(std::same_as<Derived, View>)
+	{
+		using result_type = std::conditional_t<std::same_as<Derived, View>, View, Derived>;
+		if (!view.has_value())
+		{
+			return std::optional<result_type>{};
+		}
+
+		return std::optional<result_type>{ std::in_place, view_or_owned(*view) };
+	}
+
+	[[nodiscard]]
+	constexpr Derived move_owned_view(View view) && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
+	{
+		const auto bytes = byte_view();
+		const auto subrange = view.base();
+		const auto pos = static_cast<size_type>(subrange.data() - bytes.data());
+		return std::move(*this).move_owned_bounds(pos, pos + subrange.size());
+	}
+
+	[[nodiscard]]
+	constexpr std::optional<Derived> move_optional_owned_view(std::optional<View> view) && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
+	{
+		if (!view.has_value())
+		{
+			return std::nullopt;
+		}
+
+		return std::optional<Derived>{ std::in_place, std::move(*this).move_owned_view(*view) };
+	}
+
+	[[nodiscard]]
+	constexpr Derived move_owned_bounds(size_type first, size_type last) && noexcept(owning_slice_noexcept)
+		requires (!std::same_as<Derived, View>)
+	{
+		auto& text = static_cast<Derived&>(*this);
+		const auto old_size = text.size();
+		UTF8_RANGES_DEBUG_ASSERT(first <= last);
+		UTF8_RANGES_DEBUG_ASSERT(last <= old_size);
+
+		if (last != old_size)
+		{
+			text.erase(last, old_size - last);
+		}
+
+		if (first != 0)
+		{
+			text.erase(0, first);
+		}
+
+		return std::move(text);
+	}
+
+	[[nodiscard]]
+	constexpr std::optional<View> strip_prefix_view(View sv) const noexcept
+	{
+		if (!starts_with(sv))
+		{
+			return std::nullopt;
+		}
+
+		return View::from_bytes_unchecked(byte_view().substr(sv.base().size()));
+	}
+
+	[[nodiscard]]
+	constexpr std::optional<View> strip_suffix_view(View sv) const noexcept
+	{
+		if (!ends_with(sv))
+		{
+			return std::nullopt;
+		}
+
+		return View::from_bytes_unchecked(byte_view().substr(0, size() - sv.base().size()));
+	}
+
+	[[nodiscard]]
+	constexpr std::optional<View> strip_circumfix_view(View prefix, View suffix) const noexcept
+	{
+		const auto stripped = strip_prefix_view(prefix);
+		if (!stripped.has_value())
+		{
+			return std::nullopt;
+		}
+
+		if (!stripped->ends_with(suffix))
+		{
+			return std::nullopt;
+		}
+
+		return View::from_bytes_unchecked(
+			stripped->base().substr(0, stripped->base().size() - suffix.base().size()));
+	}
+
+	[[nodiscard]]
+	constexpr View trim_prefix_view(View sv) const noexcept
+	{
+		return strip_prefix_view(sv).value_or(view_from_whole_string());
+	}
+
+	[[nodiscard]]
+	constexpr View trim_suffix_view(View sv) const noexcept
+	{
+		return strip_suffix_view(sv).value_or(view_from_whole_string());
+	}
+
+	[[nodiscard]]
+	constexpr View trim_start_matches_view(utf8_char ch) const noexcept
+	{
+		const auto pos = find_first_not_of(ch);
+		return pos == npos
+			? empty_view()
+			: View::from_bytes_unchecked(byte_view().substr(pos));
+	}
+
+	[[nodiscard]]
+	constexpr View trim_start_matches_view(View sv) const noexcept
+	{
+		auto result = byte_view();
+		const auto needle = sv.base();
+		if (needle.empty())
+		{
+			return view_from_whole_string();
+		}
+
+		while (result.starts_with(needle))
+		{
+			result.remove_prefix(needle.size());
+		}
+
+		return View::from_bytes_unchecked(result);
+	}
+
+	[[nodiscard]]
+	constexpr View trim_start_matches_view(std::span<const utf8_char> chars) const noexcept
+	{
+		if (chars.empty())
+		{
+			return view_from_whole_string();
+		}
+
+		if (chars.size() == 1)
+		{
+			return trim_start_matches_view(chars.front());
+		}
+
+		return trim_start_matches_view(details::utf8_char_span_matcher{ chars });
+	}
+
+	template <details::utf8_char_predicate Pred>
+	[[nodiscard]]
+	constexpr View trim_start_matches_view(Pred pred) const noexcept(predicate_noexcept<Pred>)
+	{
+		std::size_t pos = 0;
+		while (pos < byte_view().size())
+		{
+			const auto ch = details::utf8_char_from_bytes_at(byte_view(), pos);
+			const auto count = ch.code_unit_count();
+			if (!std::invoke(pred, ch))
+			{
+				break;
+			}
+
+			pos += count;
+		}
+
+		return View::from_bytes_unchecked(byte_view().substr(pos));
+	}
+
+	[[nodiscard]]
+	constexpr View trim_end_matches_view(utf8_char ch) const noexcept
+	{
+		const auto pos = find_last_not_of(ch);
+		if (pos == npos)
+		{
+			return empty_view();
+		}
+
+		return View::from_bytes_unchecked(byte_view().substr(0, pos + char_at_unchecked(pos).code_unit_count()));
+	}
+
+	[[nodiscard]]
+	constexpr View trim_end_matches_view(View sv) const noexcept
+	{
+		auto result = byte_view();
+		const auto needle = sv.base();
+		if (needle.empty())
+		{
+			return view_from_whole_string();
+		}
+
+		while (result.ends_with(needle))
+		{
+			result.remove_suffix(needle.size());
+		}
+
+		return View::from_bytes_unchecked(result);
+	}
+
+	[[nodiscard]]
+	constexpr View trim_end_matches_view(std::span<const utf8_char> chars) const noexcept
+	{
+		if (chars.empty())
+		{
+			return view_from_whole_string();
+		}
+
+		if (chars.size() == 1)
+		{
+			return trim_end_matches_view(chars.front());
+		}
+
+		return trim_end_matches_view(details::utf8_char_span_matcher{ chars });
+	}
+
+	template <details::utf8_char_predicate Pred>
+	[[nodiscard]]
+	constexpr View trim_end_matches_view(Pred pred) const noexcept(predicate_noexcept<Pred>)
+	{
+		std::size_t end = byte_view().size();
+		while (end != 0)
+		{
+			const auto pos = details::previous_utf8_scalar_boundary(byte_view(), end);
+			const auto ch = details::utf8_char_from_bytes_at(byte_view(), pos);
+			if (!std::invoke(pred, ch))
+			{
+				break;
+			}
+
+			end = pos;
+		}
+
+		return View::from_bytes_unchecked(byte_view().substr(0, end));
+	}
+
+	[[nodiscard]]
+	constexpr View trim_matches_view(utf8_char ch) const noexcept
+	{
+		return trim_start_matches_view(ch).trim_end_matches(ch);
+	}
+
+	[[nodiscard]]
+	constexpr View trim_matches_view(View sv) const noexcept
+	{
+		return trim_start_matches_view(sv).trim_end_matches(sv);
+	}
+
+	[[nodiscard]]
+	constexpr View trim_matches_view(std::span<const utf8_char> chars) const noexcept
+	{
+		return trim_start_matches_view(chars).trim_end_matches(chars);
+	}
+
+	template <details::utf8_char_predicate Pred>
+	[[nodiscard]]
+	constexpr View trim_matches_view(Pred pred) const noexcept(predicate_noexcept<Pred>)
+	{
+		return trim_start_matches_view(pred).trim_end_matches(pred);
+	}
+
+	[[nodiscard]]
+	constexpr View trim_start_view() const noexcept
+	{
+		const auto pos = details::find_utf8_non_whitespace_boundary(byte_view(), 0, false);
+		return pos == npos
+			? empty_view()
+			: View::from_bytes_unchecked(byte_view().substr(pos));
+	}
+
+	[[nodiscard]]
+	constexpr View trim_end_view() const noexcept
+	{
+		return View::from_bytes_unchecked(byte_view().substr(0, details::utf8_trim_end_boundary(byte_view(), false)));
+	}
+
+	[[nodiscard]]
+	constexpr View trim_view() const noexcept
+	{
+		return trim_start_view().trim_end();
+	}
+
+	[[nodiscard]]
+	constexpr View trim_ascii_start_view() const noexcept
+	{
+		const auto pos = details::find_utf8_non_whitespace_boundary(byte_view(), 0, true);
+		return pos == npos
+			? empty_view()
+			: View::from_bytes_unchecked(byte_view().substr(pos));
+	}
+
+	[[nodiscard]]
+	constexpr View trim_ascii_end_view() const noexcept
+	{
+		return View::from_bytes_unchecked(byte_view().substr(0, details::utf8_trim_end_boundary(byte_view(), true)));
+	}
+
+	[[nodiscard]]
+	constexpr View trim_ascii_view() const noexcept
+	{
+		return trim_ascii_start_view().trim_ascii_end();
+	}
+
+	[[nodiscard]]
+	constexpr std::optional<View> substr_view(size_type pos, size_type count = npos) const noexcept
+	{
+		const auto bytes = byte_view();
+		if (pos > bytes.size()) [[unlikely]]
+		{
+			return std::nullopt;
+		}
+
+		if (pos != 0 && pos != bytes.size()
+			&& !details::is_utf8_lead_byte(static_cast<std::uint8_t>(bytes[pos]))) [[unlikely]]
+		{
+			return std::nullopt;
+		}
+
+		const auto remaining = bytes.size() - pos;
+		const auto length = (count == npos || count > remaining) ? remaining : count;
+		const auto end = pos + length;
+
+		if (end != 0 && end != bytes.size()
+			&& !details::is_utf8_lead_byte(static_cast<std::uint8_t>(bytes[end]))) [[unlikely]]
+		{
+			return std::nullopt;
+		}
+
+		return View::from_bytes_unchecked(std::u8string_view{ bytes.data() + pos, end - pos });
+	}
+
+	[[nodiscard]]
+	constexpr std::optional<View> grapheme_substr_view(size_type pos, size_type count = npos) const noexcept
+	{
+		const auto bytes = byte_view();
+		if (!details::is_grapheme_boundary(bytes, pos)) [[unlikely]]
+		{
+			return std::nullopt;
+		}
+
+		const auto remaining = bytes.size() - pos;
+		const auto length = (count == npos || count > remaining) ? remaining : count;
+		const auto end = pos + length;
+
+		if (!details::is_grapheme_boundary(bytes, end)) [[unlikely]]
+		{
+			return std::nullopt;
+		}
+
+		return View::from_bytes_unchecked(std::u8string_view{ bytes.data() + pos, end - pos });
+	}
+
+	constexpr Derived& self() noexcept
+	{
+		return static_cast<Derived&>(*this);
+	}
+
 	constexpr const Derived& self() const noexcept
 	{
 		return static_cast<const Derived&>(*this);

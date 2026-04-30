@@ -21,9 +21,9 @@ Unless otherwise noted, repository source files are available under that dual-li
 
 The compiled runtime backend currently depends on pinned `simdutf` `v7.7.0` for:
 
-- UTF-8 validation
-- UTF-8 -> UTF-16 transcoding
-- UTF-8 -> UTF-32 transcoding
+- UTF-8, UTF-16, and UTF-32 validation
+- UTF-8, UTF-16, and UTF-32 transcoding on runtime paths
+- UTF-8/UTF-16 character counting and selected ASCII-only checks
 
 `simdutf` is also dual-licensed under `MIT OR Apache-2.0`, which keeps the licensing model straightforward for the current compiled-library design.
 

@@ -4,7 +4,7 @@
 
 It provides validated character types, borrowed string views, owning strings, grapheme-aware iteration, Unicode casing, normalization, and conversion between UTF-8, UTF-16, and UTF-32.
 
-`unicode_ranges` is now a compiled library. The public API stays header-first, but runtime UTF validation and runtime UTF-8 <-> UTF-16/UTF-32 transcoding are provided by the `unicode_ranges` library target built from `unicode_ranges.cpp`, backed by pinned vendored `simdutf` (`v7.7.0`) under [`third_party/simdutf`](third_party/simdutf). Consumers should link the library target, or produce an equivalent static/shared library in their own build. No separate `simdutf` setup step is required for normal consumption.
+`unicode_ranges` is now a compiled library. The public API stays header-first, but runtime UTF validation, runtime UTF-8/UTF-16/UTF-32 transcoding, selected ASCII checks, and UTF-8/UTF-16 character counting are provided by the `unicode_ranges` library target built from `unicode_ranges.cpp`, backed by pinned vendored `simdutf` (`v7.7.0`) under [`third_party/simdutf`](third_party/simdutf). Consumers should link the library target, or produce an equivalent static/shared library in their own build. No separate `simdutf` setup step is required for normal consumption.
 
 The repository now also ships a first-party CMake build and install/export package for that compiled library target.
 
@@ -141,9 +141,9 @@ int main()
 
 `unicode_ranges` now uses `simdutf` as its production runtime backend for the hot UTF boundary operations:
 
-- UTF-8 validation
-- UTF-8 -> UTF-16 transcoding
-- UTF-8 -> UTF-32 transcoding
+- UTF-8, UTF-16, and UTF-32 validation
+- UTF-8, UTF-16, and UTF-32 transcoding on runtime paths
+- UTF-8/UTF-16 character counting and selected ASCII-only checks
 
 That choice is deliberate. In the comparative benchmark suite, `simdutf` has been the strongest raw UTF codec baseline by a clear margin, and using it through its public API lets `unicode_ranges` keep its own validated types and error model while benefiting from best-in-class runtime UTF performance.
 
@@ -152,7 +152,7 @@ This does not replace the rest of the library:
 - the public API remains `unicode_ranges`
 - the higher-level string/view/value types remain `unicode_ranges`
 - compile-time and `constexpr`-oriented functionality remains implemented in `unicode_ranges`
-- the runtime backend is specifically about the hot UTF validation/transcoding paths
+- the runtime backend is specifically about the hot UTF validation, transcoding, counting, and ASCII-scan paths
 
 ## Documentation
 
