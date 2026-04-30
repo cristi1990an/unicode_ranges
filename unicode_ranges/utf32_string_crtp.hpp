@@ -2904,8 +2904,6 @@ public:
 	static constexpr size_type npos = static_cast<size_type>(-1);
 
 private:
-	static constexpr bool owning_slice_noexcept = std::is_nothrow_move_constructible_v<Derived>;
-
 	template <typename Pred>
 	static constexpr bool predicate_noexcept =
 		noexcept(std::invoke(std::declval<Pred&>(), std::declval<utf32_char>()));
@@ -4637,7 +4635,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<Derived> strip_prefix(utf32_char ch) && noexcept(owning_slice_noexcept)
+	constexpr std::optional<Derived> strip_prefix(utf32_char ch) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto stripped = strip_prefix_view(View::from_code_points_unchecked(details::utf32_char_view(ch)));
@@ -4651,7 +4649,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<Derived> strip_prefix(View sv) && noexcept(owning_slice_noexcept)
+	constexpr std::optional<Derived> strip_prefix(View sv) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto stripped = strip_prefix_view(sv);
@@ -4665,7 +4663,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<Derived> strip_suffix(utf32_char ch) && noexcept(owning_slice_noexcept)
+	constexpr std::optional<Derived> strip_suffix(utf32_char ch) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto stripped = strip_suffix_view(View::from_code_points_unchecked(details::utf32_char_view(ch)));
@@ -4679,7 +4677,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<Derived> strip_suffix(View sv) && noexcept(owning_slice_noexcept)
+	constexpr std::optional<Derived> strip_suffix(View sv) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto stripped = strip_suffix_view(sv);
@@ -4695,7 +4693,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<Derived> strip_circumfix(utf32_char prefix, utf32_char suffix) && noexcept(owning_slice_noexcept)
+	constexpr std::optional<Derived> strip_circumfix(utf32_char prefix, utf32_char suffix) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto stripped = strip_circumfix_view(
@@ -4711,7 +4709,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<Derived> strip_circumfix(View prefix, View suffix) && noexcept(owning_slice_noexcept)
+	constexpr std::optional<Derived> strip_circumfix(View prefix, View suffix) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto stripped = strip_circumfix_view(prefix, suffix);
@@ -4725,7 +4723,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr Derived trim_prefix(utf32_char ch) && noexcept(owning_slice_noexcept)
+	constexpr Derived trim_prefix(utf32_char ch) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto trimmed = trim_prefix_view(View::from_code_points_unchecked(details::utf32_char_view(ch)));
@@ -4739,7 +4737,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr Derived trim_prefix(View sv) && noexcept(owning_slice_noexcept)
+	constexpr Derived trim_prefix(View sv) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto trimmed = trim_prefix_view(sv);
@@ -4753,7 +4751,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr Derived trim_suffix(utf32_char ch) && noexcept(owning_slice_noexcept)
+	constexpr Derived trim_suffix(utf32_char ch) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto trimmed = trim_suffix_view(View::from_code_points_unchecked(details::utf32_char_view(ch)));
@@ -4767,7 +4765,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr Derived trim_suffix(View sv) && noexcept(owning_slice_noexcept)
+	constexpr Derived trim_suffix(View sv) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto trimmed = trim_suffix_view(sv);
@@ -4781,7 +4779,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr Derived trim_start_matches(utf32_char ch) && noexcept(owning_slice_noexcept)
+	constexpr Derived trim_start_matches(utf32_char ch) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto trimmed = trim_start_matches_view(ch);
@@ -4795,7 +4793,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr Derived trim_start_matches(View sv) && noexcept(owning_slice_noexcept)
+	constexpr Derived trim_start_matches(View sv) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto trimmed = trim_start_matches_view(sv);
@@ -4809,7 +4807,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr Derived trim_start_matches(std::span<const utf32_char> chars) && noexcept(owning_slice_noexcept)
+	constexpr Derived trim_start_matches(std::span<const utf32_char> chars) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto trimmed = trim_start_matches_view(chars);
@@ -4825,7 +4823,7 @@ public:
 
 	template <details::utf32_char_predicate Pred>
 	[[nodiscard]]
-	constexpr Derived trim_start_matches(Pred pred) && noexcept(owning_slice_noexcept && predicate_noexcept<Pred>)
+	constexpr Derived trim_start_matches(Pred pred) && noexcept(std::is_nothrow_move_constructible_v<Derived> && predicate_noexcept<Pred>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto trimmed = trim_start_matches_view(pred);
@@ -4839,7 +4837,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr Derived trim_end_matches(utf32_char ch) && noexcept(owning_slice_noexcept)
+	constexpr Derived trim_end_matches(utf32_char ch) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto trimmed = trim_end_matches_view(ch);
@@ -4853,7 +4851,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr Derived trim_end_matches(View sv) && noexcept(owning_slice_noexcept)
+	constexpr Derived trim_end_matches(View sv) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto trimmed = trim_end_matches_view(sv);
@@ -4867,7 +4865,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr Derived trim_end_matches(std::span<const utf32_char> chars) && noexcept(owning_slice_noexcept)
+	constexpr Derived trim_end_matches(std::span<const utf32_char> chars) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto trimmed = trim_end_matches_view(chars);
@@ -4883,7 +4881,7 @@ public:
 
 	template <details::utf32_char_predicate Pred>
 	[[nodiscard]]
-	constexpr Derived trim_end_matches(Pred pred) && noexcept(owning_slice_noexcept && predicate_noexcept<Pred>)
+	constexpr Derived trim_end_matches(Pred pred) && noexcept(std::is_nothrow_move_constructible_v<Derived> && predicate_noexcept<Pred>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto trimmed = trim_end_matches_view(pred);
@@ -4897,7 +4895,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr Derived trim_matches(utf32_char ch) && noexcept(owning_slice_noexcept)
+	constexpr Derived trim_matches(utf32_char ch) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto trimmed = trim_matches_view(ch);
@@ -4911,7 +4909,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr Derived trim_matches(View sv) && noexcept(owning_slice_noexcept)
+	constexpr Derived trim_matches(View sv) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto trimmed = trim_matches_view(sv);
@@ -4925,7 +4923,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr Derived trim_matches(std::span<const utf32_char> chars) && noexcept(owning_slice_noexcept)
+	constexpr Derived trim_matches(std::span<const utf32_char> chars) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto trimmed = trim_matches_view(chars);
@@ -4941,7 +4939,7 @@ public:
 
 	template <details::utf32_char_predicate Pred>
 	[[nodiscard]]
-	constexpr Derived trim_matches(Pred pred) && noexcept(owning_slice_noexcept && predicate_noexcept<Pred>)
+	constexpr Derived trim_matches(Pred pred) && noexcept(std::is_nothrow_move_constructible_v<Derived> && predicate_noexcept<Pred>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto trimmed = trim_matches_view(pred);
@@ -4955,7 +4953,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr Derived trim_start() && noexcept(owning_slice_noexcept)
+	constexpr Derived trim_start() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto trimmed = trim_start_view();
@@ -4969,7 +4967,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr Derived trim_end() && noexcept(owning_slice_noexcept)
+	constexpr Derived trim_end() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto trimmed = trim_end_view();
@@ -4983,7 +4981,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr Derived trim() && noexcept(owning_slice_noexcept)
+	constexpr Derived trim() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto trimmed = trim_view();
@@ -4997,7 +4995,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr Derived trim_ascii_start() && noexcept(owning_slice_noexcept)
+	constexpr Derived trim_ascii_start() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto trimmed = trim_ascii_start_view();
@@ -5011,7 +5009,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr Derived trim_ascii_end() && noexcept(owning_slice_noexcept)
+	constexpr Derived trim_ascii_end() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto trimmed = trim_ascii_end_view();
@@ -5025,7 +5023,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr Derived trim_ascii() && noexcept(owning_slice_noexcept)
+	constexpr Derived trim_ascii() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto trimmed = trim_ascii_view();
@@ -5079,7 +5077,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<Derived> substr(size_type pos, size_type count = npos) && noexcept(owning_slice_noexcept)
+	constexpr std::optional<Derived> substr(size_type pos, size_type count = npos) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto result = substr_view(pos, count);
@@ -5093,7 +5091,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<Derived> grapheme_substr(size_type pos, size_type count = npos) && noexcept(owning_slice_noexcept)
+	constexpr std::optional<Derived> grapheme_substr(size_type pos, size_type count = npos) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto result = grapheme_substr_view(pos, count);
@@ -5275,7 +5273,7 @@ protected:
 	}
 
 	[[nodiscard]]
-	constexpr Derived move_owned_view(View view) && noexcept(owning_slice_noexcept)
+	constexpr Derived move_owned_view(View view) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		const auto code_points = code_unit_view();
@@ -5285,7 +5283,7 @@ protected:
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<Derived> move_optional_owned_view(std::optional<View> view) && noexcept(owning_slice_noexcept)
+	constexpr std::optional<Derived> move_optional_owned_view(std::optional<View> view) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		if (!view.has_value())
@@ -5297,7 +5295,7 @@ protected:
 	}
 
 	[[nodiscard]]
-	constexpr Derived move_owned_bounds(size_type first, size_type last) && noexcept(owning_slice_noexcept)
+	constexpr Derived move_owned_bounds(size_type first, size_type last) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto& text = static_cast<Derived&>(*this);
