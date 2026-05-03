@@ -547,11 +547,11 @@ jobs:
           githubToken: ${{ github.token }}
           install: |
             apt-get update
-            apt-get install -y ca-certificates cmake g++ ninja-build
+            apt-get install -y ca-certificates cmake g++-14 ninja-build
           env: |
             UBSAN_OPTIONS: "${{ matrix.ubsan_options }}"
           run: |
-            g++ --version
+            g++-14 --version
             cmake --version
             build_dir="build/cmake-linux-${{ matrix.output }}"
             cmake -S . -B "$build_dir" -G Ninja \
@@ -559,7 +559,7 @@ jobs:
               -DUTF8_RANGES_BUILD_BENCHMARKS=OFF \
               -DUTF8_RANGES_ENABLE_ICU=OFF \
               -DUTF8_RANGES_ENABLE_TEST_HOOKS=ON \
-              -DCMAKE_CXX_COMPILER=g++ \
+              -DCMAKE_CXX_COMPILER=g++-14 \
               -DCMAKE_CXX_FLAGS="${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -Wno-error=overflow -Wno-error=pedantic"
             cmake --build "$build_dir" --config Release
             ctest --test-dir "$build_dir" --build-config Release --output-on-failure
