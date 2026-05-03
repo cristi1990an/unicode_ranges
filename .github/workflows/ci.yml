@@ -515,6 +515,55 @@ jobs:
             ctest --test-dir "$build_dir" --build-config Release --output-on-failure
           done
 
+  linux_s390x:
+    name: Linux s390x GCC (${{ matrix.opt_name }}${{ matrix.sanitizer_name }}, C++23)
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - opt_name: O2
+            opt_flags: "-O2 -DNDEBUG"
+            sanitizer_name: ""
+            sanitizer_flags: ""
+            ubsan_options: ""
+            output: unicode_ranges_s390x_gcc_o2
+          - opt_name: O1
+            opt_flags: "-O1 -g"
+            sanitizer_name: ", UBSan"
+            sanitizer_flags: "-fsanitize=undefined -fno-sanitize-recover=all"
+            ubsan_options: "print_stacktrace=1:halt_on_error=1"
+            output: unicode_ranges_s390x_gcc_ubsan
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure, build, and run tests under s390x
+        uses: uraimo/run-on-arch-action@v3
+        with:
+          arch: s390x
+          distro: ubuntu24.04
+          githubToken: ${{ github.token }}
+          install: |
+            apt-get update
+            apt-get install -y ca-certificates cmake g++ ninja-build
+          env: |
+            UBSAN_OPTIONS: "${{ matrix.ubsan_options }}"
+          run: |
+            g++ --version
+            cmake --version
+            build_dir="build/cmake-linux-${{ matrix.output }}"
+            cmake -S . -B "$build_dir" -G Ninja \
+              -DUTF8_RANGES_BUILD_TESTS=ON \
+              -DUTF8_RANGES_BUILD_BENCHMARKS=OFF \
+              -DUTF8_RANGES_ENABLE_ICU=OFF \
+              -DUTF8_RANGES_ENABLE_TEST_HOOKS=ON \
+              -DCMAKE_CXX_COMPILER=g++ \
+              -DCMAKE_CXX_FLAGS="${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic -pthread ${{ matrix.sanitizer_flags }} -Wno-error=overflow -Wno-error=pedantic"
+            cmake --build "$build_dir" --config Release
+            ctest --test-dir "$build_dir" --build-config Release --output-on-failure
+
   linux_icu:
     name: ${{ matrix.name }} + ICU (O2, C++23)
     runs-on: ubuntu-24.04
@@ -853,6 +902,7 @@ jobs:
       - linux
       - linux_32
       - linux_arm64
+      - linux_s390x
       - linux_icu
       - install_validation
       - docs_examples

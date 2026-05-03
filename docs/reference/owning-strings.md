@@ -500,6 +500,7 @@ constexpr basic_utf8_string& reverse_graphemes(size_type pos, size_type count = 
 - `reverse_graphemes()` reverses grapheme clusters, not raw code units.
 - `pop_back()` removes and returns the last validated character when present.
 - Same-encoding `insert_range` overloads can use direct storage paths for `chars()` and rvalue `reversed_chars()` views.
+- `reverse_graphemes()` is only an owning-string mutator. String views and `graphemes()` views do not expose a lazy reverse-grapheme member.
 
 ### Overload differences
 

@@ -89,7 +89,7 @@ These are essential whenever offsets are expressed in code units but user-visibl
 
 ## Reverse and replace on owning strings
 
-Owning strings add mutating APIs such as:
+Owning strings (`utf8_string`, `utf16_string`, and `utf32_string`) add mutating APIs such as:
 
 - `insert`
 - `pop_back`
@@ -112,6 +112,8 @@ Case-transformation APIs also support partial overloads on owning strings:
 ```cpp
 --8<-- "examples/text-operations/reverse.cpp"
 ```
+
+`reverse_graphemes()` is an owning-string mutator. It is not available on string views, and there is no lazy `reversed_graphemes()` view today.
 
 ## Return-unit semantics
 
