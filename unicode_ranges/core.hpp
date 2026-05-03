@@ -1377,6 +1377,11 @@ namespace details
 	inline std::size_t ascii_prefix_length_runtime(std::basic_string_view<CharT> value) noexcept
 	{
 #if UTF8_RANGES_HAS_SSE2_INTRINSICS
+		if (value.size() < 16)
+		{
+			return ascii_prefix_length_scalar(value);
+		}
+
 		const auto* data = reinterpret_cast<const std::uint8_t*>(value.data());
 		std::size_t index = 0;
 		while (index + 16 <= value.size())
@@ -1412,6 +1417,11 @@ namespace details
 	inline std::size_t ascii_prefix_length_runtime(std::basic_string_view<CharT> value) noexcept
 	{
 #if UTF8_RANGES_HAS_SSE2_INTRINSICS
+		if (value.size() < 8)
+		{
+			return ascii_prefix_length_scalar(value);
+		}
+
 		const auto ascii_mask = _mm_set1_epi16(static_cast<short>(-128));
 		const auto zero = _mm_setzero_si128();
 		std::size_t index = 0;
@@ -1451,6 +1461,11 @@ namespace details
 	inline std::size_t ascii_prefix_length_runtime(std::basic_string_view<CharT> value) noexcept
 	{
 #if UTF8_RANGES_HAS_SSE2_INTRINSICS
+		if (value.size() < 4)
+		{
+			return ascii_prefix_length_scalar(value);
+		}
+
 		const auto ascii_mask = _mm_set1_epi32(static_cast<int>(~0x7Fu));
 		const auto zero = _mm_setzero_si128();
 		std::size_t index = 0;

@@ -330,7 +330,7 @@ inline constexpr std::size_t find_utf16_exact(
 		return std::u16string_view::npos;
 	}
 
-	if (needle.size() == 1u)
+	if (!std::is_constant_evaluated() && needle.size() == 1u)
 	{
 		return base.find(needle.front(), pos);
 	}
@@ -369,7 +369,7 @@ inline constexpr std::size_t rfind_utf16_exact(
 	}
 
 	max_start = (std::min)(max_start, base.size() - needle.size());
-	if (needle.size() == 1u)
+	if (!std::is_constant_evaluated() && needle.size() == 1u)
 	{
 		return base.rfind(needle.front(), max_start);
 	}
