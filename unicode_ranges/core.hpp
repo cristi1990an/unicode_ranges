@@ -99,7 +99,8 @@
 #endif
 #endif
 
-#if defined(__cpp_deleted_function) && __cpp_deleted_function >= 202403L
+#if defined(__cpp_deleted_function) && __cpp_deleted_function >= 202403L \
+	&& ((defined(_MSVC_LANG) && _MSVC_LANG > 202302L) || (!defined(_MSVC_LANG) && defined(__cplusplus) && __cplusplus > 202302L))
 #define UTF8_RANGES_HAS_DELETED_FUNCTION_REASON 1
 #define UTF8_RANGES_DELETE(reason) = delete(reason)
 #else

@@ -173,7 +173,7 @@ constexpr auto grapheme_indices() && noexcept(/* conditional */); // owning stri
 - `grapheme_indices()` yields [`std::pair`](https://en.cppreference.com/w/cpp/utility/pair) objects of the form `(offset, View)`.
 - View and owning-lvalue receivers return ranges that borrow from the receiver.
 - Owning-rvalue receivers return move-only owning views that keep the moved string alive and do not model `std::ranges::borrowed_range`.
-- These owning views are intentionally move-only. In compiler modes that define `__cpp_deleted_function`, deleted constructors and assignments include a diagnostic reason.
+- These owning views are intentionally move-only. In C++26-or-newer compiler modes that define `__cpp_deleted_function`, deleted constructors and assignments include a diagnostic reason.
 - All five returned range types are lazy views derived from [`std::ranges::view_interface`](https://en.cppreference.com/w/cpp/ranges/view_interface).
 - These five core iteration families expose forward iterators, so they are multi-pass and may be traversed more than once as long as the underlying source view remains alive.
 - For UTF-32, `chars()`, `reversed_chars()`, and `char_indices()` are stronger: they are sized common random-access views because UTF-32 stores one scalar per code unit.
@@ -897,7 +897,7 @@ constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) const&&
 - `split_once_at_unchecked` assumes the supplied offset is already valid.
 - The range-returning members in this section are lazy `std::ranges::view_interface`-based views. Owning-string receivers and temporary delimiter-set ranges may make the returned view non-borrowed.
 - One-shot split APIs return pairs of borrowed subviews. On owning strings, their `&&` and `const&&` overloads are deleted so a temporary owning string cannot produce dangling pair elements.
-- In compiler modes that define `__cpp_deleted_function`, these deleted overloads include a diagnostic reason; otherwise they compile as ordinary deleted overloads.
+- In C++26-or-newer compiler modes that define `__cpp_deleted_function`, these deleted overloads include a diagnostic reason; otherwise they compile as ordinary deleted overloads.
 
 ### Overload differences
 
