@@ -57,7 +57,7 @@ UTF8_RANGES_TEST_NOINLINE inline void utf8_ranges_test_assert(
 	}
 }
 
-#define UTF8_RANGES_TEST_ASSERT(expr) utf8_ranges_test_assert([&]() -> bool { return (expr); }, #expr, __FILE__, __LINE__)
+#define UTF8_RANGES_TEST_ASSERT(...) utf8_ranges_test_assert([&]() -> bool { return (__VA_ARGS__); }, #__VA_ARGS__, __FILE__, __LINE__)
 #if defined(_GLIBCXX_USE_CXX11_ABI) && _GLIBCXX_USE_CXX11_ABI == 0
 #define UTF8_RANGES_ENABLE_CONSTEXPR_STRINGS 0
 #else
