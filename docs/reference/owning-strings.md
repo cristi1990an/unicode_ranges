@@ -430,6 +430,7 @@ std::pair<utf8_string_view, utf8_string_view> split_once_at_unchecked(size_type 
 - `const&&` bound-adjusting calls use the `const&` copy-producing overloads because a const object cannot be reused in place.
 - Bound-adjusting `&&` overloads do not return views into the moved-from source; the result owns its storage.
 - APIs that necessarily return borrowed subviews, such as `split_once`, `rsplit_once`, `split_once_at`, and `grapheme_at`, delete their owning-rvalue overloads instead of allowing dangling results.
+- In compiler modes that define `__cpp_deleted_function`, these deleted overloads include a diagnostic reason; otherwise they compile as ordinary deleted overloads.
 
 ### Overload differences
 

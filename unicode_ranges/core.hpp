@@ -99,6 +99,14 @@
 #endif
 #endif
 
+#if defined(__cpp_deleted_function) && __cpp_deleted_function >= 202403L
+#define UTF8_RANGES_HAS_DELETED_FUNCTION_REASON 1
+#define UTF8_RANGES_DELETE(reason) = delete(reason)
+#else
+#define UTF8_RANGES_HAS_DELETED_FUNCTION_REASON 0
+#define UTF8_RANGES_DELETE(reason) = delete
+#endif
+
 #include "unicode_tables_constexpr.hpp"
 
 namespace unicode_ranges
@@ -1023,7 +1031,7 @@ namespace details
 			owning_string_view<FriendOwner, FriendAccessor>&& view) noexcept;
 
 	public:
-		owning_string_view() = delete;
+		owning_string_view() UTF8_RANGES_DELETE("owning string views must be created from an owning string");
 
 		constexpr explicit owning_string_view(Owner&& owner)
 			noexcept(std::is_nothrow_move_constructible_v<Owner> && noexcept(std::declval<const Accessor&>()(std::declval<const Owner&>())))
@@ -1037,8 +1045,10 @@ namespace details
 			: owner_(std::move(owner)), accessor_(std::move(accessor)), view_(accessor_(owner_))
 		{}
 
-		owning_string_view(const owning_string_view&) = delete;
-		owning_string_view& operator=(const owning_string_view&) = delete;
+		owning_string_view(const owning_string_view&)
+			UTF8_RANGES_DELETE("owning string views are move-only because they contain an owning string");
+		owning_string_view& operator=(const owning_string_view&)
+			UTF8_RANGES_DELETE("owning string views are move-only because they contain an owning string");
 
 		constexpr owning_string_view(owning_string_view&& other)
 			noexcept(std::is_nothrow_move_constructible_v<Owner>

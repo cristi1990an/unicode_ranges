@@ -4422,12 +4422,14 @@ public:
 	template <typename... Args>
 	[[nodiscard]]
 	constexpr std::optional<std::pair<View, View>> split_once(Args&&...) && noexcept
-		requires (!std::same_as<Derived, View>) = delete;
+		requires (!std::same_as<Derived, View>)
+		UTF8_RANGES_DELETE("split_once on a temporary owning string would return dangling views; bind the string or call on a string_view");
 
 	template <typename... Args>
 	[[nodiscard]]
 	constexpr std::optional<std::pair<View, View>> split_once(Args&&...) const&& noexcept
-		requires (!std::same_as<Derived, View>) = delete;
+		requires (!std::same_as<Derived, View>)
+		UTF8_RANGES_DELETE("split_once on a temporary owning string would return dangling views; bind the string or call on a string_view");
 
 	[[nodiscard]]
 	constexpr std::optional<std::pair<View, View>> rsplit_once(utf32_char ch) const& noexcept
@@ -4488,12 +4490,14 @@ public:
 	template <typename... Args>
 	[[nodiscard]]
 	constexpr std::optional<std::pair<View, View>> rsplit_once(Args&&...) && noexcept
-		requires (!std::same_as<Derived, View>) = delete;
+		requires (!std::same_as<Derived, View>)
+		UTF8_RANGES_DELETE("rsplit_once on a temporary owning string would return dangling views; bind the string or call on a string_view");
 
 	template <typename... Args>
 	[[nodiscard]]
 	constexpr std::optional<std::pair<View, View>> rsplit_once(Args&&...) const&& noexcept
-		requires (!std::same_as<Derived, View>) = delete;
+		requires (!std::same_as<Derived, View>)
+		UTF8_RANGES_DELETE("rsplit_once on a temporary owning string would return dangling views; bind the string or call on a string_view");
 
 	[[nodiscard]]
 	constexpr std::optional<std::pair<View, View>> split_once_at(size_type delim) const& noexcept
@@ -4508,11 +4512,13 @@ public:
 
 	[[nodiscard]]
 	constexpr std::optional<std::pair<View, View>> split_once_at(size_type delim) && noexcept
-		requires (!std::same_as<Derived, View>) = delete;
+		requires (!std::same_as<Derived, View>)
+		UTF8_RANGES_DELETE("split_once_at on a temporary owning string would return dangling views; bind the string or call on a string_view");
 
 	[[nodiscard]]
 	constexpr std::optional<std::pair<View, View>> split_once_at(size_type delim) const&& noexcept
-		requires (!std::same_as<Derived, View>) = delete;
+		requires (!std::same_as<Derived, View>)
+		UTF8_RANGES_DELETE("split_once_at on a temporary owning string would return dangling views; bind the string or call on a string_view");
 
 	[[nodiscard]]
 	constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) const& noexcept
@@ -4528,11 +4534,13 @@ public:
 
 	[[nodiscard]]
 	constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) && noexcept
-		requires (!std::same_as<Derived, View>) = delete;
+		requires (!std::same_as<Derived, View>)
+		UTF8_RANGES_DELETE("split_once_at_unchecked on a temporary owning string would return dangling views; bind the string or call on a string_view");
 
 	[[nodiscard]]
 	constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) const&& noexcept
-		requires (!std::same_as<Derived, View>) = delete;
+		requires (!std::same_as<Derived, View>)
+		UTF8_RANGES_DELETE("split_once_at_unchecked on a temporary owning string would return dangling views; bind the string or call on a string_view");
 
 	[[nodiscard]] constexpr basic_utf32_string<> replace_all(utf32_char from, utf32_char to) const;
 	[[nodiscard]] constexpr basic_utf32_string<> replace_all(utf32_char from, View to) const;
@@ -5064,11 +5072,13 @@ public:
 
 	[[nodiscard]]
 	constexpr std::optional<View> grapheme_at(size_type index) && noexcept
-		requires (!std::same_as<Derived, View>) = delete;
+		requires (!std::same_as<Derived, View>)
+		UTF8_RANGES_DELETE("grapheme_at on a temporary owning string would return a dangling view; bind the string or call on a string_view");
 
 	[[nodiscard]]
 	constexpr std::optional<View> grapheme_at(size_type index) const&& noexcept
-		requires (!std::same_as<Derived, View>) = delete;
+		requires (!std::same_as<Derived, View>)
+		UTF8_RANGES_DELETE("grapheme_at on a temporary owning string would return a dangling view; bind the string or call on a string_view");
 
 	[[nodiscard]]
 	constexpr auto substr(size_type pos, size_type count = npos) const& noexcept(std::same_as<Derived, View>)
