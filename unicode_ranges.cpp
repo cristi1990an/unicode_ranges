@@ -360,7 +360,7 @@ namespace
 auto icu_lowercase_utf8_runtime_copy(std::u8string_view bytes, locale_id locale) -> std::u8string
 {
 	return icu_utf8_case_map_copy_impl(bytes, locale, 0, "ucasemap_utf8ToLower",
-		[](UCaseMap* case_map, char* dest, int32_t dest_capacity, const char* source, int32_t source_length, UErrorCode* error)
+		[](UCaseMap* case_map, char* dest, int32_t dest_capacity, const char* source, int32_t source_length, UErrorCode* error) static
 		{
 			return ucasemap_utf8ToLower(case_map, dest, dest_capacity, source, source_length, error);
 		});
@@ -369,7 +369,7 @@ auto icu_lowercase_utf8_runtime_copy(std::u8string_view bytes, locale_id locale)
 auto icu_uppercase_utf8_runtime_copy(std::u8string_view bytes, locale_id locale) -> std::u8string
 {
 	return icu_utf8_case_map_copy_impl(bytes, locale, 0, "ucasemap_utf8ToUpper",
-		[](UCaseMap* case_map, char* dest, int32_t dest_capacity, const char* source, int32_t source_length, UErrorCode* error)
+		[](UCaseMap* case_map, char* dest, int32_t dest_capacity, const char* source, int32_t source_length, UErrorCode* error) static
 		{
 			return ucasemap_utf8ToUpper(case_map, dest, dest_capacity, source, source_length, error);
 		});
@@ -398,7 +398,7 @@ auto icu_uppercase_utf16_runtime_copy(std::u16string_view code_units, locale_id 
 auto icu_titlecase_utf8_runtime_copy(std::u8string_view bytes, locale_id locale) -> std::u8string
 {
 	return icu_utf8_case_map_copy_impl(bytes, locale, 0, "ucasemap_utf8ToTitle",
-		[](UCaseMap* case_map, char* dest, int32_t dest_capacity, const char* source, int32_t source_length, UErrorCode* error)
+		[](UCaseMap* case_map, char* dest, int32_t dest_capacity, const char* source, int32_t source_length, UErrorCode* error) static
 		{
 			return ucasemap_utf8ToTitle(case_map, dest, dest_capacity, source, source_length, error);
 		});
@@ -417,7 +417,7 @@ auto icu_titlecase_utf16_runtime_copy(std::u16string_view code_units, locale_id 
 auto icu_case_fold_utf8_runtime_copy(std::u8string_view bytes, locale_id locale) -> std::u8string
 {
 	return icu_utf8_case_map_copy_impl(bytes, locale, icu_case_fold_options(locale), "ucasemap_utf8FoldCase",
-		[](UCaseMap* case_map, char* dest, int32_t dest_capacity, const char* source, int32_t source_length, UErrorCode* error)
+		[](UCaseMap* case_map, char* dest, int32_t dest_capacity, const char* source, int32_t source_length, UErrorCode* error) static
 		{
 			return ucasemap_utf8FoldCase(case_map, dest, dest_capacity, source, source_length, error);
 		});

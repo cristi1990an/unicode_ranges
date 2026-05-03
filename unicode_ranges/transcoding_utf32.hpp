@@ -170,7 +170,7 @@ namespace unicode_ranges
 			run_parallel_jobs_runtime(
 				worker_count,
 				&job_context,
-				[](void* raw_context, std::size_t worker_index) noexcept
+				[](void* raw_context, std::size_t worker_index) static noexcept
 				{
 					auto& typed_context = *static_cast<context*>(raw_context);
 					(*typed_context.fn)(worker_index);
@@ -315,7 +315,7 @@ namespace unicode_ranges
 					code_points,
 					plan,
 					chunk_sizes.get(),
-					[](std::u32string_view chunk) noexcept
+					[](std::u32string_view chunk) static noexcept
 					{
 						return details::scalar_sequence_utf8_size(chunk);
 					});
@@ -335,7 +335,7 @@ namespace unicode_ranges
 					plan,
 					chunk_offsets.get(),
 					base_.data() + original_size,
-					[](std::u32string_view chunk, char8_t* out) noexcept
+					[](std::u32string_view chunk, char8_t* out) static noexcept
 					{
 						std::size_t write_index = 0;
 						for (char32_t code_point : chunk)
@@ -412,7 +412,7 @@ namespace unicode_ranges
 					code_points,
 					plan,
 					chunk_sizes.get(),
-					[](std::u32string_view chunk) noexcept
+					[](std::u32string_view chunk) static noexcept
 					{
 						return details::scalar_sequence_utf8_size(chunk);
 					});
@@ -431,7 +431,7 @@ namespace unicode_ranges
 					plan,
 					chunk_offsets.get(),
 					replacement.data(),
-					[](std::u32string_view chunk, char8_t* out) noexcept
+					[](std::u32string_view chunk, char8_t* out) static noexcept
 					{
 						std::size_t write_index = 0;
 						for (char32_t code_point : chunk)
@@ -507,7 +507,7 @@ namespace unicode_ranges
 					code_points,
 					plan,
 					chunk_sizes.get(),
-					[](std::u32string_view chunk) noexcept
+					[](std::u32string_view chunk) static noexcept
 					{
 						return details::scalar_sequence_utf16_size(chunk);
 					});
@@ -527,7 +527,7 @@ namespace unicode_ranges
 					plan,
 					chunk_offsets.get(),
 					base_.data() + original_size,
-					[](std::u32string_view chunk, char16_t* out) noexcept
+					[](std::u32string_view chunk, char16_t* out) static noexcept
 					{
 						std::size_t write_index = 0;
 						for (char32_t code_point : chunk)
@@ -604,7 +604,7 @@ namespace unicode_ranges
 					code_points,
 					plan,
 					chunk_sizes.get(),
-					[](std::u32string_view chunk) noexcept
+					[](std::u32string_view chunk) static noexcept
 					{
 						return details::scalar_sequence_utf16_size(chunk);
 					});
@@ -623,7 +623,7 @@ namespace unicode_ranges
 					plan,
 					chunk_offsets.get(),
 					replacement.data(),
-					[](std::u32string_view chunk, char16_t* out) noexcept
+					[](std::u32string_view chunk, char16_t* out) static noexcept
 					{
 						std::size_t write_index = 0;
 						for (char32_t code_point : chunk)
@@ -885,7 +885,7 @@ namespace unicode_ranges
 						code_points,
 						plan,
 						chunk_measurements.get(),
-						[](std::u32string_view chunk) noexcept
+						[](std::u32string_view chunk) static noexcept
 						{
 							return measure_case_map_utf32<Lowercase>(chunk);
 						});
@@ -911,7 +911,7 @@ namespace unicode_ranges
 						plan,
 						chunk_offsets.get(),
 						result.data(),
-						[](std::u32string_view chunk, char32_t* out) noexcept
+						[](std::u32string_view chunk, char32_t* out) static noexcept
 						{
 							write_case_map_utf32_into<Lowercase>(chunk, out);
 						});
@@ -1119,7 +1119,7 @@ namespace unicode_ranges
 							code_points,
 							plan,
 							chunk_measurements.get(),
-							[](std::u32string_view chunk) noexcept
+							[](std::u32string_view chunk) static noexcept
 							{
 								return measure_case_fold_utf32(chunk);
 							});
@@ -1145,7 +1145,7 @@ namespace unicode_ranges
 							plan,
 							chunk_offsets.get(),
 							result.data(),
-							[](std::u32string_view chunk, char32_t* out) noexcept
+							[](std::u32string_view chunk, char32_t* out) static noexcept
 							{
 								write_case_fold_utf32_into(chunk, out);
 							});

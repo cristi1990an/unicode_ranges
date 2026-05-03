@@ -379,6 +379,11 @@ inline constexpr std::size_t find_utf32_exact(
 		return std::u32string_view::npos;
 	}
 
+	if (needle.size() == 1u)
+	{
+		return base.find(needle.front(), pos);
+	}
+
 	if consteval
 	{
 		for (std::size_t index = pos; index + needle.size() <= base.size(); ++index)
@@ -413,6 +418,11 @@ inline constexpr std::size_t rfind_utf32_exact(
 	}
 
 	max_start = (std::min)(max_start, base.size() - needle.size());
+	if (needle.size() == 1u)
+	{
+		return base.rfind(needle.front(), max_start);
+	}
+
 	if consteval
 	{
 		for (std::size_t index = max_start + 1; index != 0; --index)
@@ -940,6 +950,72 @@ inline constexpr utf32_predicate_match rfind_utf32_non_ascii_span_match(
 	}
 
 	return result;
+}
+
+template <char_set_forward_view<utf32_char> SetView>
+inline constexpr utf32_predicate_match find_utf32_predicate_match(
+	std::u32string_view base,
+	std::size_t pos,
+	const char_set_matcher<utf32_char, SetView>& matcher) noexcept
+{
+	const auto has_ascii = matcher.has_ascii();
+	const auto has_non_ascii = matcher.has_non_ascii();
+	while (pos < base.size())
+	{
+		const auto scalar = static_cast<std::uint32_t>(base[pos]);
+		if (scalar <= encoding_constants::ascii_scalar_max)
+		{
+			if (has_ascii && matcher.matches_ascii(static_cast<std::uint8_t>(scalar)))
+			{
+				return { pos, 1 };
+			}
+		}
+		else if (has_non_ascii
+			&& matcher.matches_non_ascii(utf32_char::from_scalar_unchecked(scalar)))
+		{
+			return { pos, 1 };
+		}
+
+		++pos;
+	}
+
+	return {};
+}
+
+template <char_set_forward_view<utf32_char> SetView>
+inline constexpr utf32_predicate_match rfind_utf32_predicate_match(
+	std::u32string_view base,
+	std::size_t end_exclusive,
+	const char_set_matcher<utf32_char, SetView>& matcher) noexcept
+{
+	if (base.empty() || end_exclusive == 0)
+	{
+		return {};
+	}
+
+	const auto has_ascii = matcher.has_ascii();
+	const auto has_non_ascii = matcher.has_non_ascii();
+	for (std::size_t pos = details::previous_utf32_scalar_boundary(base, end_exclusive);; --pos)
+	{
+		const auto scalar = static_cast<std::uint32_t>(base[pos]);
+		if (scalar <= encoding_constants::ascii_scalar_max)
+		{
+			if (has_ascii && matcher.matches_ascii(static_cast<std::uint8_t>(scalar)))
+			{
+				return { pos, 1 };
+			}
+		}
+		else if (has_non_ascii
+			&& matcher.matches_non_ascii(utf32_char::from_scalar_unchecked(scalar)))
+		{
+			return { pos, 1 };
+		}
+
+		if (pos == 0)
+		{
+			return {};
+		}
+	}
 }
 
 template <utf32_char_predicate Pred>
@@ -3057,6 +3133,23 @@ public:
 		return code_unit_view().size();
 	}
 
+	constexpr size_type copy(char32_t* dest, size_type count, size_type pos = 0) const
+	{
+		const auto code_points = code_unit_view();
+		if (pos > code_points.size()) [[unlikely]]
+		{
+			throw std::out_of_range("copy index out of range");
+		}
+
+		const auto remaining = code_points.size() - pos;
+		const auto copied = (count == npos || count > remaining) ? remaining : count;
+		if (copied != 0)
+		{
+			std::char_traits<char32_t>::copy(dest, code_points.data() + pos, copied);
+		}
+		return copied;
+	}
+
 	[[nodiscard]]
 	constexpr bool empty() const noexcept
 	{
@@ -3067,7 +3160,7 @@ public:
 	constexpr bool is_ascii() const noexcept
 	{
 		return std::ranges::all_of(code_unit_view(),
-			[](char32_t code_unit) noexcept
+			[](char32_t code_unit) static noexcept
 			{
 				return static_cast<std::uint16_t>(code_unit) <= details::encoding_constants::ascii_scalar_max;
 			});

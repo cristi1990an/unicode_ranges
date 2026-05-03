@@ -330,6 +330,11 @@ inline constexpr std::size_t find_utf16_exact(
 		return std::u16string_view::npos;
 	}
 
+	if (needle.size() == 1u)
+	{
+		return base.find(needle.front(), pos);
+	}
+
 	if consteval
 	{
 		for (std::size_t index = pos; index + needle.size() <= base.size(); ++index)
@@ -364,6 +369,11 @@ inline constexpr std::size_t rfind_utf16_exact(
 	}
 
 	max_start = (std::min)(max_start, base.size() - needle.size());
+	if (needle.size() == 1u)
+	{
+		return base.rfind(needle.front(), max_start);
+	}
+
 	if consteval
 	{
 		for (std::size_t index = max_start + 1; index != 0; --index)
@@ -958,6 +968,86 @@ inline constexpr utf16_predicate_match rfind_utf16_non_ascii_span_match(
 	}
 
 	return result;
+}
+
+template <char_set_forward_view<utf16_char> SetView>
+inline constexpr utf16_predicate_match find_utf16_predicate_match(
+	std::u16string_view base,
+	std::size_t pos,
+	const char_set_matcher<utf16_char, SetView>& matcher) noexcept
+{
+	const auto has_ascii = matcher.has_ascii();
+	const auto has_non_ascii = matcher.has_non_ascii();
+	while (pos < base.size())
+	{
+		if (!has_ascii)
+		{
+			pos += details::ascii_prefix_length(base.substr(pos));
+			if (pos == base.size())
+			{
+				return {};
+			}
+		}
+
+		const auto first = static_cast<std::uint16_t>(base[pos]);
+		if (first <= encoding_constants::ascii_scalar_max)
+		{
+			if (matcher.matches_ascii(static_cast<std::uint8_t>(first)))
+			{
+				return { pos, 1 };
+			}
+
+			++pos;
+			continue;
+		}
+
+		const auto size = static_cast<std::uint8_t>(details::is_utf16_high_surrogate(first) ? 2u : 1u);
+		if (has_non_ascii
+			&& matcher.matches_non_ascii(utf16_char::from_utf16_code_units_unchecked(base.data() + pos, size)))
+		{
+			return { pos, size };
+		}
+
+		pos += size;
+	}
+
+	return {};
+}
+
+template <char_set_forward_view<utf16_char> SetView>
+inline constexpr utf16_predicate_match rfind_utf16_predicate_match(
+	std::u16string_view base,
+	std::size_t end_exclusive,
+	const char_set_matcher<utf16_char, SetView>& matcher) noexcept
+{
+	if (base.empty() || end_exclusive == 0)
+	{
+		return {};
+	}
+
+	const auto has_non_ascii = matcher.has_non_ascii();
+	for (std::size_t pos = details::previous_utf16_scalar_boundary(base, end_exclusive);; pos = details::previous_utf16_scalar_boundary(base, pos))
+	{
+		const auto first = static_cast<std::uint16_t>(base[pos]);
+		const auto size = static_cast<std::uint8_t>(details::is_utf16_high_surrogate(first) ? 2u : 1u);
+		if (first <= encoding_constants::ascii_scalar_max)
+		{
+			if (matcher.matches_ascii(static_cast<std::uint8_t>(first)))
+			{
+				return { pos, size };
+			}
+		}
+		else if (has_non_ascii
+			&& matcher.matches_non_ascii(utf16_char::from_utf16_code_units_unchecked(base.data() + pos, size)))
+		{
+			return { pos, size };
+		}
+
+		if (pos == 0)
+		{
+			return {};
+		}
+	}
 }
 
 template <utf16_char_predicate Pred>
@@ -3139,6 +3229,29 @@ public:
 		return code_unit_view().size();
 	}
 
+	constexpr size_type copy(char16_t* dest, size_type count, size_type pos = 0) const
+	{
+		const auto code_units = code_unit_view();
+		if (pos > code_units.size()) [[unlikely]]
+		{
+			throw std::out_of_range("copy index out of range");
+		}
+
+		const auto remaining = code_units.size() - pos;
+		const auto copied = (count == npos || count > remaining) ? remaining : count;
+		const auto end = pos + copied;
+		if (!this->is_char_boundary(pos) || !this->is_char_boundary(end)) [[unlikely]]
+		{
+			throw std::out_of_range("copy range must be a valid UTF-16 substring");
+		}
+
+		if (copied != 0)
+		{
+			std::char_traits<char16_t>::copy(dest, code_units.data() + pos, copied);
+		}
+		return copied;
+	}
+
 	[[nodiscard]]
 	constexpr bool empty() const noexcept
 	{
@@ -3149,7 +3262,7 @@ public:
 	constexpr bool is_ascii() const noexcept
 	{
 		return std::ranges::all_of(code_unit_view(),
-			[](char16_t code_unit) noexcept
+			[](char16_t code_unit) static noexcept
 			{
 				return static_cast<std::uint16_t>(code_unit) <= details::encoding_constants::ascii_scalar_max;
 			});

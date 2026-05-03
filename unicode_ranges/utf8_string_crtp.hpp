@@ -363,6 +363,11 @@ inline constexpr std::size_t find_utf8_exact(
 		return std::u8string_view::npos;
 	}
 
+	if (needle.size() == 1u)
+	{
+		return base.find(needle.front(), pos);
+	}
+
 	if consteval
 	{
 		for (std::size_t index = pos; index + needle.size() <= base.size(); ++index)
@@ -397,6 +402,11 @@ inline constexpr std::size_t rfind_utf8_exact(
 	}
 
 	max_start = (std::min)(max_start, base.size() - needle.size());
+	if (needle.size() == 1u)
+	{
+		return base.rfind(needle.front(), max_start);
+	}
+
 	if consteval
 	{
 		for (std::size_t index = max_start + 1; index != 0; --index)
@@ -853,6 +863,88 @@ inline constexpr utf8_predicate_match rfind_utf8_non_ascii_span_match(
 	}
 
 	return result;
+}
+
+template <char_set_forward_view<utf8_char> SetView>
+inline constexpr utf8_predicate_match find_utf8_predicate_match(
+	std::u8string_view base,
+	std::size_t pos,
+	const char_set_matcher<utf8_char, SetView>& matcher) noexcept
+{
+	const auto has_ascii = matcher.has_ascii();
+	const auto has_non_ascii = matcher.has_non_ascii();
+	while (pos < base.size())
+	{
+		if (!has_ascii)
+		{
+			pos += details::ascii_prefix_length(base.substr(pos));
+			if (pos == base.size())
+			{
+				return {};
+			}
+		}
+
+		const auto lead = static_cast<std::uint8_t>(base[pos]);
+		if (lead <= encoding_constants::ascii_scalar_max)
+		{
+			if (matcher.matches_ascii(lead))
+			{
+				return { pos, 1 };
+			}
+
+			++pos;
+			continue;
+		}
+
+		const auto size = static_cast<std::uint8_t>(details::utf8_byte_count_from_lead(lead));
+		if (has_non_ascii
+			&& matcher.matches_non_ascii(utf8_char::from_utf8_bytes_unchecked(base.data() + pos, size)))
+		{
+			return { pos, size };
+		}
+
+		pos += size;
+	}
+
+	return {};
+}
+
+template <char_set_forward_view<utf8_char> SetView>
+inline constexpr utf8_predicate_match rfind_utf8_predicate_match(
+	std::u8string_view base,
+	std::size_t end_exclusive,
+	const char_set_matcher<utf8_char, SetView>& matcher) noexcept
+{
+	if (base.empty() || end_exclusive == 0)
+	{
+		return {};
+	}
+
+	const auto has_non_ascii = matcher.has_non_ascii();
+	for (std::size_t pos = details::previous_utf8_scalar_boundary(base, end_exclusive);; pos = details::previous_utf8_scalar_boundary(base, pos))
+	{
+		const auto lead = static_cast<std::uint8_t>(base[pos]);
+		const auto size = static_cast<std::uint8_t>(lead <= encoding_constants::ascii_scalar_max
+			? 1u
+			: details::utf8_byte_count_from_lead(lead));
+		if (lead <= encoding_constants::ascii_scalar_max)
+		{
+			if (matcher.matches_ascii(lead))
+			{
+				return { pos, size };
+			}
+		}
+		else if (has_non_ascii
+			&& matcher.matches_non_ascii(utf8_char::from_utf8_bytes_unchecked(base.data() + pos, size)))
+		{
+			return { pos, size };
+		}
+
+		if (pos == 0)
+		{
+			return {};
+		}
+	}
 }
 
 template <utf8_char_predicate Pred>
@@ -2644,9 +2736,21 @@ inline constexpr bool utf8_char_is_whitespace_at(
 	std::size_t pos,
 	bool ascii_only) noexcept
 {
-	const auto len = details::utf8_byte_count_from_lead(static_cast<std::uint8_t>(base[pos]));
+	const auto lead = static_cast<std::uint8_t>(base[pos]);
+	if (lead <= details::encoding_constants::ascii_scalar_max)
+	{
+		return lead == static_cast<std::uint8_t>(' ')
+			|| (lead >= static_cast<std::uint8_t>('\t') && lead <= static_cast<std::uint8_t>('\r'));
+	}
+
+	if (ascii_only)
+	{
+		return false;
+	}
+
+	const auto len = details::utf8_byte_count_from_lead(lead);
 	const auto ch = utf8_char::from_utf8_bytes_unchecked(base.data() + pos, len);
-	return ascii_only ? ch.is_ascii_whitespace() : ch.is_whitespace();
+	return ch.is_whitespace();
 }
 
 inline constexpr std::size_t next_utf8_scalar_boundary(
@@ -2982,6 +3086,29 @@ public:
 		return byte_view().size();
 	}
 
+	constexpr size_type copy(char8_t* dest, size_type count, size_type pos = 0) const
+	{
+		const auto bytes = byte_view();
+		if (pos > bytes.size()) [[unlikely]]
+		{
+			throw std::out_of_range("copy index out of range");
+		}
+
+		const auto remaining = bytes.size() - pos;
+		const auto copied = (count == npos || count > remaining) ? remaining : count;
+		const auto end = pos + copied;
+		if (!this->is_char_boundary(pos) || !this->is_char_boundary(end)) [[unlikely]]
+		{
+			throw std::out_of_range("copy range must be a valid UTF-8 substring");
+		}
+
+		if (copied != 0)
+		{
+			std::char_traits<char8_t>::copy(dest, bytes.data() + pos, copied);
+		}
+		return copied;
+	}
+
 	[[nodiscard]]
 	constexpr bool empty() const noexcept
 	{
@@ -2992,7 +3119,7 @@ public:
 	constexpr bool is_ascii() const noexcept
 	{
 		return std::ranges::all_of(byte_view(),
-			[](char8_t byte) noexcept
+			[](char8_t byte) static noexcept
 			{
 				return static_cast<std::uint8_t>(byte) <= details::encoding_constants::ascii_scalar_max;
 			});

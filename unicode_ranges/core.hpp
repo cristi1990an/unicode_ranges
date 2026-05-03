@@ -955,13 +955,50 @@ namespace details
 		constexpr explicit char_set_matcher(SetView chars)
 			noexcept(std::is_nothrow_move_constructible_v<SetView>)
 			: chars_(std::move(chars))
-		{}
-
-		constexpr bool operator()(Char ch) const noexcept
 		{
-			for (const auto& candidate : chars_)
+			for (Char ch : static_cast<const SetView&>(chars_))
 			{
-				if (candidate == ch)
+				if (ch.is_ascii())
+				{
+					const auto ascii = static_cast<std::uint8_t>(ch.as_scalar());
+					ascii_bits_[ascii / 64u] |= (std::uint64_t{ 1 } << (ascii % 64u));
+				}
+				else
+				{
+					has_non_ascii_ = true;
+				}
+			}
+		}
+
+		[[nodiscard]]
+		constexpr bool has_ascii() const noexcept
+		{
+			return ascii_bits_[0] != 0 || ascii_bits_[1] != 0;
+		}
+
+		[[nodiscard]]
+		constexpr bool has_non_ascii() const noexcept
+		{
+			return has_non_ascii_;
+		}
+
+		[[nodiscard]]
+		constexpr bool matches_ascii(std::uint8_t ascii) const noexcept
+		{
+			return (ascii_bits_[ascii / 64u] & (std::uint64_t{ 1 } << (ascii % 64u))) != 0;
+		}
+
+		[[nodiscard]]
+		constexpr bool matches_non_ascii(Char ch) const noexcept
+		{
+			if (!has_non_ascii_)
+			{
+				return false;
+			}
+
+			for (Char candidate : chars_)
+			{
+				if (!candidate.is_ascii() && candidate == ch)
 				{
 					return true;
 				}
@@ -970,8 +1007,20 @@ namespace details
 			return false;
 		}
 
+		constexpr bool operator()(Char ch) const noexcept
+		{
+			if (ch.is_ascii())
+			{
+				return matches_ascii(static_cast<std::uint8_t>(ch.as_scalar()));
+			}
+
+			return matches_non_ascii(ch);
+		}
+
 	private:
 		UTF8_RANGES_NO_UNIQUE_ADDRESS SetView chars_;
+		std::array<std::uint64_t, 2> ascii_bits_{};
+		bool has_non_ascii_ = false;
 	};
 
 	template <typename Range>
@@ -1201,7 +1250,7 @@ namespace details
 		std::uint8_t second_max = 0;
 	};
 
-	inline constexpr auto utf8_lead_validation_table = []
+	inline constexpr auto utf8_lead_validation_table = []() static
 	{
 		std::array<utf8_lead_validation_traits, 256> table{};
 

@@ -202,12 +202,18 @@ None.
 --8<-- "examples/getting-started/formatting.cpp"
 ```
 
-## Size, Emptiness, ASCII, And Counts
+## Size, Copy, Emptiness, ASCII, And Counts
 
 ### Synopsis
 
 ```cpp
 constexpr size_type size() const noexcept;
+// utf8_string_view
+constexpr size_type copy(char8_t* dest, size_type count, size_type pos = 0) const;
+// utf16_string_view
+constexpr size_type copy(char16_t* dest, size_type count, size_type pos = 0) const;
+// utf32_string_view
+constexpr size_type copy(char32_t* dest, size_type count, size_type pos = 0) const;
 constexpr bool empty() const noexcept;
 constexpr bool is_ascii() const noexcept;
 constexpr size_type char_count() const noexcept;
@@ -217,25 +223,36 @@ constexpr size_type grapheme_count() const noexcept;
 ### Behavior
 
 - `size()` counts code units.
+- `copy(dest, count, pos)` copies raw code units into caller-owned storage and does not append a null terminator.
+- If `count == npos` or the requested range extends past the end, `copy()` copies through `size()`.
+- UTF-8 and UTF-16 copies require the copied substring to begin and end on validated character boundaries.
 - `empty()` tests for zero code units.
 - `is_ascii()` returns `true` only if all code units are ASCII.
 - `char_count()` counts Unicode scalar values.
 - `grapheme_count()` counts default Unicode grapheme clusters.
 - For UTF-32, `size()` and `char_count()` are the same value.
 
+### Return value
+
+- `copy()` returns the number of raw code units copied.
+- The other members return the requested observer or count.
+
 ### Complexity
 
 - `size()` and `empty()` are constant.
+- `copy()` is linear in the number of copied code units.
 - `is_ascii()` and `grapheme_count()` are linear in the view length.
 - `char_count()` is constant for UTF-32 and linear for UTF-8/UTF-16.
 
 ### Exceptions
 
-None.
+- `copy()` throws [`std::out_of_range`](https://en.cppreference.com/w/cpp/error/out_of_range) when `pos > size()` or when the requested UTF-8/UTF-16 substring would split a character.
+- Other listed members do not throw.
 
 ### `noexcept`
 
-All listed members are `noexcept`.
+- All listed members except `copy()` are `noexcept`.
+- `copy()` is not `noexcept`.
 
 ## Normalization Queries
 
@@ -792,6 +809,10 @@ Returns a lazy range; iteration performs the actual split. View and owning-lvalu
 - Constructing the range is constant.
 - Iterating the full split result is linear in the source length.
 
+### Performance Notes
+
+- ASCII whitespace scans avoid constructing character objects on UTF-8 input; non-ASCII bytes are treated as non-delimiters for `split_ascii_whitespace`.
+
 ### Exceptions
 
 Construction does not allocate. Predicate objects may throw later when the returned range is iterated.
@@ -938,6 +959,10 @@ The pair-returning surface is deliberately close to Rust's [`str::split_once` an
 ### Complexity
 
 Linear in the view length.
+
+### Performance Notes
+
+- Character-set matchers cache ASCII membership, so ASCII-heavy match sets can scan without decoding every character.
 
 ### Exceptions
 

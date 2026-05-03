@@ -546,7 +546,7 @@ inline constexpr bool allow_implicit_construction_requested_v =
 		&& requires(Container& container, std::size_t size)
 	{
 		container.resize_and_overwrite(size,
-			[](Unit* data, std::size_t) noexcept -> std::size_t
+			[](Unit* data, std::size_t) static noexcept -> std::size_t
 			{
 				return static_cast<std::size_t>(data == nullptr ? 0 : 0);
 			});
@@ -1494,7 +1494,7 @@ struct mapping<iso_8859_15_tag>
 		"https://encoding.spec.whatwg.org/index-iso-8859-15.txt"
 	};
 
-	static constexpr auto decode_table = [] {
+	static constexpr auto decode_table = []() static {
 		auto table = make_identity_upper_half_table();
 		table[0xA4 - 0x80] = 0x20AC;
 		table[0xA6 - 0x80] = 0x0160;
@@ -1516,7 +1516,7 @@ struct mapping<windows_1251_tag>
 		"https://encoding.spec.whatwg.org/index-windows-1251.txt"
 	};
 
-	static constexpr auto decode_table = [] {
+	static constexpr auto decode_table = []() static {
 		auto table = make_identity_upper_half_table();
 		table[0x80 - 0x80] = 0x0402;
 		table[0x81 - 0x80] = 0x0403;
@@ -1583,7 +1583,7 @@ struct mapping<windows_1252_tag>
 		"https://encoding.spec.whatwg.org/index-windows-1252.txt"
 	};
 
-	static constexpr auto decode_table = [] {
+	static constexpr auto decode_table = []() static {
 		auto table = make_identity_upper_half_table();
 		table[0x80 - 0x80] = 0x20AC;
 		table[0x82 - 0x80] = 0x201A;
@@ -1793,7 +1793,7 @@ struct ascii_strict
 		}
 
 		std::span<const char8_t> view{ bytes.data(), bytes.size() };
-		out.append(view | std::views::transform([](char8_t byte) { return static_cast<code_unit_type>(byte); }));
+		out.append(view | std::views::transform([](char8_t byte) static { return static_cast<code_unit_type>(byte); }));
 		return {};
 	}
 
@@ -1809,7 +1809,7 @@ struct ascii_strict
 			}
 		}
 
-		out.append(input | std::views::transform([](code_unit_type byte) { return static_cast<char8_t>(byte); }));
+		out.append(input | std::views::transform([](code_unit_type byte) static { return static_cast<char8_t>(byte); }));
 		return {};
 	}
 };

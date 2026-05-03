@@ -230,9 +230,6 @@ constexpr basic_utf8_string(It it, Sent sent, const Allocator& alloc = Allocator
 - The count constructor repeats the validated character `count` times.
 - Range and iterator constructors append validated characters from the source range.
 - The cross-encoding view constructors transcode.
-- Runtime cross-encoding construction and range mutation may use compiled bulk transcoding paths; constexpr evaluation keeps scalar fallbacks.
-- Dedicated same-encoding `chars()` and rvalue `reversed_chars()` view overloads may use direct storage paths instead of generic per-character materialization.
-- Rvalue owning views, such as `std::move(text).chars()` and `std::move(text).reversed_chars()`, may reuse storage when allocator compatibility allows it.
 
 ### Overload differences
 
@@ -257,6 +254,12 @@ This family deliberately mirrors the shape of [`std::basic_string`](https://en.c
 ### Complexity
 
 Linear in the size of the constructed string.
+
+### Performance Notes
+
+- Runtime cross-encoding construction may use compiled bulk transcoding paths; constexpr evaluation keeps scalar fallbacks.
+- Dedicated same-encoding `chars()` and rvalue `reversed_chars()` constructor overloads may use direct storage paths instead of generic per-character materialization.
+- Rvalue owning views, such as `std::move(text).chars()` and `std::move(text).reversed_chars()`, may reuse storage when allocator compatibility allows it.
 
 ### Exceptions
 
@@ -316,7 +319,6 @@ constexpr basic_utf8_string& operator+=(std::initializer_list<utf8_char> ilist);
 - `append_*` preserve the existing contents and add new validated text.
 - `assign_*` replace the existing contents.
 - `append_range` and `assign_range` accept both same-encoding and cross-encoding view helpers.
-- Same-encoding `chars()` and rvalue `reversed_chars()` views have dedicated overloads so direct materialization can avoid generic character-by-character paths.
 - `operator+=` delegates to the append surface.
 
 ### Overload differences
@@ -325,7 +327,7 @@ The examples below use `utf8_string text = "😄"_utf8_s;`.
 
 | Overload | Meaning | Example |
 | --- | --- | --- |
-| `append_range(views::utf8_view rg)` | append a same-encoding character range without materializing another owning string | `text.append_range("🇷🇴"_utf8_sv.chars());` |
+| `append_range(views::utf8_view rg)` | append a same-encoding character range | `text.append_range("🇷🇴"_utf8_sv.chars());` |
 | `append_range(views::utf16_view rg)` | append a cross-encoding character range with transcoding | `text.append_range(u"✨"_utf16_sv.chars());` |
 | `append_range(R&& rg)` | append a generic range whose elements are already `utf8_char` | `text.append_range(std::array{"🎉"_u8c, "🔥"_u8c});` |
 | `assign_range(...)` | same source shapes as `append_range`, but replaces the whole string first | `text.assign_range("✨😄"_utf8_sv.chars());` |
@@ -352,6 +354,14 @@ Returns `*this`.
 ### Complexity
 
 Linear in the amount of appended or assigned data.
+
+### Performance Notes
+
+- Runtime cross-encoding range mutation may use compiled bulk transcoding paths; constexpr evaluation keeps scalar fallbacks.
+- Same-encoding `chars()` and rvalue `reversed_chars()` views have dedicated overloads that may avoid generic character-by-character materialization.
+- Contiguous ranges of validated character objects, such as `std::array<utf8_char, N>`, can be encoded directly into available destination capacity.
+- Other generic ranges are stabilized before mutation so adapted self-borrowing ranges remain safe.
+- Repeated-character appends can use bulk code-unit writes for multi-code-unit characters where possible.
 
 ### Exceptions
 
@@ -426,7 +436,6 @@ std::pair<utf8_string_view, utf8_string_view> split_once_at_unchecked(size_type 
 ### Behavior
 
 - `const&` overloads keep the source string unchanged and return a new owning result.
-- `&&` overloads are for disposable source strings and may reuse the existing allocation.
 - `const&&` bound-adjusting calls use the `const&` copy-producing overloads because a const object cannot be reused in place.
 - Bound-adjusting `&&` overloads do not return views into the moved-from source; the result owns its storage.
 - APIs that necessarily return borrowed subviews, such as `split_once`, `rsplit_once`, `split_once_at`, and `grapheme_at`, delete their owning-rvalue overloads instead of allowing dangling results.
@@ -439,13 +448,18 @@ The examples below use `utf8_string text = u8"  cafe  "_utf8_s;`.
 | Overload | Meaning | Example |
 | --- | --- | --- |
 | `const&` strip/trim/substr | copy the selected owned text and keep `text` usable unchanged | `auto copy = text.trim();` |
-| `&&` strip/trim/substr | consume a disposable string and avoid an extra owning copy where possible | `auto trimmed = std::move(text).trim();` |
+| `&&` strip/trim/substr | consume a disposable string and return an owning result | `auto trimmed = std::move(text).trim();` |
 | deleted `&&` one-shot split/access | reject APIs whose result would be borrowed from a temporary owning string | `std::move(text).split_once(u8"="_u8c)` is ill-formed |
 
 ### Complexity
 
 - `const&` overloads are linear in the selected text and may allocate.
-- `&&` overloads are linear in boundary and trimming work, and avoid an additional allocation for pure prefix/suffix bound adjustments.
+- `&&` overloads are linear in boundary and trimming work.
+
+### Performance Notes
+
+- `&&` overloads are for disposable source strings and may reuse the existing allocation.
+- Pure prefix/suffix bound adjustments can avoid an additional allocation.
 
 ### Exceptions
 
@@ -500,7 +514,6 @@ constexpr basic_utf8_string& reverse_graphemes(size_type pos, size_type count = 
 - `reverse()` reverses characters, not raw code units.
 - `reverse_graphemes()` reverses grapheme clusters, not raw code units.
 - `pop_back()` removes and returns the last validated character when present.
-- Same-encoding `insert_range` overloads can use direct storage paths for `chars()` and rvalue `reversed_chars()` views.
 - `reverse_graphemes()` is only an owning-string mutator. String views and `graphemes()` views do not expose a lazy reverse-grapheme member.
 
 ### Overload differences
@@ -535,6 +548,12 @@ This family is structurally close to [`std::basic_string::insert`](https://en.cp
 ### Complexity
 
 Linear in the amount of moved or reversed data.
+
+### Performance Notes
+
+- Same-encoding `insert_range` overloads can use direct storage paths for `chars()` and rvalue `reversed_chars()` views.
+- Contiguous generic validated-character ranges can be encoded directly into the destination gap when capacity allows.
+- Other generic validated-character ranges are captured before mutating the destination, so adapted self-borrowing ranges remain safe.
 
 ### Exceptions
 
@@ -617,7 +636,6 @@ constexpr basic_utf8_string<OtherAllocator> case_fold(const OtherAllocator& allo
 ### Behavior
 
 - `const&` overloads always build a fresh result.
-- `&&` overloads may reuse the current allocation when profitable.
 - Partial case-transform overloads require both ends of the selected range to be character boundaries.
 - `normalize(...)` is whole-string only.
 - `case_fold()` implements Unicode case folding for caseless comparison and lookup workflows.
@@ -634,7 +652,7 @@ The examples below use `utf8_string text = "wow 😄"_utf8_s;`.
 | `to_lowercase(pos, count)` / `to_uppercase(pos, count)` | full Unicode case mapping on one boundary-aligned subrange | `const auto upper = text.to_uppercase(0, 3);` |
 | allocator-taking overloads | produce the same transformed value with a caller-supplied allocator type | `const auto copy = text.to_uppercase(std::allocator<char8_t>{});` |
 | `const&` overloads | keep the source object unchanged and build a fresh result | `const auto a = text.to_uppercase();` |
-| `&&` overloads | may reuse the current allocation because the source is disposable | `auto a = utf8_string{"straße 😄"_utf8_sv}.to_uppercase();` |
+| `&&` overloads | consume a disposable source object | `auto a = utf8_string{"straße 😄"_utf8_sv}.to_uppercase();` |
 | `normalize(form)` | choose NFC/NFD/NFKC/NFKD at runtime | `const auto n = utf8_string{"é 😄"_utf8_sv}.normalize(normalization_form::nfc);` |
 | `to_nfc()` / `to_nfd()` / `to_nfkc()` / `to_nfkd()` | named normalization wrappers for the common forms | `const auto n = utf8_string{"ｅ́ 😄"_utf8_sv}.to_nfkc();` |
 | `case_fold()` | full Unicode case folding for caseless matching, not for presentation | `const auto folded = utf8_string{"Straße 😄"_utf8_sv}.case_fold();` |
@@ -652,6 +670,10 @@ Returns a transformed owning string.
 ### Complexity
 
 Linear in the processed code units, plus extra work for Unicode case expansion and normalization.
+
+### Performance Notes
+
+- `&&` overloads may reuse the current allocation when profitable.
 
 ### Exceptions
 
@@ -835,7 +857,6 @@ constexpr basic_utf8_string<OtherAllocator> replace_n(size_type count, Pred pred
 ### Behavior
 
 - `const&` overloads build a replacement copy.
-- `&&` overloads may reuse and rewrite the current storage.
 - [`std::span`](https://en.cppreference.com/w/cpp/container/span) overloads treat the span as a set of characters.
 - Predicate overloads replace each character for which the predicate returns `true`.
 - `replace_n` stops after at most `count` replacements.
@@ -854,7 +875,7 @@ The examples below use `const auto text = "😄🇷🇴✨"_utf8_s;`.
 | `replace_all(Pred pred, Char/View to)` | replace every character satisfying a predicate | `text.replace_all([](utf8_char ch) { return !ch.is_ascii(); }, "⭐"_utf8_sv)` |
 | `replace_n(count, ...)` | same matching rules as `replace_all`, but stop after at most `count` replacements | `text.replace_n(1, "✨"_u8c, "🔥"_u8c)` |
 | `const&` overloads | keep the source string unchanged and return a copy | `const auto a = text.replace_all("✨"_u8c, "🔥"_u8c);` |
-| `&&` overloads | may reuse the source allocation because the source is disposable | `auto a = utf8_string{"😄🇷🇴✨"_utf8_sv}.replace_all("✨"_u8c, "🔥"_u8c);` |
+| `&&` overloads | consume a disposable source object | `auto a = utf8_string{"😄🇷🇴✨"_utf8_sv}.replace_all("✨"_u8c, "🔥"_u8c);` |
 | allocator-taking overloads | return the same logical result with a caller-supplied allocator type | `const auto a = text.replace_all("✨"_u8c, "🔥"_u8c, std::allocator<char8_t>{});` |
 
 The span overload is special because it is character-set based rather than substring-based. `std::array{"🇷"_u8c, "🇴"_u8c}` matches either regional-indicator character independently; it does not wait for the adjacent grapheme `🇷🇴`.
@@ -870,6 +891,11 @@ Returns the replaced owning string.
 ### Complexity
 
 Linear in the source size plus the size of the produced output.
+
+### Performance Notes
+
+- `&&` overloads may reuse and rewrite the current storage.
+- `&&` overloads can return the original storage unchanged when no replacement is found.
 
 ### Exceptions
 
@@ -889,29 +915,31 @@ constexpr basic_utf8_string& replace_inplace(size_type pos, size_type count, utf
 constexpr basic_utf8_string& replace_inplace(size_type pos, utf8_string_view other);
 constexpr basic_utf8_string& replace_inplace(size_type pos, utf8_char other);
 
-constexpr basic_utf8_string& replace_with_range_inplace(size_type pos, size_type count, views::utf8_view rg);
-constexpr basic_utf8_string& replace_with_range_inplace(
+constexpr basic_utf8_string& replace_inplace(size_type pos, size_type count, views::utf8_view rg);
+constexpr basic_utf8_string& replace_inplace(
     size_type pos,
     size_type count,
     views::owning_chars_view<basic_utf8_string>&& rg);
-constexpr basic_utf8_string& replace_with_range_inplace(
+constexpr basic_utf8_string& replace_inplace(
     size_type pos,
     size_type count,
     views::owning_reversed_chars_view<basic_utf8_string>&& rg);
-constexpr basic_utf8_string& replace_with_range_inplace(size_type pos, size_type count, views::utf16_view rg);
+constexpr basic_utf8_string& replace_inplace(size_type pos, size_type count, views::utf16_view rg);
+constexpr basic_utf8_string& replace_inplace(size_type pos, size_type count, views::utf32_view rg);
 template <details::container_compatible_range<utf8_char> R>
-constexpr basic_utf8_string& replace_with_range_inplace(size_type pos, size_type count, R&& rg);
+constexpr basic_utf8_string& replace_inplace(size_type pos, size_type count, R&& rg);
 
-constexpr basic_utf8_string& replace_with_range_inplace(size_type pos, views::utf8_view rg);
-constexpr basic_utf8_string& replace_with_range_inplace(
+constexpr basic_utf8_string& replace_inplace(size_type pos, views::utf8_view rg);
+constexpr basic_utf8_string& replace_inplace(
     size_type pos,
     views::owning_chars_view<basic_utf8_string>&& rg);
-constexpr basic_utf8_string& replace_with_range_inplace(
+constexpr basic_utf8_string& replace_inplace(
     size_type pos,
     views::owning_reversed_chars_view<basic_utf8_string>&& rg);
-constexpr basic_utf8_string& replace_with_range_inplace(size_type pos, views::utf16_view rg);
+constexpr basic_utf8_string& replace_inplace(size_type pos, views::utf16_view rg);
+constexpr basic_utf8_string& replace_inplace(size_type pos, views::utf32_view rg);
 template <details::container_compatible_range<utf8_char> R>
-constexpr basic_utf8_string& replace_with_range_inplace(size_type pos, R&& rg);
+constexpr basic_utf8_string& replace_inplace(size_type pos, R&& rg);
 
 // The UTF-16 and UTF-32 types expose the same families with their corresponding view, character, and helper-view types.
 ```
@@ -920,8 +948,7 @@ constexpr basic_utf8_string& replace_with_range_inplace(size_type pos, R&& rg);
 
 - Count-based overloads replace a validated substring `[pos, pos + count)` after clamping `count` to the remaining length.
 - Single-position overloads replace the one validated character that starts at `pos`.
-- `replace_with_range_inplace` accepts validated character ranges, including cross-encoding helper views.
-- Same-encoding `chars()` and rvalue `reversed_chars()` view overloads can use direct materialization paths.
+- There is one positional replacement family: `replace_inplace`. The source argument selects whether the replacement is a string view, one character, a validated character range, or a cross-encoding helper view.
 
 ### Overload differences
 
@@ -933,14 +960,15 @@ The examples below use `utf8_string text = "wow 😄✨"_utf8_s;`.
 | `replace_inplace(pos, count, Char other)` | replace one boundary-aligned validated substring with one character | `text.replace_inplace(4, 4, "🔥"_u8c);` |
 | `replace_inplace(pos, View other)` | replace the single validated character starting at `pos` with a substring | `text.replace_inplace(4, "🎉"_utf8_sv);` |
 | `replace_inplace(pos, Char other)` | replace the single validated character starting at `pos` with one character | `text.replace_inplace(4, "🔥"_u8c);` |
-| `replace_with_range_inplace(pos, count, views::utf8_view rg)` | replace a boundary-aligned substring with a same-encoding character range | `text.replace_with_range_inplace(4, 4, "🎉✨"_utf8_sv.chars());` |
-| `replace_with_range_inplace(pos, count, views::utf16_view rg)` | replace a boundary-aligned substring with a cross-encoding character range | `text.replace_with_range_inplace(4, 4, u"🎉✨"_utf16_sv.chars());` |
-| `replace_with_range_inplace(pos, count, R&& rg)` | replace a boundary-aligned substring with a generic range of validated characters | `text.replace_with_range_inplace(4, 4, std::array{"🎉"_u8c, "✨"_u8c});` |
-| `replace_with_range_inplace(pos, rg)` | replace the single validated character at `pos` with a validated range | `text.replace_with_range_inplace(4, "🎉"_utf8_sv.chars());` |
+| `replace_inplace(pos, count, views::utf8_view rg)` | replace a boundary-aligned substring with same-encoding validated characters | `text.replace_inplace(4, 4, "🎉✨"_utf8_sv.chars());` |
+| `replace_inplace(pos, count, views::utf16_view rg)` | replace a boundary-aligned substring with cross-encoding validated characters | `text.replace_inplace(4, 4, u"🎉✨"_utf16_sv.chars());` |
+| `replace_inplace(pos, count, views::utf32_view rg)` | replace a boundary-aligned substring with cross-encoding validated characters | `text.replace_inplace(4, 4, U"🎉✨"_utf32_sv.chars());` |
+| `replace_inplace(pos, count, R&& rg)` | replace a boundary-aligned substring with a generic validated-character range | `text.replace_inplace(4, 4, std::array{"🎉"_u8c, "✨"_u8c});` |
+| `replace_inplace(pos, rg)` | replace the single validated character at `pos` with validated characters | `text.replace_inplace(4, "🎉"_utf8_sv.chars());` |
 
-The range overloads are special because the replacement is driven by validated characters, not by raw code units. Cross-encoding helper views let the caller describe the replacement in the other encoding without building a temporary owning string first.
+The range overloads are special because the replacement is driven by validated characters, not by raw code units. Cross-encoding helper views let the caller describe the replacement in the other encoding.
 
-Rvalue owning same-encoding views, such as `std::move(other).chars()` and `std::move(other).reversed_chars()`, are accepted directly and may reuse owned storage where the replacement shape allows it.
+Rvalue owning same-encoding views, such as `std::move(other).chars()` and `std::move(other).reversed_chars()`, are accepted directly.
 
 ### Inspiration
 
@@ -953,6 +981,14 @@ Returns `*this`.
 ### Complexity
 
 Linear in the replaced span plus the size of the replacement range.
+
+### Safety And Performance Notes
+
+- Same-encoding `chars()` and rvalue `reversed_chars()` view overloads can use direct materialization paths.
+- Rvalue owning same-encoding views may reuse owned storage where the replacement shape allows it.
+- Cross-encoding helper-view overloads can write converted code units directly into the destination storage when capacity allows.
+- Contiguous generic validated-character replacement ranges can be encoded directly into the destination gap when capacity allows.
+- Other generic validated-character ranges are captured before mutating the destination, so adapted self-borrowing ranges remain safe.
 
 ### Exceptions
 
@@ -977,10 +1013,12 @@ constexpr auto base() && noexcept -> base_type&&;
 constexpr void clear();
 constexpr const char8_t* data() const noexcept;
 constexpr const char8_t* c_str() const noexcept;
+constexpr size_type copy(char8_t* dest, size_type count, size_type pos = 0) const;
 constexpr equivalent_utf8_string_view as_view() const noexcept;
 constexpr operator utf8_string_view() const noexcept;
 constexpr void push_back(utf8_char ch);
 constexpr void swap(basic_utf8_string& other) noexcept(/* conditional */);
+friend constexpr void swap(basic_utf8_string& lhs, basic_utf8_string& rhs) noexcept(/* conditional */);
 
 // The UTF-16 and UTF-32 types expose the same families with their corresponding raw code-unit and validated view types.
 ```
@@ -990,8 +1028,10 @@ constexpr void swap(basic_utf8_string& other) noexcept(/* conditional */);
 - `base()` exposes the underlying `std::basic_string` storage.
 - `as_view()` and the implicit conversion create a borrowed validated view over the current contents.
 - `data()` and `c_str()` expose raw code units.
+- `copy(dest, count, pos)` copies raw code units into caller-owned storage and does not append a null terminator.
+- Unlike `std::basic_string::copy`, UTF-8 and UTF-16 copies also require the copied substring to begin and end on validated character boundaries.
 - `push_back()` appends one validated character.
-- `swap()` swaps the underlying storage.
+- Member `swap()` and ADL `swap(lhs, rhs)` exchange the underlying storage.
 
 ### Overload differences
 
@@ -1004,11 +1044,22 @@ The examples below use `utf8_string text = "😄🇷🇴✨"_utf8_s;`.
 | `as_view() const` | explicitly create a borrowed `utf8_string_view` / `utf16_string_view` | `utf8_string_view borrowed = text.as_view();` |
 | `operator utf8_string_view() const` | implicitly view the string as a borrowed validated view when a view is expected | `utf8_string_view borrowed = text;` |
 | `data()` / `c_str()` | expose raw code units for interop with code-unit-oriented APIs | `const char8_t* ptr = text.data();` |
+| `copy(dest, count, pos)` | copy a boundary-aligned raw code-unit substring into caller storage | `const auto n = text.copy(buffer.data(), buffer.size(), 0);` |
 | `reserve(new_cap)` / `shrink_to_fit()` | manage capacity in terms of code units | `text.reserve(32);` |
 | `push_back(Char ch)` | append one validated character | `text.push_back("🔥"_u8c);` |
 | `swap(other)` | exchange the underlying storage | `text.swap(other);` |
+| `swap(lhs, rhs)` | exchange storage through ADL; this is the form used by `std::ranges::swap` | `using std::swap; swap(lhs, rhs);` |
 
 `base()` and `as_view()` solve different problems. `base()` is for interop with APIs that truly need the owning `std::basic_string`. `as_view()` is for APIs that only need a validated borrowed text view and should not take ownership.
+
+For generic code, prefer the standard ADL pattern:
+
+```cpp
+using std::swap;
+swap(lhs, rhs);
+```
+
+`std::ranges::swap(lhs, rhs)` is also supported. The library does not add `std::swap` overload templates for these owning string templates.
 
 ### Inspiration
 
@@ -1017,22 +1068,26 @@ Capacity management follows the vocabulary of [`std::basic_string`](https://en.c
 ### Return value
 
 - `capacity()`, `get_allocator()`, `size()`, `data()`, `c_str()`, `base()`, and `as_view()` return the corresponding storage handle or observer.
+- `copy()` returns the number of raw code units copied.
 - The mutating members return `void`.
 
 ### Complexity
 
 - Observers are constant.
+- `copy()` is linear in the number of copied code units.
 - `reserve`, `shrink_to_fit`, `clear`, `push_back`, and `swap` match the complexity profile of the underlying `std::basic_string`.
 
 ### Exceptions
 
 - `get_allocator()`, `data()`, `c_str()`, `base()`, and `as_view()` do not throw.
+- `copy()` throws [`std::out_of_range`](https://en.cppreference.com/w/cpp/error/out_of_range) when `pos > size()` or when the requested UTF-8/UTF-16 substring would split a character.
 - `reserve`, `push_back`, and `shrink_to_fit` may throw allocator or container exceptions.
 
 ### `noexcept`
 
 - `get_allocator()`, `base()`, `data()`, `c_str()`, and `as_view()` are `noexcept`.
-- `swap()` is conditionally `noexcept`.
+- `copy()` is not `noexcept`.
+- Member `swap()` and ADL `swap(lhs, rhs)` are conditionally `noexcept`.
 
 ## Comparison, Concatenation, Formatting, And Literals
 

@@ -412,6 +412,45 @@ private:
 		return *this;
 	}
 
+	template <typename Writer>
+	constexpr basic_utf32_string& replace_gap_and_write(size_type pos, size_type count, size_type replacement_size, Writer writer)
+	{
+		const auto old_size = base_.size();
+		const auto retained_size = old_size - count;
+		if (replacement_size > base_.max_size() - retained_size) [[unlikely]]
+		{
+			throw std::length_error("replacement size exceeds max_size");
+		}
+
+		const auto tail_pos = pos + count;
+		const auto tail_size = old_size - tail_pos;
+		const auto new_size = retained_size + replacement_size;
+		if (new_size > old_size)
+		{
+			base_.resize_and_overwrite(new_size,
+				[&](char32_t* buffer, std::size_t) noexcept
+				{
+					std::char_traits<char32_t>::move(buffer + pos + replacement_size, buffer + tail_pos, tail_size);
+					[[maybe_unused]] const auto written = static_cast<size_type>(writer(buffer + pos));
+					UTF8_RANGES_DEBUG_ASSERT(written == replacement_size);
+					return new_size;
+				});
+		}
+		else
+		{
+			base_.resize_and_overwrite(old_size,
+				[&](char32_t* buffer, std::size_t) noexcept
+				{
+					[[maybe_unused]] const auto written = static_cast<size_type>(writer(buffer + pos));
+					UTF8_RANGES_DEBUG_ASSERT(written == replacement_size);
+					std::char_traits<char32_t>::move(buffer + pos + replacement_size, buffer + tail_pos, tail_size);
+					return new_size;
+				});
+		}
+
+		return *this;
+	}
+
 	[[nodiscard]]
 	static constexpr size_type write_utf8_as_utf32(std::u8string_view bytes, char32_t* out) noexcept
 	{
@@ -487,13 +526,15 @@ private:
 		{
 			const auto offset = overlap_offset(code_points);
 			base_.insert(index, base_, offset, code_points.size());
-		}
-		else
-		{
-			base_.insert(index, code_points);
+			return *this;
 		}
 
-		return *this;
+		return insert_gap_and_write(index, code_points.size(),
+			[&](char32_t* buffer) noexcept
+			{
+				std::char_traits<char32_t>::copy(buffer, code_points.data(), code_points.size());
+				return code_points.size();
+			});
 	}
 
 	constexpr basic_utf32_string& replace_code_points(size_type pos, size_type count, equivalent_string_view code_points)
@@ -502,13 +543,15 @@ private:
 		{
 			const auto offset = overlap_offset(code_points);
 			base_.replace(pos, count, base_, offset, code_points.size());
-		}
-		else
-		{
-			base_.replace(pos, count, code_points);
+			return *this;
 		}
 
-		return *this;
+		return replace_gap_and_write(pos, count, code_points.size(),
+			[&](char32_t* buffer) noexcept
+			{
+				std::char_traits<char32_t>::copy(buffer, code_points.data(), code_points.size());
+				return code_points.size();
+			});
 	}
 
 	[[nodiscard]]
@@ -590,8 +633,15 @@ private:
 			return assign_owned_reversed_utf32_chars(std::move(rg));
 		}
 
-		auto reversed = basic_utf32_string{ std::from_range, std::move(rg), base_.get_allocator() };
-		return append_code_points(reversed.base());
+		auto owner = details::release_owned_string_view_owner(std::move(rg));
+		owner.reverse();
+		const auto& inserted = owner.base();
+		return insert_gap_and_write(size(), inserted.size(),
+			[&](char32_t* buffer) noexcept
+			{
+				std::char_traits<char32_t>::copy(buffer, inserted.data(), inserted.size());
+				return inserted.size();
+			});
 	}
 
 	constexpr basic_utf32_string& insert_owned_reversed_utf32_chars(size_type index, views::owning_reversed_chars_view<basic_utf32_string>&& rg)
@@ -601,8 +651,15 @@ private:
 			return assign_owned_reversed_utf32_chars(std::move(rg));
 		}
 
-		auto reversed = basic_utf32_string{ std::from_range, std::move(rg), base_.get_allocator() };
-		return insert_code_points(index, reversed.base());
+		auto owner = details::release_owned_string_view_owner(std::move(rg));
+		owner.reverse();
+		const auto& inserted = owner.base();
+		return insert_gap_and_write(index, inserted.size(),
+			[&](char32_t* buffer) noexcept
+			{
+				std::char_traits<char32_t>::copy(buffer, inserted.data(), inserted.size());
+				return inserted.size();
+			});
 	}
 
 	constexpr basic_utf32_string& replace_owned_utf32_chars(size_type pos, size_type count, views::owning_chars_view<basic_utf32_string>&& rg)
@@ -628,8 +685,84 @@ private:
 			return assign_owned_reversed_utf32_chars(std::move(rg));
 		}
 
-		auto reversed = basic_utf32_string{ std::from_range, std::move(rg), base_.get_allocator() };
-		return replace_code_points(pos, count, reversed.base());
+		auto owner = details::release_owned_string_view_owner(std::move(rg));
+		owner.reverse();
+		const auto& replacement = owner.base();
+		return replace_gap_and_write(pos, count, replacement.size(),
+			[&](char32_t* buffer) noexcept
+			{
+				std::char_traits<char32_t>::copy(buffer, replacement.data(), replacement.size());
+				return replacement.size();
+			});
+	}
+
+	template <details::container_compatible_range<utf32_char> R>
+	[[nodiscard]]
+	constexpr base_type materialize_utf32_char_replacement(R&& rg) const
+	{
+		base_type replacement{ base_.get_allocator() };
+		if constexpr (details::contiguous_sized_range_of<R, utf32_char>)
+		{
+			const auto* chars = std::ranges::data(rg);
+			const auto count = static_cast<size_type>(std::ranges::size(rg));
+			const auto replacement_size = static_cast<size_type>(
+				details::utf32_char_sequence_code_unit_count(chars, count));
+			replacement.resize_and_overwrite(replacement_size,
+				[&](char32_t* buffer, std::size_t) noexcept
+				{
+					details::copy_utf32_char_sequence(chars, count, buffer);
+					return replacement_size;
+				});
+		}
+		else if constexpr (std::ranges::sized_range<R>)
+		{
+			const auto upper_bound = static_cast<size_type>(std::ranges::size(rg))
+				* details::encoding_constants::single_code_unit_count;
+			replacement.resize_and_overwrite(upper_bound,
+				[&](char32_t* buffer, std::size_t) noexcept
+				{
+					auto* out = buffer;
+					for (utf32_char ch : rg)
+					{
+						const auto sv = details::utf32_char_view(ch);
+						std::char_traits<char32_t>::copy(out, sv.data(), sv.size());
+						out += sv.size();
+					}
+
+					return static_cast<size_type>(out - buffer);
+				});
+		}
+		else if constexpr (std::ranges::forward_range<R>)
+		{
+			size_type replacement_size = 0;
+			for (utf32_char ch : rg)
+			{
+				replacement_size += details::utf32_char_view(ch).size();
+			}
+
+			replacement.resize_and_overwrite(replacement_size,
+				[&](char32_t* buffer, std::size_t) noexcept
+				{
+					auto* out = buffer;
+					for (utf32_char ch : rg)
+					{
+						const auto sv = details::utf32_char_view(ch);
+						std::char_traits<char32_t>::copy(out, sv.data(), sv.size());
+						out += sv.size();
+					}
+
+					return replacement_size;
+				});
+		}
+		else
+		{
+			for (utf32_char ch : std::forward<R>(rg))
+			{
+				replacement.append(details::utf32_char_view(ch));
+			}
+		}
+
+		return replacement;
 	}
 
 	template <typename ResultAllocator>
@@ -760,12 +893,58 @@ private:
 			return *this;
 		}
 
-		base_type rebuilt = details::replace_utf32_code_points_copy(
-			equivalent_string_view{ base_ },
-			needle,
-			replacement,
-			count,
-			base_.get_allocator());
+		const auto source = equivalent_string_view{ base_ };
+		const details::utf32_runtime_exact_searcher searcher{ needle };
+		size_type replacements = 0;
+		for (size_type cursor = 0; replacements != count;)
+		{
+			const auto match = searcher.find(source, cursor);
+			if (match == equivalent_string_view::npos)
+			{
+				break;
+			}
+
+			cursor = match + needle.size();
+			++replacements;
+		}
+
+		if (replacements == 0)
+		{
+			return *this;
+		}
+
+		size_type output_size = source.size();
+		if (replacement.size() >= needle.size())
+		{
+			output_size += replacements * (replacement.size() - needle.size());
+		}
+		else
+		{
+			output_size -= replacements * (needle.size() - replacement.size());
+		}
+
+		base_type rebuilt{ base_.get_allocator() };
+		rebuilt.resize_and_overwrite(output_size,
+			[&](char32_t* buffer, std::size_t) noexcept
+			{
+				size_type cursor = 0;
+				size_type write_index = 0;
+				size_type replacements_done = 0;
+				while (replacements_done != replacements)
+				{
+					const auto match = searcher.find(source, cursor);
+					const auto prefix_size = match - cursor;
+					std::ranges::copy_n(source.data() + cursor, prefix_size, buffer + write_index);
+					write_index += prefix_size;
+					std::ranges::copy(replacement, buffer + write_index);
+					write_index += replacement.size();
+					cursor = match + needle.size();
+					++replacements_done;
+				}
+
+				std::ranges::copy_n(source.data() + cursor, source.size() - cursor, buffer + write_index);
+				return output_size;
+			});
 		base_.swap(rebuilt);
 		return *this;
 	}
@@ -930,58 +1109,8 @@ public:
 			return *this;
 		}
 
-		if constexpr (std::ranges::sized_range<R>)
-		{
-			const auto upper_bound = static_cast<size_type>(std::ranges::size(rg))
-				* details::encoding_constants::utf32_surrogate_code_unit_count;
-			const auto old_size = base_.size();
-			base_.resize_and_overwrite(old_size + upper_bound,
-				[&](char32_t* buffer, std::size_t) noexcept
-				{
-					auto* out = buffer + old_size;
-					for (utf32_char ch : rg)
-					{
-						const auto sv = details::utf32_char_view(ch);
-						std::char_traits<char32_t>::copy(out, sv.data(), sv.size());
-						out += sv.size();
-					}
-
-					return old_size + static_cast<size_type>(out - (buffer + old_size));
-				});
-			return *this;
-		}
-
-		if constexpr (std::ranges::forward_range<R>)
-		{
-			size_type appended_size = 0;
-			for (utf32_char ch : rg)
-			{
-				appended_size += details::utf32_char_view(ch).size();
-			}
-
-			const auto old_size = base_.size();
-			base_.resize_and_overwrite(old_size + appended_size,
-				[&](char32_t* buffer, std::size_t) noexcept
-				{
-					auto* out = buffer + old_size;
-					for (utf32_char ch : rg)
-					{
-						const auto sv = details::utf32_char_view(ch);
-						std::ranges::copy(sv, out);
-						out += sv.size();
-					}
-
-					return old_size + appended_size;
-				});
-			return *this;
-		}
-
-		for (utf32_char ch : rg)
-		{
-			base_.append(details::utf32_char_view(ch));
-		}
-
-		return *this;
+		const auto appended = materialize_utf32_char_replacement(std::forward<R>(rg));
+		return append_code_points(equivalent_string_view{ appended });
 	}
 
 	constexpr basic_utf32_string& assign_range(views::utf32_view rg);
@@ -1076,23 +1205,7 @@ public:
 
 	constexpr basic_utf32_string& append(size_type count, utf32_char ch)
 	{
-		const auto sv = details::utf32_char_view(ch);
-		const auto total_size = sv.size() * count;
-		const auto old_size = base_.size();
-
-		base_.resize_and_overwrite(old_size + total_size,
-			[&](char32_t* buffer, std::size_t)
-			{
-				buffer = buffer + old_size;
-				for (size_type i = 0; i != count; ++i)
-				{
-					std::ranges::copy(sv, buffer);
-					buffer += sv.size();
-				}
-
-				return total_size;
-			});
-
+		base_.append(count, details::utf32_char_view(ch).front());
 		return *this;
 	}
 
@@ -1493,35 +1606,27 @@ public:
 			throw std::out_of_range("insert index must be at a UTF-32 character boundary");
 		}
 
-#if defined(__cpp_lib_containers_ranges) && __cpp_lib_containers_ranges >= 202202L
-		struct encoded_utf32_char_range
+		if constexpr (details::contiguous_sized_range_of<R, utf32_char>)
 		{
-			utf32_char ch;
-
-			constexpr auto begin() const noexcept
-			{
-				return details::utf32_char_view(ch).begin();
-			}
-
-			constexpr auto end() const noexcept
-			{
-				return details::utf32_char_view(ch).end();
-			}
-		};
-
-		auto inserted = std::forward<R>(rg)
-			| std::views::transform([](auto&& ch)
+			const auto* chars = std::ranges::data(rg);
+			const auto count = static_cast<size_type>(std::ranges::size(rg));
+			const auto inserted_size = static_cast<size_type>(
+				details::utf32_char_sequence_code_unit_count(chars, count));
+			return insert_gap_and_write(index, inserted_size,
+				[&](char32_t* buffer) noexcept
 				{
-					return encoded_utf32_char_range{ static_cast<utf32_char>(std::forward<decltype(ch)>(ch)) };
-				})
-			| std::views::join;
+					details::copy_utf32_char_sequence(chars, count, buffer);
+					return inserted_size;
+				});
+		}
 
-		base_.insert_range(base_.begin() + static_cast<difference_type>(index), inserted);
-#else
-		const utf32_string inserted(std::from_range, std::forward<R>(rg));
-		base_.insert(index, inserted.base());
-#endif
-		return *this;
+		const auto inserted = materialize_utf32_char_replacement(std::forward<R>(rg));
+		return insert_gap_and_write(index, inserted.size(),
+			[&](char32_t* buffer) noexcept
+			{
+				std::char_traits<char32_t>::copy(buffer, inserted.data(), inserted.size());
+				return inserted.size();
+			});
 	}
 
 	template <std::input_iterator It, std::sentinel_for<It> Sent>
@@ -2669,7 +2774,7 @@ public:
 		return *this;
 	}
 
-	constexpr basic_utf32_string& replace_with_range_inplace(size_type pos, size_type count, views::utf32_view rg)
+	constexpr basic_utf32_string& replace_inplace(size_type pos, size_type count, views::utf32_view rg)
 	{
 		if (pos > size()) [[unlikely]]
 		{
@@ -2688,7 +2793,7 @@ public:
 		return replace_code_points(pos, replace_count, rg.base());
 	}
 
-	constexpr basic_utf32_string& replace_with_range_inplace(size_type pos, size_type count, views::owning_chars_view<basic_utf32_string>&& rg)
+	constexpr basic_utf32_string& replace_inplace(size_type pos, size_type count, views::owning_chars_view<basic_utf32_string>&& rg)
 	{
 		if (pos > size()) [[unlikely]]
 		{
@@ -2707,7 +2812,7 @@ public:
 		return replace_owned_utf32_chars(pos, replace_count, std::move(rg));
 	}
 
-	constexpr basic_utf32_string& replace_with_range_inplace(
+	constexpr basic_utf32_string& replace_inplace(
 		size_type pos,
 		size_type count,
 		views::owning_reversed_chars_view<basic_utf32_string>&& rg)
@@ -2729,7 +2834,7 @@ public:
 		return replace_owned_reversed_utf32_chars(pos, replace_count, std::move(rg));
 	}
 
-	constexpr basic_utf32_string& replace_with_range_inplace(size_type pos, size_type count, views::utf8_view rg)
+	constexpr basic_utf32_string& replace_inplace(size_type pos, size_type count, views::utf8_view rg)
 	{
 		if (pos > size()) [[unlikely]]
 		{
@@ -2748,20 +2853,17 @@ public:
 		const auto bytes = rg.base();
 		const auto retained_size = size() - replace_count;
 		const auto replacement_size = utf8_inserted_utf32_size(bytes, base_.max_size() - retained_size);
-		base_type replacement{ base_.get_allocator() };
-		replacement.resize_and_overwrite(replacement_size,
-			[&](char32_t* buffer, std::size_t) noexcept
+		return replace_gap_and_write(
+			pos,
+			replace_count,
+			replacement_size,
+			[&](char32_t* buffer) noexcept
 			{
 				return write_utf8_as_utf32(bytes, buffer);
 			});
-
-		base_.replace(pos, replace_count, replacement);
-		return *this;
 	}
 
-	template <details::container_compatible_range<utf32_char> R>
-		requires (!optimized_utf32_chars_range<R>)
-	constexpr basic_utf32_string& replace_with_range_inplace(size_type pos, size_type count, R&& rg)
+	constexpr basic_utf32_string& replace_inplace(size_type pos, size_type count, views::utf16_view rg)
 	{
 		if (pos > size()) [[unlikely]]
 		{
@@ -2777,46 +2879,61 @@ public:
 			throw std::out_of_range("replace range must be a valid UTF-32 substring");
 		}
 
-#if defined(__cpp_lib_containers_ranges) && __cpp_lib_containers_ranges >= 202202L
-		struct encoded_utf32_char_range
-		{
-			utf32_char ch;
-
-			constexpr auto begin() const noexcept
+		const auto code_units = rg.base();
+		const auto retained_size = size() - replace_count;
+		const auto replacement_size = utf16_inserted_utf32_size(code_units, base_.max_size() - retained_size);
+		return replace_gap_and_write(
+			pos,
+			replace_count,
+			replacement_size,
+			[&](char32_t* buffer) noexcept
 			{
-				return details::utf32_char_view(ch).begin();
-			}
-
-			constexpr auto end() const noexcept
-			{
-				return details::utf32_char_view(ch).end();
-			}
-		};
-
-		auto replacement = std::forward<R>(rg)
-			| std::views::transform([](auto&& ch)
-				{
-					return encoded_utf32_char_range{ static_cast<utf32_char>(std::forward<decltype(ch)>(ch)) };
-				})
-			| std::views::join;
-
-		base_.replace_with_range(
-			base_.begin() + static_cast<difference_type>(pos),
-			base_.begin() + static_cast<difference_type>(end),
-			replacement);
-#else
-		base_type replacement{ base_.get_allocator() };
-		for (utf32_char ch : std::forward<R>(rg))
-		{
-			replacement.append(details::utf32_char_view(ch));
-		}
-
-		base_.replace(pos, replace_count, replacement);
-#endif
-		return *this;
+				return write_utf16_as_utf32(code_units, buffer);
+			});
 	}
 
-	constexpr basic_utf32_string& replace_with_range_inplace(size_type pos, views::utf32_view rg)
+	template <details::container_compatible_range<utf32_char> R>
+		requires (!optimized_utf32_chars_range<R>)
+	constexpr basic_utf32_string& replace_inplace(size_type pos, size_type count, R&& rg)
+	{
+		if (pos > size()) [[unlikely]]
+		{
+			throw std::out_of_range("replace index out of range");
+		}
+
+		const auto remaining = size() - pos;
+		const auto replace_count = (count == npos || count > remaining) ? remaining : count;
+		const auto end = pos + replace_count;
+
+		if (!this->is_char_boundary(pos) || !this->is_char_boundary(end)) [[unlikely]]
+		{
+			throw std::out_of_range("replace range must be a valid UTF-32 substring");
+		}
+
+		if constexpr (details::contiguous_sized_range_of<R, utf32_char>)
+		{
+			const auto* chars = std::ranges::data(rg);
+			const auto char_count = static_cast<size_type>(std::ranges::size(rg));
+			const auto replacement_size = static_cast<size_type>(
+				details::utf32_char_sequence_code_unit_count(chars, char_count));
+			return replace_gap_and_write(pos, replace_count, replacement_size,
+				[&](char32_t* buffer) noexcept
+				{
+					details::copy_utf32_char_sequence(chars, char_count, buffer);
+					return replacement_size;
+				});
+		}
+
+		const auto replacement = materialize_utf32_char_replacement(std::forward<R>(rg));
+		return replace_gap_and_write(pos, replace_count, replacement.size(),
+			[&](char32_t* buffer) noexcept
+			{
+				std::char_traits<char32_t>::copy(buffer, replacement.data(), replacement.size());
+				return replacement.size();
+			});
+	}
+
+	constexpr basic_utf32_string& replace_inplace(size_type pos, views::utf32_view rg)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -2829,10 +2946,10 @@ public:
 		}
 
 		const auto replace_count = this->char_at_unchecked(pos).code_unit_count();
-		return replace_with_range_inplace(pos, replace_count, rg);
+		return replace_inplace(pos, replace_count, rg);
 	}
 
-	constexpr basic_utf32_string& replace_with_range_inplace(size_type pos, views::owning_chars_view<basic_utf32_string>&& rg)
+	constexpr basic_utf32_string& replace_inplace(size_type pos, views::owning_chars_view<basic_utf32_string>&& rg)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -2848,7 +2965,7 @@ public:
 		return replace_owned_utf32_chars(pos, replace_count, std::move(rg));
 	}
 
-	constexpr basic_utf32_string& replace_with_range_inplace(size_type pos, views::owning_reversed_chars_view<basic_utf32_string>&& rg)
+	constexpr basic_utf32_string& replace_inplace(size_type pos, views::owning_reversed_chars_view<basic_utf32_string>&& rg)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -2864,7 +2981,7 @@ public:
 		return replace_owned_reversed_utf32_chars(pos, replace_count, std::move(rg));
 	}
 
-	constexpr basic_utf32_string& replace_with_range_inplace(size_type pos, views::utf8_view rg)
+	constexpr basic_utf32_string& replace_inplace(size_type pos, views::utf8_view rg)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -2877,12 +2994,28 @@ public:
 		}
 
 		const auto replace_count = this->char_at_unchecked(pos).code_unit_count();
-		return replace_with_range_inplace(pos, replace_count, rg);
+		return replace_inplace(pos, replace_count, rg);
+	}
+
+	constexpr basic_utf32_string& replace_inplace(size_type pos, views::utf16_view rg)
+	{
+		if (pos >= size()) [[unlikely]]
+		{
+			throw std::out_of_range("replace index out of range");
+		}
+
+		if (!this->is_char_boundary(pos)) [[unlikely]]
+		{
+			throw std::out_of_range("replace index must be at a UTF-32 character boundary");
+		}
+
+		const auto replace_count = this->char_at_unchecked(pos).code_unit_count();
+		return replace_inplace(pos, replace_count, rg);
 	}
 
 	template <details::container_compatible_range<utf32_char> R>
 		requires (!optimized_utf32_chars_range<R>)
-	constexpr basic_utf32_string& replace_with_range_inplace(size_type pos, R&& rg)
+	constexpr basic_utf32_string& replace_inplace(size_type pos, R&& rg)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -2895,43 +3028,27 @@ public:
 		}
 
 		const auto replace_count = this->char_at_unchecked(pos).code_unit_count();
-#if defined(__cpp_lib_containers_ranges) && __cpp_lib_containers_ranges >= 202202L
-		struct encoded_utf32_char_range
+		if constexpr (details::contiguous_sized_range_of<R, utf32_char>)
 		{
-			utf32_char ch;
-
-			constexpr auto begin() const noexcept
-			{
-				return details::utf32_char_view(ch).begin();
-			}
-
-			constexpr auto end() const noexcept
-			{
-				return details::utf32_char_view(ch).end();
-			}
-		};
-
-		auto replacement = std::forward<R>(rg)
-			| std::views::transform([](auto&& ch)
+			const auto* chars = std::ranges::data(rg);
+			const auto char_count = static_cast<size_type>(std::ranges::size(rg));
+			const auto replacement_size = static_cast<size_type>(
+				details::utf32_char_sequence_code_unit_count(chars, char_count));
+			return replace_gap_and_write(pos, replace_count, replacement_size,
+				[&](char32_t* buffer) noexcept
 				{
-					return encoded_utf32_char_range{ static_cast<utf32_char>(std::forward<decltype(ch)>(ch)) };
-				})
-			| std::views::join;
-
-		base_.replace_with_range(
-			base_.begin() + static_cast<difference_type>(pos),
-			base_.begin() + static_cast<difference_type>(pos + replace_count),
-			replacement);
-#else
-		base_type replacement{ base_.get_allocator() };
-		for (utf32_char ch : std::forward<R>(rg))
-		{
-			replacement.append(details::utf32_char_view(ch));
+					details::copy_utf32_char_sequence(chars, char_count, buffer);
+					return replacement_size;
+				});
 		}
 
-		base_.replace(pos, replace_count, replacement);
-#endif
-		return *this;
+		const auto replacement = materialize_utf32_char_replacement(std::forward<R>(rg));
+		return replace_gap_and_write(pos, replace_count, replacement.size(),
+			[&](char32_t* buffer) noexcept
+			{
+				std::char_traits<char32_t>::copy(buffer, replacement.data(), replacement.size());
+				return replacement.size();
+			});
 	}
 
 	constexpr void reserve(size_type new_cap)
@@ -2968,6 +3085,22 @@ public:
 		return data();
 	}
 
+	constexpr size_type copy(char32_t* dest, size_type count, size_type pos = 0) const
+	{
+		if (pos > size()) [[unlikely]]
+		{
+			throw std::out_of_range("copy index out of range");
+		}
+
+		const auto remaining = size() - pos;
+		const auto copied = (count == npos || count > remaining) ? remaining : count;
+		if (copied != 0)
+		{
+			std::char_traits<char32_t>::copy(dest, base_.data() + pos, copied);
+		}
+		return copied;
+	}
+
 	constexpr operator utf32_string_view() const noexcept
 	{
 		return as_view();
@@ -2989,6 +3122,12 @@ public:
 			std::allocator_traits<Allocator>::is_always_equal::value)
 	{
 		base_.swap(other.base_);
+	}
+
+	friend constexpr void swap(basic_utf32_string& lhs, basic_utf32_string& rhs)
+		noexcept(noexcept(lhs.swap(rhs)))
+	{
+		lhs.swap(rhs);
 	}
 
 	friend constexpr bool operator==(const basic_utf32_string& lhs, const basic_utf32_string& rhs) noexcept
