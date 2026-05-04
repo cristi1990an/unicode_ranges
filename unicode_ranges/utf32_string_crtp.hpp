@@ -272,8 +272,18 @@ class utf32_runtime_exact_searcher
 public:
 	explicit utf32_runtime_exact_searcher(std::u32string_view needle) noexcept
 		: needle_(needle),
-		  last_index_(needle.empty() ? 0u : needle.size() - 1u)
+		  last_index_(needle.empty() ? 0u : needle.size() - 1u),
+		  use_ascii_bmh_(needle.size() > 8u && details::is_ascii_only(needle))
 	{
+		if (use_ascii_bmh_)
+		{
+			ascii_shift_.fill(needle_.size());
+			for (std::size_t i = 0; i != last_index_; ++i)
+			{
+				const auto scalar = static_cast<std::uint32_t>(needle_[i]);
+				ascii_shift_[scalar] = last_index_ - i;
+			}
+		}
 	}
 
 	std::size_t find(std::u32string_view base, std::size_t pos) const noexcept
@@ -293,10 +303,25 @@ public:
 			return base.find(needle_.front(), pos);
 		}
 
+		if (use_ascii_bmh_)
+		{
+			return find_ascii_bmh(base, pos);
+		}
+
 		const auto limit = base.size() - needle_.size();
 		const auto first = needle_.front();
+		const auto first_scalar = static_cast<std::uint32_t>(first);
 		while (pos <= limit)
 		{
+			if (first_scalar > encoding_constants::ascii_scalar_max)
+			{
+				pos += details::ascii_prefix_length(base.substr(pos));
+				if (pos > limit)
+				{
+					return std::u32string_view::npos;
+				}
+			}
+
 			pos = base.find(first, pos);
 			if (pos == std::u32string_view::npos || pos > limit)
 			{
@@ -360,8 +385,31 @@ public:
 	}
 
 private:
+	std::size_t find_ascii_bmh(std::u32string_view base, std::size_t pos) const noexcept
+	{
+		const auto limit = base.size() - needle_.size();
+		while (pos <= limit)
+		{
+			const auto tail = pos + last_index_;
+			if (base[tail] == needle_[last_index_]
+				&& utf32_exact_match_at_runtime(base, needle_, pos))
+			{
+				return pos;
+			}
+
+			const auto scalar = static_cast<std::uint32_t>(base[tail]);
+			pos += scalar <= encoding_constants::ascii_scalar_max
+				? (std::max)(std::size_t{ 1 }, ascii_shift_[scalar])
+				: needle_.size();
+		}
+
+		return std::u32string_view::npos;
+	}
+
 	std::u32string_view needle_{};
+	std::array<std::size_t, 128> ascii_shift_;
 	std::size_t last_index_ = 0;
+	bool use_ascii_bmh_ = false;
 };
 
 inline constexpr std::size_t find_utf32_exact(
@@ -1665,6 +1713,36 @@ inline constexpr std::basic_string<char32_t, std::char_traits<char32_t>, Allocat
 	}
 
 	const details::utf32_runtime_exact_searcher searcher{ needle };
+	if (replacement.size() == needle.size())
+	{
+		auto match = searcher.find(source, 0);
+		if (match == std::u32string_view::npos)
+		{
+			return std::basic_string<char32_t, std::char_traits<char32_t>, Allocator>{ source, alloc };
+		}
+
+		std::basic_string<char32_t, std::char_traits<char32_t>, Allocator> result{ source, alloc };
+		std::size_t replacements = 0;
+		while (replacements != count)
+		{
+			std::ranges::copy(replacement, result.begin() + static_cast<std::ptrdiff_t>(match));
+			++replacements;
+			if (replacements == count)
+			{
+				break;
+			}
+
+			const auto cursor = match + needle.size();
+			match = searcher.find(source, cursor);
+			if (match == std::u32string_view::npos)
+			{
+				break;
+			}
+		}
+
+		return result;
+	}
+
 	std::size_t replacements = 0;
 	for (std::size_t cursor = 0; replacements != count;)
 	{

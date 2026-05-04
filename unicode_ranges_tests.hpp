@@ -1384,6 +1384,19 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 	UTF8_RANGES_TEST_ASSERT(utf32_text.to_utf8() == u8"A\u00E9\U0001F600"_utf8_sv);
 	UTF8_RANGES_TEST_ASSERT(utf32_text.to_utf16() == u"A\u00E9\U0001F600"_utf16_sv);
 #endif
+	UTF8_RANGES_TEST_ASSERT([] {
+		const auto text = U"left--ascii-delim--middle--ascii-delim--right"_utf32_sv;
+		const auto delimiter = U"--ascii-delim--"_utf32_sv;
+		return text.find(delimiter) == 4
+			&& std::ranges::equal(text.split(delimiter), std::array{
+				U"left"_utf32_sv,
+				U"middle"_utf32_sv,
+				U"right"_utf32_sv
+			})
+			&& text.replace_all(delimiter, U"|"_utf32_sv) == U"left|middle|right"_utf32_sv
+			&& text.replace_all(delimiter, U"++ascii-delim++"_utf32_sv)
+				== U"left++ascii-delim++middle++ascii-delim++right"_utf32_sv;
+	}());
 	static_assert(std::same_as<decltype(utf32_text.to_utf32_owned()), utf32_string>);
 	static_assert(std::same_as<decltype(utf32_text.to_utf8()), utf8_string>);
 	static_assert(std::same_as<decltype(utf32_text.to_utf16()), utf16_string>);
@@ -2539,6 +2552,12 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 	static_assert(utf8_text.find_last_not_of("€"_u8c) == 1);
 	static_assert(utf8_text.find_last_not_of("Aé"_utf8_sv) == 3);
 	static_assert(utf8_text.find_last_not_of(u8""_utf8_sv) == 3);
+	UTF8_RANGES_TEST_ASSERT([] {
+		const auto text = u8"aaaaaaaaaaaaaaaa\u00E9tail"_utf8_sv;
+		return text.find(u8"\u00E9"_utf8_sv) == 16
+			&& text.replace_all(u8"\u00E9"_utf8_sv, u8"!"_utf8_sv) == u8"aaaaaaaaaaaaaaaa!tail"_utf8_sv
+			&& text.replace_all(u8"\u00E9"_utf8_sv, u8"\u00F1"_utf8_sv) == u8"aaaaaaaaaaaaaaaa\u00F1tail"_utf8_sv;
+	}());
 	static_assert([] {
 		constexpr auto text = u8"e\u0301🇷🇴!"_utf8_sv;
 		return text.find_grapheme(u8"e\u0301"_grapheme_utf8) == 0
@@ -3021,6 +3040,19 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 	static_assert(utf16_text.find_last_not_of(u"😀"_u16c) == 1);
 	static_assert(utf16_text.find_last_not_of(u"Aé"_utf16_sv) == 2);
 	static_assert(utf16_text.find_last_not_of(u""_utf16_sv) == 2);
+	UTF8_RANGES_TEST_ASSERT([] {
+		const auto text = u"left--ascii-delim--middle--ascii-delim--right"_utf16_sv;
+		const auto delimiter = u"--ascii-delim--"_utf16_sv;
+		return text.find(delimiter) == 4
+			&& std::ranges::equal(text.split(delimiter), std::array{
+				u"left"_utf16_sv,
+				u"middle"_utf16_sv,
+				u"right"_utf16_sv
+			})
+			&& text.replace_all(delimiter, u"|"_utf16_sv) == u"left|middle|right"_utf16_sv
+			&& text.replace_all(delimiter, u"++ascii-delim++"_utf16_sv)
+				== u"left++ascii-delim++middle++ascii-delim++right"_utf16_sv;
+	}());
 	static_assert([] {
 		constexpr auto text = u"e\u0301🇷🇴!"_utf16_sv;
 		return text.find_grapheme(u"e\u0301"_grapheme_utf16) == 0

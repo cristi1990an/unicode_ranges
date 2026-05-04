@@ -322,8 +322,18 @@ private:
 	{
 		const auto limit = base.size() - needle_.size();
 		const auto first = needle_.front();
+		const auto first_byte = static_cast<std::uint8_t>(first);
 		while (pos <= limit)
 		{
+			if (first_byte > encoding_constants::ascii_scalar_max)
+			{
+				pos += details::ascii_prefix_length(base.substr(pos));
+				if (pos > limit)
+				{
+					return std::u8string_view::npos;
+				}
+			}
+
 			pos = base.find(first, pos);
 			if (pos == std::u8string_view::npos || pos > limit)
 			{
@@ -343,7 +353,7 @@ private:
 	}
 
 	std::u8string_view needle_{};
-	std::array<std::size_t, 256> shift_{};
+	std::array<std::size_t, 256> shift_;
 	std::size_t last_index_ = 0;
 	bool use_bmh_ = false;
 };
@@ -1609,6 +1619,36 @@ inline constexpr std::basic_string<char8_t, std::char_traits<char8_t>, Allocator
 	}
 
 	const details::utf8_runtime_exact_searcher searcher{ needle };
+	if (replacement.size() == needle.size())
+	{
+		auto match = searcher.find(source, 0);
+		if (match == std::u8string_view::npos)
+		{
+			return std::basic_string<char8_t, std::char_traits<char8_t>, Allocator>{ source, alloc };
+		}
+
+		std::basic_string<char8_t, std::char_traits<char8_t>, Allocator> result{ source, alloc };
+		std::size_t replacements = 0;
+		while (replacements != count)
+		{
+			std::ranges::copy(replacement, result.begin() + static_cast<std::ptrdiff_t>(match));
+			++replacements;
+			if (replacements == count)
+			{
+				break;
+			}
+
+			const auto cursor = match + needle.size();
+			match = searcher.find(source, cursor);
+			if (match == std::u8string_view::npos)
+			{
+				break;
+			}
+		}
+
+		return result;
+	}
+
 	std::size_t replacements = 0;
 	for (std::size_t cursor = 0; replacements != count;)
 	{
