@@ -28,6 +28,7 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
+#include <version>
 
 #include <uchar.h>
 
@@ -106,6 +107,12 @@
 #else
 #define UTF8_RANGES_HAS_DELETED_FUNCTION_REASON 0
 #define UTF8_RANGES_DELETE(reason) = delete
+#endif
+
+#if defined(__cpp_lib_print) && __cpp_lib_print >= 202403L
+#define UTF8_RANGES_HAS_NONLOCKING_FORMATTER_OPTIMIZATION 1
+#else
+#define UTF8_RANGES_HAS_NONLOCKING_FORMATTER_OPTIMIZATION 0
 #endif
 
 #include "unicode_tables_constexpr.hpp"
@@ -447,6 +454,35 @@ struct tuple_element<Index, unicode_ranges::split_once_at_result<View>>
 	static_assert(Index < 2);
 	using type = View;
 };
+
+#if UTF8_RANGES_HAS_NONLOCKING_FORMATTER_OPTIMIZATION
+template <>
+inline constexpr bool enable_nonlocking_formatter_optimization<unicode_ranges::utf8_char> = true;
+
+template <>
+inline constexpr bool enable_nonlocking_formatter_optimization<unicode_ranges::utf16_char> = true;
+
+template <>
+inline constexpr bool enable_nonlocking_formatter_optimization<unicode_ranges::utf32_char> = true;
+
+template <>
+inline constexpr bool enable_nonlocking_formatter_optimization<unicode_ranges::utf8_string_view> = true;
+
+template <>
+inline constexpr bool enable_nonlocking_formatter_optimization<unicode_ranges::utf16_string_view> = true;
+
+template <>
+inline constexpr bool enable_nonlocking_formatter_optimization<unicode_ranges::utf32_string_view> = true;
+
+template <typename Allocator>
+inline constexpr bool enable_nonlocking_formatter_optimization<unicode_ranges::basic_utf8_string<Allocator>> = true;
+
+template <typename Allocator>
+inline constexpr bool enable_nonlocking_formatter_optimization<unicode_ranges::basic_utf16_string<Allocator>> = true;
+
+template <typename Allocator>
+inline constexpr bool enable_nonlocking_formatter_optimization<unicode_ranges::basic_utf32_string<Allocator>> = true;
+#endif
 
 }
 

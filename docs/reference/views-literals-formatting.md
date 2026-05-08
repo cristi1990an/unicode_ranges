@@ -349,6 +349,7 @@ template<typename Allocator> struct std::formatter<basic_utf32_string<Allocator>
 - Characters format as text by default.
 - Character [`std::formatter`](https://en.cppreference.com/w/cpp/utility/format/formatter) specializations also support numeric presentations `d`, `b`, `B`, `o`, `x`, and `X`, which print `as_scalar()`.
 - String and string-view formatters print textual content.
+- On standard libraries that expose [`std::enable_nonlocking_formatter_optimization`](https://en.cppreference.com/w/cpp/utility/format/enable_nonlocking_formatter_optimization), the library-defined character, string-view, and owning-string types opt in so `std::print` and `std::println` can use nonlocking formatting paths.
 - On standard libraries with C++23 range-format support for custom views, range formatting composes with the library formatters, which is why examples such as `std::println("{}", text.chars())` can work directly.
 
 Two practical printing rules used throughout this documentation:

@@ -1097,6 +1097,21 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 	static_assert(characters::utf8::emojis::red_heart == "❤"_u8c);
 	static_assert(characters::utf16::emojis::red_heart == u"❤"_u16c);
 
+#if UTF8_RANGES_HAS_NONLOCKING_FORMATTER_OPTIMIZATION
+	static_assert(std::enable_nonlocking_formatter_optimization<utf8_char>);
+	static_assert(std::enable_nonlocking_formatter_optimization<utf16_char>);
+	static_assert(std::enable_nonlocking_formatter_optimization<utf32_char>);
+	static_assert(std::enable_nonlocking_formatter_optimization<utf8_string_view>);
+	static_assert(std::enable_nonlocking_formatter_optimization<utf16_string_view>);
+	static_assert(std::enable_nonlocking_formatter_optimization<utf32_string_view>);
+	static_assert(std::enable_nonlocking_formatter_optimization<utf8_string>);
+	static_assert(std::enable_nonlocking_formatter_optimization<utf16_string>);
+	static_assert(std::enable_nonlocking_formatter_optimization<utf32_string>);
+	static_assert(std::enable_nonlocking_formatter_optimization<pmr::utf8_string>);
+	static_assert(std::enable_nonlocking_formatter_optimization<pmr::utf16_string>);
+	static_assert(std::enable_nonlocking_formatter_optimization<pmr::utf32_string>);
+#endif
+
 	// Standard ranges/view concept coverage for the library view surface.
 	static_assert(std::ranges::view<views::utf8_view>);
 	static_assert(std::ranges::range<views::utf8_view>);
