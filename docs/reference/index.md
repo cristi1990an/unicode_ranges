@@ -28,7 +28,7 @@ Each named API family gets its own entry with:
 - A UTF-16 character boundary is any index that is not inside a surrogate pair.
 - A UTF-32 character boundary is any index in `[0, size()]`.
 - Character-aware search families such as `find(Char, pos)`, `find(View, pos)`, `rfind(...)`, `find_first_of(View, pos)`, and `find_last_of(View, pos)` first align the starting offset to a valid character boundary.
-- Boundary-sensitive accessors such as `char_at`, `substr`, `grapheme_at`, `grapheme_substr`, and `split_once_at` reject invalid boundaries explicitly with [`std::nullopt`](https://en.cppreference.com/w/cpp/utility/optional/nullopt).
+- Boundary-sensitive accessors such as `char_at`, `substr`, `grapheme_at`, and `grapheme_substr` reject invalid boundaries explicitly with [`std::nullopt`](https://en.cppreference.com/w/cpp/utility/optional/nullopt). `split_once_at` reports an invalid boundary with a false `split_once_at_result`.
 - Owning-string mutators that splice raw ranges, such as `insert`, `erase`, `reverse(pos, count)`, and partial case transforms, reject invalid boundaries with [`std::out_of_range`](https://en.cppreference.com/w/cpp/error/out_of_range).
 
 ### Grapheme boundaries

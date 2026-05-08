@@ -4535,34 +4535,34 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> split_once(utf32_char ch) const& noexcept
+	constexpr split_once_result<View> split_once(utf32_char ch) const& noexcept
 	{
 		return split_once(View::from_code_points_unchecked(details::utf32_char_view(ch)));
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> split_once(View sv) const& noexcept
+	constexpr split_once_result<View> split_once(View sv) const& noexcept
 	{
 		const auto delimiter = sv.base();
 		const auto pos = details::find_utf32_split_delimiter(code_unit_view(), delimiter, 0);
+		const auto code_points = code_unit_view();
 		if (pos == npos)
 		{
-			return std::nullopt;
+			return split_once_result<View>::failure(View::from_code_points_unchecked(code_points));
 		}
 
-		const auto code_points = code_unit_view();
-		return std::pair{
+		return split_once_result<View>::success(
 			View::from_code_points_unchecked(code_points.substr(0, pos)),
-			View::from_code_points_unchecked(code_points.substr(pos + delimiter.size()))
-		};
+			View::from_code_points_unchecked(code_points.substr(pos + delimiter.size())));
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> split_once(std::span<const utf32_char> chars) const& noexcept
+	constexpr split_once_result<View> split_once(std::span<const utf32_char> chars) const& noexcept
 	{
 		if (chars.empty())
 		{
-			return std::nullopt;
+			const auto code_points = code_unit_view();
+			return split_once_result<View>::failure(View::from_code_points_unchecked(code_points));
 		}
 
 		if (chars.size() == 1)
@@ -4575,62 +4575,61 @@ public:
 
 	template <details::utf32_char_predicate Pred>
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> split_once(Pred pred) const& noexcept
+	constexpr split_once_result<View> split_once(Pred pred) const& noexcept
 	{
 		const auto match = details::find_utf32_predicate_match(code_unit_view(), 0, pred);
+		const auto code_points = code_unit_view();
 		if (match.pos == npos)
 		{
-			return std::nullopt;
+			return split_once_result<View>::failure(View::from_code_points_unchecked(code_points));
 		}
 
-		const auto code_points = code_unit_view();
-		return std::pair{
+		return split_once_result<View>::success(
 			View::from_code_points_unchecked(code_points.substr(0, match.pos)),
-			View::from_code_points_unchecked(code_points.substr(match.pos + match.size))
-		};
+			View::from_code_points_unchecked(code_points.substr(match.pos + match.size)));
 	}
 
 	template <typename... Args>
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> split_once(Args&&...) && noexcept
+	constexpr split_once_result<View> split_once(Args&&...) && noexcept
 		requires (!std::same_as<Derived, View>)
 		UTF8_RANGES_DELETE("split_once on a temporary owning string would return dangling views; bind the string or call on a string_view");
 
 	template <typename... Args>
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> split_once(Args&&...) const&& noexcept
+	constexpr split_once_result<View> split_once(Args&&...) const&& noexcept
 		requires (!std::same_as<Derived, View>)
 		UTF8_RANGES_DELETE("split_once on a temporary owning string would return dangling views; bind the string or call on a string_view");
 
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> rsplit_once(utf32_char ch) const& noexcept
+	constexpr split_once_result<View> rsplit_once(utf32_char ch) const& noexcept
 	{
 		return rsplit_once(View::from_code_points_unchecked(details::utf32_char_view(ch)));
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> rsplit_once(View sv) const& noexcept
+	constexpr split_once_result<View> rsplit_once(View sv) const& noexcept
 	{
 		const auto delimiter = sv.base();
 		const auto pos = details::rfind_utf32_split_delimiter(code_unit_view(), delimiter, code_unit_view().size());
+		const auto code_points = code_unit_view();
 		if (pos == npos)
 		{
-			return std::nullopt;
+			return split_once_result<View>::failure(View::from_code_points_unchecked(code_points));
 		}
 
-		const auto code_points = code_unit_view();
-		return std::pair{
+		return split_once_result<View>::success(
 			View::from_code_points_unchecked(code_points.substr(0, pos)),
-			View::from_code_points_unchecked(code_points.substr(pos + delimiter.size()))
-		};
+			View::from_code_points_unchecked(code_points.substr(pos + delimiter.size())));
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> rsplit_once(std::span<const utf32_char> chars) const& noexcept
+	constexpr split_once_result<View> rsplit_once(std::span<const utf32_char> chars) const& noexcept
 	{
 		if (chars.empty())
 		{
-			return std::nullopt;
+			const auto code_points = code_unit_view();
+			return split_once_result<View>::failure(View::from_code_points_unchecked(code_points));
 		}
 
 		if (chars.size() == 1)
@@ -4643,51 +4642,51 @@ public:
 
 	template <details::utf32_char_predicate Pred>
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> rsplit_once(Pred pred) const& noexcept
+	constexpr split_once_result<View> rsplit_once(Pred pred) const& noexcept
 	{
 		const auto match = details::rfind_utf32_predicate_match(code_unit_view(), code_unit_view().size(), pred);
+		const auto code_points = code_unit_view();
 		if (match.pos == npos)
 		{
-			return std::nullopt;
+			return split_once_result<View>::failure(View::from_code_points_unchecked(code_points));
 		}
 
-		const auto code_points = code_unit_view();
-		return std::pair{
+		return split_once_result<View>::success(
 			View::from_code_points_unchecked(code_points.substr(0, match.pos)),
-			View::from_code_points_unchecked(code_points.substr(match.pos + match.size))
-		};
+			View::from_code_points_unchecked(code_points.substr(match.pos + match.size)));
 	}
 
 	template <typename... Args>
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> rsplit_once(Args&&...) && noexcept
+	constexpr split_once_result<View> rsplit_once(Args&&...) && noexcept
 		requires (!std::same_as<Derived, View>)
 		UTF8_RANGES_DELETE("rsplit_once on a temporary owning string would return dangling views; bind the string or call on a string_view");
 
 	template <typename... Args>
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> rsplit_once(Args&&...) const&& noexcept
+	constexpr split_once_result<View> rsplit_once(Args&&...) const&& noexcept
 		requires (!std::same_as<Derived, View>)
 		UTF8_RANGES_DELETE("rsplit_once on a temporary owning string would return dangling views; bind the string or call on a string_view");
 
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> split_once_at(size_type delim) const& noexcept
+	constexpr split_once_at_result<View> split_once_at(size_type delim) const& noexcept
 	{
 		if (!is_char_boundary(delim)) [[unlikely]]
 		{
-			return std::nullopt;
+			return split_once_at_result<View>::failure(View::from_code_points_unchecked(code_unit_view()));
 		}
 
-		return split_once_at_unchecked(delim);
+		const auto [lhs, rhs] = split_once_at_unchecked(delim);
+		return split_once_at_result<View>::success(lhs, rhs);
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> split_once_at(size_type delim) && noexcept
+	constexpr split_once_at_result<View> split_once_at(size_type delim) && noexcept
 		requires (!std::same_as<Derived, View>)
 		UTF8_RANGES_DELETE("split_once_at on a temporary owning string would return dangling views; bind the string or call on a string_view");
 
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> split_once_at(size_type delim) const&& noexcept
+	constexpr split_once_at_result<View> split_once_at(size_type delim) const&& noexcept
 		requires (!std::same_as<Derived, View>)
 		UTF8_RANGES_DELETE("split_once_at on a temporary owning string would return dangling views; bind the string or call on a string_view");
 

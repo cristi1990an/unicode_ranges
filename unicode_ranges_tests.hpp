@@ -1944,7 +1944,7 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		std::pair<std::size_t, utf8_string_view>>);
 	static_assert(std::same_as<
 		decltype(utf8_text.split_once(u8"\u00E9"_u8c)),
-		std::optional<std::pair<utf8_string_view, utf8_string_view>>>);
+		split_once_result<utf8_string_view>>);
 	static_assert(std::same_as<
 		decltype(utf8_text.replace_all(u8"\u00E9"_u8c, u8"!"_u8c)),
 		utf8_string>);
@@ -2019,11 +2019,11 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			&& text.trim_end_matches(std::span{ any_of }) == u8"\u00E9A"_utf8_sv
 			&& text.trim_matches(std::span{ any_of }) == u8"A"_utf8_sv
 			&& first.has_value()
-			&& first->first == u8""_utf8_sv
-			&& first->second == u8"A\u20AC"_utf8_sv
+			&& first.left() == u8""_utf8_sv
+			&& first.right() == u8"A\u20AC"_utf8_sv
 			&& last.has_value()
-			&& last->first == u8"\u00E9A"_utf8_sv
-			&& last->second == u8""_utf8_sv;
+			&& last.left() == u8"\u00E9A"_utf8_sv
+			&& last.right() == u8""_utf8_sv;
 	}());
 	static_assert(std::same_as<
 		decltype(utf8_string{}.replace_all(u8"\u00E9"_u8c, u8"!"_u8c, std::pmr::polymorphic_allocator<char8_t>{})),
@@ -2113,7 +2113,7 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 #endif
 	static_assert(std::same_as<
 		decltype(utf8_text.rsplit_once(u8"\u00E9"_u8c)),
-		std::optional<std::pair<utf8_string_view, utf8_string_view>>>);
+		split_once_result<utf8_string_view>>);
 	static_assert(std::same_as<
 		decltype(utf8_text.strip_prefix(u8"\u00E9"_u8c)),
 		std::optional<utf8_string_view>>);
@@ -2135,7 +2135,19 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 	static_assert(std::ranges::range<decltype(utf8_text.split_ascii_whitespace())>);
 	static_assert(std::same_as<
 		decltype(utf8_text.split_once_at(1)),
-		std::optional<std::pair<utf8_string_view, utf8_string_view>>>);
+		split_once_at_result<utf8_string_view>>);
+	static_assert(std::ranges::view<split_once_result<utf8_string_view>>);
+	static_assert(std::ranges::view<split_once_at_result<utf8_string_view>>);
+	static_assert(std::ranges::sized_range<split_once_result<utf8_string_view>>);
+	static_assert(std::ranges::sized_range<split_once_at_result<utf8_string_view>>);
+	static_assert(std::ranges::contiguous_range<split_once_result<utf8_string_view>>);
+	static_assert(std::ranges::contiguous_range<split_once_at_result<utf8_string_view>>);
+	static_assert(std::same_as<
+		std::ranges::range_reference_t<split_once_result<utf8_string_view>>,
+		const utf8_string_view&>);
+	static_assert(std::same_as<
+		std::ranges::range_reference_t<split_once_at_result<utf8_string_view>>,
+		const utf8_string_view&>);
 	static_assert(std::ranges::view<decltype(utf8_text.graphemes())>);
 	static_assert(std::ranges::range<decltype(utf8_text.graphemes())>);
 	static_assert(std::ranges::view<decltype(utf8_text.grapheme_indices())>);
@@ -2189,7 +2201,7 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		std::pair<std::size_t, utf16_string_view>>);
 	static_assert(std::same_as<
 		decltype(utf16_text.split_once(u"\u00E9"_u16c)),
-		std::optional<std::pair<utf16_string_view, utf16_string_view>>>);
+		split_once_result<utf16_string_view>>);
 	static_assert(std::same_as<
 		decltype(utf16_text.replace_all(u"\u00E9"_u16c, u"!"_u16c)),
 		utf16_string>);
@@ -2264,11 +2276,11 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			&& text.trim_end_matches(std::span{ any_of }) == u"\u00E9A"_utf16_sv
 			&& text.trim_matches(std::span{ any_of }) == u"A"_utf16_sv
 			&& first.has_value()
-			&& first->first == u""_utf16_sv
-			&& first->second == u"A\U0001F600"_utf16_sv
+			&& first.left() == u""_utf16_sv
+			&& first.right() == u"A\U0001F600"_utf16_sv
 			&& last.has_value()
-			&& last->first == u"\u00E9A"_utf16_sv
-			&& last->second == u""_utf16_sv;
+			&& last.left() == u"\u00E9A"_utf16_sv
+			&& last.right() == u""_utf16_sv;
 	}());
 	static_assert(std::same_as<
 		decltype(utf16_string{}.replace_all(u"\u00E9"_u16c, u"!"_u16c, std::pmr::polymorphic_allocator<char16_t>{})),
@@ -2356,7 +2368,7 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 #endif
 	static_assert(std::same_as<
 		decltype(utf16_text.rsplit_once(u"\u00E9"_u16c)),
-		std::optional<std::pair<utf16_string_view, utf16_string_view>>>);
+		split_once_result<utf16_string_view>>);
 	static_assert(std::same_as<
 		decltype(utf16_text.strip_prefix(u"\u00E9"_u16c)),
 		std::optional<utf16_string_view>>);
@@ -2378,7 +2390,7 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 	static_assert(std::ranges::range<decltype(utf16_text.split_ascii_whitespace())>);
 	static_assert(std::same_as<
 		decltype(utf16_text.split_once_at(1)),
-		std::optional<std::pair<utf16_string_view, utf16_string_view>>>);
+		split_once_at_result<utf16_string_view>>);
 	static_assert(std::ranges::view<decltype(utf16_text.graphemes())>);
 	static_assert(std::ranges::range<decltype(utf16_text.graphemes())>);
 	static_assert(std::ranges::view<decltype(utf16_text.grapheme_indices())>);
@@ -2724,11 +2736,11 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		const auto first = text.split_once(u8"--"_utf8_sv);
 		const auto last = text.rsplit_once(u8"--"_utf8_sv);
 		return first.has_value()
-			&& first->first == u8"abra"_utf8_sv
-			&& first->second == u8"cadabra--!"_utf8_sv
+			&& first.left() == u8"abra"_utf8_sv
+			&& first.right() == u8"cadabra--!"_utf8_sv
 			&& last.has_value()
-			&& last->first == u8"abra--cadabra"_utf8_sv
-			&& last->second == u8"!"_utf8_sv
+			&& last.left() == u8"abra--cadabra"_utf8_sv
+			&& last.right() == u8"!"_utf8_sv
 			&& !text.split_once(u8""_utf8_sv).has_value()
 			&& !text.rsplit_once(u8""_utf8_sv).has_value()
 			&& !u8"abra"_utf8_sv.split_once(u8"--"_utf8_sv).has_value();
@@ -2828,11 +2840,11 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 				u8""_utf8_sv
 			})
 			&& exact_first.has_value()
-			&& exact_first->first == u8""_utf8_sv
-			&& exact_first->second == u8""_utf8_sv
+			&& exact_first.left() == u8""_utf8_sv
+			&& exact_first.right() == u8""_utf8_sv
 			&& exact_last.has_value()
-			&& exact_last->first == u8""_utf8_sv
-			&& exact_last->second == u8""_utf8_sv
+			&& exact_last.left() == u8""_utf8_sv
+			&& exact_last.right() == u8""_utf8_sv
 			&& std::ranges::equal(repeated.split(u8"--"_utf8_sv), std::array{
 				u8"a"_utf8_sv,
 				u8""_utf8_sv,
@@ -2869,11 +2881,11 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 				u8""_utf8_sv
 			})
 			&& unicode_first.has_value()
-			&& unicode_first->first == u8"A"_utf8_sv
-			&& unicode_first->second == u8"B\u00E9"_utf8_sv
+			&& unicode_first.left() == u8"A"_utf8_sv
+			&& unicode_first.right() == u8"B\u00E9"_utf8_sv
 			&& unicode_last.has_value()
-			&& unicode_last->first == u8"A\u00E9B"_utf8_sv
-			&& unicode_last->second == u8""_utf8_sv;
+			&& unicode_last.left() == u8"A\u00E9B"_utf8_sv
+			&& unicode_last.right() == u8""_utf8_sv;
 	}());
 	static_assert([] {
 		constexpr auto empty = u8""_utf8_sv;
@@ -2939,11 +2951,77 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		constexpr auto text = u8"A\u00E9\u20AC"_utf8_sv;
 		const auto parts = text.split_once_at(1);
 		if (!parts.has_value()) return false;
-		return parts->first == u8"A"_utf8_sv && parts->second == u8"\u00E9\u20AC"_utf8_sv;
+		return parts.left() == u8"A"_utf8_sv && parts.right() == u8"\u00E9\u20AC"_utf8_sv;
 	}());
 	static_assert([] {
 		constexpr auto text = u8"A\u00E9\u20AC"_utf8_sv;
 		return !text.split_once_at(2).has_value();
+	}());
+	static_assert([] {
+		constexpr auto text = u8"name=value"_utf8_sv;
+		const auto split = text.split_once(u8"="_u8c);
+		const auto missing = text.split_once(u8":"_u8c);
+		const auto [left, right] = split;
+		return split
+			&& left == u8"name"_utf8_sv
+			&& right == u8"value"_utf8_sv
+			&& !missing
+			&& missing.left() == text
+			&& missing.right() == text;
+	}());
+	static_assert([] {
+		constexpr auto text = u8"name=value"_utf8_sv;
+		const auto split = text.split_once(u8"="_u8c);
+		const auto missing = text.split_once(u8":"_u8c);
+		constexpr std::array expected{ u8"name"_utf8_sv, u8"value"_utf8_sv };
+		return std::ranges::equal(split, expected)
+			&& std::ranges::size(split) == 2
+			&& std::ranges::empty(missing)
+			&& std::ranges::size(missing) == 0;
+	}());
+	static_assert([] {
+		constexpr std::array inputs{ u8"a=b"_utf8_sv, u8"c=d"_utf8_sv, u8"missing"_utf8_sv };
+		auto flattened = inputs
+			| std::views::transform([](utf8_string_view text) static constexpr noexcept
+				{
+					return text.split_once(u8"="_u8c);
+				})
+			| std::views::join;
+		return std::ranges::equal(flattened, std::array{
+			u8"a"_utf8_sv,
+			u8"b"_utf8_sv,
+			u8"c"_utf8_sv,
+			u8"d"_utf8_sv
+		});
+	}());
+	static_assert([] {
+		constexpr auto text = u8"A\u00E9\u20AC"_utf8_sv;
+		const auto split = text.split_once_at(1);
+		const auto invalid = text.split_once_at(2);
+		const auto empty_split = utf8_string_view{}.split_once_at(0);
+		const auto [left, right] = split;
+		return split
+			&& split.has_value()
+			&& left == u8"A"_utf8_sv
+			&& right == u8"\u00E9\u20AC"_utf8_sv
+			&& !invalid
+			&& !invalid.has_value()
+			&& invalid.left() == text
+			&& invalid.right() == text
+			&& empty_split
+			&& empty_split.has_value()
+			&& empty_split.left() == utf8_string_view{}
+			&& empty_split.right() == utf8_string_view{};
+	}());
+	static_assert([] {
+		constexpr auto text = u8"A\u00E9\u20AC"_utf8_sv;
+		const auto split = text.split_once_at(1);
+		const auto invalid = text.split_once_at(2);
+		constexpr std::array expected{ u8"A"_utf8_sv, u8"\u00E9\u20AC"_utf8_sv };
+		return std::ranges::equal(split, expected)
+			&& std::ranges::size(split) == 2
+			&& std::ranges::empty(invalid)
+			&& std::ranges::size(invalid) == 0;
 	}());
 	static_assert([] {
 		constexpr auto text = u8"A\u00E9\u20AC"_utf8_sv;
@@ -3217,11 +3295,11 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		const auto first = text.split_once(u"--"_utf16_sv);
 		const auto last = text.rsplit_once(u"--"_utf16_sv);
 		return first.has_value()
-			&& first->first == u"abra"_utf16_sv
-			&& first->second == u"cadabra--!"_utf16_sv
+			&& first.left() == u"abra"_utf16_sv
+			&& first.right() == u"cadabra--!"_utf16_sv
 			&& last.has_value()
-			&& last->first == u"abra--cadabra"_utf16_sv
-			&& last->second == u"!"_utf16_sv
+			&& last.left() == u"abra--cadabra"_utf16_sv
+			&& last.right() == u"!"_utf16_sv
 			&& !text.split_once(u""_utf16_sv).has_value()
 			&& !text.rsplit_once(u""_utf16_sv).has_value()
 			&& !u"abra"_utf16_sv.split_once(u"--"_utf16_sv).has_value();
@@ -3321,11 +3399,11 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 				u""_utf16_sv
 			})
 			&& exact_first.has_value()
-			&& exact_first->first == u""_utf16_sv
-			&& exact_first->second == u""_utf16_sv
+			&& exact_first.left() == u""_utf16_sv
+			&& exact_first.right() == u""_utf16_sv
 			&& exact_last.has_value()
-			&& exact_last->first == u""_utf16_sv
-			&& exact_last->second == u""_utf16_sv
+			&& exact_last.left() == u""_utf16_sv
+			&& exact_last.right() == u""_utf16_sv
 			&& std::ranges::equal(repeated.split(u"--"_utf16_sv), std::array{
 				u"a"_utf16_sv,
 				u""_utf16_sv,
@@ -3362,11 +3440,11 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 				u""_utf16_sv
 			})
 			&& unicode_first.has_value()
-			&& unicode_first->first == u"A"_utf16_sv
-			&& unicode_first->second == u"B\u00E9"_utf16_sv
+			&& unicode_first.left() == u"A"_utf16_sv
+			&& unicode_first.right() == u"B\u00E9"_utf16_sv
 			&& unicode_last.has_value()
-			&& unicode_last->first == u"A\u00E9B"_utf16_sv
-			&& unicode_last->second == u""_utf16_sv;
+			&& unicode_last.left() == u"A\u00E9B"_utf16_sv
+			&& unicode_last.right() == u""_utf16_sv;
 	}());
 	static_assert([] {
 		constexpr auto empty = u""_utf16_sv;
@@ -3432,7 +3510,7 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		constexpr auto text = u"A\u00E9\U0001F600"_utf16_sv;
 		const auto parts = text.split_once_at(1);
 		if (!parts.has_value()) return false;
-		return parts->first == u"A"_utf16_sv && parts->second == u"\u00E9\U0001F600"_utf16_sv;
+		return parts.left() == u"A"_utf16_sv && parts.right() == u"\u00E9\U0001F600"_utf16_sv;
 	}());
 	static_assert([] {
 		constexpr auto text = u"A\u00E9\U0001F600"_utf16_sv;
@@ -5131,12 +5209,12 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			}));
 			[[maybe_unused]] const auto first = text.split_once(u8"--"_utf8_sv);
 			UTF8_RANGES_TEST_ASSERT(first.has_value());
-			UTF8_RANGES_TEST_ASSERT(first->first == u8"abra"_utf8_sv);
-			UTF8_RANGES_TEST_ASSERT(first->second == u8"cadabra--!"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(first.left() == u8"abra"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(first.right() == u8"cadabra--!"_utf8_sv);
 			[[maybe_unused]] const auto last = text.rsplit_once(u8"--"_utf8_sv);
 			UTF8_RANGES_TEST_ASSERT(last.has_value());
-			UTF8_RANGES_TEST_ASSERT(last->first == u8"abra--cadabra"_utf8_sv);
-			UTF8_RANGES_TEST_ASSERT(last->second == u8"!"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(last.left() == u8"abra--cadabra"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(last.right() == u8"!"_utf8_sv);
 			UTF8_RANGES_TEST_ASSERT(!text.split_once(u8""_utf8_sv).has_value());
 			UTF8_RANGES_TEST_ASSERT(!text.rsplit_once(u8""_utf8_sv).has_value());
 			UTF8_RANGES_TEST_ASSERT(!u8"abra"_utf8_sv.split_once(u8"--"_utf8_sv).has_value());
@@ -5236,12 +5314,12 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			}));
 			[[maybe_unused]] const auto exact_first = exact.split_once(u8"--"_utf8_sv);
 			UTF8_RANGES_TEST_ASSERT(exact_first.has_value());
-			UTF8_RANGES_TEST_ASSERT(exact_first->first == u8""_utf8_sv);
-			UTF8_RANGES_TEST_ASSERT(exact_first->second == u8""_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(exact_first.left() == u8""_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(exact_first.right() == u8""_utf8_sv);
 			[[maybe_unused]] const auto exact_last = exact.rsplit_once(u8"--"_utf8_sv);
 			UTF8_RANGES_TEST_ASSERT(exact_last.has_value());
-			UTF8_RANGES_TEST_ASSERT(exact_last->first == u8""_utf8_sv);
-			UTF8_RANGES_TEST_ASSERT(exact_last->second == u8""_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(exact_last.left() == u8""_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(exact_last.right() == u8""_utf8_sv);
 			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(repeated.split(u8"--"_utf8_sv), std::array{
 				u8"a"_utf8_sv,
 				u8""_utf8_sv,
@@ -5279,12 +5357,12 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			}));
 			[[maybe_unused]] const auto unicode_first = unicode.split_once(u8"\u00E9"_u8c);
 			UTF8_RANGES_TEST_ASSERT(unicode_first.has_value());
-			UTF8_RANGES_TEST_ASSERT(unicode_first->first == u8"A"_utf8_sv);
-			UTF8_RANGES_TEST_ASSERT(unicode_first->second == u8"B\u00E9"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_first.left() == u8"A"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_first.right() == u8"B\u00E9"_utf8_sv);
 			[[maybe_unused]] const auto unicode_last = unicode.rsplit_once(u8"\u00E9"_u8c);
 			UTF8_RANGES_TEST_ASSERT(unicode_last.has_value());
-			UTF8_RANGES_TEST_ASSERT(unicode_last->first == u8"A\u00E9B"_utf8_sv);
-			UTF8_RANGES_TEST_ASSERT(unicode_last->second == u8""_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_last.left() == u8"A\u00E9B"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_last.right() == u8""_utf8_sv);
 		}
 		{
 			[[maybe_unused]] const auto empty = u8""_utf8_sv;
@@ -5409,12 +5487,12 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			UTF8_RANGES_TEST_ASSERT(text.trim_matches(any) == u8"A"_utf8_sv);
 			[[maybe_unused]] const auto first = text.split_once(any);
 			UTF8_RANGES_TEST_ASSERT(first.has_value());
-			UTF8_RANGES_TEST_ASSERT(first->first == u8""_utf8_sv);
-			UTF8_RANGES_TEST_ASSERT(first->second == u8"A\u20AC"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(first.left() == u8""_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(first.right() == u8"A\u20AC"_utf8_sv);
 			[[maybe_unused]] const auto last = text.rsplit_once(any);
 			UTF8_RANGES_TEST_ASSERT(last.has_value());
-			UTF8_RANGES_TEST_ASSERT(last->first == u8"\u00E9A"_utf8_sv);
-			UTF8_RANGES_TEST_ASSERT(last->second == u8""_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(last.left() == u8"\u00E9A"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(last.right() == u8""_utf8_sv);
 			UTF8_RANGES_TEST_ASSERT(text.replace_all(any, u8"!"_u8c) == u8"!A!"_utf8_sv);
 			UTF8_RANGES_TEST_ASSERT(text.replace_n(1, any, u8"!"_u8c) == u8"!A\u20AC"_utf8_sv);
 			[[maybe_unused]] constexpr auto is_ascii_digit = [](utf8_char ch) constexpr noexcept
@@ -5463,8 +5541,8 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			const auto text = u8"A\u00E9\u20AC"_utf8_sv;
 			[[maybe_unused]] const auto split = text.split_once_at(1);
 			UTF8_RANGES_TEST_ASSERT(split.has_value());
-			UTF8_RANGES_TEST_ASSERT(split->first == u8"A"_utf8_sv);
-			UTF8_RANGES_TEST_ASSERT(split->second == u8"\u00E9\u20AC"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(split.left() == u8"A"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(split.right() == u8"\u00E9\u20AC"_utf8_sv);
 			UTF8_RANGES_TEST_ASSERT(!text.split_once_at(2).has_value());
 			[[maybe_unused]] const auto unchecked = text.split_once_at_unchecked(1);
 			UTF8_RANGES_TEST_ASSERT(unchecked.first == u8"A"_utf8_sv);
@@ -5975,12 +6053,12 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			}));
 			[[maybe_unused]] const auto first = text.split_once(U"--"_utf32_sv);
 			UTF8_RANGES_TEST_ASSERT(first.has_value());
-			UTF8_RANGES_TEST_ASSERT(first->first == U"abra"_utf32_sv);
-			UTF8_RANGES_TEST_ASSERT(first->second == U"cadabra--!"_utf32_sv);
+			UTF8_RANGES_TEST_ASSERT(first.left() == U"abra"_utf32_sv);
+			UTF8_RANGES_TEST_ASSERT(first.right() == U"cadabra--!"_utf32_sv);
 			[[maybe_unused]] const auto last = text.rsplit_once(U"--"_utf32_sv);
 			UTF8_RANGES_TEST_ASSERT(last.has_value());
-			UTF8_RANGES_TEST_ASSERT(last->first == U"abra--cadabra"_utf32_sv);
-			UTF8_RANGES_TEST_ASSERT(last->second == U"!"_utf32_sv);
+			UTF8_RANGES_TEST_ASSERT(last.left() == U"abra--cadabra"_utf32_sv);
+			UTF8_RANGES_TEST_ASSERT(last.right() == U"!"_utf32_sv);
 			UTF8_RANGES_TEST_ASSERT(!text.split_once(U""_utf32_sv).has_value());
 			UTF8_RANGES_TEST_ASSERT(!text.rsplit_once(U""_utf32_sv).has_value());
 		}
@@ -6391,12 +6469,12 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			}));
 			[[maybe_unused]] const auto first = text.split_once(u"--"_utf16_sv);
 			UTF8_RANGES_TEST_ASSERT(first.has_value());
-			UTF8_RANGES_TEST_ASSERT(first->first == u"abra"_utf16_sv);
-			UTF8_RANGES_TEST_ASSERT(first->second == u"cadabra--!"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(first.left() == u"abra"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(first.right() == u"cadabra--!"_utf16_sv);
 			[[maybe_unused]] const auto last = text.rsplit_once(u"--"_utf16_sv);
 			UTF8_RANGES_TEST_ASSERT(last.has_value());
-			UTF8_RANGES_TEST_ASSERT(last->first == u"abra--cadabra"_utf16_sv);
-			UTF8_RANGES_TEST_ASSERT(last->second == u"!"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(last.left() == u"abra--cadabra"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(last.right() == u"!"_utf16_sv);
 			UTF8_RANGES_TEST_ASSERT(!text.split_once(u""_utf16_sv).has_value());
 			UTF8_RANGES_TEST_ASSERT(!text.rsplit_once(u""_utf16_sv).has_value());
 			UTF8_RANGES_TEST_ASSERT(!u"abra"_utf16_sv.split_once(u"--"_utf16_sv).has_value());
@@ -6496,12 +6574,12 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			}));
 			[[maybe_unused]] const auto exact_first = exact.split_once(u"--"_utf16_sv);
 			UTF8_RANGES_TEST_ASSERT(exact_first.has_value());
-			UTF8_RANGES_TEST_ASSERT(exact_first->first == u""_utf16_sv);
-			UTF8_RANGES_TEST_ASSERT(exact_first->second == u""_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(exact_first.left() == u""_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(exact_first.right() == u""_utf16_sv);
 			[[maybe_unused]] const auto exact_last = exact.rsplit_once(u"--"_utf16_sv);
 			UTF8_RANGES_TEST_ASSERT(exact_last.has_value());
-			UTF8_RANGES_TEST_ASSERT(exact_last->first == u""_utf16_sv);
-			UTF8_RANGES_TEST_ASSERT(exact_last->second == u""_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(exact_last.left() == u""_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(exact_last.right() == u""_utf16_sv);
 			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(repeated.split(u"--"_utf16_sv), std::array{
 				u"a"_utf16_sv,
 				u""_utf16_sv,
@@ -6539,12 +6617,12 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			}));
 			[[maybe_unused]] const auto unicode_first = unicode.split_once(u"\u00E9"_u16c);
 			UTF8_RANGES_TEST_ASSERT(unicode_first.has_value());
-			UTF8_RANGES_TEST_ASSERT(unicode_first->first == u"A"_utf16_sv);
-			UTF8_RANGES_TEST_ASSERT(unicode_first->second == u"B\u00E9"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_first.left() == u"A"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_first.right() == u"B\u00E9"_utf16_sv);
 			[[maybe_unused]] const auto unicode_last = unicode.rsplit_once(u"\u00E9"_u16c);
 			UTF8_RANGES_TEST_ASSERT(unicode_last.has_value());
-			UTF8_RANGES_TEST_ASSERT(unicode_last->first == u"A\u00E9B"_utf16_sv);
-			UTF8_RANGES_TEST_ASSERT(unicode_last->second == u""_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_last.left() == u"A\u00E9B"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_last.right() == u""_utf16_sv);
 		}
 		{
 			[[maybe_unused]] const auto empty = u""_utf16_sv;
@@ -6669,12 +6747,12 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			UTF8_RANGES_TEST_ASSERT(text.trim_matches(any) == u"A"_utf16_sv);
 			[[maybe_unused]] const auto first = text.split_once(any);
 			UTF8_RANGES_TEST_ASSERT(first.has_value());
-			UTF8_RANGES_TEST_ASSERT(first->first == u""_utf16_sv);
-			UTF8_RANGES_TEST_ASSERT(first->second == u"A\U0001F600"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(first.left() == u""_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(first.right() == u"A\U0001F600"_utf16_sv);
 			[[maybe_unused]] const auto last = text.rsplit_once(any);
 			UTF8_RANGES_TEST_ASSERT(last.has_value());
-			UTF8_RANGES_TEST_ASSERT(last->first == u"\u00E9A"_utf16_sv);
-			UTF8_RANGES_TEST_ASSERT(last->second == u""_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(last.left() == u"\u00E9A"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(last.right() == u""_utf16_sv);
 			UTF8_RANGES_TEST_ASSERT(text.replace_all(any, u"!"_u16c) == u"!A!"_utf16_sv);
 			UTF8_RANGES_TEST_ASSERT(text.replace_n(1, any, u"!"_u16c) == u"!A\U0001F600"_utf16_sv);
 			[[maybe_unused]] constexpr auto is_ascii_digit = [](utf16_char ch) constexpr noexcept
@@ -6723,8 +6801,8 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			const auto text = u"A\u00E9\U0001F600"_utf16_sv;
 			[[maybe_unused]] const auto split = text.split_once_at(1);
 			UTF8_RANGES_TEST_ASSERT(split.has_value());
-			UTF8_RANGES_TEST_ASSERT(split->first == u"A"_utf16_sv);
-			UTF8_RANGES_TEST_ASSERT(split->second == u"\u00E9\U0001F600"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(split.left() == u"A"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(split.right() == u"\u00E9\U0001F600"_utf16_sv);
 			UTF8_RANGES_TEST_ASSERT(!text.split_once_at(3).has_value());
 			[[maybe_unused]] const auto unchecked = text.split_once_at_unchecked(1);
 			UTF8_RANGES_TEST_ASSERT(unchecked.first == u"A"_utf16_sv);

@@ -135,6 +135,335 @@ class basic_utf32_string;
 
 using utf32_string = basic_utf32_string<>;
 
+namespace details
+{
+
+template <typename Derived, typename View>
+class utf8_string_crtp;
+
+template <typename Derived, typename View>
+class utf16_string_crtp;
+
+template <typename Derived, typename View>
+class utf32_string_crtp;
+
+}
+
+template <typename View>
+class [[nodiscard]] split_once_result
+{
+public:
+	split_once_result(const split_once_result&) = default;
+	split_once_result(split_once_result&&) noexcept = default;
+	split_once_result& operator=(const split_once_result&) = default;
+	split_once_result& operator=(split_once_result&&) noexcept = default;
+	~split_once_result() = default;
+
+	[[nodiscard]]
+	constexpr View left() const noexcept
+	{
+		return parts_[0];
+	}
+
+	[[nodiscard]]
+	constexpr View right() const noexcept
+	{
+		return parts_[1];
+	}
+
+	[[nodiscard]]
+	constexpr explicit operator bool() const noexcept
+	{
+		return parts_[0].base().data() != parts_[1].base().data();
+	}
+
+	[[nodiscard]]
+	constexpr bool has_value() const noexcept
+	{
+		return static_cast<bool>(*this);
+	}
+
+	[[nodiscard]]
+	constexpr const View* begin() const noexcept
+	{
+		return has_value() ? parts_.data() : parts_.data() + parts_.size();
+	}
+
+	[[nodiscard]]
+	constexpr const View* end() const noexcept
+	{
+		return parts_.data() + parts_.size();
+	}
+
+private:
+	template <typename Derived, typename OtherView>
+	friend class details::utf8_string_crtp;
+
+	template <typename Derived, typename OtherView>
+	friend class details::utf16_string_crtp;
+
+	template <typename Derived, typename OtherView>
+	friend class details::utf32_string_crtp;
+
+	constexpr split_once_result(View left, View right) noexcept
+		: parts_{ left, right }
+	{}
+
+	[[nodiscard]]
+	static constexpr split_once_result success(View left, View right) noexcept
+	{
+		return { left, right };
+	}
+
+	[[nodiscard]]
+	static constexpr split_once_result failure(View whole) noexcept
+	{
+		return { whole, whole };
+	}
+
+	std::array<View, 2> parts_{};
+};
+
+template <typename View>
+class [[nodiscard]] split_once_at_result
+{
+public:
+	split_once_at_result(const split_once_at_result&) = default;
+	split_once_at_result(split_once_at_result&&) noexcept = default;
+	split_once_at_result& operator=(const split_once_at_result&) = default;
+	split_once_at_result& operator=(split_once_at_result&&) noexcept = default;
+	~split_once_at_result() = default;
+
+	[[nodiscard]]
+	constexpr View left() const noexcept
+	{
+		return parts_[0];
+	}
+
+	[[nodiscard]]
+	constexpr View right() const noexcept
+	{
+		return parts_[1];
+	}
+
+	[[nodiscard]]
+	constexpr explicit operator bool() const noexcept
+	{
+		return successful_;
+	}
+
+	[[nodiscard]]
+	constexpr bool has_value() const noexcept
+	{
+		return successful_;
+	}
+
+	[[nodiscard]]
+	constexpr const View* begin() const noexcept
+	{
+		return successful_ ? parts_.data() : parts_.data() + parts_.size();
+	}
+
+	[[nodiscard]]
+	constexpr const View* end() const noexcept
+	{
+		return parts_.data() + parts_.size();
+	}
+
+private:
+	template <typename Derived, typename OtherView>
+	friend class details::utf8_string_crtp;
+
+	template <typename Derived, typename OtherView>
+	friend class details::utf16_string_crtp;
+
+	template <typename Derived, typename OtherView>
+	friend class details::utf32_string_crtp;
+
+	constexpr split_once_at_result(View left, View right, bool successful) noexcept
+		: parts_{ left, right }
+		, successful_(successful)
+	{}
+
+	[[nodiscard]]
+	static constexpr split_once_at_result success(View left, View right) noexcept
+	{
+		return { left, right, true };
+	}
+
+	[[nodiscard]]
+	static constexpr split_once_at_result failure(View whole) noexcept
+	{
+		return { whole, whole, false };
+	}
+
+	std::array<View, 2> parts_{};
+	bool successful_ = false;
+};
+
+template <std::size_t Index, typename View>
+[[nodiscard]]
+constexpr View get(split_once_result<View>& result) noexcept
+{
+	static_assert(Index < 2);
+	if constexpr (Index == 0)
+	{
+		return result.left();
+	}
+	else
+	{
+		return result.right();
+	}
+}
+
+template <std::size_t Index, typename View>
+[[nodiscard]]
+constexpr View get(const split_once_result<View>& result) noexcept
+{
+	static_assert(Index < 2);
+	if constexpr (Index == 0)
+	{
+		return result.left();
+	}
+	else
+	{
+		return result.right();
+	}
+}
+
+template <std::size_t Index, typename View>
+[[nodiscard]]
+constexpr View get(split_once_result<View>&& result) noexcept
+{
+	static_assert(Index < 2);
+	if constexpr (Index == 0)
+	{
+		return result.left();
+	}
+	else
+	{
+		return result.right();
+	}
+}
+
+template <std::size_t Index, typename View>
+[[nodiscard]]
+constexpr View get(const split_once_result<View>&& result) noexcept
+{
+	static_assert(Index < 2);
+	if constexpr (Index == 0)
+	{
+		return result.left();
+	}
+	else
+	{
+		return result.right();
+	}
+}
+
+template <std::size_t Index, typename View>
+[[nodiscard]]
+constexpr View get(split_once_at_result<View>& result) noexcept
+{
+	static_assert(Index < 2);
+	if constexpr (Index == 0)
+	{
+		return result.left();
+	}
+	else
+	{
+		return result.right();
+	}
+}
+
+template <std::size_t Index, typename View>
+[[nodiscard]]
+constexpr View get(const split_once_at_result<View>& result) noexcept
+{
+	static_assert(Index < 2);
+	if constexpr (Index == 0)
+	{
+		return result.left();
+	}
+	else
+	{
+		return result.right();
+	}
+}
+
+template <std::size_t Index, typename View>
+[[nodiscard]]
+constexpr View get(split_once_at_result<View>&& result) noexcept
+{
+	static_assert(Index < 2);
+	if constexpr (Index == 0)
+	{
+		return result.left();
+	}
+	else
+	{
+		return result.right();
+	}
+}
+
+template <std::size_t Index, typename View>
+[[nodiscard]]
+constexpr View get(const split_once_at_result<View>&& result) noexcept
+{
+	static_assert(Index < 2);
+	if constexpr (Index == 0)
+	{
+		return result.left();
+	}
+	else
+	{
+		return result.right();
+	}
+}
+
+}
+
+namespace std
+{
+
+template <typename View>
+struct tuple_size<unicode_ranges::split_once_result<View>> : integral_constant<size_t, 2>
+{};
+
+template <size_t Index, typename View>
+struct tuple_element<Index, unicode_ranges::split_once_result<View>>
+{
+	static_assert(Index < 2);
+	using type = View;
+};
+
+template <typename View>
+struct tuple_size<unicode_ranges::split_once_at_result<View>> : integral_constant<size_t, 2>
+{};
+
+template <size_t Index, typename View>
+struct tuple_element<Index, unicode_ranges::split_once_at_result<View>>
+{
+	static_assert(Index < 2);
+	using type = View;
+};
+
+}
+
+namespace std::ranges
+{
+
+template <typename View>
+inline constexpr bool enable_view<unicode_ranges::split_once_result<View>> = true;
+
+template <typename View>
+inline constexpr bool enable_view<unicode_ranges::split_once_at_result<View>> = true;
+
+}
+
+namespace unicode_ranges
+{
+
 #if UTF8_RANGES_HAS_ICU
 struct locale_id
 {

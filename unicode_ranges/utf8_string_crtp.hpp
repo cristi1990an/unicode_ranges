@@ -4480,34 +4480,34 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> split_once(utf8_char ch) const& noexcept
+	constexpr split_once_result<View> split_once(utf8_char ch) const& noexcept
 	{
 		return split_once(View::from_bytes_unchecked(details::utf8_char_view(ch)));
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> split_once(View sv) const& noexcept
+	constexpr split_once_result<View> split_once(View sv) const& noexcept
 	{
 		const auto delimiter = sv.base();
 		const auto pos = details::find_utf8_split_delimiter(byte_view(), delimiter, 0);
+		const auto bytes = byte_view();
 		if (pos == npos)
 		{
-			return std::nullopt;
+			return split_once_result<View>::failure(View::from_bytes_unchecked(bytes));
 		}
 
-		const auto bytes = byte_view();
-		return std::pair{
+		return split_once_result<View>::success(
 			View::from_bytes_unchecked(bytes.substr(0, pos)),
-			View::from_bytes_unchecked(bytes.substr(pos + delimiter.size()))
-		};
+			View::from_bytes_unchecked(bytes.substr(pos + delimiter.size())));
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> split_once(std::span<const utf8_char> chars) const& noexcept
+	constexpr split_once_result<View> split_once(std::span<const utf8_char> chars) const& noexcept
 	{
 		if (chars.empty())
 		{
-			return std::nullopt;
+			const auto bytes = byte_view();
+			return split_once_result<View>::failure(View::from_bytes_unchecked(bytes));
 		}
 
 		if (chars.size() == 1)
@@ -4520,62 +4520,61 @@ public:
 
 	template <details::utf8_char_predicate Pred>
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> split_once(Pred pred) const& noexcept
+	constexpr split_once_result<View> split_once(Pred pred) const& noexcept
 	{
 		const auto match = details::find_utf8_predicate_match(byte_view(), 0, pred);
+		const auto bytes = byte_view();
 		if (match.pos == npos)
 		{
-			return std::nullopt;
+			return split_once_result<View>::failure(View::from_bytes_unchecked(bytes));
 		}
 
-		const auto bytes = byte_view();
-		return std::pair{
+		return split_once_result<View>::success(
 			View::from_bytes_unchecked(bytes.substr(0, match.pos)),
-			View::from_bytes_unchecked(bytes.substr(match.pos + match.size))
-		};
+			View::from_bytes_unchecked(bytes.substr(match.pos + match.size)));
 	}
 
 	template <typename... Args>
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> split_once(Args&&...) && noexcept
+	constexpr split_once_result<View> split_once(Args&&...) && noexcept
 		requires (!std::same_as<Derived, View>)
 		UTF8_RANGES_DELETE("split_once on a temporary owning string would return dangling views; bind the string or call on a string_view");
 
 	template <typename... Args>
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> split_once(Args&&...) const&& noexcept
+	constexpr split_once_result<View> split_once(Args&&...) const&& noexcept
 		requires (!std::same_as<Derived, View>)
 		UTF8_RANGES_DELETE("split_once on a temporary owning string would return dangling views; bind the string or call on a string_view");
 
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> rsplit_once(utf8_char ch) const& noexcept
+	constexpr split_once_result<View> rsplit_once(utf8_char ch) const& noexcept
 	{
 		return rsplit_once(View::from_bytes_unchecked(details::utf8_char_view(ch)));
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> rsplit_once(View sv) const& noexcept
+	constexpr split_once_result<View> rsplit_once(View sv) const& noexcept
 	{
 		const auto delimiter = sv.base();
 		const auto pos = details::rfind_utf8_split_delimiter(byte_view(), delimiter, byte_view().size());
+		const auto bytes = byte_view();
 		if (pos == npos)
 		{
-			return std::nullopt;
+			return split_once_result<View>::failure(View::from_bytes_unchecked(bytes));
 		}
 
-		const auto bytes = byte_view();
-		return std::pair{
+		return split_once_result<View>::success(
 			View::from_bytes_unchecked(bytes.substr(0, pos)),
-			View::from_bytes_unchecked(bytes.substr(pos + delimiter.size()))
-		};
+			View::from_bytes_unchecked(bytes.substr(pos + delimiter.size())));
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> rsplit_once(std::span<const utf8_char> chars) const& noexcept
+	constexpr split_once_result<View> rsplit_once(std::span<const utf8_char> chars) const& noexcept
 	{
 		if (chars.empty())
 		{
-			return std::nullopt;
+			const auto bytes = byte_view();
+			return split_once_result<View>::failure(View::from_bytes_unchecked(bytes));
 		}
 
 		if (chars.size() == 1)
@@ -4588,51 +4587,51 @@ public:
 
 	template <details::utf8_char_predicate Pred>
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> rsplit_once(Pred pred) const& noexcept
+	constexpr split_once_result<View> rsplit_once(Pred pred) const& noexcept
 	{
 		const auto match = details::rfind_utf8_predicate_match(byte_view(), byte_view().size(), pred);
+		const auto bytes = byte_view();
 		if (match.pos == npos)
 		{
-			return std::nullopt;
+			return split_once_result<View>::failure(View::from_bytes_unchecked(bytes));
 		}
 
-		const auto bytes = byte_view();
-		return std::pair{
+		return split_once_result<View>::success(
 			View::from_bytes_unchecked(bytes.substr(0, match.pos)),
-			View::from_bytes_unchecked(bytes.substr(match.pos + match.size))
-		};
+			View::from_bytes_unchecked(bytes.substr(match.pos + match.size)));
 	}
 
 	template <typename... Args>
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> rsplit_once(Args&&...) && noexcept
+	constexpr split_once_result<View> rsplit_once(Args&&...) && noexcept
 		requires (!std::same_as<Derived, View>)
 		UTF8_RANGES_DELETE("rsplit_once on a temporary owning string would return dangling views; bind the string or call on a string_view");
 
 	template <typename... Args>
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> rsplit_once(Args&&...) const&& noexcept
+	constexpr split_once_result<View> rsplit_once(Args&&...) const&& noexcept
 		requires (!std::same_as<Derived, View>)
 		UTF8_RANGES_DELETE("rsplit_once on a temporary owning string would return dangling views; bind the string or call on a string_view");
 
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> split_once_at(size_type delim) const& noexcept
+	constexpr split_once_at_result<View> split_once_at(size_type delim) const& noexcept
 	{
 		if (!is_char_boundary(delim)) [[unlikely]]
 		{
-			return std::nullopt;
+			return split_once_at_result<View>::failure(View::from_bytes_unchecked(byte_view()));
 		}
 
-		return split_once_at_unchecked(delim);
+		const auto [lhs, rhs] = split_once_at_unchecked(delim);
+		return split_once_at_result<View>::success(lhs, rhs);
 	}
 
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> split_once_at(size_type delim) && noexcept
+	constexpr split_once_at_result<View> split_once_at(size_type delim) && noexcept
 		requires (!std::same_as<Derived, View>)
 		UTF8_RANGES_DELETE("split_once_at on a temporary owning string would return dangling views; bind the string or call on a string_view");
 
 	[[nodiscard]]
-	constexpr std::optional<std::pair<View, View>> split_once_at(size_type delim) const&& noexcept
+	constexpr split_once_at_result<View> split_once_at(size_type delim) const&& noexcept
 		requires (!std::same_as<Derived, View>)
 		UTF8_RANGES_DELETE("split_once_at on a temporary owning string would return dangling views; bind the string or call on a string_view");
 

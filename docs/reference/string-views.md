@@ -878,29 +878,29 @@ constexpr auto rmatch_indices(R&& chars) && noexcept; // owning strings
 template <Predicate Pred> constexpr auto rmatch_indices(Pred pred) const& noexcept;
 template <Predicate Pred> constexpr auto rmatch_indices(Pred pred) && noexcept; // owning strings
 
-constexpr std::optional<std::pair<View, View>> split_once(Char ch) const& noexcept;
-constexpr std::optional<std::pair<View, View>> split_once(View sv) const& noexcept;
-constexpr std::optional<std::pair<View, View>> split_once(std::span<const Char> chars) const& noexcept;
+constexpr split_once_result<View> split_once(Char ch) const& noexcept;
+constexpr split_once_result<View> split_once(View sv) const& noexcept;
+constexpr split_once_result<View> split_once(std::span<const Char> chars) const& noexcept;
 template <Predicate Pred>
-constexpr std::optional<std::pair<View, View>> split_once(Pred pred) const& noexcept;
+constexpr split_once_result<View> split_once(Pred pred) const& noexcept;
 template <typename... Args>
-constexpr std::optional<std::pair<View, View>> split_once(Args&&...) && = delete;      // owning strings only
+constexpr split_once_result<View> split_once(Args&&...) && = delete;      // owning strings only
 template <typename... Args>
-constexpr std::optional<std::pair<View, View>> split_once(Args&&...) const&& = delete; // owning strings only
+constexpr split_once_result<View> split_once(Args&&...) const&& = delete; // owning strings only
 
-constexpr std::optional<std::pair<View, View>> rsplit_once(Char ch) const& noexcept;
-constexpr std::optional<std::pair<View, View>> rsplit_once(View sv) const& noexcept;
-constexpr std::optional<std::pair<View, View>> rsplit_once(std::span<const Char> chars) const& noexcept;
+constexpr split_once_result<View> rsplit_once(Char ch) const& noexcept;
+constexpr split_once_result<View> rsplit_once(View sv) const& noexcept;
+constexpr split_once_result<View> rsplit_once(std::span<const Char> chars) const& noexcept;
 template <Predicate Pred>
-constexpr std::optional<std::pair<View, View>> rsplit_once(Pred pred) const& noexcept;
+constexpr split_once_result<View> rsplit_once(Pred pred) const& noexcept;
 template <typename... Args>
-constexpr std::optional<std::pair<View, View>> rsplit_once(Args&&...) && = delete;      // owning strings only
+constexpr split_once_result<View> rsplit_once(Args&&...) && = delete;      // owning strings only
 template <typename... Args>
-constexpr std::optional<std::pair<View, View>> rsplit_once(Args&&...) const&& = delete; // owning strings only
+constexpr split_once_result<View> rsplit_once(Args&&...) const&& = delete; // owning strings only
 
-constexpr std::optional<std::pair<View, View>> split_once_at(size_type delim) const& noexcept;
-constexpr std::optional<std::pair<View, View>> split_once_at(size_type delim) && = delete;      // owning strings only
-constexpr std::optional<std::pair<View, View>> split_once_at(size_type delim) const&& = delete; // owning strings only
+constexpr split_once_at_result<View> split_once_at(size_type delim) const& noexcept;
+constexpr split_once_at_result<View> split_once_at(size_type delim) && = delete;      // owning strings only
+constexpr split_once_at_result<View> split_once_at(size_type delim) const&& = delete; // owning strings only
 constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) const& noexcept;
 constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) && = delete;      // owning strings only
 constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) const&& = delete; // owning strings only
@@ -917,7 +917,10 @@ constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) const&&
 - `split_once_at` validates that `delim` is a character boundary.
 - `split_once_at_unchecked` assumes the supplied offset is already valid.
 - The range-returning members in this section are lazy `std::ranges::view_interface`-based views. Owning-string receivers and temporary delimiter-set ranges may make the returned view non-borrowed.
-- One-shot split APIs return pairs of borrowed subviews. On owning strings, their `&&` and `const&&` overloads are deleted so a temporary owning string cannot produce dangling pair elements.
+- One-shot split APIs return pair-like result objects with `left()` and `right()` borrowed subviews. On owning strings, their `&&` and `const&&` overloads are deleted so a temporary owning string cannot produce dangling result elements.
+- `split_once_result<View>` and `split_once_at_result<View>` provide `operator bool`, `has_value()`, tuple-like access for structured bindings, and range iteration.
+- These result types model sized contiguous views. A successful result has range size 2; a failed result has range size 0.
+- Iterating a successful one-shot split result yields exactly two views: the left side, then the right side. Iterating a failed result yields no elements.
 - In C++26-or-newer compiler modes that define `__cpp_deleted_function`, these deleted overloads include a diagnostic reason; otherwise they compile as ordinary deleted overloads.
 
 ### Overload differences
@@ -949,12 +952,23 @@ For one-shot split APIs, bind the owning string first or call through a view whe
 
 ### Inspiration
 
-The pair-returning surface is deliberately close to Rust's [`str::split_once` and `str::rsplit_once`](https://doc.rust-lang.org/stable/core/primitive.str.html).
+The pair-like result surface is deliberately close to Rust's [`str::split_once` and `str::rsplit_once`](https://doc.rust-lang.org/stable/core/primitive.str.html).
+
+In C++20 and C++23, bind the result before destructuring:
+
+```cpp
+if (auto split = text.split_once(u8"="_u8c)) {
+	auto [left, right] = split;
+}
+```
+
+C++26 structured binding conditions can destructure directly in the condition on compilers that implement that language feature.
 
 ### Return value
 
 - Match APIs return lazy ranges.
-- One-shot split APIs return [`std::nullopt`](https://en.cppreference.com/w/cpp/utility/optional/nullopt) when no match exists or when `split_once_at` receives an invalid boundary.
+- `split_once` and `rsplit_once` return a false `split_once_result<View>` when no match exists. In that case, `left()` and `right()` both view the full input.
+- `split_once_at` returns a false `split_once_at_result<View>` when `delim` is not a character boundary. In that case, `left()` and `right()` both view the full input.
 
 ### Complexity
 

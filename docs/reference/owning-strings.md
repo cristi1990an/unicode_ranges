@@ -421,12 +421,12 @@ constexpr std::optional<basic_utf8_string> grapheme_substr(size_type pos, size_t
 
 std::optional<utf8_string_view> grapheme_at(size_type index) && = delete;
 std::optional<utf8_string_view> grapheme_at(size_type index) const&& = delete;
-std::optional<std::pair<utf8_string_view, utf8_string_view>> split_once(...) && = delete;
-std::optional<std::pair<utf8_string_view, utf8_string_view>> split_once(...) const&& = delete;
-std::optional<std::pair<utf8_string_view, utf8_string_view>> rsplit_once(...) && = delete;
-std::optional<std::pair<utf8_string_view, utf8_string_view>> rsplit_once(...) const&& = delete;
-std::optional<std::pair<utf8_string_view, utf8_string_view>> split_once_at(size_type delim) && = delete;
-std::optional<std::pair<utf8_string_view, utf8_string_view>> split_once_at(size_type delim) const&& = delete;
+split_once_result<utf8_string_view> split_once(...) && = delete;
+split_once_result<utf8_string_view> split_once(...) const&& = delete;
+split_once_result<utf8_string_view> rsplit_once(...) && = delete;
+split_once_result<utf8_string_view> rsplit_once(...) const&& = delete;
+split_once_at_result<utf8_string_view> split_once_at(size_type delim) && = delete;
+split_once_at_result<utf8_string_view> split_once_at(size_type delim) const&& = delete;
 std::pair<utf8_string_view, utf8_string_view> split_once_at_unchecked(size_type delim) && = delete;
 std::pair<utf8_string_view, utf8_string_view> split_once_at_unchecked(size_type delim) const&& = delete;
 

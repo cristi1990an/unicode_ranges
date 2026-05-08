@@ -63,8 +63,8 @@ int main()
 	utf8_string key_value = u8"name=value"_utf8_s;
 	auto pair = key_value.split_once(u8"="_u8c);
 	assert(pair.has_value());
-	assert(pair->first == u8"name"_utf8_sv);
-	assert(pair->second == u8"value"_utf8_sv);
+	assert(pair.left() == u8"name"_utf8_sv);
+	assert(pair.right() == u8"value"_utf8_sv);
 
 	static_assert(!temporary_split_once_is_available<utf8_string>);
 	static_assert(!temporary_split_once_is_available<const utf8_string>);
