@@ -43,7 +43,7 @@ int main()
 
 	std::vector<char8_t> lossy_bytes{ static_cast<char8_t>('>') };
 	encodings::ascii_lossy lossy{};
-	u8"Café"_utf8_sv.to_utf8_owned().encode_append_to(lossy_bytes, lossy);
+	u8"Café"_utf8_sv.to_utf8().encode_append_to(lossy_bytes, lossy);
 	assert((lossy_bytes == std::vector<char8_t>{
 		static_cast<char8_t>('>'),
 		static_cast<char8_t>('C'),

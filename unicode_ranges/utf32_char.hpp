@@ -80,7 +80,7 @@ public:
 
 	template <typename Allocator = std::allocator<char32_t>>
 	[[nodiscard]]
-	constexpr basic_utf32_string<Allocator> to_utf32_owned(const Allocator& alloc = Allocator()) const;
+	constexpr basic_utf32_string<Allocator> to_utf32(const Allocator& alloc = Allocator()) const;
 
 	constexpr utf32_char& operator++() noexcept
 	{

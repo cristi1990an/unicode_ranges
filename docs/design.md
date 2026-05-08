@@ -54,6 +54,26 @@ That backend choice does not change the core model:
 
 This makes lifetime and mutation rules explicit instead of implicit.
 
+## Rvalue aware API
+
+The library calls the copy-producing and consuming overload pattern the rvalue aware API. Owning-string methods that return another owning string and expose both `const&` and `&&` receiver overloads are rvalue aware methods.
+
+```cpp
+auto new_string = my_string.operation();              // keep my_string unchanged
+my_string = std::move(my_string).operation();         // consume and assign back
+```
+
+The `const&` form returns a new owning string and leaves the source unchanged. The `&&` form treats the source as disposable and tries to optimize the operation by reusing the existing buffer when that is safe and useful.
+
+The pattern is useful because it gives one logical operation one name while still supporting both ownership modes:
+
+- it avoids parallel `operation_copy()` / `operation_inplace()` / `operation_owned()` method families for the same transformation
+- it keeps ordinary lvalue calls non-mutating, so accidental source modification requires an explicit `std::move`
+- it makes consuming chains efficient because each step receives an owning rvalue and can reuse storage when the operation shape allows it
+- it preserves API readability: the operation name describes the text transformation, and the receiver category describes whether the source may be consumed
+
+This is an optimization opportunity, not a no-allocation guarantee. A consuming overload may still allocate when the operation expands the text, allocator or capacity constraints require it, or a fresh result is the safer implementation. After an `&&` call, the moved-from owning string remains valid but has an unspecified value; use the returned object.
+
 ## Code units, scalars, and graphemes
 
 The library exposes all three levels:

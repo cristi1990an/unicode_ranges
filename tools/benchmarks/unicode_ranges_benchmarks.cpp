@@ -583,17 +583,17 @@ int main(int argc, char** argv)
 	const auto utf16_char_count_text = utf16_string_view::from_code_units_unchecked(utf16_char_count_storage);
 	const auto utf32_char_count_text = utf32_string_view::from_code_points_unchecked(utf32_char_count_storage);
 	const auto boundary_ascii_encoding_text =
-		utf8_string_view::from_bytes_unchecked(boundary_ascii_encoding_storage).to_utf8_owned();
+		utf8_string_view::from_bytes_unchecked(boundary_ascii_encoding_storage).to_utf8();
 	const auto boundary_latin1_encoding_text =
-		utf8_string_view::from_bytes_unchecked(boundary_latin1_encoding_storage).to_utf8_owned();
+		utf8_string_view::from_bytes_unchecked(boundary_latin1_encoding_storage).to_utf8();
 	const auto boundary_latin9_encoding_text =
-		utf8_string_view::from_bytes_unchecked(boundary_latin9_encoding_storage).to_utf8_owned();
+		utf8_string_view::from_bytes_unchecked(boundary_latin9_encoding_storage).to_utf8();
 	const auto boundary_windows_1251_encoding_text =
-		utf8_string_view::from_bytes_unchecked(boundary_windows_1251_encoding_storage).to_utf8_owned();
+		utf8_string_view::from_bytes_unchecked(boundary_windows_1251_encoding_storage).to_utf8();
 	const auto boundary_windows_1252_encoding_text =
-		utf8_string_view::from_bytes_unchecked(boundary_windows_1252_encoding_storage).to_utf8_owned();
+		utf8_string_view::from_bytes_unchecked(boundary_windows_1252_encoding_storage).to_utf8();
 	const auto boundary_windows_1252_large_encoding_text =
-		utf8_string_view::from_bytes_unchecked(boundary_windows_1252_large_encoding_storage).to_utf8_owned();
+		utf8_string_view::from_bytes_unchecked(boundary_windows_1252_large_encoding_storage).to_utf8();
 	const auto utf8_ascii_upper_text = utf8_string_view::from_bytes_unchecked(utf8_ascii_upper_storage);
 	const auto utf8_ascii_lower_text = utf8_string_view::from_bytes_unchecked(utf8_ascii_lower_storage);
 	const auto utf16_ascii_upper_text = utf16_string_view::from_code_units_unchecked(utf16_ascii_upper_storage);

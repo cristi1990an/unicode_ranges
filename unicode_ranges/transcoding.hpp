@@ -1605,6 +1605,173 @@ namespace unicode_ranges
 		return same_size;
 	}
 
+	template <bool Lowercase, typename CharT>
+	constexpr bool ascii_case_run_changes(std::basic_string_view<CharT> code_units) noexcept
+	{
+		for (CharT code_unit : code_units)
+		{
+			const auto scalar = static_cast<std::uint32_t>(code_unit);
+			if (ascii_case_scalar<Lowercase>(scalar) != scalar)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	template <bool Lowercase>
+	constexpr bool case_map_utf8_same_size(std::u8string_view bytes, bool& changed) noexcept
+	{
+		changed = false;
+		for (std::size_t index = 0; index < bytes.size();)
+		{
+			const auto remaining = std::u8string_view{ bytes.data() + index, bytes.size() - index };
+			const auto ascii_run = ascii_prefix_length(remaining);
+			if (ascii_run != 0)
+			{
+				changed = ascii_case_run_changes<Lowercase>(remaining.substr(0, ascii_run)) || changed;
+				index += ascii_run;
+				continue;
+			}
+
+			const auto decoded = decode_next_scalar(bytes, index);
+			const auto input_size = decoded.next_index - index;
+			if (decoded.scalar <= encoding_constants::bmp_scalar_max)
+			{
+				const auto bmp_mapping = lookup_bmp_case_mapping<Lowercase>(decoded.scalar);
+				if (bmp_mapping.same_size)
+				{
+					if (unicode_scalar_utf8_size(bmp_mapping.mapped) != input_size)
+					{
+						return false;
+					}
+
+					changed = changed || (bmp_mapping.mapped != decoded.scalar);
+					index = decoded.next_index;
+					continue;
+				}
+			}
+
+			const auto mapping = lookup_case_mapping<Lowercase>(decoded.scalar);
+			if (mapping.has_special())
+			{
+				if (case_special_mapping_utf8_size(case_special_mapping_from_index<Lowercase>(mapping.special_index)) != input_size)
+				{
+					return false;
+				}
+
+				changed = true;
+			}
+			else if (mapping.has_simple)
+			{
+				if (unicode_scalar_utf8_size(mapping.simple_mapped) != input_size)
+				{
+					return false;
+				}
+
+				changed = changed || (mapping.simple_mapped != decoded.scalar);
+			}
+
+			index = decoded.next_index;
+		}
+
+		return true;
+	}
+
+	template <bool Lowercase>
+	constexpr bool case_map_utf16_same_size(std::u16string_view code_units, bool& changed) noexcept
+	{
+		changed = false;
+		for (std::size_t index = 0; index < code_units.size();)
+		{
+			const auto remaining = std::u16string_view{ code_units.data() + index, code_units.size() - index };
+			const auto ascii_run = ascii_prefix_length(remaining);
+			if (ascii_run != 0)
+			{
+				changed = ascii_case_run_changes<Lowercase>(remaining.substr(0, ascii_run)) || changed;
+				index += ascii_run;
+				continue;
+			}
+
+			const auto decoded = decode_next_scalar(code_units, index);
+			const auto input_size = decoded.next_index - index;
+			if (decoded.scalar <= encoding_constants::bmp_scalar_max)
+			{
+				const auto bmp_mapping = lookup_bmp_case_mapping<Lowercase>(decoded.scalar);
+				if (bmp_mapping.same_size)
+				{
+					if (input_size != 1u)
+					{
+						return false;
+					}
+
+					changed = changed || (bmp_mapping.mapped != decoded.scalar);
+					index = decoded.next_index;
+					continue;
+				}
+			}
+
+			const auto mapping = lookup_case_mapping<Lowercase>(decoded.scalar);
+			if (mapping.has_special())
+			{
+				if (case_special_mapping_utf16_size(case_special_mapping_from_index<Lowercase>(mapping.special_index)) != input_size)
+				{
+					return false;
+				}
+
+				changed = true;
+			}
+			else if (mapping.has_simple)
+			{
+				if (unicode_scalar_utf16_size(mapping.simple_mapped) != input_size)
+				{
+					return false;
+				}
+
+				changed = changed || (mapping.simple_mapped != decoded.scalar);
+			}
+
+			index = decoded.next_index;
+		}
+
+		return true;
+	}
+
+	template <bool Lowercase>
+	constexpr bool case_map_utf8_inplace_if_same_size(std::u8string_view bytes, char8_t* buffer) noexcept
+	{
+		bool changed = false;
+		if (!case_map_utf8_same_size<Lowercase>(bytes, changed))
+		{
+			return false;
+		}
+
+		if (changed)
+		{
+			(void)write_case_map_utf8_into<Lowercase>(bytes, buffer);
+		}
+
+		return true;
+	}
+
+	template <bool Lowercase>
+	constexpr bool case_map_utf16_inplace_if_same_size(std::u16string_view code_units, char16_t* buffer) noexcept
+	{
+		bool changed = false;
+		if (!case_map_utf16_same_size<Lowercase>(code_units, changed))
+		{
+			return false;
+		}
+
+		if (changed)
+		{
+			(void)write_case_map_utf16_into<Lowercase>(code_units, buffer);
+		}
+
+		return true;
+	}
+
 	template <bool Lowercase, typename Allocator>
 	constexpr basic_utf8_string<Allocator> case_map_utf8_copy(
 		std::u8string_view bytes,
@@ -1882,12 +2049,163 @@ namespace unicode_ranges
 					return write_index;
 				});
 
-			return same_size;
+		return same_size;
+	}
+
+	constexpr std::size_t write_case_fold_utf8_into(std::u8string_view bytes, char8_t* buffer) noexcept;
+	constexpr std::size_t write_case_fold_utf16_into(std::u16string_view code_units, char16_t* buffer) noexcept;
+
+	constexpr bool case_fold_utf8_same_size(std::u8string_view bytes, bool& changed) noexcept
+	{
+		changed = false;
+		for (std::size_t index = 0; index < bytes.size();)
+		{
+			const auto remaining = std::u8string_view{ bytes.data() + index, bytes.size() - index };
+			const auto ascii_run = ascii_prefix_length(remaining);
+			if (ascii_run != 0)
+			{
+				changed = ascii_case_run_changes<true>(remaining.substr(0, ascii_run)) || changed;
+				index += ascii_run;
+				continue;
+			}
+
+			const auto decoded = decode_next_scalar(bytes, index);
+			const auto input_size = decoded.next_index - index;
+			if (decoded.scalar <= encoding_constants::bmp_scalar_max)
+			{
+				const auto bmp_mapping = lookup_bmp_case_fold_mapping(decoded.scalar);
+				if (bmp_mapping.same_size)
+				{
+					if (unicode_scalar_utf8_size(bmp_mapping.mapped) != input_size)
+					{
+						return false;
+					}
+
+					changed = changed || (bmp_mapping.mapped != decoded.scalar);
+					index = decoded.next_index;
+					continue;
+				}
+			}
+
+			const auto mapping = lookup_case_fold_mapping(decoded.scalar);
+			if (mapping.has_special())
+			{
+				if (case_special_mapping_utf8_size(case_fold_special_mapping_from_index(mapping.special_index)) != input_size)
+				{
+					return false;
+				}
+
+				changed = true;
+			}
+			else if (mapping.has_simple)
+			{
+				if (unicode_scalar_utf8_size(mapping.simple_mapped) != input_size)
+				{
+					return false;
+				}
+
+				changed = changed || (mapping.simple_mapped != decoded.scalar);
+			}
+
+			index = decoded.next_index;
 		}
 
-		constexpr case_map_measurement measure_case_fold_utf8(std::u8string_view bytes) noexcept
+		return true;
+	}
+
+	constexpr bool case_fold_utf16_same_size(std::u16string_view code_units, bool& changed) noexcept
+	{
+		changed = false;
+		for (std::size_t index = 0; index < code_units.size();)
 		{
-			case_map_measurement result{};
+			const auto remaining = std::u16string_view{ code_units.data() + index, code_units.size() - index };
+			const auto ascii_run = ascii_prefix_length(remaining);
+			if (ascii_run != 0)
+			{
+				changed = ascii_case_run_changes<true>(remaining.substr(0, ascii_run)) || changed;
+				index += ascii_run;
+				continue;
+			}
+
+			const auto decoded = decode_next_scalar(code_units, index);
+			const auto input_size = decoded.next_index - index;
+			if (decoded.scalar <= encoding_constants::bmp_scalar_max)
+			{
+				const auto bmp_mapping = lookup_bmp_case_fold_mapping(decoded.scalar);
+				if (bmp_mapping.same_size)
+				{
+					if (input_size != 1u)
+					{
+						return false;
+					}
+
+					changed = changed || (bmp_mapping.mapped != decoded.scalar);
+					index = decoded.next_index;
+					continue;
+				}
+			}
+
+			const auto mapping = lookup_case_fold_mapping(decoded.scalar);
+			if (mapping.has_special())
+			{
+				if (case_special_mapping_utf16_size(case_fold_special_mapping_from_index(mapping.special_index)) != input_size)
+				{
+					return false;
+				}
+
+				changed = true;
+			}
+			else if (mapping.has_simple)
+			{
+				if (unicode_scalar_utf16_size(mapping.simple_mapped) != input_size)
+				{
+					return false;
+				}
+
+				changed = changed || (mapping.simple_mapped != decoded.scalar);
+			}
+
+			index = decoded.next_index;
+		}
+
+		return true;
+	}
+
+	constexpr bool case_fold_utf8_inplace_if_same_size(std::u8string_view bytes, char8_t* buffer) noexcept
+	{
+		bool changed = false;
+		if (!case_fold_utf8_same_size(bytes, changed))
+		{
+			return false;
+		}
+
+		if (changed)
+		{
+			(void)write_case_fold_utf8_into(bytes, buffer);
+		}
+
+		return true;
+	}
+
+	constexpr bool case_fold_utf16_inplace_if_same_size(std::u16string_view code_units, char16_t* buffer) noexcept
+	{
+		bool changed = false;
+		if (!case_fold_utf16_same_size(code_units, changed))
+		{
+			return false;
+		}
+
+		if (changed)
+		{
+			(void)write_case_fold_utf16_into(code_units, buffer);
+		}
+
+		return true;
+	}
+
+	constexpr case_map_measurement measure_case_fold_utf8(std::u8string_view bytes) noexcept
+	{
+		case_map_measurement result{};
 		for (std::size_t index = 0; index < bytes.size();)
 		{
 			const auto remaining = std::u8string_view{ bytes.data() + index, bytes.size() - index };
@@ -3061,9 +3379,31 @@ namespace unicode_ranges
 
 	template <typename Derived, typename View>
 	template <typename Allocator>
-	constexpr basic_utf8_string<Allocator> utf8_string_crtp<Derived, View>::to_utf8_owned(const Allocator& alloc) const
+	constexpr basic_utf8_string<Allocator> utf8_string_crtp<Derived, View>::to_utf8(const Allocator& alloc) const&
 	{
 		return basic_utf8_string<Allocator>{ View::from_bytes_unchecked(byte_view()), alloc };
+	}
+
+	template <typename Derived, typename View>
+	constexpr Derived utf8_string_crtp<Derived, View>::to_utf8() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		return std::move(static_cast<Derived&>(*this));
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator> utf8_string_crtp<Derived, View>::to_utf8(const Allocator& alloc) &&
+		requires (!std::same_as<Derived, View>)
+	{
+		if constexpr (std::same_as<Derived, basic_utf8_string<Allocator>>)
+		{
+			return basic_utf8_string<Allocator>{ std::move(static_cast<Derived&>(*this)), alloc };
+		}
+		else
+		{
+			return basic_utf8_string<Allocator>{ View::from_bytes_unchecked(byte_view()), alloc };
+		}
 	}
 
 	template <typename Derived, typename View>
@@ -3542,7 +3882,7 @@ namespace unicode_ranges
 	{
 		if (from.empty())
 		{
-			return to_utf8_owned();
+			return to_utf8();
 		}
 
 		if (from.size() == 1)
@@ -3558,7 +3898,7 @@ namespace unicode_ranges
 	{
 		if (from.empty())
 		{
-			return to_utf8_owned();
+			return to_utf8();
 		}
 
 		if (from.size() == 1)
@@ -3575,7 +3915,7 @@ namespace unicode_ranges
 	{
 		if (from.empty())
 		{
-			return to_utf8_owned(alloc);
+			return to_utf8(alloc);
 		}
 
 		if (from.size() == 1)
@@ -3592,7 +3932,7 @@ namespace unicode_ranges
 	{
 		if (from.empty())
 		{
-			return to_utf8_owned(alloc);
+			return to_utf8(alloc);
 		}
 
 		if (from.size() == 1)
@@ -3672,7 +4012,7 @@ namespace unicode_ranges
 	{
 		if (count == 0 || from.empty())
 		{
-			return to_utf8_owned();
+			return to_utf8();
 		}
 
 		if (from.size() == 1)
@@ -3688,7 +4028,7 @@ namespace unicode_ranges
 	{
 		if (count == 0 || from.empty())
 		{
-			return to_utf8_owned();
+			return to_utf8();
 		}
 
 		if (from.size() == 1)
@@ -3705,7 +4045,7 @@ namespace unicode_ranges
 	{
 		if (count == 0 || from.empty())
 		{
-			return to_utf8_owned(alloc);
+			return to_utf8(alloc);
 		}
 
 		if (from.size() == 1)
@@ -3722,7 +4062,7 @@ namespace unicode_ranges
 	{
 		if (count == 0 || from.empty())
 		{
-			return to_utf8_owned(alloc);
+			return to_utf8(alloc);
 		}
 
 		if (from.size() == 1)
@@ -3788,7 +4128,7 @@ namespace unicode_ranges
 	{
 		if (count == 0)
 		{
-			return to_utf8_owned(alloc);
+			return to_utf8(alloc);
 		}
 
 		const auto bytes = byte_view();
@@ -3809,7 +4149,7 @@ namespace unicode_ranges
 
 		if (replacements == 0)
 		{
-			return to_utf8_owned(alloc);
+			return to_utf8(alloc);
 		}
 
 		using result_base = typename basic_utf8_string<Allocator>::base_type;
@@ -3850,9 +4190,31 @@ namespace unicode_ranges
 
 	template <typename Derived, typename View>
 	template <typename Allocator>
-	constexpr basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::to_utf16_owned(const Allocator& alloc) const
+	constexpr basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::to_utf16(const Allocator& alloc) const&
 	{
 		return basic_utf16_string<Allocator>{ View::from_code_units_unchecked(code_unit_view()), alloc };
+	}
+
+	template <typename Derived, typename View>
+	constexpr Derived utf16_string_crtp<Derived, View>::to_utf16() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		return std::move(static_cast<Derived&>(*this));
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::to_utf16(const Allocator& alloc) &&
+		requires (!std::same_as<Derived, View>)
+	{
+		if constexpr (std::same_as<Derived, basic_utf16_string<Allocator>>)
+		{
+			return basic_utf16_string<Allocator>{ std::move(static_cast<Derived&>(*this)), alloc };
+		}
+		else
+		{
+			return basic_utf16_string<Allocator>{ View::from_code_units_unchecked(code_unit_view()), alloc };
+		}
 	}
 
 	template <typename Derived, typename View>
@@ -4332,7 +4694,7 @@ namespace unicode_ranges
 	{
 		if (from.empty())
 		{
-			return to_utf16_owned();
+			return to_utf16();
 		}
 
 		if (from.size() == 1)
@@ -4348,7 +4710,7 @@ namespace unicode_ranges
 	{
 		if (from.empty())
 		{
-			return to_utf16_owned();
+			return to_utf16();
 		}
 
 		if (from.size() == 1)
@@ -4365,7 +4727,7 @@ namespace unicode_ranges
 	{
 		if (from.empty())
 		{
-			return to_utf16_owned(alloc);
+			return to_utf16(alloc);
 		}
 
 		if (from.size() == 1)
@@ -4382,7 +4744,7 @@ namespace unicode_ranges
 	{
 		if (from.empty())
 		{
-			return to_utf16_owned(alloc);
+			return to_utf16(alloc);
 		}
 
 		if (from.size() == 1)
@@ -4462,7 +4824,7 @@ namespace unicode_ranges
 	{
 		if (count == 0 || from.empty())
 		{
-			return to_utf16_owned();
+			return to_utf16();
 		}
 
 		if (from.size() == 1)
@@ -4478,7 +4840,7 @@ namespace unicode_ranges
 	{
 		if (count == 0 || from.empty())
 		{
-			return to_utf16_owned();
+			return to_utf16();
 		}
 
 		if (from.size() == 1)
@@ -4495,7 +4857,7 @@ namespace unicode_ranges
 	{
 		if (count == 0 || from.empty())
 		{
-			return to_utf16_owned(alloc);
+			return to_utf16(alloc);
 		}
 
 		if (from.size() == 1)
@@ -4512,7 +4874,7 @@ namespace unicode_ranges
 	{
 		if (count == 0 || from.empty())
 		{
-			return to_utf16_owned(alloc);
+			return to_utf16(alloc);
 		}
 
 		if (from.size() == 1)
@@ -4578,7 +4940,7 @@ namespace unicode_ranges
 	{
 		if (count == 0)
 		{
-			return to_utf16_owned(alloc);
+			return to_utf16(alloc);
 		}
 
 		const auto code_units = code_unit_view();
@@ -4600,7 +4962,7 @@ namespace unicode_ranges
 
 		if (replacements == 0)
 		{
-			return to_utf16_owned(alloc);
+			return to_utf16(alloc);
 		}
 
 		using result_base = typename basic_utf16_string<Allocator>::base_type;
@@ -4642,7 +5004,7 @@ namespace unicode_ranges
 	}
 
 	template <typename Allocator>
-	constexpr basic_utf8_string<Allocator> utf8_char::to_utf8_owned(const Allocator& alloc) const
+	constexpr basic_utf8_string<Allocator> utf8_char::to_utf8(const Allocator& alloc) const
 	{
 		return basic_utf8_string<Allocator>{
 			utf8_string_view::from_bytes_unchecked(details::utf8_char_view(*this)),
@@ -4651,7 +5013,7 @@ namespace unicode_ranges
 	}
 
 	template <typename Allocator>
-	constexpr basic_utf16_string<Allocator> utf16_char::to_utf16_owned(const Allocator& alloc) const
+	constexpr basic_utf16_string<Allocator> utf16_char::to_utf16(const Allocator& alloc) const
 	{
 		return basic_utf16_string<Allocator>{
 			utf16_string_view::from_code_units_unchecked(details::utf16_char_view(*this)),

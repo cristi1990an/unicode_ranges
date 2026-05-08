@@ -21,6 +21,19 @@ Unless a section explicitly narrows the discussion, the UTF-8, UTF-16, and UTF-3
 
 To keep the longer synopsis blocks manageable, many sections spell out the UTF-8 forms explicitly and describe UTF-16 and UTF-32 by parallel rule. Unless a section says otherwise, replacing `char8_t` / `utf8_char` / `utf8_string_view` / `basic_utf8_string` with the matching UTF-16 or UTF-32 names gives the corresponding owning-string surface.
 
+## Rvalue Aware Results
+
+Most owning-string operations that return an owning string are rvalue aware methods: they can be used in either a copy-producing form or a consuming form.
+
+```cpp
+auto new_string = my_string.operation();              // create a new string
+my_string = std::move(my_string).operation();         // reuse my_string when possible
+```
+
+The lvalue form keeps the source string unchanged. The rvalue form treats the source as disposable and may reuse its existing buffer, but it is not a promise that the operation will never allocate. After an `&&` call, the moved-from string remains valid with an unspecified value; use the returned string.
+
+This keeps the public surface compact: the method name describes the text operation, while `const&` or `&&` decides whether the call copies or may consume and optimize the source. It also makes chains such as `std::move(text).trim().to_lowercase().replace_all(...)` efficient without adding separate in-place names for every transformation.
+
 ```cpp
 --8<-- "examples/reference/owning-strings.cpp"
 ```
@@ -674,6 +687,8 @@ Linear in the processed code units, plus extra work for Unicode case expansion a
 ### Performance Notes
 
 - `&&` overloads may reuse the current allocation when profitable.
+- Whole-string `&&` `to_lowercase()`, `to_uppercase()`, and `case_fold()` reuse the current allocation for ASCII and for Unicode mappings that are proven to keep the same encoded size. Expanding mappings still use the allocation-building path.
+- `normalize(normalization_form::nfc) &&` and `to_nfc() &&` reuse the current allocation when NFC quick-check proves the text is already normalized. Other normalization forms keep the ASCII-only reuse path.
 
 ### Exceptions
 
@@ -895,6 +910,7 @@ Linear in the source size plus the size of the produced output.
 ### Performance Notes
 
 - `&&` overloads may reuse and rewrite the current storage.
+- Exact `View from, View to` `&&` overloads rewrite in the moved storage when the result fits its current capacity; otherwise they keep the allocation-building path.
 - `&&` overloads can return the original storage unchanged when no replacement is found.
 
 ### Exceptions
@@ -1127,7 +1143,7 @@ constexpr auto operator ""_utf8_s();
 ### Behavior
 
 - Comparison operators compare encoded contents.
-- `operator+` builds a new owning string.
+- `operator+` returns a new owning string value.
 - Stream insertion and the formatter delegate to the borrowed view representation.
 - `_utf8_s`, `_utf16_s`, and `_utf32_s` are compile-time validated owning-string literals.
 
@@ -1151,6 +1167,11 @@ Comparison and concatenation follow the general shape of [`std::basic_string`](h
 - Comparison is linear in the compared prefix.
 - Concatenation is linear in the size of the produced string.
 - Streaming and formatting are linear in the amount of text written.
+
+### Performance Notes
+
+- `operator+` overloads that receive an rvalue owning string may reuse that moved string's storage.
+- `std::move(lhs) + rhs` appends into `lhs`; `prefix + std::move(rhs)` may front-insert into `rhs`; `std::move(lhs) + std::move(rhs)` prefers the buffer that can avoid allocation while preserving allocator compatibility.
 
 ### Exceptions
 

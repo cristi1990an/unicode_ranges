@@ -20,8 +20,8 @@ int main()
 
 	std::println("{}", std::format("{:X}", sparkle.as_scalar()));              // 2728
 	std::println("{}", sparkle16);                                             // ✨
-	std::println("{}", sparkle.to_utf8_owned());                               // ✨
-	std::println("{}", sparkle16.to_utf16_owned());                            // ✨
+	std::println("{}", sparkle.to_utf8());                                     // ✨
+	std::println("{}", sparkle16.to_utf16());                                  // ✨
 	std::println("{}", sparkle.code_unit_count());                             // 3
 	std::println("{}", encoded8);                                              // ✨
 	std::println("{}", utf16_string_view::from_code_units(encoded16).value()); // ✨

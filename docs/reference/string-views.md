@@ -1121,7 +1121,10 @@ Linear in the number of leading or trailing characters examined.
 
 ```cpp
 template <typename Allocator = std::allocator<char8_t>>
-constexpr basic_utf8_string<Allocator> to_utf8_owned(const Allocator& alloc = Allocator()) const;
+constexpr basic_utf8_string<Allocator> to_utf8(const Allocator& alloc = Allocator()) const&;
+constexpr auto to_utf8() &&;                                    // owning strings only; returns the same owning UTF-8 string type
+template <typename Allocator>
+constexpr basic_utf8_string<Allocator> to_utf8(const Allocator& alloc) &&; // owning strings only
 
 template <typename Allocator = std::allocator<char16_t>>
 constexpr basic_utf16_string<Allocator> to_utf16(const Allocator& alloc = Allocator()) const;
@@ -1156,7 +1159,10 @@ template <typename Allocator = std::allocator<char8_t>>
 constexpr basic_utf8_string<Allocator> case_fold(const Allocator& alloc = Allocator()) const;
 
 template <typename Allocator = std::allocator<char16_t>>
-constexpr basic_utf16_string<Allocator> to_utf16_owned(const Allocator& alloc = Allocator()) const;
+constexpr basic_utf16_string<Allocator> to_utf16(const Allocator& alloc = Allocator()) const&;
+constexpr auto to_utf16() &&;                                       // owning strings only; returns the same owning UTF-16 string type
+template <typename Allocator>
+constexpr basic_utf16_string<Allocator> to_utf16(const Allocator& alloc) &&; // owning strings only
 
 template <typename Allocator = std::allocator<char8_t>>
 constexpr basic_utf8_string<Allocator> to_utf8(const Allocator& alloc = Allocator()) const;
@@ -1191,11 +1197,13 @@ template <typename Allocator = std::allocator<char16_t>>
 constexpr basic_utf16_string<Allocator> case_fold(const Allocator& alloc = Allocator()) const;
 ```
 
-The UTF-32 view surface exposes the same transformation families with `basic_utf32_string` return types, plus the same cross-encoding `to_utf8(...)`, `to_utf16(...)`, and same-encoding `to_utf32_owned(...)` entry points.
+The UTF-32 view surface exposes the same transformation families with `basic_utf32_string` return types, plus the same cross-encoding `to_utf8(...)`, `to_utf16(...)`, and same-encoding `to_utf32(...)` entry points.
 
 ### Behavior
 
 - All transformation members return owning validated strings.
+- Same-encoding `to_utf8()`, `to_utf16()`, and `to_utf32()` materialize ownership. On borrowed views and `const&` owning strings they copy; on owning rvalues without an explicit allocator they move the existing owned buffer.
+- Explicit allocator overloads construct the result with the supplied allocator. They stay allocator-semantics-preserving instead of promising unconditional buffer stealing.
 - Partial case-mapping overloads require both ends of the selected range to be character boundaries.
 - `normalize(...)` is whole-string only.
 - `case_fold()` implements Unicode case folding for caseless matching workflows.

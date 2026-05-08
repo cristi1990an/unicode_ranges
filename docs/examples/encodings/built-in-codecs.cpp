@@ -97,7 +97,7 @@ int main()
 
 	encodings::ascii_lossy lossy{};
 	std::vector<char8_t> lossy_bytes{};
-	u8"Caf\u00E9"_utf8_sv.to_utf8_owned().encode_append_to(lossy_bytes, lossy);
+	u8"Caf\u00E9"_utf8_sv.to_utf8().encode_append_to(lossy_bytes, lossy);
 	if (lossy.replacement_count != 1 || lossy_bytes != std::vector<char8_t>{
 		static_cast<char8_t>('C'),
 		static_cast<char8_t>('a'),

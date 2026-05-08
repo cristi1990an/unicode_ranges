@@ -3012,7 +3012,14 @@ public:
 		requires (!std::same_as<Derived, View>);
 	template <typename Allocator = std::allocator<char8_t>>
 	[[nodiscard]]
-	constexpr basic_utf8_string<Allocator> to_utf8_owned(const Allocator& alloc = Allocator()) const;
+	constexpr basic_utf8_string<Allocator> to_utf8(const Allocator& alloc = Allocator()) const&;
+	[[nodiscard]]
+	constexpr Derived to_utf8() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>);
+	template <typename Allocator>
+	[[nodiscard]]
+	constexpr basic_utf8_string<Allocator> to_utf8(const Allocator& alloc) &&
+		requires (!std::same_as<Derived, View>);
 	template <typename Allocator = std::allocator<char8_t>>
 	[[nodiscard]]
 	constexpr basic_utf8_string<Allocator> to_ascii_lowercase(const Allocator& alloc = Allocator()) const;

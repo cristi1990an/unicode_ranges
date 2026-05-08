@@ -867,6 +867,69 @@ namespace unicode_ranges
 					return write_case_map_utf32_into<Lowercase>(code_points, buffer);
 				});
 		}
+		template <bool Lowercase>
+		constexpr bool case_map_utf32_same_size(std::u32string_view code_points, bool& changed) noexcept
+		{
+			changed = false;
+			for (std::size_t index = 0; index < code_points.size();)
+			{
+				const auto remaining = std::u32string_view{ code_points.data() + index, code_points.size() - index };
+				const auto ascii_run = ascii_prefix_length(remaining);
+				if (ascii_run != 0)
+				{
+					changed = ascii_case_run_changes<Lowercase>(remaining.substr(0, ascii_run)) || changed;
+					index += ascii_run;
+					continue;
+				}
+
+				const auto decoded = decode_next_scalar(code_points, index);
+				if (decoded.scalar <= encoding_constants::bmp_scalar_max)
+				{
+					const auto bmp_mapping = lookup_bmp_case_mapping<Lowercase>(decoded.scalar);
+					if (bmp_mapping.same_size)
+					{
+						changed = changed || (bmp_mapping.mapped != decoded.scalar);
+						index = decoded.next_index;
+						continue;
+					}
+				}
+
+				const auto mapping = lookup_case_mapping<Lowercase>(decoded.scalar);
+				if (mapping.has_special())
+				{
+					if (case_special_mapping_from_index<Lowercase>(mapping.special_index).count != 1u)
+					{
+						return false;
+					}
+
+					changed = true;
+				}
+				else if (mapping.has_simple)
+				{
+					changed = changed || (mapping.simple_mapped != decoded.scalar);
+				}
+
+				index = decoded.next_index;
+			}
+
+			return true;
+		}
+		template <bool Lowercase>
+		constexpr bool case_map_utf32_inplace_if_same_size(std::u32string_view code_points, char32_t* buffer) noexcept
+		{
+			bool changed = false;
+			if (!case_map_utf32_same_size<Lowercase>(code_points, changed))
+			{
+				return false;
+			}
+
+			if (changed)
+			{
+				(void)write_case_map_utf32_into<Lowercase>(code_points, buffer);
+			}
+
+			return true;
+		}
 		template <bool Lowercase, typename Allocator>
 		constexpr basic_utf32_string<Allocator> case_map_utf32_copy(
 			std::u32string_view code_points,
@@ -1027,8 +1090,51 @@ namespace unicode_ranges
 					}
 				}
 				index = decoded.next_index;
-				}
+			}
 				return write_index;
+			}
+			constexpr bool case_fold_utf32_same_size(std::u32string_view code_points, bool& changed) noexcept
+			{
+				changed = false;
+				case_fold_scalar_buffer mapping{};
+				for (std::size_t index = 0; index < code_points.size();)
+				{
+					const auto remaining = std::u32string_view{ code_points.data() + index, code_points.size() - index };
+					const auto ascii_run = ascii_prefix_length(remaining);
+					if (ascii_run != 0)
+					{
+						changed = ascii_case_run_changes<true>(remaining.substr(0, ascii_run)) || changed;
+						index += ascii_run;
+						continue;
+					}
+
+					const auto decoded = decode_next_scalar(code_points, index);
+					mapping.load(decoded.scalar);
+					if (mapping.count != 1u)
+					{
+						return false;
+					}
+
+					changed = changed || (mapping.data[0] != decoded.scalar);
+					index = decoded.next_index;
+				}
+
+				return true;
+			}
+			constexpr bool case_fold_utf32_inplace_if_same_size(std::u32string_view code_points, char32_t* buffer) noexcept
+			{
+				bool changed = false;
+				if (!case_fold_utf32_same_size(code_points, changed))
+				{
+					return false;
+				}
+
+				if (changed)
+				{
+					(void)write_case_fold_utf32_into(code_points, buffer);
+				}
+
+				return true;
 			}
 			template <typename BaseType>
 			constexpr bool try_case_fold_utf32_same_size(
@@ -1381,9 +1487,31 @@ namespace unicode_ranges
 	}
 	template <typename Derived, typename View>
 	template <typename Allocator>
-	constexpr basic_utf32_string<Allocator> utf32_string_crtp<Derived, View>::to_utf32_owned(const Allocator& alloc) const
+	constexpr basic_utf32_string<Allocator> utf32_string_crtp<Derived, View>::to_utf32(const Allocator& alloc) const&
 	{
 		return basic_utf32_string<Allocator>{ View::from_code_points_unchecked(code_unit_view()), alloc };
+	}
+
+	template <typename Derived, typename View>
+	constexpr Derived utf32_string_crtp<Derived, View>::to_utf32() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		return std::move(static_cast<Derived&>(*this));
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf32_string<Allocator> utf32_string_crtp<Derived, View>::to_utf32(const Allocator& alloc) &&
+		requires (!std::same_as<Derived, View>)
+	{
+		if constexpr (std::same_as<Derived, basic_utf32_string<Allocator>>)
+		{
+			return basic_utf32_string<Allocator>{ std::move(static_cast<Derived&>(*this)), alloc };
+		}
+		else
+		{
+			return basic_utf32_string<Allocator>{ View::from_code_points_unchecked(code_unit_view()), alloc };
+		}
 	}
 
 	template <typename Derived, typename View>
@@ -1863,7 +1991,7 @@ namespace unicode_ranges
 	{
 		if (from.empty())
 		{
-			return to_utf32_owned();
+			return to_utf32();
 		}
 
 		if (from.size() == 1)
@@ -1879,7 +2007,7 @@ namespace unicode_ranges
 	{
 		if (from.empty())
 		{
-			return to_utf32_owned();
+			return to_utf32();
 		}
 
 		if (from.size() == 1)
@@ -1896,7 +2024,7 @@ namespace unicode_ranges
 	{
 		if (from.empty())
 		{
-			return to_utf32_owned(alloc);
+			return to_utf32(alloc);
 		}
 
 		if (from.size() == 1)
@@ -1913,7 +2041,7 @@ namespace unicode_ranges
 	{
 		if (from.empty())
 		{
-			return to_utf32_owned(alloc);
+			return to_utf32(alloc);
 		}
 
 		if (from.size() == 1)
@@ -1993,7 +2121,7 @@ namespace unicode_ranges
 	{
 		if (count == 0 || from.empty())
 		{
-			return to_utf32_owned();
+			return to_utf32();
 		}
 
 		if (from.size() == 1)
@@ -2009,7 +2137,7 @@ namespace unicode_ranges
 	{
 		if (count == 0 || from.empty())
 		{
-			return to_utf32_owned();
+			return to_utf32();
 		}
 
 		if (from.size() == 1)
@@ -2026,7 +2154,7 @@ namespace unicode_ranges
 	{
 		if (count == 0 || from.empty())
 		{
-			return to_utf32_owned(alloc);
+			return to_utf32(alloc);
 		}
 
 		if (from.size() == 1)
@@ -2043,7 +2171,7 @@ namespace unicode_ranges
 	{
 		if (count == 0 || from.empty())
 		{
-			return to_utf32_owned(alloc);
+			return to_utf32(alloc);
 		}
 
 		if (from.size() == 1)
@@ -2109,7 +2237,7 @@ namespace unicode_ranges
 	{
 		if (count == 0)
 		{
-			return to_utf32_owned(alloc);
+			return to_utf32(alloc);
 		}
 
 		const auto code_points = code_unit_view();
@@ -2130,7 +2258,7 @@ namespace unicode_ranges
 
 		if (replacements == 0)
 		{
-			return to_utf32_owned(alloc);
+			return to_utf32(alloc);
 		}
 
 		using result_base = typename basic_utf32_string<Allocator>::base_type;
@@ -2352,7 +2480,7 @@ namespace unicode_ranges
 		return append_range(sv.chars());
 	}
 	template <typename Allocator>
-	constexpr basic_utf32_string<Allocator> utf32_char::to_utf32_owned(const Allocator& alloc) const
+	constexpr basic_utf32_string<Allocator> utf32_char::to_utf32(const Allocator& alloc) const
 	{
 		return basic_utf32_string<Allocator>{
 			utf32_string_view::from_code_points_unchecked(details::utf32_char_view(*this)),

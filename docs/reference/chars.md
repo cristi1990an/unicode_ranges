@@ -174,13 +174,13 @@ constexpr operator utf16_char() const noexcept; // utf32_char only
 constexpr operator utf8_char() const noexcept;  // utf32_char only
 
 template <typename Allocator = std::allocator<char8_t>>
-constexpr basic_utf8_string<Allocator> to_utf8_owned(const Allocator& alloc = Allocator()) const;
+constexpr basic_utf8_string<Allocator> to_utf8(const Allocator& alloc = Allocator()) const;
 
 template <typename Allocator = std::allocator<char16_t>>
-constexpr basic_utf16_string<Allocator> to_utf16_owned(const Allocator& alloc = Allocator()) const;
+constexpr basic_utf16_string<Allocator> to_utf16(const Allocator& alloc = Allocator()) const;
 
 template <typename Allocator = std::allocator<char32_t>>
-constexpr basic_utf32_string<Allocator> to_utf32_owned(const Allocator& alloc = Allocator()) const;
+constexpr basic_utf32_string<Allocator> to_utf32(const Allocator& alloc = Allocator()) const;
 
 constexpr std::size_t code_unit_count() const noexcept;
 
@@ -198,7 +198,7 @@ constexpr std::size_t encode_utf32(OutIt out) const noexcept;
 
 - `as_scalar()` returns the Unicode scalar value represented by the object.
 - The conversion operators transcode a single scalar between the UTF-8, UTF-16, and UTF-32 character representations.
-- `to_utf8_owned()`, `to_utf16_owned()`, and `to_utf32_owned()` materialize a one-character owning string in the corresponding encoding.
+- `to_utf8()`, `to_utf16()`, and `to_utf32()` materialize a one-character owning string in the corresponding encoding.
 - `code_unit_count()` returns the number of code units used by the current encoding:
   - UTF-8: `1` to `4`
   - UTF-16: `1` or `2`
