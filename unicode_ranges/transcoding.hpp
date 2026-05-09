@@ -3816,6 +3816,74 @@ namespace unicode_ranges
 	}
 
 	template <typename Derived, typename View>
+	constexpr basic_utf8_string<> utf8_string_crtp<Derived, View>::replace_at(size_type pos, size_type count, utf8_char other) const
+	{
+		return replace_at(pos, count, View::from_bytes_unchecked(details::utf8_char_view(other)));
+	}
+
+	template <typename Derived, typename View>
+	constexpr basic_utf8_string<> utf8_string_crtp<Derived, View>::replace_at(size_type pos, size_type count, View other) const
+	{
+		return replace_at(pos, count, other, std::allocator<char8_t>{});
+	}
+
+	template <typename Derived, typename View>
+	constexpr basic_utf8_string<> utf8_string_crtp<Derived, View>::replace_at(size_type pos, utf8_char other) const
+	{
+		return replace_at(pos, View::from_bytes_unchecked(details::utf8_char_view(other)));
+	}
+
+	template <typename Derived, typename View>
+	constexpr basic_utf8_string<> utf8_string_crtp<Derived, View>::replace_at(size_type pos, View other) const
+	{
+		return replace_at(pos, other, std::allocator<char8_t>{});
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator> utf8_string_crtp<Derived, View>::replace_at(
+		size_type pos,
+		size_type count,
+		utf8_char other,
+		const Allocator& alloc) const
+	{
+		return replace_at(pos, count, View::from_bytes_unchecked(details::utf8_char_view(other)), alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator> utf8_string_crtp<Derived, View>::replace_at(
+		size_type pos,
+		size_type count,
+		View other,
+		const Allocator& alloc) const
+	{
+		auto result = to_utf8(alloc);
+		return std::move(result).replace_at(pos, count, other);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator> utf8_string_crtp<Derived, View>::replace_at(
+		size_type pos,
+		utf8_char other,
+		const Allocator& alloc) const
+	{
+		return replace_at(pos, View::from_bytes_unchecked(details::utf8_char_view(other)), alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator> utf8_string_crtp<Derived, View>::replace_at(
+		size_type pos,
+		View other,
+		const Allocator& alloc) const
+	{
+		auto result = to_utf8(alloc);
+		return std::move(result).replace_at(pos, other);
+	}
+
+	template <typename Derived, typename View>
 	constexpr basic_utf8_string<> utf8_string_crtp<Derived, View>::replace_all(utf8_char from, utf8_char to) const
 	{
 		return replace_all(
@@ -4625,6 +4693,74 @@ namespace unicode_ranges
 		}
 
 		return details::compare_case_folded_utf16(lhs, rhs);
+	}
+
+	template <typename Derived, typename View>
+	constexpr basic_utf16_string<> utf16_string_crtp<Derived, View>::replace_at(size_type pos, size_type count, utf16_char other) const
+	{
+		return replace_at(pos, count, View::from_code_units_unchecked(details::utf16_char_view(other)));
+	}
+
+	template <typename Derived, typename View>
+	constexpr basic_utf16_string<> utf16_string_crtp<Derived, View>::replace_at(size_type pos, size_type count, View other) const
+	{
+		return replace_at(pos, count, other, std::allocator<char16_t>{});
+	}
+
+	template <typename Derived, typename View>
+	constexpr basic_utf16_string<> utf16_string_crtp<Derived, View>::replace_at(size_type pos, utf16_char other) const
+	{
+		return replace_at(pos, View::from_code_units_unchecked(details::utf16_char_view(other)));
+	}
+
+	template <typename Derived, typename View>
+	constexpr basic_utf16_string<> utf16_string_crtp<Derived, View>::replace_at(size_type pos, View other) const
+	{
+		return replace_at(pos, other, std::allocator<char16_t>{});
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::replace_at(
+		size_type pos,
+		size_type count,
+		utf16_char other,
+		const Allocator& alloc) const
+	{
+		return replace_at(pos, count, View::from_code_units_unchecked(details::utf16_char_view(other)), alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::replace_at(
+		size_type pos,
+		size_type count,
+		View other,
+		const Allocator& alloc) const
+	{
+		auto result = to_utf16(alloc);
+		return std::move(result).replace_at(pos, count, other);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::replace_at(
+		size_type pos,
+		utf16_char other,
+		const Allocator& alloc) const
+	{
+		return replace_at(pos, View::from_code_units_unchecked(details::utf16_char_view(other)), alloc);
+	}
+
+	template <typename Derived, typename View>
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator> utf16_string_crtp<Derived, View>::replace_at(
+		size_type pos,
+		View other,
+		const Allocator& alloc) const
+	{
+		auto result = to_utf16(alloc);
+		return std::move(result).replace_at(pos, other);
 	}
 
 	template <typename Derived, typename View>

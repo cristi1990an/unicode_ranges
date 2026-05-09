@@ -46,11 +46,8 @@ This keeps the public surface compact: the method name describes the text operat
 static constexpr std::expected<basic_utf8_string, utf8_error>
 from_bytes(std::string_view bytes, const Allocator& alloc = Allocator());
 
-static constexpr std::expected<basic_utf8_string, utf16_error>
-from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator()); // when sizeof(wchar_t) == 2
-
-static constexpr std::expected<basic_utf8_string, unicode_scalar_error>
-from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator()); // when sizeof(wchar_t) == 4
+static constexpr std::expected<basic_utf8_string, wide_string_error>
+from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator());
 
 static constexpr std::expected<basic_utf8_string, utf8_error>
 from_bytes(base_type&& bytes) noexcept;
@@ -58,11 +55,8 @@ from_bytes(base_type&& bytes) noexcept;
 static constexpr std::expected<basic_utf16_string, utf8_error>
 from_bytes(std::string_view bytes, const Allocator& alloc = Allocator());
 
-static constexpr std::expected<basic_utf16_string, utf16_error>
-from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator()); // when sizeof(wchar_t) == 2
-
-static constexpr std::expected<basic_utf16_string, unicode_scalar_error>
-from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator()); // when sizeof(wchar_t) == 4
+static constexpr std::expected<basic_utf16_string, wide_string_error>
+from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator());
 
 static constexpr std::expected<basic_utf16_string, utf16_error>
 from_bytes(base_type&& bytes) noexcept;
@@ -83,7 +77,7 @@ The table rows below use visible source inputs like `"😄🇷🇴✨"`, `u8"�
 | `from_bytes(std::wstring_view bytes, alloc)` | validate or transcode a wide-character source; the exact validation path depends on `sizeof(wchar_t)` | `auto text = utf16_string::from_bytes(L"😄🇷🇴✨");` |
 | `from_bytes(base_type&& bytes)` | validate a moved-in `std::u8string` or `std::u16string` in place | `auto text = utf8_string::from_bytes(std::u8string{u8"😄🇷🇴✨"});` |
 
-The wide-string overload is convenient when interoperating with platform APIs, but it is the least portable surface because the meaning of `wchar_t` differs across platforms. The UTF-8, UTF-16, and UTF-32 overloads have fixed semantics.
+The wide-string overload is convenient when interoperating with platform APIs, but it is the least portable input surface because the meaning of `wchar_t` differs across platforms. Its public error type is always `wide_string_error`; on UTF-16 `wchar_t` platforms it reports invalid surrogate structure, while on UTF-32 `wchar_t` platforms it reports invalid scalar values. The UTF-8, UTF-16, and UTF-32 overloads have fixed input semantics.
 
 ### Inspiration
 
@@ -91,7 +85,7 @@ These factories play the role that constructors and parser-style helpers often p
 
 ### Return value
 
-Returns [`std::unexpected(...)`](https://en.cppreference.com/w/cpp/utility/expected/unexpected) with the relevant UTF or scalar error type when validation or transcoding fails.
+Returns [`std::unexpected(...)`](https://en.cppreference.com/w/cpp/utility/expected/unexpected) with the relevant UTF error type when validation or transcoding fails. `std::wstring_view` overloads consistently use `wide_string_error` across platforms.
 
 ### Complexity
 
@@ -440,8 +434,8 @@ split_once_result<utf8_string_view> rsplit_once(...) && = delete;
 split_once_result<utf8_string_view> rsplit_once(...) const&& = delete;
 split_once_at_result<utf8_string_view> split_once_at(size_type delim) && = delete;
 split_once_at_result<utf8_string_view> split_once_at(size_type delim) const&& = delete;
-std::pair<utf8_string_view, utf8_string_view> split_once_at_unchecked(size_type delim) && = delete;
-std::pair<utf8_string_view, utf8_string_view> split_once_at_unchecked(size_type delim) const&& = delete;
+split_once_at_unchecked_result<utf8_string_view> split_once_at_unchecked(size_type delim) && = delete;
+split_once_at_unchecked_result<utf8_string_view> split_once_at_unchecked(size_type delim) const&& = delete;
 
 // The UTF-16 and UTF-32 owning string types expose the same receiver-qualified families.
 ```
@@ -921,41 +915,49 @@ May throw allocator or container exceptions.
 
 Not `noexcept`.
 
-## In-Place Replacement
+## Positional Replacement
 
 ### Synopsis
 
 ```cpp
-constexpr basic_utf8_string& replace_inplace(size_type pos, size_type count, utf8_string_view other);
-constexpr basic_utf8_string& replace_inplace(size_type pos, size_type count, utf8_char other);
-constexpr basic_utf8_string& replace_inplace(size_type pos, utf8_string_view other);
-constexpr basic_utf8_string& replace_inplace(size_type pos, utf8_char other);
+constexpr basic_utf8_string replace_at(size_type pos, size_type count, utf8_string_view other) const&;
+constexpr basic_utf8_string replace_at(size_type pos, size_type count, utf8_string_view other) &&;
+constexpr basic_utf8_string replace_at(size_type pos, size_type count, utf8_char other) const&;
+constexpr basic_utf8_string replace_at(size_type pos, size_type count, utf8_char other) &&;
+constexpr basic_utf8_string replace_at(size_type pos, utf8_string_view other) const&;
+constexpr basic_utf8_string replace_at(size_type pos, utf8_string_view other) &&;
+constexpr basic_utf8_string replace_at(size_type pos, utf8_char other) const&;
+constexpr basic_utf8_string replace_at(size_type pos, utf8_char other) &&;
 
-constexpr basic_utf8_string& replace_inplace(size_type pos, size_type count, views::utf8_view rg);
-constexpr basic_utf8_string& replace_inplace(
-    size_type pos,
-    size_type count,
-    views::owning_chars_view<basic_utf8_string>&& rg);
-constexpr basic_utf8_string& replace_inplace(
-    size_type pos,
-    size_type count,
-    views::owning_reversed_chars_view<basic_utf8_string>&& rg);
-constexpr basic_utf8_string& replace_inplace(size_type pos, size_type count, views::utf16_view rg);
-constexpr basic_utf8_string& replace_inplace(size_type pos, size_type count, views::utf32_view rg);
+constexpr basic_utf8_string replace_at(size_type pos, size_type count, views::utf8_view rg) const&;
+constexpr basic_utf8_string replace_at(size_type pos, size_type count, views::utf8_view rg) &&;
+constexpr basic_utf8_string replace_at(size_type pos, size_type count, views::owning_chars_view<basic_utf8_string>&& rg) const&;
+constexpr basic_utf8_string replace_at(size_type pos, size_type count, views::owning_chars_view<basic_utf8_string>&& rg) &&;
+constexpr basic_utf8_string replace_at(size_type pos, size_type count, views::owning_reversed_chars_view<basic_utf8_string>&& rg) const&;
+constexpr basic_utf8_string replace_at(size_type pos, size_type count, views::owning_reversed_chars_view<basic_utf8_string>&& rg) &&;
+constexpr basic_utf8_string replace_at(size_type pos, size_type count, views::utf16_view rg) const&;
+constexpr basic_utf8_string replace_at(size_type pos, size_type count, views::utf16_view rg) &&;
+constexpr basic_utf8_string replace_at(size_type pos, size_type count, views::utf32_view rg) const&;
+constexpr basic_utf8_string replace_at(size_type pos, size_type count, views::utf32_view rg) &&;
 template <details::container_compatible_range<utf8_char> R>
-constexpr basic_utf8_string& replace_inplace(size_type pos, size_type count, R&& rg);
+constexpr basic_utf8_string replace_at(size_type pos, size_type count, R&& rg) const&;
+template <details::container_compatible_range<utf8_char> R>
+constexpr basic_utf8_string replace_at(size_type pos, size_type count, R&& rg) &&;
 
-constexpr basic_utf8_string& replace_inplace(size_type pos, views::utf8_view rg);
-constexpr basic_utf8_string& replace_inplace(
-    size_type pos,
-    views::owning_chars_view<basic_utf8_string>&& rg);
-constexpr basic_utf8_string& replace_inplace(
-    size_type pos,
-    views::owning_reversed_chars_view<basic_utf8_string>&& rg);
-constexpr basic_utf8_string& replace_inplace(size_type pos, views::utf16_view rg);
-constexpr basic_utf8_string& replace_inplace(size_type pos, views::utf32_view rg);
+constexpr basic_utf8_string replace_at(size_type pos, views::utf8_view rg) const&;
+constexpr basic_utf8_string replace_at(size_type pos, views::utf8_view rg) &&;
+constexpr basic_utf8_string replace_at(size_type pos, views::owning_chars_view<basic_utf8_string>&& rg) const&;
+constexpr basic_utf8_string replace_at(size_type pos, views::owning_chars_view<basic_utf8_string>&& rg) &&;
+constexpr basic_utf8_string replace_at(size_type pos, views::owning_reversed_chars_view<basic_utf8_string>&& rg) const&;
+constexpr basic_utf8_string replace_at(size_type pos, views::owning_reversed_chars_view<basic_utf8_string>&& rg) &&;
+constexpr basic_utf8_string replace_at(size_type pos, views::utf16_view rg) const&;
+constexpr basic_utf8_string replace_at(size_type pos, views::utf16_view rg) &&;
+constexpr basic_utf8_string replace_at(size_type pos, views::utf32_view rg) const&;
+constexpr basic_utf8_string replace_at(size_type pos, views::utf32_view rg) &&;
 template <details::container_compatible_range<utf8_char> R>
-constexpr basic_utf8_string& replace_inplace(size_type pos, R&& rg);
+constexpr basic_utf8_string replace_at(size_type pos, R&& rg) const&;
+template <details::container_compatible_range<utf8_char> R>
+constexpr basic_utf8_string replace_at(size_type pos, R&& rg) &&;
 
 // The UTF-16 and UTF-32 types expose the same families with their corresponding view, character, and helper-view types.
 ```
@@ -964,23 +966,25 @@ constexpr basic_utf8_string& replace_inplace(size_type pos, R&& rg);
 
 - Count-based overloads replace a validated substring `[pos, pos + count)` after clamping `count` to the remaining length.
 - Single-position overloads replace the one validated character that starts at `pos`.
-- There is one positional replacement family: `replace_inplace`. The source argument selects whether the replacement is a string view, one character, a validated character range, or a cross-encoding helper view.
+- There is one positional replacement family: `replace_at`. The source argument selects whether the replacement is a string view, one character, a validated character range, or a cross-encoding helper view.
+- `const&` overloads leave the source string unchanged and return a modified copy.
+- `&&` overloads consume the source string and try to reuse its existing buffer when that is profitable.
 
 ### Overload differences
 
-The examples below use `utf8_string text = "wow 😄✨"_utf8_s;`.
+The examples below use `utf8_string text = u8"wow \U0001F604\u2728"_utf8_s;`.
 
 | Overload | Meaning | Example |
 | --- | --- | --- |
-| `replace_inplace(pos, count, View other)` | replace one boundary-aligned validated substring with another | `text.replace_inplace(0, 3, "hey"_utf8_sv);` |
-| `replace_inplace(pos, count, Char other)` | replace one boundary-aligned validated substring with one character | `text.replace_inplace(4, 4, "🔥"_u8c);` |
-| `replace_inplace(pos, View other)` | replace the single validated character starting at `pos` with a substring | `text.replace_inplace(4, "🎉"_utf8_sv);` |
-| `replace_inplace(pos, Char other)` | replace the single validated character starting at `pos` with one character | `text.replace_inplace(4, "🔥"_u8c);` |
-| `replace_inplace(pos, count, views::utf8_view rg)` | replace a boundary-aligned substring with same-encoding validated characters | `text.replace_inplace(4, 4, "🎉✨"_utf8_sv.chars());` |
-| `replace_inplace(pos, count, views::utf16_view rg)` | replace a boundary-aligned substring with cross-encoding validated characters | `text.replace_inplace(4, 4, u"🎉✨"_utf16_sv.chars());` |
-| `replace_inplace(pos, count, views::utf32_view rg)` | replace a boundary-aligned substring with cross-encoding validated characters | `text.replace_inplace(4, 4, U"🎉✨"_utf32_sv.chars());` |
-| `replace_inplace(pos, count, R&& rg)` | replace a boundary-aligned substring with a generic validated-character range | `text.replace_inplace(4, 4, std::array{"🎉"_u8c, "✨"_u8c});` |
-| `replace_inplace(pos, rg)` | replace the single validated character at `pos` with validated characters | `text.replace_inplace(4, "🎉"_utf8_sv.chars());` |
+| `replace_at(pos, count, View other)` | replace one boundary-aligned validated substring with another | `auto copy = text.replace_at(0, 3, "hey"_utf8_sv);` |
+| `replace_at(pos, count, Char other)` | replace one boundary-aligned validated substring with one character | `auto copy = text.replace_at(4, 4, u8"\U0001F525"_u8c);` |
+| `replace_at(pos, View other)` | replace the single validated character starting at `pos` with a substring | `auto copy = text.replace_at(4, u8"\U0001F389"_utf8_sv);` |
+| `replace_at(pos, Char other)` | replace the single validated character starting at `pos` with one character | `auto copy = text.replace_at(4, u8"\U0001F525"_u8c);` |
+| `replace_at(pos, count, views::utf8_view rg)` | replace a boundary-aligned substring with same-encoding validated characters | `text = std::move(text).replace_at(4, 4, u8"\U0001F389\u2728"_utf8_sv.chars());` |
+| `replace_at(pos, count, views::utf16_view rg)` | replace a boundary-aligned substring with cross-encoding validated characters | `text = std::move(text).replace_at(4, 4, u"\U0001F389\u2728"_utf16_sv.chars());` |
+| `replace_at(pos, count, views::utf32_view rg)` | replace a boundary-aligned substring with cross-encoding validated characters | `text = std::move(text).replace_at(4, 4, U"\U0001F389\u2728"_utf32_sv.chars());` |
+| `replace_at(pos, count, R&& rg)` | replace a boundary-aligned substring with a generic validated-character range | `text = std::move(text).replace_at(4, 4, std::array{u8"\U0001F389"_u8c, u8"\u2728"_u8c});` |
+| `replace_at(pos, rg)` | replace the single validated character at `pos` with validated characters | `text = std::move(text).replace_at(4, u8"\U0001F389"_utf8_sv.chars());` |
 
 The range overloads are special because the replacement is driven by validated characters, not by raw code units. Cross-encoding helper views let the caller describe the replacement in the other encoding.
 
@@ -988,11 +992,11 @@ Rvalue owning same-encoding views, such as `std::move(other).chars()` and `std::
 
 ### Inspiration
 
-This family is closest in spirit to the in-place [`std::basic_string::replace`](https://en.cppreference.com/w/cpp/string/basic_string/replace.html) overload set, but extended with character-range replacement and cross-encoding range sources.
+This family is closest in spirit to the positional [`std::basic_string::replace`](https://en.cppreference.com/w/cpp/string/basic_string/replace.html) overload set, but it follows the library's rvalue-aware API pattern and extends the source choices with character-range replacement and cross-encoding range sources.
 
 ### Return value
 
-Returns `*this`.
+Returns the replaced owning string.
 
 ### Complexity
 
@@ -1000,6 +1004,8 @@ Linear in the replaced span plus the size of the replacement range.
 
 ### Safety And Performance Notes
 
+- Rvalue-aware `&&` overloads may reuse the moved-from string's existing buffer; they do not promise allocation-free execution.
+- After an `&&` call, the original object is valid but in an unspecified state.
 - Same-encoding `chars()` and rvalue `reversed_chars()` view overloads can use direct materialization paths.
 - Rvalue owning same-encoding views may reuse owned storage where the replacement shape allows it.
 - Cross-encoding helper-view overloads can write converted code units directly into the destination storage when capacity allows.

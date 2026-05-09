@@ -4804,26 +4804,46 @@ public:
 		UTF8_RANGES_DELETE("split_once_at on a temporary owning string would return dangling views; bind the string or call on a string_view");
 
 	[[nodiscard]]
-	constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) const& noexcept
+	constexpr split_once_at_unchecked_result<View> split_once_at_unchecked(size_type delim) const& noexcept
 	{
 		UTF8_RANGES_DEBUG_ASSERT(is_char_boundary(delim));
 
 		const auto code_units = code_unit_view();
-		return {
+		return split_once_at_unchecked_result<View>::success(
 			View::from_code_units_unchecked(code_units.substr(0, delim)),
-			View::from_code_units_unchecked(code_units.substr(delim))
-		};
+			View::from_code_units_unchecked(code_units.substr(delim)));
 	}
 
 	[[nodiscard]]
-	constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) && noexcept
+	constexpr split_once_at_unchecked_result<View> split_once_at_unchecked(size_type delim) && noexcept
 		requires (!std::same_as<Derived, View>)
 		UTF8_RANGES_DELETE("split_once_at_unchecked on a temporary owning string would return dangling views; bind the string or call on a string_view");
 
 	[[nodiscard]]
-	constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) const&& noexcept
+	constexpr split_once_at_unchecked_result<View> split_once_at_unchecked(size_type delim) const&& noexcept
 		requires (!std::same_as<Derived, View>)
 		UTF8_RANGES_DELETE("split_once_at_unchecked on a temporary owning string would return dangling views; bind the string or call on a string_view");
+
+	[[nodiscard]] constexpr basic_utf16_string<> replace_at(size_type pos, size_type count, utf16_char other) const;
+	[[nodiscard]] constexpr basic_utf16_string<> replace_at(size_type pos, size_type count, View other) const;
+	[[nodiscard]] constexpr basic_utf16_string<> replace_at(size_type pos, utf16_char other) const;
+	[[nodiscard]] constexpr basic_utf16_string<> replace_at(size_type pos, View other) const;
+
+	template <typename Allocator>
+	[[nodiscard]]
+	constexpr basic_utf16_string<Allocator> replace_at(size_type pos, size_type count, utf16_char other, const Allocator& alloc) const;
+
+	template <typename Allocator>
+	[[nodiscard]]
+	constexpr basic_utf16_string<Allocator> replace_at(size_type pos, size_type count, View other, const Allocator& alloc) const;
+
+	template <typename Allocator>
+	[[nodiscard]]
+	constexpr basic_utf16_string<Allocator> replace_at(size_type pos, utf16_char other, const Allocator& alloc) const;
+
+	template <typename Allocator>
+	[[nodiscard]]
+	constexpr basic_utf16_string<Allocator> replace_at(size_type pos, View other, const Allocator& alloc) const;
 
 	[[nodiscard]] constexpr basic_utf16_string<> replace_all(utf16_char from, utf16_char to) const;
 	[[nodiscard]] constexpr basic_utf16_string<> replace_all(utf16_char from, View to) const;

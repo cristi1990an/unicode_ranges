@@ -901,9 +901,9 @@ constexpr split_once_result<View> rsplit_once(Args&&...) const&& = delete; // ow
 constexpr split_once_at_result<View> split_once_at(size_type delim) const& noexcept;
 constexpr split_once_at_result<View> split_once_at(size_type delim) && = delete;      // owning strings only
 constexpr split_once_at_result<View> split_once_at(size_type delim) const&& = delete; // owning strings only
-constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) const& noexcept;
-constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) && = delete;      // owning strings only
-constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) const&& = delete; // owning strings only
+constexpr split_once_at_unchecked_result<View> split_once_at_unchecked(size_type delim) const& noexcept;
+constexpr split_once_at_unchecked_result<View> split_once_at_unchecked(size_type delim) && = delete;      // owning strings only
+constexpr split_once_at_unchecked_result<View> split_once_at_unchecked(size_type delim) const&& = delete; // owning strings only
 ```
 
 ### Behavior
@@ -915,11 +915,11 @@ constexpr std::pair<View, View> split_once_at_unchecked(size_type delim) const&&
 - On owning strings, rvalue-qualified match views are move-only owning views that keep the source string alive.
 - `split_once` and `rsplit_once` split around the first or last match.
 - `split_once_at` validates that `delim` is a character boundary.
-- `split_once_at_unchecked` assumes the supplied offset is already valid.
+- `split_once_at_unchecked` assumes the supplied offset is already a valid boundary; violating that precondition is undefined behavior.
 - The range-returning members in this section are lazy `std::ranges::view_interface`-based views. Owning-string receivers and temporary delimiter-set ranges may make the returned view non-borrowed.
 - One-shot split APIs return pair-like result objects with `left()` and `right()` borrowed subviews. On owning strings, their `&&` and `const&&` overloads are deleted so a temporary owning string cannot produce dangling result elements.
-- `split_once_result<View>` and `split_once_at_result<View>` provide `operator bool`, `has_value()`, tuple-like access for structured bindings, and range iteration.
-- These result types model sized contiguous views. A successful result has range size 2; a failed result has range size 0.
+- `split_once_result<View>`, `split_once_at_result<View>`, and `split_once_at_unchecked_result<View>` provide `operator bool`, `has_value()`, tuple-like access for structured bindings, and range iteration.
+- These result types model sized contiguous views. A successful checked result has range size 2; a failed checked result has range size 0. An unchecked result always has range size 2 and `has_value() == true`.
 - Iterating a successful one-shot split result yields exactly two views: the left side, then the right side. Iterating a failed result yields no elements.
 - In C++26-or-newer compiler modes that define `__cpp_deleted_function`, these deleted overloads include a diagnostic reason; otherwise they compile as ordinary deleted overloads.
 
@@ -944,7 +944,7 @@ auto marks = text.match_indices(std::array{ "="_u8c, "âœ¨"_u8c });
 
 Temporary non-view ranges, including `std::array{...}` delimiter sets, are owned by the returned view. Lvalue ranges are referenced using normal range lifetime rules, and raw `std::initializer_list` delimiter sets are intentionally unsupported.
 
-For one-shot split APIs, bind the owning string first or call through a view when the source storage is known to outlive the result. The same compiled example also shows the ownership-preserving trim and substring overloads:
+For one-shot split APIs, bind the owning string first or call through a view when the source storage is known to outlive the result. The same compiled example also shows the rvalue-aware trim and strip overloads:
 
 ```cpp
 --8<-- "examples/text-operations/ref-qualified-ownership.cpp"
@@ -969,6 +969,7 @@ C++26 structured binding conditions can destructure directly in the condition on
 - Match APIs return lazy ranges.
 - `split_once` and `rsplit_once` return a false `split_once_result<View>` when no match exists. In that case, `left()` and `right()` both view the full input.
 - `split_once_at` returns a false `split_once_at_result<View>` when `delim` is not a character boundary. In that case, `left()` and `right()` both view the full input.
+- `split_once_at_unchecked` returns a true `split_once_at_unchecked_result<View>` and performs the split without validation.
 
 ### Complexity
 
@@ -1359,6 +1360,11 @@ The UTF-32 view type exposes the same ICU-gated locale-aware comparison overload
 ### Synopsis
 
 ```cpp
+constexpr basic_utf8_string<> replace_at(size_type pos, size_type count, utf8_char other) const;
+constexpr basic_utf8_string<> replace_at(size_type pos, size_type count, utf8_string_view other) const;
+constexpr basic_utf8_string<> replace_at(size_type pos, utf8_char other) const;
+constexpr basic_utf8_string<> replace_at(size_type pos, utf8_string_view other) const;
+
 constexpr basic_utf8_string<> replace_all(utf8_char from, utf8_char to) const;
 constexpr basic_utf8_string<> replace_all(utf8_char from, utf8_string_view to) const;
 constexpr basic_utf8_string<> replace_all(utf8_string_view from, utf8_char to) const;
@@ -1389,6 +1395,7 @@ The UTF-16 and UTF-32 view surfaces expose the same overload families with `utf1
 ### Behavior
 
 - Character and view overloads replace exact validated characters or exact validated substrings.
+- `replace_at` replaces a validated substring at one byte/code-unit/code-point position and returns an owning string.
 - Span overloads treat the span as a character set.
 - Predicate overloads replace every character for which the predicate returns `true`.
 - `replace_n` stops after at most `count` replacements.
@@ -1399,6 +1406,8 @@ The examples below use `const auto text = "😄🇷🇴✨"_utf8_sv;`.
 
 | Overload | Meaning | Example |
 | --- | --- | --- |
+| `replace_at(pos, count, View to)` | replace one boundary-aligned substring by position | `text.replace_at(0, 4, "wow"_utf8_sv)` |
+| `replace_at(pos, Char to)` | replace the single character starting at `pos` | `text.replace_at(0, u8"!"_u8c)` |
 | `replace_all(Char from, Char to)` | replace an exact character everywhere | `text.replace_all("✨"_u8c, "🔥"_u8c)` |
 | `replace_all(View from, View to)` | replace an exact validated substring everywhere | `text.replace_all("🇷🇴"_utf8_sv, "🎉"_utf8_sv)` |
 | `replace_all(std::span<const Char> from, Char to)` | replace every character that belongs to a set | `text.replace_all(std::array{"😄"_u8c, "✨"_u8c}, "🎉"_u8c)` |
@@ -1422,7 +1431,7 @@ Linear in the source length plus the size of the produced output.
 
 ### Exceptions
 
-May throw allocator or container exceptions.
+`replace_at` throws [`std::out_of_range`](https://en.cppreference.com/w/cpp/error/out_of_range) when `pos` is out of range or the affected range is not a valid UTF substring. All replacement families may throw allocator or container exceptions.
 
 ### `noexcept`
 

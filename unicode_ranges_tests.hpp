@@ -2166,17 +2166,26 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 	static_assert(std::same_as<
 		decltype(utf8_text.split_once_at(1)),
 		split_once_at_result<utf8_string_view>>);
+	static_assert(std::same_as<
+		decltype(utf8_text.split_once_at_unchecked(1)),
+		split_once_at_unchecked_result<utf8_string_view>>);
 	static_assert(std::ranges::view<split_once_result<utf8_string_view>>);
 	static_assert(std::ranges::view<split_once_at_result<utf8_string_view>>);
+	static_assert(std::ranges::view<split_once_at_unchecked_result<utf8_string_view>>);
 	static_assert(std::ranges::sized_range<split_once_result<utf8_string_view>>);
 	static_assert(std::ranges::sized_range<split_once_at_result<utf8_string_view>>);
+	static_assert(std::ranges::sized_range<split_once_at_unchecked_result<utf8_string_view>>);
 	static_assert(std::ranges::contiguous_range<split_once_result<utf8_string_view>>);
 	static_assert(std::ranges::contiguous_range<split_once_at_result<utf8_string_view>>);
+	static_assert(std::ranges::contiguous_range<split_once_at_unchecked_result<utf8_string_view>>);
 	static_assert(std::same_as<
 		std::ranges::range_reference_t<split_once_result<utf8_string_view>>,
 		const utf8_string_view&>);
 	static_assert(std::same_as<
 		std::ranges::range_reference_t<split_once_at_result<utf8_string_view>>,
+		const utf8_string_view&>);
+	static_assert(std::same_as<
+		std::ranges::range_reference_t<split_once_at_unchecked_result<utf8_string_view>>,
 		const utf8_string_view&>);
 	static_assert(std::ranges::view<decltype(utf8_text.graphemes())>);
 	static_assert(std::ranges::range<decltype(utf8_text.graphemes())>);
@@ -3056,7 +3065,13 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 	static_assert([] {
 		constexpr auto text = u8"A\u00E9\u20AC"_utf8_sv;
 		const auto parts = text.split_once_at_unchecked(1);
-		return parts.first == u8"A"_utf8_sv && parts.second == u8"\u00E9\u20AC"_utf8_sv;
+		constexpr std::array expected{ u8"A"_utf8_sv, u8"\u00E9\u20AC"_utf8_sv };
+		return parts
+			&& parts.has_value()
+			&& parts.left() == u8"A"_utf8_sv
+			&& parts.right() == u8"\u00E9\u20AC"_utf8_sv
+			&& std::ranges::equal(parts, expected)
+			&& std::ranges::size(parts) == 2;
 	}());
 	static_assert([] {
 		constexpr auto text = u8"e\u0301🇷🇴!"_utf8_sv;
@@ -3549,7 +3564,13 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 	static_assert([] {
 		constexpr auto text = u"A\u00E9\U0001F600"_utf16_sv;
 		const auto parts = text.split_once_at_unchecked(1);
-		return parts.first == u"A"_utf16_sv && parts.second == u"\u00E9\U0001F600"_utf16_sv;
+		constexpr std::array expected{ u"A"_utf16_sv, u"\u00E9\U0001F600"_utf16_sv };
+		return parts
+			&& parts.has_value()
+			&& parts.left() == u"A"_utf16_sv
+			&& parts.right() == u"\u00E9\U0001F600"_utf16_sv
+			&& std::ranges::equal(parts, expected)
+			&& std::ranges::size(parts) == 2;
 	}());
 	static_assert([] {
 		constexpr auto text = u"e\u0301🇷🇴!"_utf16_sv;
@@ -4057,25 +4078,25 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		{
 			auto source = u8"pere"_utf8_sv.to_utf8();
 			auto replaced = u8"Ana are mere"_utf8_s;
-			replaced.replace_inplace(8, 4, std::move(source).chars());
+			replaced = std::move(replaced).replace_at(8, 4, std::move(source).chars());
 			UTF8_RANGES_TEST_ASSERT(replaced == u8"Ana are pere"_utf8_sv);
 		}
 		{
 			auto source = u8"mere"_utf8_sv.to_utf8();
 			auto replaced = u8"Ana are xxxx"_utf8_s;
-			replaced.replace_inplace(8, 4, std::move(source).reversed_chars());
+			replaced = std::move(replaced).replace_at(8, 4, std::move(source).reversed_chars());
 			UTF8_RANGES_TEST_ASSERT(replaced == u8"Ana are erem"_utf8_sv);
 		}
 		{
 			auto source = u8"yz"_utf8_sv.to_utf8();
 			auto replaced = u8"aXb"_utf8_s;
-			replaced.replace_inplace(1, std::move(source).chars());
+			replaced = std::move(replaced).replace_at(1, std::move(source).chars());
 			UTF8_RANGES_TEST_ASSERT(replaced == u8"ayzb"_utf8_sv);
 		}
 		{
 			auto source = u8"yz"_utf8_sv.to_utf8();
 			auto replaced = u8"aXb"_utf8_s;
-			replaced.replace_inplace(1, std::move(source).reversed_chars());
+			replaced = std::move(replaced).replace_at(1, std::move(source).reversed_chars());
 			UTF8_RANGES_TEST_ASSERT(replaced == u8"azyb"_utf8_sv);
 		}
 		{
@@ -4299,25 +4320,25 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		{
 			auto source = u"pere"_utf16_sv.to_utf16();
 			auto replaced = u"Ana are mere"_utf16_s;
-			replaced.replace_inplace(8, 4, std::move(source).chars());
+			replaced = std::move(replaced).replace_at(8, 4, std::move(source).chars());
 			UTF8_RANGES_TEST_ASSERT(replaced == u"Ana are pere"_utf16_sv);
 		}
 		{
 			auto source = u"mere"_utf16_sv.to_utf16();
 			auto replaced = u"Ana are xxxx"_utf16_s;
-			replaced.replace_inplace(8, 4, std::move(source).reversed_chars());
+			replaced = std::move(replaced).replace_at(8, 4, std::move(source).reversed_chars());
 			UTF8_RANGES_TEST_ASSERT(replaced == u"Ana are erem"_utf16_sv);
 		}
 		{
 			auto source = u"yz"_utf16_sv.to_utf16();
 			auto replaced = u"aXb"_utf16_s;
-			replaced.replace_inplace(1, std::move(source).chars());
+			replaced = std::move(replaced).replace_at(1, std::move(source).chars());
 			UTF8_RANGES_TEST_ASSERT(replaced == u"ayzb"_utf16_sv);
 		}
 		{
 			auto source = u"yz"_utf16_sv.to_utf16();
 			auto replaced = u"aXb"_utf16_s;
-			replaced.replace_inplace(1, std::move(source).reversed_chars());
+			replaced = std::move(replaced).replace_at(1, std::move(source).reversed_chars());
 			UTF8_RANGES_TEST_ASSERT(replaced == u"azyb"_utf16_sv);
 		}
 		{
@@ -4475,25 +4496,25 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		{
 			auto source = U"pere"_utf32_sv.to_utf32();
 			auto replaced = U"Ana are mere"_utf32_s;
-			replaced.replace_inplace(8, 4, std::move(source).chars());
+			replaced = std::move(replaced).replace_at(8, 4, std::move(source).chars());
 			UTF8_RANGES_TEST_ASSERT(replaced == U"Ana are pere"_utf32_sv);
 		}
 		{
 			auto source = U"mere"_utf32_sv.to_utf32();
 			auto replaced = U"Ana are xxxx"_utf32_s;
-			replaced.replace_inplace(8, 4, std::move(source).reversed_chars());
+			replaced = std::move(replaced).replace_at(8, 4, std::move(source).reversed_chars());
 			UTF8_RANGES_TEST_ASSERT(replaced == U"Ana are erem"_utf32_sv);
 		}
 		{
 			auto source = U"yz"_utf32_sv.to_utf32();
 			auto replaced = U"aXb"_utf32_s;
-			replaced.replace_inplace(1, std::move(source).chars());
+			replaced = std::move(replaced).replace_at(1, std::move(source).chars());
 			UTF8_RANGES_TEST_ASSERT(replaced == U"ayzb"_utf32_sv);
 		}
 		{
 			auto source = U"yz"_utf32_sv.to_utf32();
 			auto replaced = U"aXb"_utf32_s;
-			replaced.replace_inplace(1, std::move(source).reversed_chars());
+			replaced = std::move(replaced).replace_at(1, std::move(source).reversed_chars());
 			UTF8_RANGES_TEST_ASSERT(replaced == U"azyb"_utf32_sv);
 		}
 		{
@@ -5595,8 +5616,10 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			UTF8_RANGES_TEST_ASSERT(split.right() == u8"\u00E9\u20AC"_utf8_sv);
 			UTF8_RANGES_TEST_ASSERT(!text.split_once_at(2).has_value());
 			[[maybe_unused]] const auto unchecked = text.split_once_at_unchecked(1);
-			UTF8_RANGES_TEST_ASSERT(unchecked.first == u8"A"_utf8_sv);
-			UTF8_RANGES_TEST_ASSERT(unchecked.second == u8"\u00E9\u20AC"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(unchecked.has_value());
+			UTF8_RANGES_TEST_ASSERT(unchecked.left() == u8"A"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(unchecked.right() == u8"\u00E9\u20AC"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(std::ranges::size(unchecked) == 2);
 		}
 		{
 			const std::u8string text_storage = u8"e\u0301\U0001F1F7\U0001F1F4!";
@@ -6895,8 +6918,10 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			UTF8_RANGES_TEST_ASSERT(split.right() == u"\u00E9\U0001F600"_utf16_sv);
 			UTF8_RANGES_TEST_ASSERT(!text.split_once_at(3).has_value());
 			[[maybe_unused]] const auto unchecked = text.split_once_at_unchecked(1);
-			UTF8_RANGES_TEST_ASSERT(unchecked.first == u"A"_utf16_sv);
-			UTF8_RANGES_TEST_ASSERT(unchecked.second == u"\u00E9\U0001F600"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(unchecked.has_value());
+			UTF8_RANGES_TEST_ASSERT(unchecked.left() == u"A"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(unchecked.right() == u"\u00E9\U0001F600"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(std::ranges::size(unchecked) == 2);
 		}
 		{
 			const std::u16string text_storage = u"e\u0301\U0001F1F7\U0001F1F4!";
@@ -7336,6 +7361,9 @@ static_assert(std::same_as<decltype(utf8_string{}.copy(static_cast<char8_t*>(nul
 static_assert(std::same_as<decltype(utf8_string{}.pop_back()), std::optional<utf8_char>>);
 static_assert(std::same_as<decltype(utf8_string{}.reverse()), utf8_string&>);
 static_assert(std::same_as<decltype(utf8_string{}.reverse_graphemes()), utf8_string&>);
+static_assert(std::same_as<decltype(utf8_string::from_bytes(std::wstring_view{})), std::expected<utf8_string, wide_string_error>>);
+static_assert(std::same_as<decltype(utf16_string::from_bytes(std::wstring_view{})), std::expected<utf16_string, wide_string_error>>);
+static_assert(std::same_as<decltype(utf32_string::from_bytes(std::wstring_view{})), std::expected<utf32_string, wide_string_error>>);
 static_assert(noexcept(utf8_string{}.reverse()));
 static_assert(noexcept(utf8_string{}.reverse_graphemes()));
 #if UTF8_RANGES_ENABLE_CONSTEXPR_STRINGS
@@ -7384,6 +7412,20 @@ static_assert([] {
 		const auto result = utf8_string::from_bytes(std::wstring_view{ L"Aé😀" });
 		UTF8_RANGES_TEST_ASSERT(result.has_value());
 		UTF8_RANGES_TEST_ASSERT(result.value() == u8"Aé😀"_utf8_sv);
+	}
+	{
+		const std::wstring invalid(1, static_cast<wchar_t>(0xD800u));
+		const auto result = utf8_string::from_bytes(std::wstring_view{ invalid });
+		UTF8_RANGES_TEST_ASSERT(!result.has_value());
+		if constexpr (sizeof(wchar_t) == 2)
+		{
+			UTF8_RANGES_TEST_ASSERT(result.error().code == wide_string_error_code::truncated_surrogate_pair);
+		}
+		else
+		{
+			UTF8_RANGES_TEST_ASSERT(result.error().code == wide_string_error_code::invalid_scalar);
+		}
+		UTF8_RANGES_TEST_ASSERT(result.error().first_invalid_element_index == 0);
 	}
 	UTF8_RANGES_TEST_ASSERT(utf8_string{ u8"Aé😀"_utf8_sv }.to_utf16() == u"Aé😀"_utf16_sv);
 	UTF8_RANGES_TEST_ASSERT(utf8_string{ u8"Aé😀"_utf8_sv }.to_utf8() == u8"Aé😀"_utf8_sv);
@@ -7527,28 +7569,28 @@ static_assert([] {
 	}
 	{
 		auto s = u8"Aé"_utf8_s;
-		s.replace_inplace(0, 1, s.as_view());
+		s = std::move(s).replace_at(0, 1, s.as_view());
 		UTF8_RANGES_TEST_ASSERT(s == u8"Aéé"_utf8_sv);
 	}
 	{
 		auto s = u8"Aé"_utf8_s;
-		s.replace_inplace(0, s.as_view());
+		s = std::move(s).replace_at(0, s.as_view());
 		UTF8_RANGES_TEST_ASSERT(s == u8"Aéé"_utf8_sv);
 	}
 	{
 		auto s = u8"Aé"_utf8_s;
-		s.replace_inplace(0, 1, s.chars());
+		s = std::move(s).replace_at(0, 1, s.chars());
 		UTF8_RANGES_TEST_ASSERT(s == u8"Aéé"_utf8_sv);
 	}
 	{
 		auto s = u8"Aé"_utf8_s;
-		s.replace_inplace(0, s.chars());
+		s = std::move(s).replace_at(0, s.chars());
 		UTF8_RANGES_TEST_ASSERT(s == u8"Aéé"_utf8_sv);
 	}
 	{
 		auto s = u8"A\u00E9"_utf8_s;
 		auto suffix_chars = s.chars() | std::views::drop(1);
-		s.replace_inplace(0, suffix_chars);
+		s = std::move(s).replace_at(0, suffix_chars);
 		UTF8_RANGES_TEST_ASSERT(s == u8"\u00E9\u00E9"_utf8_sv);
 	}
 	{
@@ -7587,24 +7629,24 @@ static_assert([] {
 	}
 	{
 		auto s = u8"A!"_utf8_s;
-		s.replace_inplace(1, 1, u"\u00E9\U0001F600"_utf16_sv.chars());
+		s = std::move(s).replace_at(1, 1, u"\u00E9\U0001F600"_utf16_sv.chars());
 		UTF8_RANGES_TEST_ASSERT(s == u8"A\u00E9\U0001F600"_utf8_sv);
 	}
 	{
 		auto s = u8"A!"_utf8_s;
-		s.replace_inplace(1, 1, U"\u00E9\U0001F600"_utf32_sv.chars());
+		s = std::move(s).replace_at(1, 1, U"\u00E9\U0001F600"_utf32_sv.chars());
 		UTF8_RANGES_TEST_ASSERT(s == u8"A\u00E9\U0001F600"_utf8_sv);
 	}
 	{
 		auto s = u8"A!"_utf8_s;
-		s.replace_inplace(1, U"\u00E9\U0001F600"_utf32_sv.chars());
+		s = std::move(s).replace_at(1, U"\u00E9\U0001F600"_utf32_sv.chars());
 		UTF8_RANGES_TEST_ASSERT(s == u8"A\u00E9\U0001F600"_utf8_sv);
 	}
 	{
 		auto s = u8"A!"_utf8_s;
 		s.reserve(64);
 		const auto* original = s.base().data();
-		s.replace_inplace(1, 1, std::array{ u8"\u00E9"_u8c, u8"\U0001F600"_u8c });
+		s = std::move(s).replace_at(1, 1, std::array{ u8"\u00E9"_u8c, u8"\U0001F600"_u8c });
 		UTF8_RANGES_TEST_ASSERT(s == u8"A\u00E9\U0001F600"_utf8_sv);
 		UTF8_RANGES_TEST_ASSERT(s.base().data() == original);
 	}
@@ -7621,9 +7663,8 @@ static_assert([] {
 		UTF8_RANGES_TEST_ASSERT(resource.allocations == 0);
 
 		resource.reset_counts();
-		s.replace_inplace(1, 6, std::array{ u8"\u00E9"_u8c, u8"\U0001F600"_u8c });
-		UTF8_RANGES_TEST_ASSERT(s == u8"A\u00E9\U0001F600!"_utf8_sv);
-		UTF8_RANGES_TEST_ASSERT(resource.allocations == 0);
+		[[maybe_unused]] auto replaced = std::move(s).replace_at(1, 6, std::array{ u8"\u00E9"_u8c, u8"\U0001F600"_u8c });
+		UTF8_RANGES_TEST_ASSERT(replaced == u8"A\u00E9\U0001F600!"_utf8_sv);
 	}
 	{
 		auto s = u8"abcdefghijklmnopqrstuvwxyz"_utf8_s;
@@ -7642,7 +7683,7 @@ static_assert([] {
 		auto s = u8"A!"_utf8_s;
 		s.reserve(64);
 		const auto* original = s.base().data();
-		s.replace_inplace(1, 1, U"\u00E9\U0001F600"_utf32_sv.chars());
+		s = std::move(s).replace_at(1, 1, U"\u00E9\U0001F600"_utf32_sv.chars());
 		UTF8_RANGES_TEST_ASSERT(s == u8"A\u00E9\U0001F600"_utf8_sv);
 		UTF8_RANGES_TEST_ASSERT(s.base().data() == original);
 	}
@@ -7911,28 +7952,28 @@ static_assert([] {
 	}
 	{
 		auto s = u"Aé"_utf16_s;
-		s.replace_inplace(0, 1, s.as_view());
+		s = std::move(s).replace_at(0, 1, s.as_view());
 		UTF8_RANGES_TEST_ASSERT(s == u"Aéé"_utf16_sv);
 	}
 	{
 		auto s = u"Aé"_utf16_s;
-		s.replace_inplace(0, s.as_view());
+		s = std::move(s).replace_at(0, s.as_view());
 		UTF8_RANGES_TEST_ASSERT(s == u"Aéé"_utf16_sv);
 	}
 	{
 		auto s = u"Aé"_utf16_s;
-		s.replace_inplace(0, 1, s.chars());
+		s = std::move(s).replace_at(0, 1, s.chars());
 		UTF8_RANGES_TEST_ASSERT(s == u"Aéé"_utf16_sv);
 	}
 	{
 		auto s = u"Aé"_utf16_s;
-		s.replace_inplace(0, s.chars());
+		s = std::move(s).replace_at(0, s.chars());
 		UTF8_RANGES_TEST_ASSERT(s == u"Aéé"_utf16_sv);
 	}
 	{
 		auto s = u"A\u00E9"_utf16_s;
 		auto suffix_chars = s.chars() | std::views::drop(1);
-		s.replace_inplace(0, suffix_chars);
+		s = std::move(s).replace_at(0, suffix_chars);
 		UTF8_RANGES_TEST_ASSERT(s == u"\u00E9\u00E9"_utf16_sv);
 	}
 	{
@@ -8032,33 +8073,44 @@ static_assert([] {
 	}
 	{
 		auto s = u"Aé😀"_utf16_s;
-		s.replace_inplace(1, 1, u"Ω"_utf16_sv);
+		s = std::move(s).replace_at(1, 1, u"Ω"_utf16_sv);
 		UTF8_RANGES_TEST_ASSERT(s == u"AΩ😀"_utf16_sv);
 	}
 	{
 		auto s = u"Aé😀"_utf16_s;
-		s.replace_inplace(1, 1, u"Ω"_u16c);
+		s = std::move(s).replace_at(1, 1, u"Ω"_u16c);
 		UTF8_RANGES_TEST_ASSERT(s == u"AΩ😀"_utf16_sv);
 	}
 	{
 		auto s = u"Aé😀"_utf16_s;
-		s.replace_inplace(1, u"XYZ"_utf16_sv);
+		s = std::move(s).replace_at(1, u"XYZ"_utf16_sv);
 		UTF8_RANGES_TEST_ASSERT(s == u"AXYZ😀"_utf16_sv);
 	}
 	{
 		auto s = u"Aé😀"_utf16_s;
-		s.replace_inplace(1, u"Ω"_u16c);
+		s = std::move(s).replace_at(1, u"Ω"_u16c);
 		UTF8_RANGES_TEST_ASSERT(s == u"AΩ😀"_utf16_sv);
 	}
 	{
 		auto s = u"Aé😀"_utf16_s;
-		s.replace_inplace(1, 1, std::array{ u"Ω"_u16c, u"!"_u16c });
+		s = std::move(s).replace_at(1, 1, std::array{ u"Ω"_u16c, u"!"_u16c });
 		UTF8_RANGES_TEST_ASSERT(s == u"AΩ!😀"_utf16_sv);
 	}
 	{
 		auto s = u"Aé😀"_utf16_s;
-		s.replace_inplace(1, std::array{ u"Ω"_u16c, u"!"_u16c });
+		s = std::move(s).replace_at(1, std::array{ u"Ω"_u16c, u"!"_u16c });
 		UTF8_RANGES_TEST_ASSERT(s == u"AΩ!😀"_utf16_sv);
+	}
+	{
+		auto s = u"A\u00E9\U0001F600"_utf16_s;
+		[[maybe_unused]] const auto replaced = s.replace_at(1, 1, u"Z"_utf16_sv);
+		UTF8_RANGES_TEST_ASSERT(s == u"A\u00E9\U0001F600"_utf16_sv);
+		UTF8_RANGES_TEST_ASSERT(replaced == u"AZ\U0001F600"_utf16_sv);
+	}
+	{
+		const auto sv = u"A\u00E9\U0001F600"_utf16_sv;
+		[[maybe_unused]] const auto replaced = sv.replace_at(1, u"Z"_u16c);
+		UTF8_RANGES_TEST_ASSERT(replaced == u"AZ\U0001F600"_utf16_sv);
 	}
 	{
 		auto s = u"aaaa"_utf16_s;
@@ -8182,24 +8234,24 @@ static_assert([] {
 	}
 	{
 		auto s = u"A!"_utf16_s;
-		s.replace_inplace(1, 1, u8"\u00E9\U0001F600"_utf8_sv.chars());
+		s = std::move(s).replace_at(1, 1, u8"\u00E9\U0001F600"_utf8_sv.chars());
 		UTF8_RANGES_TEST_ASSERT(s == u"A\u00E9\U0001F600"_utf16_sv);
 	}
 	{
 		auto s = u"A!"_utf16_s;
-		s.replace_inplace(1, 1, U"\u00E9\U0001F600"_utf32_sv.chars());
+		s = std::move(s).replace_at(1, 1, U"\u00E9\U0001F600"_utf32_sv.chars());
 		UTF8_RANGES_TEST_ASSERT(s == u"A\u00E9\U0001F600"_utf16_sv);
 	}
 	{
 		auto s = u"A!"_utf16_s;
-		s.replace_inplace(1, U"\u00E9\U0001F600"_utf32_sv.chars());
+		s = std::move(s).replace_at(1, U"\u00E9\U0001F600"_utf32_sv.chars());
 		UTF8_RANGES_TEST_ASSERT(s == u"A\u00E9\U0001F600"_utf16_sv);
 	}
 	{
 		auto s = u"A!"_utf16_s;
 		s.reserve(64);
 		const auto* original = s.base().data();
-		s.replace_inplace(1, 1, std::array{ u"\u00E9"_u16c, u"\U0001F600"_u16c });
+		s = std::move(s).replace_at(1, 1, std::array{ u"\u00E9"_u16c, u"\U0001F600"_u16c });
 		UTF8_RANGES_TEST_ASSERT(s == u"A\u00E9\U0001F600"_utf16_sv);
 		UTF8_RANGES_TEST_ASSERT(s.base().data() == original);
 	}
@@ -8216,9 +8268,8 @@ static_assert([] {
 		UTF8_RANGES_TEST_ASSERT(resource.allocations == 0);
 
 		resource.reset_counts();
-		s.replace_inplace(1, 3, std::array{ u"\u00E9"_u16c, u"\U0001F600"_u16c });
-		UTF8_RANGES_TEST_ASSERT(s == u"A\u00E9\U0001F600!"_utf16_sv);
-		UTF8_RANGES_TEST_ASSERT(resource.allocations == 0);
+		[[maybe_unused]] auto replaced = std::move(s).replace_at(1, 3, std::array{ u"\u00E9"_u16c, u"\U0001F600"_u16c });
+		UTF8_RANGES_TEST_ASSERT(replaced == u"A\u00E9\U0001F600!"_utf16_sv);
 	}
 	{
 		auto s = u"abcdefghijklmnopqrstuvwxyz"_utf16_s;
@@ -8237,7 +8288,7 @@ static_assert([] {
 		auto s = u"A!"_utf16_s;
 		s.reserve(64);
 		const auto* original = s.base().data();
-		s.replace_inplace(1, 1, U"\u00E9\U0001F600"_utf32_sv.chars());
+		s = std::move(s).replace_at(1, 1, U"\u00E9\U0001F600"_utf32_sv.chars());
 		UTF8_RANGES_TEST_ASSERT(s == u"A\u00E9\U0001F600"_utf16_sv);
 		UTF8_RANGES_TEST_ASSERT(s.base().data() == original);
 	}
@@ -8392,13 +8443,24 @@ static_assert([] {
 	}
 	{
 		auto s = U"Aé😀"_utf32_s;
-		s.replace_inplace(1, 1, U"Ω"_utf32_sv);
+		s = std::move(s).replace_at(1, 1, U"Ω"_utf32_sv);
 		UTF8_RANGES_TEST_ASSERT(s == U"AΩ😀"_utf32_sv);
+	}
+	{
+		auto s = U"A\u00E9\U0001F600"_utf32_s;
+		[[maybe_unused]] const auto replaced = s.replace_at(1, 1, U"Z"_utf32_sv);
+		UTF8_RANGES_TEST_ASSERT(s == U"A\u00E9\U0001F600"_utf32_sv);
+		UTF8_RANGES_TEST_ASSERT(replaced == U"AZ\U0001F600"_utf32_sv);
+	}
+	{
+		const auto sv = U"A\u00E9\U0001F600"_utf32_sv;
+		[[maybe_unused]] const auto replaced = sv.replace_at(1, U"Z"_u32c);
+		UTF8_RANGES_TEST_ASSERT(replaced == U"AZ\U0001F600"_utf32_sv);
 	}
 	{
 		auto s = U"A\u00E9"_utf32_s;
 		auto suffix_chars = s.chars() | std::views::drop(1);
-		s.replace_inplace(0, suffix_chars);
+		s = std::move(s).replace_at(0, suffix_chars);
 		UTF8_RANGES_TEST_ASSERT(s == U"\u00E9\u00E9"_utf32_sv);
 	}
 	{
@@ -8473,24 +8535,24 @@ static_assert([] {
 	}
 	{
 		auto s = U"A!"_utf32_s;
-		s.replace_inplace(1, 1, u8"\u00E9\U0001F600"_utf8_sv.chars());
+		s = std::move(s).replace_at(1, 1, u8"\u00E9\U0001F600"_utf8_sv.chars());
 		UTF8_RANGES_TEST_ASSERT(s == U"A\u00E9\U0001F600"_utf32_sv);
 	}
 	{
 		auto s = U"A!"_utf32_s;
-		s.replace_inplace(1, 1, u"\u00E9\U0001F600"_utf16_sv.chars());
+		s = std::move(s).replace_at(1, 1, u"\u00E9\U0001F600"_utf16_sv.chars());
 		UTF8_RANGES_TEST_ASSERT(s == U"A\u00E9\U0001F600"_utf32_sv);
 	}
 	{
 		auto s = U"A!"_utf32_s;
-		s.replace_inplace(1, u"\u00E9\U0001F600"_utf16_sv.chars());
+		s = std::move(s).replace_at(1, u"\u00E9\U0001F600"_utf16_sv.chars());
 		UTF8_RANGES_TEST_ASSERT(s == U"A\u00E9\U0001F600"_utf32_sv);
 	}
 	{
 		auto s = U"A!"_utf32_s;
 		s.reserve(64);
 		const auto* original = s.base().data();
-		s.replace_inplace(1, 1, std::array{ U"\u00E9"_u32c, U"\U0001F600"_u32c });
+		s = std::move(s).replace_at(1, 1, std::array{ U"\u00E9"_u32c, U"\U0001F600"_u32c });
 		UTF8_RANGES_TEST_ASSERT(s == U"A\u00E9\U0001F600"_utf32_sv);
 		UTF8_RANGES_TEST_ASSERT(s.base().data() == original);
 	}
@@ -8507,9 +8569,8 @@ static_assert([] {
 		UTF8_RANGES_TEST_ASSERT(resource.allocations == 0);
 
 		resource.reset_counts();
-		s.replace_inplace(1, 2, std::array{ U"\u00E9"_u32c, U"\U0001F600"_u32c });
-		UTF8_RANGES_TEST_ASSERT(s == U"A\u00E9\U0001F600!"_utf32_sv);
-		UTF8_RANGES_TEST_ASSERT(resource.allocations == 0);
+		[[maybe_unused]] auto replaced = std::move(s).replace_at(1, 2, std::array{ U"\u00E9"_u32c, U"\U0001F600"_u32c });
+		UTF8_RANGES_TEST_ASSERT(replaced == U"A\u00E9\U0001F600!"_utf32_sv);
 	}
 	{
 		auto s = U"abcdefghijklmnopqrstuvwxyz"_utf32_s;
@@ -8528,7 +8589,7 @@ static_assert([] {
 		auto s = U"A!"_utf32_s;
 		s.reserve(64);
 		const auto* original = s.base().data();
-		s.replace_inplace(1, 1, u"\u00E9\U0001F600"_utf16_sv.chars());
+		s = std::move(s).replace_at(1, 1, u"\u00E9\U0001F600"_utf16_sv.chars());
 		UTF8_RANGES_TEST_ASSERT(s == U"A\u00E9\U0001F600"_utf32_sv);
 		UTF8_RANGES_TEST_ASSERT(s.base().data() == original);
 	}
@@ -8631,33 +8692,44 @@ static_assert([] {
 	}
 	{
 		auto s = "Aé€"_utf8_s;
-		s.replace_inplace(1, 2, "Ω"_utf8_sv);
+		s = std::move(s).replace_at(1, 2, "Ω"_utf8_sv);
 		UTF8_RANGES_TEST_ASSERT(s == "AΩ€"_utf8_sv);
 	}
 	{
 		auto s = "Aé€"_utf8_s;
-		s.replace_inplace(1, 2, "Ω"_u8c);
+		s = std::move(s).replace_at(1, 2, "Ω"_u8c);
 		UTF8_RANGES_TEST_ASSERT(s == "AΩ€"_utf8_sv);
 	}
 	{
 		auto s = "Aé€"_utf8_s;
-		s.replace_inplace(1, "XYZ"_utf8_sv);
+		s = std::move(s).replace_at(1, "XYZ"_utf8_sv);
 		UTF8_RANGES_TEST_ASSERT(s == "AXYZ€"_utf8_sv);
 	}
 	{
 		auto s = "Aé€"_utf8_s;
-		s.replace_inplace(1, "Ω"_u8c);
+		s = std::move(s).replace_at(1, "Ω"_u8c);
 		UTF8_RANGES_TEST_ASSERT(s == "AΩ€"_utf8_sv);
 	}
 	{
 		auto s = "Aé€"_utf8_s;
-		s.replace_inplace(1, 2, std::array{ "Ω"_u8c, "!"_u8c });
+		s = std::move(s).replace_at(1, 2, std::array{ "Ω"_u8c, "!"_u8c });
 		UTF8_RANGES_TEST_ASSERT(s == "AΩ!€"_utf8_sv);
 	}
 	{
 		auto s = "Aé€"_utf8_s;
-		s.replace_inplace(1, std::array{ "Ω"_u8c, "!"_u8c });
+		s = std::move(s).replace_at(1, std::array{ "Ω"_u8c, "!"_u8c });
 		UTF8_RANGES_TEST_ASSERT(s == "AΩ!€"_utf8_sv);
+	}
+	{
+		auto s = u8"A\u00E9\u20AC"_utf8_s;
+		[[maybe_unused]] const auto replaced = s.replace_at(1, 2, u8"Z"_utf8_sv);
+		UTF8_RANGES_TEST_ASSERT(s == u8"A\u00E9\u20AC"_utf8_sv);
+		UTF8_RANGES_TEST_ASSERT(replaced == u8"AZ\u20AC"_utf8_sv);
+	}
+	{
+		const auto sv = u8"A\u00E9\u20AC"_utf8_sv;
+		[[maybe_unused]] const auto replaced = sv.replace_at(1, u8"Z"_u8c);
+		UTF8_RANGES_TEST_ASSERT(replaced == u8"AZ\u20AC"_utf8_sv);
 	}
 	{
 		auto s = u8"aaaa"_utf8_s;
@@ -8856,49 +8928,49 @@ static_assert([] {
 	}
 	{
 		utf8_string s{ utf8_text };
-		if (!expect_out_of_range([&] { s.replace_inplace(decltype(s)::npos, 1, "Ω"_utf8_sv); }))
+		if (!expect_out_of_range([&] { s = std::move(s).replace_at(decltype(s)::npos, 1, "Ω"_utf8_sv); }))
 		{
 			UTF8_RANGES_TEST_ASSERT(false);
 		}
 	}
 	{
 		utf8_string s{ utf8_text };
-		if (!expect_out_of_range([&] { s.replace_inplace(2, 1, "Ω"_utf8_sv); }))
+		if (!expect_out_of_range([&] { s = std::move(s).replace_at(2, 1, "Ω"_utf8_sv); }))
 		{
 			UTF8_RANGES_TEST_ASSERT(false);
 		}
 	}
 	{
 		utf8_string s{ utf8_text };
-		if (!expect_out_of_range([&] { s.replace_inplace(1, 1, "Ω"_utf8_sv); }))
+		if (!expect_out_of_range([&] { s = std::move(s).replace_at(1, 1, "Ω"_utf8_sv); }))
 		{
 			UTF8_RANGES_TEST_ASSERT(false);
 		}
 	}
 	{
 		utf8_string s{ utf8_text };
-		if (!expect_out_of_range([&] { s.replace_inplace(s.size(), "Ω"_utf8_sv); }))
+		if (!expect_out_of_range([&] { s = std::move(s).replace_at(s.size(), "Ω"_utf8_sv); }))
 		{
 			UTF8_RANGES_TEST_ASSERT(false);
 		}
 	}
 	{
 		utf8_string s{ utf8_text };
-		if (!expect_out_of_range([&] { s.replace_inplace(2, "Ω"_u8c); }))
+		if (!expect_out_of_range([&] { s = std::move(s).replace_at(2, "Ω"_u8c); }))
 		{
 			UTF8_RANGES_TEST_ASSERT(false);
 		}
 	}
 	{
 		utf8_string s{ utf8_text };
-		if (!expect_out_of_range([&] { s.replace_inplace(decltype(s)::npos, 1, std::array{ "Ω"_u8c }); }))
+		if (!expect_out_of_range([&] { s = std::move(s).replace_at(decltype(s)::npos, 1, std::array{ "Ω"_u8c }); }))
 		{
 			UTF8_RANGES_TEST_ASSERT(false);
 		}
 	}
 	{
 		utf8_string s{ utf8_text };
-		if (!expect_out_of_range([&] { s.replace_inplace(2, std::array{ "Ω"_u8c }); }))
+		if (!expect_out_of_range([&] { s = std::move(s).replace_at(2, std::array{ "Ω"_u8c }); }))
 		{
 			UTF8_RANGES_TEST_ASSERT(false);
 		}

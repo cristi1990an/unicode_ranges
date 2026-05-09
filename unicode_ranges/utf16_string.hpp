@@ -48,32 +48,33 @@ public:
 	}
 
 	static constexpr auto from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator())
-		-> std::expected<basic_utf16_string, utf16_error>
-		requires (sizeof(wchar_t) == 2)
+		-> std::expected<basic_utf16_string, wide_string_error>
+		requires (sizeof(wchar_t) == 2 || sizeof(wchar_t) == 4)
 	{
-		if (auto copied = details::copy_validated_utf16_code_units(bytes, alloc); copied) [[likely]]
+		if constexpr (sizeof(wchar_t) == 2)
 		{
-			return from_code_units_unchecked(std::move(*copied));
+			if (auto copied = details::copy_validated_utf16_code_units(bytes, alloc); copied) [[likely]]
+			{
+				return from_code_units_unchecked(std::move(*copied));
+			}
+
+			else
+			{
+				return std::unexpected(details::to_wide_string_error(copied.error()));
+			}
 		}
 
 		else
 		{
-			return std::unexpected(copied.error());
-		}
-	}
+			if (auto transcoded = details::transcode_unicode_scalars_to_utf16_checked(bytes, alloc); transcoded) [[likely]]
+			{
+				return from_code_units_unchecked(std::move(*transcoded));
+			}
 
-	static constexpr auto from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator())
-		-> std::expected<basic_utf16_string, unicode_scalar_error>
-		requires (sizeof(wchar_t) == 4)
-	{
-		if (auto transcoded = details::transcode_unicode_scalars_to_utf16_checked(bytes, alloc); transcoded) [[likely]]
-		{
-			return from_code_units_unchecked(std::move(*transcoded));
-		}
-
-		else
-		{
-			return std::unexpected(transcoded.error());
+			else
+			{
+				return std::unexpected(details::to_wide_string_error(transcoded.error()));
+			}
 		}
 	}
 
@@ -2833,7 +2834,263 @@ public:
 			alloc);
 	}
 
-	constexpr basic_utf16_string& replace_inplace(size_type pos, size_type count, utf16_string_view other)
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, size_type count, utf16_string_view other) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, count, other);
+		return result;
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, size_type count, utf16_string_view other) &&
+	{
+		replace_at_mutating(pos, count, other);
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, size_type count, utf16_char other) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, count, other);
+		return result;
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, size_type count, utf16_char other) &&
+	{
+		replace_at_mutating(pos, count, other);
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, utf16_string_view other) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, other);
+		return result;
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, utf16_string_view other) &&
+	{
+		replace_at_mutating(pos, other);
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, utf16_char other) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, other);
+		return result;
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, utf16_char other) &&
+	{
+		replace_at_mutating(pos, other);
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, size_type count, views::utf16_view rg) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, count, rg);
+		return result;
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, size_type count, views::utf16_view rg) &&
+	{
+		replace_at_mutating(pos, count, rg);
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, size_type count, views::owning_chars_view<basic_utf16_string>&& rg) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, count, std::move(rg));
+		return result;
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, size_type count, views::owning_chars_view<basic_utf16_string>&& rg) &&
+	{
+		replace_at_mutating(pos, count, std::move(rg));
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(
+		size_type pos,
+		size_type count,
+		views::owning_reversed_chars_view<basic_utf16_string>&& rg) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, count, std::move(rg));
+		return result;
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(
+		size_type pos,
+		size_type count,
+		views::owning_reversed_chars_view<basic_utf16_string>&& rg) &&
+	{
+		replace_at_mutating(pos, count, std::move(rg));
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, size_type count, views::utf8_view rg) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, count, rg);
+		return result;
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, size_type count, views::utf8_view rg) &&
+	{
+		replace_at_mutating(pos, count, rg);
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, size_type count, views::utf32_view rg) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, count, rg);
+		return result;
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, size_type count, views::utf32_view rg) &&
+	{
+		replace_at_mutating(pos, count, rg);
+		return std::move(*this);
+	}
+
+	template <details::container_compatible_range<utf16_char> R>
+		requires (!optimized_utf16_chars_range<R>)
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, size_type count, R&& rg) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, count, std::forward<R>(rg));
+		return result;
+	}
+
+	template <details::container_compatible_range<utf16_char> R>
+		requires (!optimized_utf16_chars_range<R>)
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, size_type count, R&& rg) &&
+	{
+		replace_at_mutating(pos, count, std::forward<R>(rg));
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, views::utf16_view rg) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, rg);
+		return result;
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, views::utf16_view rg) &&
+	{
+		replace_at_mutating(pos, rg);
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, views::owning_chars_view<basic_utf16_string>&& rg) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, std::move(rg));
+		return result;
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, views::owning_chars_view<basic_utf16_string>&& rg) &&
+	{
+		replace_at_mutating(pos, std::move(rg));
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, views::owning_reversed_chars_view<basic_utf16_string>&& rg) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, std::move(rg));
+		return result;
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, views::owning_reversed_chars_view<basic_utf16_string>&& rg) &&
+	{
+		replace_at_mutating(pos, std::move(rg));
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, views::utf8_view rg) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, rg);
+		return result;
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, views::utf8_view rg) &&
+	{
+		replace_at_mutating(pos, rg);
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, views::utf32_view rg) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, rg);
+		return result;
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, views::utf32_view rg) &&
+	{
+		replace_at_mutating(pos, rg);
+		return std::move(*this);
+	}
+
+	template <details::container_compatible_range<utf16_char> R>
+		requires (!optimized_utf16_chars_range<R>)
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, R&& rg) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, std::forward<R>(rg));
+		return result;
+	}
+
+	template <details::container_compatible_range<utf16_char> R>
+		requires (!optimized_utf16_chars_range<R>)
+	[[nodiscard]]
+	constexpr basic_utf16_string replace_at(size_type pos, R&& rg) &&
+	{
+		replace_at_mutating(pos, std::forward<R>(rg));
+		return std::move(*this);
+	}
+
+private:
+
+	constexpr basic_utf16_string& replace_at_mutating(size_type pos, size_type count, utf16_string_view other)
 	{
 		if (pos > size()) [[unlikely]]
 		{
@@ -2852,12 +3109,12 @@ public:
 		return replace_code_units(pos, replace_count, other.base());
 	}
 
-	constexpr basic_utf16_string& replace_inplace(size_type pos, size_type count, utf16_char other)
+	constexpr basic_utf16_string& replace_at_mutating(size_type pos, size_type count, utf16_char other)
 	{
-		return replace_inplace(pos, count, equivalent_utf16_string_view::from_code_units_unchecked(details::utf16_char_view(other)));
+		return replace_at_mutating(pos, count, equivalent_utf16_string_view::from_code_units_unchecked(details::utf16_char_view(other)));
 	}
 
-	constexpr basic_utf16_string& replace_inplace(size_type pos, utf16_string_view other)
+	constexpr basic_utf16_string& replace_at_mutating(size_type pos, utf16_string_view other)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -2873,7 +3130,7 @@ public:
 		return replace_code_units(pos, replace_count, other.base());
 	}
 
-	constexpr basic_utf16_string& replace_inplace(size_type pos, utf16_char other)
+	constexpr basic_utf16_string& replace_at_mutating(size_type pos, utf16_char other)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -2890,7 +3147,7 @@ public:
 		return *this;
 	}
 
-	constexpr basic_utf16_string& replace_inplace(size_type pos, size_type count, views::utf16_view rg)
+	constexpr basic_utf16_string& replace_at_mutating(size_type pos, size_type count, views::utf16_view rg)
 	{
 		if (pos > size()) [[unlikely]]
 		{
@@ -2909,7 +3166,7 @@ public:
 		return replace_code_units(pos, replace_count, rg.base());
 	}
 
-	constexpr basic_utf16_string& replace_inplace(size_type pos, size_type count, views::owning_chars_view<basic_utf16_string>&& rg)
+	constexpr basic_utf16_string& replace_at_mutating(size_type pos, size_type count, views::owning_chars_view<basic_utf16_string>&& rg)
 	{
 		if (pos > size()) [[unlikely]]
 		{
@@ -2928,7 +3185,7 @@ public:
 		return replace_owned_utf16_chars(pos, replace_count, std::move(rg));
 	}
 
-	constexpr basic_utf16_string& replace_inplace(
+	constexpr basic_utf16_string& replace_at_mutating(
 		size_type pos,
 		size_type count,
 		views::owning_reversed_chars_view<basic_utf16_string>&& rg)
@@ -2950,7 +3207,7 @@ public:
 		return replace_owned_reversed_utf16_chars(pos, replace_count, std::move(rg));
 	}
 
-	constexpr basic_utf16_string& replace_inplace(size_type pos, size_type count, views::utf8_view rg)
+	constexpr basic_utf16_string& replace_at_mutating(size_type pos, size_type count, views::utf8_view rg)
 	{
 		if (pos > size()) [[unlikely]]
 		{
@@ -2979,7 +3236,7 @@ public:
 			});
 	}
 
-	constexpr basic_utf16_string& replace_inplace(size_type pos, size_type count, views::utf32_view rg)
+	constexpr basic_utf16_string& replace_at_mutating(size_type pos, size_type count, views::utf32_view rg)
 	{
 		if (pos > size()) [[unlikely]]
 		{
@@ -3010,7 +3267,7 @@ public:
 
 	template <details::container_compatible_range<utf16_char> R>
 		requires (!optimized_utf16_chars_range<R>)
-	constexpr basic_utf16_string& replace_inplace(size_type pos, size_type count, R&& rg)
+	constexpr basic_utf16_string& replace_at_mutating(size_type pos, size_type count, R&& rg)
 	{
 		if (pos > size()) [[unlikely]]
 		{
@@ -3049,7 +3306,7 @@ public:
 			});
 	}
 
-	constexpr basic_utf16_string& replace_inplace(size_type pos, views::utf16_view rg)
+	constexpr basic_utf16_string& replace_at_mutating(size_type pos, views::utf16_view rg)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -3062,10 +3319,10 @@ public:
 		}
 
 		const auto replace_count = this->char_at_unchecked(pos).code_unit_count();
-		return replace_inplace(pos, replace_count, rg);
+		return replace_at_mutating(pos, replace_count, rg);
 	}
 
-	constexpr basic_utf16_string& replace_inplace(size_type pos, views::owning_chars_view<basic_utf16_string>&& rg)
+	constexpr basic_utf16_string& replace_at_mutating(size_type pos, views::owning_chars_view<basic_utf16_string>&& rg)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -3081,7 +3338,7 @@ public:
 		return replace_owned_utf16_chars(pos, replace_count, std::move(rg));
 	}
 
-	constexpr basic_utf16_string& replace_inplace(size_type pos, views::owning_reversed_chars_view<basic_utf16_string>&& rg)
+	constexpr basic_utf16_string& replace_at_mutating(size_type pos, views::owning_reversed_chars_view<basic_utf16_string>&& rg)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -3097,7 +3354,7 @@ public:
 		return replace_owned_reversed_utf16_chars(pos, replace_count, std::move(rg));
 	}
 
-	constexpr basic_utf16_string& replace_inplace(size_type pos, views::utf8_view rg)
+	constexpr basic_utf16_string& replace_at_mutating(size_type pos, views::utf8_view rg)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -3110,10 +3367,10 @@ public:
 		}
 
 		const auto replace_count = this->char_at_unchecked(pos).code_unit_count();
-		return replace_inplace(pos, replace_count, rg);
+		return replace_at_mutating(pos, replace_count, rg);
 	}
 
-	constexpr basic_utf16_string& replace_inplace(size_type pos, views::utf32_view rg)
+	constexpr basic_utf16_string& replace_at_mutating(size_type pos, views::utf32_view rg)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -3126,12 +3383,12 @@ public:
 		}
 
 		const auto replace_count = this->char_at_unchecked(pos).code_unit_count();
-		return replace_inplace(pos, replace_count, rg);
+		return replace_at_mutating(pos, replace_count, rg);
 	}
 
 	template <details::container_compatible_range<utf16_char> R>
 		requires (!optimized_utf16_chars_range<R>)
-	constexpr basic_utf16_string& replace_inplace(size_type pos, R&& rg)
+	constexpr basic_utf16_string& replace_at_mutating(size_type pos, R&& rg)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -3166,6 +3423,8 @@ public:
 				return replacement.size();
 			});
 	}
+
+public:
 
 	constexpr void reserve(size_type new_cap)
 	{

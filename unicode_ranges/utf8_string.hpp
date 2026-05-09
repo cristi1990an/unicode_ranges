@@ -48,32 +48,33 @@ class basic_utf8_string : public details::utf8_string_crtp<basic_utf8_string<All
 	}
 
 	static constexpr auto from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator())
-		-> std::expected<basic_utf8_string, utf16_error>
-		requires (sizeof(wchar_t) == 2)
+		-> std::expected<basic_utf8_string, wide_string_error>
+		requires (sizeof(wchar_t) == 2 || sizeof(wchar_t) == 4)
 	{
-		if (auto transcoded = details::transcode_utf16_to_utf8_checked(bytes, alloc); transcoded) [[likely]]
+		if constexpr (sizeof(wchar_t) == 2)
 		{
-			return from_base_unchecked(std::move(*transcoded));
+			if (auto transcoded = details::transcode_utf16_to_utf8_checked(bytes, alloc); transcoded) [[likely]]
+			{
+				return from_base_unchecked(std::move(*transcoded));
+			}
+
+			else
+			{
+				return std::unexpected(details::to_wide_string_error(transcoded.error()));
+			}
 		}
 
 		else
 		{
-			return std::unexpected(transcoded.error());
-		}
-	}
+			if (auto transcoded = details::transcode_unicode_scalars_to_utf8_checked(bytes, alloc); transcoded) [[likely]]
+			{
+				return from_base_unchecked(std::move(*transcoded));
+			}
 
-	static constexpr auto from_bytes(std::wstring_view bytes, const Allocator& alloc = Allocator())
-		-> std::expected<basic_utf8_string, unicode_scalar_error>
-		requires (sizeof(wchar_t) == 4)
-	{
-		if (auto transcoded = details::transcode_unicode_scalars_to_utf8_checked(bytes, alloc); transcoded) [[likely]]
-		{
-			return from_base_unchecked(std::move(*transcoded));
-		}
-
-		else
-		{
-			return std::unexpected(transcoded.error());
+			else
+			{
+				return std::unexpected(details::to_wide_string_error(transcoded.error()));
+			}
 		}
 	}
 
@@ -464,6 +465,82 @@ private:
 		}
 
 		return *this;
+	}
+
+	[[nodiscard]]
+	constexpr size_type checked_replace_range_count(size_type pos, size_type count) const
+	{
+		if (pos > size()) [[unlikely]]
+		{
+			throw std::out_of_range("replace index out of range");
+		}
+
+		const auto remaining = size() - pos;
+		const auto replace_count = (count == npos || count > remaining) ? remaining : count;
+		const auto end = pos + replace_count;
+
+		if (!this->is_char_boundary(pos) || !this->is_char_boundary(end)) [[unlikely]]
+		{
+			throw std::out_of_range("replace range must be a valid UTF-8 substring");
+		}
+
+		return replace_count;
+	}
+
+	[[nodiscard]]
+	constexpr size_type checked_replace_char_count(size_type pos) const
+	{
+		if (pos >= size()) [[unlikely]]
+		{
+			throw std::out_of_range("replace index out of range");
+		}
+
+		if (!this->is_char_boundary(pos)) [[unlikely]]
+		{
+			throw std::out_of_range("replace index must be at a UTF-8 character boundary");
+		}
+
+		return this->char_at_unchecked(pos).code_unit_count();
+	}
+
+	template <typename Writer>
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_copy_gap_and_write(
+		size_type pos,
+		size_type count,
+		size_type replacement_size,
+		Writer writer) const
+	{
+		const auto old_size = base_.size();
+		const auto retained_size = old_size - count;
+		if (replacement_size > base_.max_size() - retained_size) [[unlikely]]
+		{
+			throw std::length_error("replacement size exceeds max_size");
+		}
+
+		const auto tail_pos = pos + count;
+		const auto tail_size = old_size - tail_pos;
+		const auto new_size = retained_size + replacement_size;
+
+		basic_utf8_string result{ base_.get_allocator() };
+		result.base_.reserve(new_size);
+		if (pos != 0)
+		{
+			result.base_.append(base_.data(), pos);
+		}
+
+		result.base_.resize(pos + replacement_size);
+
+		[[maybe_unused]] const auto written = static_cast<size_type>(writer(result.base_.data() + pos));
+		UTF8_RANGES_DEBUG_ASSERT(written == replacement_size);
+
+		if (tail_size != 0)
+		{
+			result.base_.append(base_.data() + tail_pos, tail_size);
+		}
+
+		UTF8_RANGES_DEBUG_ASSERT(result.base_.size() == new_size);
+		return result;
 	}
 
 	[[nodiscard]]
@@ -2866,7 +2943,299 @@ public:
 			alloc);
 	}
 
-	constexpr basic_utf8_string& replace_inplace(size_type pos, size_type count, utf8_string_view other)
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, size_type count, utf8_string_view other) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, count, other);
+		return result;
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, size_type count, utf8_string_view other) &&
+	{
+		replace_at_mutating(pos, count, other);
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, size_type count, utf8_char other) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, count, other);
+		return result;
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, size_type count, utf8_char other) &&
+	{
+		replace_at_mutating(pos, count, other);
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, utf8_string_view other) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, other);
+		return result;
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, utf8_string_view other) &&
+	{
+		replace_at_mutating(pos, other);
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, utf8_char other) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, other);
+		return result;
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, utf8_char other) &&
+	{
+		replace_at_mutating(pos, other);
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, size_type count, views::utf8_view rg) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, count, rg);
+		return result;
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, size_type count, views::utf8_view rg) &&
+	{
+		replace_at_mutating(pos, count, rg);
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, size_type count, views::owning_chars_view<basic_utf8_string>&& rg) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, count, std::move(rg));
+		return result;
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, size_type count, views::owning_chars_view<basic_utf8_string>&& rg) &&
+	{
+		replace_at_mutating(pos, count, std::move(rg));
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(
+		size_type pos,
+		size_type count,
+		views::owning_reversed_chars_view<basic_utf8_string>&& rg) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, count, std::move(rg));
+		return result;
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(
+		size_type pos,
+		size_type count,
+		views::owning_reversed_chars_view<basic_utf8_string>&& rg) &&
+	{
+		replace_at_mutating(pos, count, std::move(rg));
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, size_type count, views::utf16_view rg) const&
+	{
+		const auto replace_count = checked_replace_range_count(pos, count);
+		const auto code_units = rg.base();
+		const auto retained_size = size() - replace_count;
+		const auto replacement_size = utf16_inserted_utf8_size(code_units, base_.max_size() - retained_size);
+		return replace_copy_gap_and_write(
+			pos,
+			replace_count,
+			replacement_size,
+			[&](char8_t* buffer) noexcept
+			{
+				return write_utf16_as_utf8(code_units, buffer);
+			});
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, size_type count, views::utf16_view rg) &&
+	{
+		replace_at_mutating(pos, count, rg);
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, size_type count, views::utf32_view rg) const&
+	{
+		const auto replace_count = checked_replace_range_count(pos, count);
+		const auto code_points = rg.base();
+		const auto retained_size = size() - replace_count;
+		const auto replacement_size = utf32_inserted_utf8_size(code_points, base_.max_size() - retained_size);
+		return replace_copy_gap_and_write(
+			pos,
+			replace_count,
+			replacement_size,
+			[&](char8_t* buffer) noexcept
+			{
+				return write_utf32_as_utf8(code_points, buffer);
+			});
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, size_type count, views::utf32_view rg) &&
+	{
+		replace_at_mutating(pos, count, rg);
+		return std::move(*this);
+	}
+
+	template <details::container_compatible_range<utf8_char> R>
+		requires (!optimized_utf8_chars_range<R>)
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, size_type count, R&& rg) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, count, std::forward<R>(rg));
+		return result;
+	}
+
+	template <details::container_compatible_range<utf8_char> R>
+		requires (!optimized_utf8_chars_range<R>)
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, size_type count, R&& rg) &&
+	{
+		replace_at_mutating(pos, count, std::forward<R>(rg));
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, views::utf8_view rg) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, rg);
+		return result;
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, views::utf8_view rg) &&
+	{
+		replace_at_mutating(pos, rg);
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, views::owning_chars_view<basic_utf8_string>&& rg) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, std::move(rg));
+		return result;
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, views::owning_chars_view<basic_utf8_string>&& rg) &&
+	{
+		replace_at_mutating(pos, std::move(rg));
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, views::owning_reversed_chars_view<basic_utf8_string>&& rg) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, std::move(rg));
+		return result;
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, views::owning_reversed_chars_view<basic_utf8_string>&& rg) &&
+	{
+		replace_at_mutating(pos, std::move(rg));
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, views::utf16_view rg) const&
+	{
+		const auto replace_count = checked_replace_char_count(pos);
+		const auto code_units = rg.base();
+		const auto retained_size = size() - replace_count;
+		const auto replacement_size = utf16_inserted_utf8_size(code_units, base_.max_size() - retained_size);
+		return replace_copy_gap_and_write(
+			pos,
+			replace_count,
+			replacement_size,
+			[&](char8_t* buffer) noexcept
+			{
+				return write_utf16_as_utf8(code_units, buffer);
+			});
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, views::utf16_view rg) &&
+	{
+		replace_at_mutating(pos, rg);
+		return std::move(*this);
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, views::utf32_view rg) const&
+	{
+		const auto replace_count = checked_replace_char_count(pos);
+		const auto code_points = rg.base();
+		const auto retained_size = size() - replace_count;
+		const auto replacement_size = utf32_inserted_utf8_size(code_points, base_.max_size() - retained_size);
+		return replace_copy_gap_and_write(
+			pos,
+			replace_count,
+			replacement_size,
+			[&](char8_t* buffer) noexcept
+			{
+				return write_utf32_as_utf8(code_points, buffer);
+			});
+	}
+
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, views::utf32_view rg) &&
+	{
+		replace_at_mutating(pos, rg);
+		return std::move(*this);
+	}
+
+	template <details::container_compatible_range<utf8_char> R>
+		requires (!optimized_utf8_chars_range<R>)
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, R&& rg) const&
+	{
+		auto result = *this;
+		result.replace_at_mutating(pos, std::forward<R>(rg));
+		return result;
+	}
+
+	template <details::container_compatible_range<utf8_char> R>
+		requires (!optimized_utf8_chars_range<R>)
+	[[nodiscard]]
+	constexpr basic_utf8_string replace_at(size_type pos, R&& rg) &&
+	{
+		replace_at_mutating(pos, std::forward<R>(rg));
+		return std::move(*this);
+	}
+
+private:
+
+	constexpr basic_utf8_string& replace_at_mutating(size_type pos, size_type count, utf8_string_view other)
 	{
 		if (pos > size()) [[unlikely]]
 		{
@@ -2885,12 +3254,12 @@ public:
 		return replace_bytes(pos, replace_count, other.base());
 	}
 
-	constexpr basic_utf8_string& replace_inplace(size_type pos, size_type count, utf8_char other)
+	constexpr basic_utf8_string& replace_at_mutating(size_type pos, size_type count, utf8_char other)
 	{
-		return replace_inplace(pos, count, utf8_string_view::from_bytes_unchecked(details::utf8_char_view(other)));
+		return replace_at_mutating(pos, count, utf8_string_view::from_bytes_unchecked(details::utf8_char_view(other)));
 	}
 
-	constexpr basic_utf8_string& replace_inplace(size_type pos, utf8_string_view other)
+	constexpr basic_utf8_string& replace_at_mutating(size_type pos, utf8_string_view other)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -2906,7 +3275,7 @@ public:
 		return replace_bytes(pos, replace_count, other.base());
 	}
 
-	constexpr basic_utf8_string& replace_inplace(size_type pos, utf8_char other)
+	constexpr basic_utf8_string& replace_at_mutating(size_type pos, utf8_char other)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -2923,7 +3292,7 @@ public:
 		return *this;
 	}
 
-	constexpr basic_utf8_string& replace_inplace(size_type pos, size_type count, views::utf8_view rg)
+	constexpr basic_utf8_string& replace_at_mutating(size_type pos, size_type count, views::utf8_view rg)
 	{
 		if (pos > size()) [[unlikely]]
 		{
@@ -2942,7 +3311,7 @@ public:
 		return replace_bytes(pos, replace_count, rg.base());
 	}
 
-	constexpr basic_utf8_string& replace_inplace(size_type pos, size_type count, views::owning_chars_view<basic_utf8_string>&& rg)
+	constexpr basic_utf8_string& replace_at_mutating(size_type pos, size_type count, views::owning_chars_view<basic_utf8_string>&& rg)
 	{
 		if (pos > size()) [[unlikely]]
 		{
@@ -2961,7 +3330,7 @@ public:
 		return replace_owned_utf8_chars(pos, replace_count, std::move(rg));
 	}
 
-	constexpr basic_utf8_string& replace_inplace(
+	constexpr basic_utf8_string& replace_at_mutating(
 		size_type pos,
 		size_type count,
 		views::owning_reversed_chars_view<basic_utf8_string>&& rg)
@@ -2983,7 +3352,7 @@ public:
 		return replace_owned_reversed_utf8_chars(pos, replace_count, std::move(rg));
 	}
 
-	constexpr basic_utf8_string& replace_inplace(size_type pos, size_type count, views::utf16_view rg)
+	constexpr basic_utf8_string& replace_at_mutating(size_type pos, size_type count, views::utf16_view rg)
 	{
 		if (pos > size()) [[unlikely]]
 		{
@@ -3012,7 +3381,7 @@ public:
 			});
 	}
 
-	constexpr basic_utf8_string& replace_inplace(size_type pos, size_type count, views::utf32_view rg)
+	constexpr basic_utf8_string& replace_at_mutating(size_type pos, size_type count, views::utf32_view rg)
 	{
 		if (pos > size()) [[unlikely]]
 		{
@@ -3043,7 +3412,7 @@ public:
 
 	template <details::container_compatible_range<utf8_char> R>
 		requires (!optimized_utf8_chars_range<R>)
-	constexpr basic_utf8_string& replace_inplace(size_type pos, size_type count, R&& rg)
+	constexpr basic_utf8_string& replace_at_mutating(size_type pos, size_type count, R&& rg)
 	{
 		if (pos > size()) [[unlikely]]
 		{
@@ -3082,7 +3451,7 @@ public:
 			});
 	}
 
-	constexpr basic_utf8_string& replace_inplace(size_type pos, views::utf8_view rg)
+	constexpr basic_utf8_string& replace_at_mutating(size_type pos, views::utf8_view rg)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -3095,10 +3464,10 @@ public:
 		}
 
 		const auto replace_count = this->char_at_unchecked(pos).code_unit_count();
-		return replace_inplace(pos, replace_count, rg);
+		return replace_at_mutating(pos, replace_count, rg);
 	}
 
-	constexpr basic_utf8_string& replace_inplace(size_type pos, views::owning_chars_view<basic_utf8_string>&& rg)
+	constexpr basic_utf8_string& replace_at_mutating(size_type pos, views::owning_chars_view<basic_utf8_string>&& rg)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -3114,7 +3483,7 @@ public:
 		return replace_owned_utf8_chars(pos, replace_count, std::move(rg));
 	}
 
-	constexpr basic_utf8_string& replace_inplace(size_type pos, views::owning_reversed_chars_view<basic_utf8_string>&& rg)
+	constexpr basic_utf8_string& replace_at_mutating(size_type pos, views::owning_reversed_chars_view<basic_utf8_string>&& rg)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -3130,7 +3499,7 @@ public:
 		return replace_owned_reversed_utf8_chars(pos, replace_count, std::move(rg));
 	}
 
-	constexpr basic_utf8_string& replace_inplace(size_type pos, views::utf16_view rg)
+	constexpr basic_utf8_string& replace_at_mutating(size_type pos, views::utf16_view rg)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -3143,10 +3512,10 @@ public:
 		}
 
 		const auto replace_count = this->char_at_unchecked(pos).code_unit_count();
-		return replace_inplace(pos, replace_count, rg);
+		return replace_at_mutating(pos, replace_count, rg);
 	}
 
-	constexpr basic_utf8_string& replace_inplace(size_type pos, views::utf32_view rg)
+	constexpr basic_utf8_string& replace_at_mutating(size_type pos, views::utf32_view rg)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -3159,12 +3528,12 @@ public:
 		}
 
 		const auto replace_count = this->char_at_unchecked(pos).code_unit_count();
-		return replace_inplace(pos, replace_count, rg);
+		return replace_at_mutating(pos, replace_count, rg);
 	}
 
 	template <details::container_compatible_range<utf8_char> R>
 		requires (!optimized_utf8_chars_range<R>)
-	constexpr basic_utf8_string& replace_inplace(size_type pos, R&& rg)
+	constexpr basic_utf8_string& replace_at_mutating(size_type pos, R&& rg)
 	{
 		if (pos >= size()) [[unlikely]]
 		{
@@ -3199,6 +3568,8 @@ public:
 				return replacement.size();
 			});
 	}
+
+public:
 
 	constexpr void reserve(size_type new_cap)
 	{

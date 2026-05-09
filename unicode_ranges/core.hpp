@@ -308,6 +308,75 @@ private:
 	bool successful_ = false;
 };
 
+template <typename View>
+class [[nodiscard]] split_once_at_unchecked_result
+{
+public:
+	split_once_at_unchecked_result(const split_once_at_unchecked_result&) = default;
+	split_once_at_unchecked_result(split_once_at_unchecked_result&&) noexcept = default;
+	split_once_at_unchecked_result& operator=(const split_once_at_unchecked_result&) = default;
+	split_once_at_unchecked_result& operator=(split_once_at_unchecked_result&&) noexcept = default;
+	~split_once_at_unchecked_result() = default;
+
+	[[nodiscard]]
+	constexpr View left() const noexcept
+	{
+		return parts_[0];
+	}
+
+	[[nodiscard]]
+	constexpr View right() const noexcept
+	{
+		return parts_[1];
+	}
+
+	[[nodiscard]]
+	constexpr explicit operator bool() const noexcept
+	{
+		return true;
+	}
+
+	[[nodiscard]]
+	constexpr bool has_value() const noexcept
+	{
+		return true;
+	}
+
+	[[nodiscard]]
+	constexpr const View* begin() const noexcept
+	{
+		return parts_.data();
+	}
+
+	[[nodiscard]]
+	constexpr const View* end() const noexcept
+	{
+		return parts_.data() + parts_.size();
+	}
+
+private:
+	template <typename Derived, typename OtherView>
+	friend class details::utf8_string_crtp;
+
+	template <typename Derived, typename OtherView>
+	friend class details::utf16_string_crtp;
+
+	template <typename Derived, typename OtherView>
+	friend class details::utf32_string_crtp;
+
+	constexpr split_once_at_unchecked_result(View left, View right) noexcept
+		: parts_{ left, right }
+	{}
+
+	[[nodiscard]]
+	static constexpr split_once_at_unchecked_result success(View left, View right) noexcept
+	{
+		return { left, right };
+	}
+
+	std::array<View, 2> parts_{};
+};
+
 template <std::size_t Index, typename View>
 [[nodiscard]]
 constexpr View get(split_once_result<View>& result) noexcept
@@ -428,6 +497,66 @@ constexpr View get(const split_once_at_result<View>&& result) noexcept
 	}
 }
 
+template <std::size_t Index, typename View>
+[[nodiscard]]
+constexpr View get(split_once_at_unchecked_result<View>& result) noexcept
+{
+	static_assert(Index < 2);
+	if constexpr (Index == 0)
+	{
+		return result.left();
+	}
+	else
+	{
+		return result.right();
+	}
+}
+
+template <std::size_t Index, typename View>
+[[nodiscard]]
+constexpr View get(const split_once_at_unchecked_result<View>& result) noexcept
+{
+	static_assert(Index < 2);
+	if constexpr (Index == 0)
+	{
+		return result.left();
+	}
+	else
+	{
+		return result.right();
+	}
+}
+
+template <std::size_t Index, typename View>
+[[nodiscard]]
+constexpr View get(split_once_at_unchecked_result<View>&& result) noexcept
+{
+	static_assert(Index < 2);
+	if constexpr (Index == 0)
+	{
+		return result.left();
+	}
+	else
+	{
+		return result.right();
+	}
+}
+
+template <std::size_t Index, typename View>
+[[nodiscard]]
+constexpr View get(const split_once_at_unchecked_result<View>&& result) noexcept
+{
+	static_assert(Index < 2);
+	if constexpr (Index == 0)
+	{
+		return result.left();
+	}
+	else
+	{
+		return result.right();
+	}
+}
+
 }
 
 namespace std
@@ -450,6 +579,17 @@ struct tuple_size<unicode_ranges::split_once_at_result<View>> : integral_constan
 
 template <size_t Index, typename View>
 struct tuple_element<Index, unicode_ranges::split_once_at_result<View>>
+{
+	static_assert(Index < 2);
+	using type = View;
+};
+
+template <typename View>
+struct tuple_size<unicode_ranges::split_once_at_unchecked_result<View>> : integral_constant<size_t, 2>
+{};
+
+template <size_t Index, typename View>
+struct tuple_element<Index, unicode_ranges::split_once_at_unchecked_result<View>>
 {
 	static_assert(Index < 2);
 	using type = View;
@@ -494,6 +634,9 @@ inline constexpr bool enable_view<unicode_ranges::split_once_result<View>> = tru
 
 template <typename View>
 inline constexpr bool enable_view<unicode_ranges::split_once_at_result<View>> = true;
+
+template <typename View>
+inline constexpr bool enable_view<unicode_ranges::split_once_at_unchecked_result<View>> = true;
 
 }
 
@@ -571,8 +714,43 @@ struct unicode_scalar_error
 	std::size_t first_invalid_element_index = 0;
 };
 
+enum class wide_string_error_code
+{
+	truncated_surrogate_pair,
+	invalid_sequence,
+	invalid_scalar
+};
+
+struct wide_string_error
+{
+	wide_string_error_code code{};
+	std::size_t first_invalid_element_index = 0;
+};
+
 namespace details
 {
+	[[nodiscard]]
+	constexpr wide_string_error to_wide_string_error(utf16_error error) noexcept
+	{
+		const auto code = error.code == utf16_error_code::truncated_surrogate_pair
+			? wide_string_error_code::truncated_surrogate_pair
+			: wide_string_error_code::invalid_sequence;
+
+		return wide_string_error{
+			.code = code,
+			.first_invalid_element_index = error.first_invalid_code_unit_index
+		};
+	}
+
+	[[nodiscard]]
+	constexpr wide_string_error to_wide_string_error(unicode_scalar_error error) noexcept
+	{
+		return wide_string_error{
+			.code = wide_string_error_code::invalid_scalar,
+			.first_invalid_element_index = error.first_invalid_element_index
+		};
+	}
+
 	template <typename Allocator, typename CharT>
 	inline constexpr bool compiled_owning_string_allocator_v =
 		std::same_as<std::remove_cvref_t<Allocator>, std::allocator<CharT>>

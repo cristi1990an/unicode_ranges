@@ -60,6 +60,27 @@ struct utf16_error
 
 These are returned by checked APIs such as `utf16_string_view::from_code_units(...)` and `utf16_string::from_code_units(...)`.
 
+## Wide-string factories
+
+Checked `std::wstring_view` factories use a stable error type even though `wchar_t` has platform-dependent width:
+
+```cpp
+enum class wide_string_error_code
+{
+    truncated_surrogate_pair,
+    invalid_sequence,
+    invalid_scalar
+};
+
+struct wide_string_error
+{
+    wide_string_error_code code{};
+    std::size_t first_invalid_element_index = 0;
+};
+```
+
+On platforms where `sizeof(wchar_t) == 2`, wide input is validated as UTF-16 and UTF-16 errors are mapped into `wide_string_error`. On platforms where `sizeof(wchar_t) == 4`, wide input is validated as Unicode scalar values. This keeps `from_bytes(std::wstring_view)` source-compatible across platforms.
+
 ## Checked factories versus unchecked constructors
 
 The library distinguishes between:
