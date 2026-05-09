@@ -4984,6 +4984,8 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			UTF8_RANGES_TEST_ASSERT(u8"e\u0301"_utf8_sv.is_nfd());
 			UTF8_RANGES_TEST_ASSERT(u8"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf8_sv.to_nfc() == u8"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf8_sv);
 			auto nfc_utf8_owned = u8"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf8_s;
+			// libc++ can keep this UTF-8 text in SSO storage, where moving cannot preserve data().
+			nfc_utf8_owned.reserve(128);
 			[[maybe_unused]] const auto* nfc_utf8_original = nfc_utf8_owned.base().data();
 			[[maybe_unused]] auto nfc_utf8_reused = std::move(nfc_utf8_owned).to_nfc();
 			UTF8_RANGES_TEST_ASSERT(nfc_utf8_reused == u8"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf8_sv);
