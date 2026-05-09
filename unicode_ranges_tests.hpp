@@ -5069,6 +5069,7 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			UTF8_RANGES_TEST_ASSERT(lowered_in_place == u8"abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrst"_utf8_sv);
 			UTF8_RANGES_TEST_ASSERT(lowered_in_place.base().data() == ascii_lower_original);
 			auto same_size_lower_owned = u8"\u00C4\u03A9\u00C4\u03A9\u00C4\u03A9\u00C4\u03A9\u00C4\u03A9"_utf8_s;
+			same_size_lower_owned.reserve(128);
 			[[maybe_unused]] const auto* same_size_lower_original = same_size_lower_owned.base().data();
 			[[maybe_unused]] auto same_size_lowered = std::move(same_size_lower_owned).to_lowercase();
 			UTF8_RANGES_TEST_ASSERT(same_size_lowered == u8"\u00E4\u03C9\u00E4\u03C9\u00E4\u03C9\u00E4\u03C9\u00E4\u03C9"_utf8_sv);
@@ -5082,6 +5083,7 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			UTF8_RANGES_TEST_ASSERT(uppered_in_place == u8"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEFGHIJKLMNOPQRST"_utf8_sv);
 			UTF8_RANGES_TEST_ASSERT(uppered_in_place.base().data() == ascii_upper_original);
 			auto same_size_upper_owned = u8"\u00E4\u03C9\u00E4\u03C9\u00E4\u03C9\u00E4\u03C9\u00E4\u03C9"_utf8_s;
+			same_size_upper_owned.reserve(128);
 			[[maybe_unused]] const auto* same_size_upper_original = same_size_upper_owned.base().data();
 			[[maybe_unused]] auto same_size_uppered = std::move(same_size_upper_owned).to_uppercase();
 			UTF8_RANGES_TEST_ASSERT(same_size_uppered == u8"\u00C4\u03A9\u00C4\u03A9\u00C4\u03A9\u00C4\u03A9\u00C4\u03A9"_utf8_sv);
@@ -5090,6 +5092,7 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			[[maybe_unused]] auto partial_uppered = std::move(partial_upper_owned).to_uppercase(2, 4);
 			UTF8_RANGES_TEST_ASSERT(partial_uppered == u8"ab\u00C4SScd"_utf8_sv);
 			auto same_size_fold_owned = u8"\u03A9\u03A9\u03A9\u03A9\u03A9\u03A9\u03A9\u03A9\u03A9\u03A9"_utf8_s;
+			same_size_fold_owned.reserve(128);
 			[[maybe_unused]] const auto* same_size_fold_original = same_size_fold_owned.base().data();
 			[[maybe_unused]] auto same_size_folded = std::move(same_size_fold_owned).case_fold();
 			UTF8_RANGES_TEST_ASSERT(same_size_folded == u8"\u03C9\u03C9\u03C9\u03C9\u03C9\u03C9\u03C9\u03C9\u03C9\u03C9"_utf8_sv);
@@ -5943,6 +5946,7 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			UTF8_RANGES_TEST_ASSERT(U"e\u0301"_utf32_sv.to_nfc() == U"\u00E9"_utf32_sv);
 			UTF8_RANGES_TEST_ASSERT(U"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf32_sv.to_nfc() == U"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf32_sv);
 			auto nfc_utf32_owned = U"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf32_s;
+			nfc_utf32_owned.reserve(128);
 			[[maybe_unused]] const auto* nfc_utf32_original = nfc_utf32_owned.base().data();
 			[[maybe_unused]] auto nfc_utf32_reused = std::move(nfc_utf32_owned).to_nfc();
 			UTF8_RANGES_TEST_ASSERT(nfc_utf32_reused == U"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf32_sv);
@@ -5970,6 +5974,7 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			UTF8_RANGES_TEST_ASSERT(lowered_in_place == U"abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrst"_utf32_sv);
 			UTF8_RANGES_TEST_ASSERT(lowered_in_place.base().data() == ascii_lower_original);
 			auto same_size_lower_owned = U"\u00C4\u03A9\u00C4\u03A9\u00C4\u03A9\u00C4\u03A9\u00C4\u03A9"_utf32_s;
+			same_size_lower_owned.reserve(128);
 			[[maybe_unused]] const auto* same_size_lower_original = same_size_lower_owned.base().data();
 			[[maybe_unused]] auto same_size_lowered = std::move(same_size_lower_owned).to_lowercase();
 			UTF8_RANGES_TEST_ASSERT(same_size_lowered == U"\u00E4\u03C9\u00E4\u03C9\u00E4\u03C9\u00E4\u03C9\u00E4\u03C9"_utf32_sv);
@@ -5983,6 +5988,7 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			UTF8_RANGES_TEST_ASSERT(uppered_in_place == U"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEFGHIJKLMNOPQRST"_utf32_sv);
 			UTF8_RANGES_TEST_ASSERT(uppered_in_place.base().data() == ascii_upper_original);
 			auto same_size_upper_owned = U"\u00E4\u03C9\u00E4\u03C9\u00E4\u03C9\u00E4\u03C9\u00E4\u03C9"_utf32_s;
+			same_size_upper_owned.reserve(128);
 			[[maybe_unused]] const auto* same_size_upper_original = same_size_upper_owned.base().data();
 			[[maybe_unused]] auto same_size_uppered = std::move(same_size_upper_owned).to_uppercase();
 			UTF8_RANGES_TEST_ASSERT(same_size_uppered == U"\u00C4\u03A9\u00C4\u03A9\u00C4\u03A9\u00C4\u03A9\u00C4\u03A9"_utf32_sv);
@@ -5991,6 +5997,7 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			[[maybe_unused]] auto partial_uppered = std::move(partial_upper_owned).to_uppercase(2, 2);
 			UTF8_RANGES_TEST_ASSERT(partial_uppered == U"ab\u00C4SScd"_utf32_sv);
 			auto same_size_fold_owned = U"\u03A9\u03A9\u03A9\u03A9\u03A9\u03A9\u03A9\u03A9\u03A9\u03A9"_utf32_s;
+			same_size_fold_owned.reserve(128);
 			[[maybe_unused]] const auto* same_size_fold_original = same_size_fold_owned.base().data();
 			[[maybe_unused]] auto same_size_folded = std::move(same_size_fold_owned).case_fold();
 			UTF8_RANGES_TEST_ASSERT(same_size_folded == U"\u03C9\u03C9\u03C9\u03C9\u03C9\u03C9\u03C9\u03C9\u03C9\u03C9"_utf32_sv);
@@ -6344,6 +6351,7 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			UTF8_RANGES_TEST_ASSERT(u"e\u0301"_utf16_sv.to_nfc() == u"\u00E9"_utf16_sv);
 			UTF8_RANGES_TEST_ASSERT(u"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf16_sv.to_nfc() == u"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf16_sv);
 			auto nfc_utf16_owned = u"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf16_s;
+			nfc_utf16_owned.reserve(128);
 			[[maybe_unused]] const auto* nfc_utf16_original = nfc_utf16_owned.base().data();
 			[[maybe_unused]] auto nfc_utf16_reused = std::move(nfc_utf16_owned).to_nfc();
 			UTF8_RANGES_TEST_ASSERT(nfc_utf16_reused == u"Caf\u00E9 \u00C5ngstr\u00F6m \U0001F642"_utf16_sv);
@@ -6371,6 +6379,7 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			UTF8_RANGES_TEST_ASSERT(lowered_in_place == u"abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrst"_utf16_sv);
 			UTF8_RANGES_TEST_ASSERT(lowered_in_place.base().data() == ascii_lower_original);
 			auto same_size_lower_owned = u"\u00C4\u03A9\u00C4\u03A9\u00C4\u03A9\u00C4\u03A9\u00C4\u03A9"_utf16_s;
+			same_size_lower_owned.reserve(128);
 			[[maybe_unused]] const auto* same_size_lower_original = same_size_lower_owned.base().data();
 			[[maybe_unused]] auto same_size_lowered = std::move(same_size_lower_owned).to_lowercase();
 			UTF8_RANGES_TEST_ASSERT(same_size_lowered == u"\u00E4\u03C9\u00E4\u03C9\u00E4\u03C9\u00E4\u03C9\u00E4\u03C9"_utf16_sv);
@@ -6384,6 +6393,7 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			UTF8_RANGES_TEST_ASSERT(uppered_in_place == u"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEFGHIJKLMNOPQRST"_utf16_sv);
 			UTF8_RANGES_TEST_ASSERT(uppered_in_place.base().data() == ascii_upper_original);
 			auto same_size_upper_owned = u"\u00E4\u03C9\u00E4\u03C9\u00E4\u03C9\u00E4\u03C9\u00E4\u03C9"_utf16_s;
+			same_size_upper_owned.reserve(128);
 			[[maybe_unused]] const auto* same_size_upper_original = same_size_upper_owned.base().data();
 			[[maybe_unused]] auto same_size_uppered = std::move(same_size_upper_owned).to_uppercase();
 			UTF8_RANGES_TEST_ASSERT(same_size_uppered == u"\u00C4\u03A9\u00C4\u03A9\u00C4\u03A9\u00C4\u03A9\u00C4\u03A9"_utf16_sv);
@@ -6392,6 +6402,7 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			[[maybe_unused]] auto partial_uppered = std::move(partial_upper_owned).to_uppercase(2, 2);
 			UTF8_RANGES_TEST_ASSERT(partial_uppered == u"ab\u00C4SScd"_utf16_sv);
 			auto same_size_fold_owned = u"\u03A9\u03A9\u03A9\u03A9\u03A9\u03A9\u03A9\u03A9\u03A9\u03A9"_utf16_s;
+			same_size_fold_owned.reserve(128);
 			[[maybe_unused]] const auto* same_size_fold_original = same_size_fold_owned.base().data();
 			[[maybe_unused]] auto same_size_folded = std::move(same_size_fold_owned).case_fold();
 			UTF8_RANGES_TEST_ASSERT(same_size_folded == u"\u03C9\u03C9\u03C9\u03C9\u03C9\u03C9\u03C9\u03C9\u03C9\u03C9"_utf16_sv);
