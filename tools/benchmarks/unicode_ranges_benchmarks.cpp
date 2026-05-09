@@ -630,6 +630,30 @@ int main(int argc, char** argv)
 	const auto utf32_split_delimiter_storage = repeat_text(
 		U"alpha--beta--caf\u00E9--\U0001F642--omega--"sv,
 		512);
+	const auto utf8_split_ascii_storage = repeat_text(
+		u8"alpha,beta,gamma,delta,epsilon,"sv,
+		1024);
+	const auto utf16_split_ascii_storage = repeat_text(
+		u"alpha,beta,gamma,delta,epsilon,"sv,
+		1024);
+	const auto utf32_split_ascii_storage = repeat_text(
+		U"alpha,beta,gamma,delta,epsilon,"sv,
+		1024);
+	const auto utf8_split_long_delimiter_storage = repeat_text(
+		u8"alpha::<unicode-ranges-delimiter>::beta::<unicode-ranges-delimiter>::caf\u00E9::<unicode-ranges-delimiter>::omega"sv,
+		256);
+	const auto utf16_split_long_delimiter_storage = repeat_text(
+		u"alpha::<unicode-ranges-delimiter>::beta::<unicode-ranges-delimiter>::caf\u00E9::<unicode-ranges-delimiter>::omega"sv,
+		256);
+	const auto utf32_split_long_delimiter_storage = repeat_text(
+		U"alpha::<unicode-ranges-delimiter>::beta::<unicode-ranges-delimiter>::caf\u00E9::<unicode-ranges-delimiter>::omega"sv,
+		256);
+	const auto utf8_split_unicode_delimiter_storage = repeat_text(
+		u8"alpha\u00E9\U0001F642beta\u00E9\U0001F642gamma\u00E9\U0001F642omega"sv,
+		512);
+	const auto utf8_split_overlapping_delimiter_storage = repeat_text(
+		u8"aaaaaaaaaaaaaaaa"sv,
+		128);
 	const auto utf8_trim_storage = repeat_text(
 		u8" \t\n caf\u00E9 alpha beta \r\n "sv,
 		4096);
@@ -685,6 +709,14 @@ int main(int argc, char** argv)
 	const auto utf8_split_delimiter_text = utf8_string_view::from_bytes_unchecked(utf8_split_delimiter_storage);
 	const auto utf16_split_delimiter_text = utf16_string_view::from_code_units_unchecked(utf16_split_delimiter_storage);
 	const auto utf32_split_delimiter_text = utf32_string_view::from_code_points_unchecked(utf32_split_delimiter_storage);
+	const auto utf8_split_ascii_text = utf8_string_view::from_bytes_unchecked(utf8_split_ascii_storage);
+	const auto utf16_split_ascii_text = utf16_string_view::from_code_units_unchecked(utf16_split_ascii_storage);
+	const auto utf32_split_ascii_text = utf32_string_view::from_code_points_unchecked(utf32_split_ascii_storage);
+	const auto utf8_split_long_delimiter_text = utf8_string_view::from_bytes_unchecked(utf8_split_long_delimiter_storage);
+	const auto utf16_split_long_delimiter_text = utf16_string_view::from_code_units_unchecked(utf16_split_long_delimiter_storage);
+	const auto utf32_split_long_delimiter_text = utf32_string_view::from_code_points_unchecked(utf32_split_long_delimiter_storage);
+	const auto utf8_split_unicode_delimiter_text = utf8_string_view::from_bytes_unchecked(utf8_split_unicode_delimiter_storage);
+	const auto utf8_split_overlapping_delimiter_text = utf8_string_view::from_bytes_unchecked(utf8_split_overlapping_delimiter_storage);
 	const auto utf8_trim_text = utf8_string_view::from_bytes_unchecked(utf8_trim_storage);
 	const auto utf16_trim_text = utf16_string_view::from_code_units_unchecked(utf16_trim_storage);
 	const auto utf32_trim_text = utf32_string_view::from_code_points_unchecked(utf32_trim_storage);
@@ -694,6 +726,15 @@ int main(int argc, char** argv)
 	constexpr auto utf8_split_delimiter = u8"--"_utf8_sv;
 	constexpr auto utf16_split_delimiter = u"--"_utf16_sv;
 	constexpr auto utf32_split_delimiter = U"--"_utf32_sv;
+	constexpr auto utf8_ascii_split_delimiter = u8","_u8c;
+	constexpr auto utf16_ascii_split_delimiter = u","_u16c;
+	constexpr auto utf32_ascii_split_delimiter = U","_u32c;
+	constexpr auto utf8_long_split_delimiter = u8"::<unicode-ranges-delimiter>::"_utf8_sv;
+	constexpr auto utf16_long_split_delimiter = u"::<unicode-ranges-delimiter>::"_utf16_sv;
+	constexpr auto utf32_long_split_delimiter = U"::<unicode-ranges-delimiter>::"_utf32_sv;
+	constexpr auto utf8_missing_long_split_delimiter = u8"::<missing-unicode-ranges-delimiter>::"_utf8_sv;
+	constexpr auto utf8_unicode_split_delimiter = u8"\u00E9\U0001F642"_utf8_sv;
+	constexpr auto utf8_overlapping_split_delimiter = u8"aa"_utf8_sv;
 	constexpr std::size_t ascii_ignore_case_trim = 64;
 	const auto utf8_ascii_prefix = utf8_string_view::from_bytes_unchecked(
 		std::u8string_view{ utf8_ascii_lower_storage.data(), utf8_ascii_lower_storage.size() - ascii_ignore_case_trim });
@@ -766,6 +807,15 @@ int main(int argc, char** argv)
 	UTF8_RANGES_BENCHMARK_ASSERT(utf8_split_delimiter_text.contains(utf8_split_delimiter));
 	UTF8_RANGES_BENCHMARK_ASSERT(utf16_split_delimiter_text.contains(utf16_split_delimiter));
 	UTF8_RANGES_BENCHMARK_ASSERT(utf32_split_delimiter_text.contains(utf32_split_delimiter));
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_split_ascii_text.contains(utf8_ascii_split_delimiter));
+	UTF8_RANGES_BENCHMARK_ASSERT(utf16_split_ascii_text.contains(utf16_ascii_split_delimiter));
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_split_ascii_text.contains(utf32_ascii_split_delimiter));
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_split_long_delimiter_text.contains(utf8_long_split_delimiter));
+	UTF8_RANGES_BENCHMARK_ASSERT(utf16_split_long_delimiter_text.contains(utf16_long_split_delimiter));
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_split_long_delimiter_text.contains(utf32_long_split_delimiter));
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_split_unicode_delimiter_text.contains(utf8_unicode_split_delimiter));
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_split_overlapping_delimiter_text.contains(utf8_overlapping_split_delimiter));
+	UTF8_RANGES_BENCHMARK_ASSERT(!utf8_split_long_delimiter_text.contains(utf8_missing_long_split_delimiter));
 	UTF8_RANGES_BENCHMARK_ASSERT(utf8_split_delimiter_text.starts_with(u8"alpha"_utf8_sv));
 	UTF8_RANGES_BENCHMARK_ASSERT(utf16_split_delimiter_text.starts_with(u"alpha"_utf16_sv));
 	UTF8_RANGES_BENCHMARK_ASSERT(utf32_split_delimiter_text.starts_with(U"alpha"_utf32_sv));
@@ -3145,12 +3195,111 @@ int main(int argc, char** argv)
 		}
 	});
 	cases.push_back({
+		"utf8.split.ascii_char",
+		utf8_split_ascii_storage.size(),
+		8,
+		[&]() -> std::size_t
+		{
+			return sum_view_sizes(utf8_split_ascii_text.split(utf8_ascii_split_delimiter));
+		}
+	});
+	cases.push_back({
+		"utf8.rsplit.ascii_char",
+		utf8_split_ascii_storage.size(),
+		8,
+		[&]() -> std::size_t
+		{
+			return sum_view_sizes(utf8_split_ascii_text.rsplit(utf8_ascii_split_delimiter));
+		}
+	});
+	cases.push_back({
+		"utf8.split.long_delimiter",
+		utf8_split_long_delimiter_storage.size(),
+		8,
+		[&]() -> std::size_t
+		{
+			return sum_view_sizes(utf8_split_long_delimiter_text.split(utf8_long_split_delimiter));
+		}
+	});
+	cases.push_back({
+		"utf8.rsplit.long_delimiter",
+		utf8_split_long_delimiter_storage.size(),
+		8,
+		[&]() -> std::size_t
+		{
+			return sum_view_sizes(utf8_split_long_delimiter_text.rsplit(utf8_long_split_delimiter));
+		}
+	});
+	cases.push_back({
+		"utf8.split.unicode_delimiter",
+		utf8_split_unicode_delimiter_storage.size(),
+		8,
+		[&]() -> std::size_t
+		{
+			return sum_view_sizes(utf8_split_unicode_delimiter_text.split(utf8_unicode_split_delimiter));
+		}
+	});
+	cases.push_back({
+		"utf8.rsplit.unicode_delimiter",
+		utf8_split_unicode_delimiter_storage.size(),
+		8,
+		[&]() -> std::size_t
+		{
+			return sum_view_sizes(utf8_split_unicode_delimiter_text.rsplit(utf8_unicode_split_delimiter));
+		}
+	});
+	cases.push_back({
+		"utf8.split.missing_long_delimiter",
+		utf8_split_long_delimiter_storage.size(),
+		16,
+		[&]() -> std::size_t
+		{
+			return sum_view_sizes(utf8_split_long_delimiter_text.split(utf8_missing_long_split_delimiter));
+		}
+	});
+	cases.push_back({
+		"utf8.rsplit.missing_long_delimiter",
+		utf8_split_long_delimiter_storage.size(),
+		16,
+		[&]() -> std::size_t
+		{
+			return sum_view_sizes(utf8_split_long_delimiter_text.rsplit(utf8_missing_long_split_delimiter));
+		}
+	});
+	cases.push_back({
+		"utf8.split.overlapping_delimiter",
+		utf8_split_overlapping_delimiter_storage.size(),
+		1,
+		[&]() -> std::size_t
+		{
+			return sum_view_sizes(utf8_split_overlapping_delimiter_text.split(utf8_overlapping_split_delimiter));
+		}
+	});
+	cases.push_back({
+		"utf8.rsplit.overlapping_delimiter",
+		utf8_split_overlapping_delimiter_storage.size(),
+		1,
+		[&]() -> std::size_t
+		{
+			return sum_view_sizes(utf8_split_overlapping_delimiter_text.rsplit(utf8_overlapping_split_delimiter));
+		}
+	});
+	cases.push_back({
 		"utf8.split_terminator.delimiter",
 		utf8_split_delimiter_storage.size(),
 		8,
 		[&]() -> std::size_t
 		{
 			return sum_view_sizes(utf8_split_delimiter_text.split_terminator(utf8_split_delimiter));
+		}
+	});
+	cases.push_back({
+		"utf8.rsplit_terminator.delimiter",
+		utf8_split_delimiter_storage.size(),
+		8,
+		[&]() -> std::size_t
+		{
+			return sum_view_sizes(utf8_split_delimiter_text.rsplit_terminator(utf8_split_delimiter));
 		}
 	});
 	cases.push_back({
@@ -3217,12 +3366,66 @@ int main(int argc, char** argv)
 		}
 	});
 	cases.push_back({
+		"utf16.rsplit.delimiter",
+		utf16_split_delimiter_storage.size() * sizeof(char16_t),
+		8,
+		[&]() -> std::size_t
+		{
+			return sum_view_sizes(utf16_split_delimiter_text.rsplit(utf16_split_delimiter));
+		}
+	});
+	cases.push_back({
+		"utf16.split.ascii_char",
+		utf16_split_ascii_storage.size() * sizeof(char16_t),
+		8,
+		[&]() -> std::size_t
+		{
+			return sum_view_sizes(utf16_split_ascii_text.split(utf16_ascii_split_delimiter));
+		}
+	});
+	cases.push_back({
+		"utf16.rsplit.ascii_char",
+		utf16_split_ascii_storage.size() * sizeof(char16_t),
+		8,
+		[&]() -> std::size_t
+		{
+			return sum_view_sizes(utf16_split_ascii_text.rsplit(utf16_ascii_split_delimiter));
+		}
+	});
+	cases.push_back({
+		"utf16.split.long_delimiter",
+		utf16_split_long_delimiter_storage.size() * sizeof(char16_t),
+		8,
+		[&]() -> std::size_t
+		{
+			return sum_view_sizes(utf16_split_long_delimiter_text.split(utf16_long_split_delimiter));
+		}
+	});
+	cases.push_back({
+		"utf16.rsplit.long_delimiter",
+		utf16_split_long_delimiter_storage.size() * sizeof(char16_t),
+		8,
+		[&]() -> std::size_t
+		{
+			return sum_view_sizes(utf16_split_long_delimiter_text.rsplit(utf16_long_split_delimiter));
+		}
+	});
+	cases.push_back({
 		"utf16.split_inclusive.delimiter",
 		utf16_split_delimiter_storage.size() * sizeof(char16_t),
 		8,
 		[&]() -> std::size_t
 		{
 			return sum_view_sizes(utf16_split_delimiter_text.split_inclusive(utf16_split_delimiter));
+		}
+	});
+	cases.push_back({
+		"utf16.rsplit_terminator.delimiter",
+		utf16_split_delimiter_storage.size() * sizeof(char16_t),
+		8,
+		[&]() -> std::size_t
+		{
+			return sum_view_sizes(utf16_split_delimiter_text.rsplit_terminator(utf16_split_delimiter));
 		}
 	});
 	cases.push_back({
@@ -3253,12 +3456,66 @@ int main(int argc, char** argv)
 		}
 	});
 	cases.push_back({
+		"utf32.rsplit.delimiter",
+		utf32_split_delimiter_storage.size() * sizeof(char32_t),
+		8,
+		[&]() -> std::size_t
+		{
+			return sum_view_sizes(utf32_split_delimiter_text.rsplit(utf32_split_delimiter));
+		}
+	});
+	cases.push_back({
+		"utf32.split.ascii_char",
+		utf32_split_ascii_storage.size() * sizeof(char32_t),
+		8,
+		[&]() -> std::size_t
+		{
+			return sum_view_sizes(utf32_split_ascii_text.split(utf32_ascii_split_delimiter));
+		}
+	});
+	cases.push_back({
+		"utf32.rsplit.ascii_char",
+		utf32_split_ascii_storage.size() * sizeof(char32_t),
+		8,
+		[&]() -> std::size_t
+		{
+			return sum_view_sizes(utf32_split_ascii_text.rsplit(utf32_ascii_split_delimiter));
+		}
+	});
+	cases.push_back({
+		"utf32.split.long_delimiter",
+		utf32_split_long_delimiter_storage.size() * sizeof(char32_t),
+		8,
+		[&]() -> std::size_t
+		{
+			return sum_view_sizes(utf32_split_long_delimiter_text.split(utf32_long_split_delimiter));
+		}
+	});
+	cases.push_back({
+		"utf32.rsplit.long_delimiter",
+		utf32_split_long_delimiter_storage.size() * sizeof(char32_t),
+		8,
+		[&]() -> std::size_t
+		{
+			return sum_view_sizes(utf32_split_long_delimiter_text.rsplit(utf32_long_split_delimiter));
+		}
+	});
+	cases.push_back({
 		"utf32.split_inclusive.delimiter",
 		utf32_split_delimiter_storage.size() * sizeof(char32_t),
 		8,
 		[&]() -> std::size_t
 		{
 			return sum_view_sizes(utf32_split_delimiter_text.split_inclusive(utf32_split_delimiter));
+		}
+	});
+	cases.push_back({
+		"utf32.rsplit_terminator.delimiter",
+		utf32_split_delimiter_storage.size() * sizeof(char32_t),
+		8,
+		[&]() -> std::size_t
+		{
+			return sum_view_sizes(utf32_split_delimiter_text.rsplit_terminator(utf32_split_delimiter));
 		}
 	});
 	cases.push_back({

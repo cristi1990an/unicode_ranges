@@ -2851,6 +2851,7 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		constexpr auto empty = u8""_utf8_sv;
 		constexpr auto exact = u8"--"_utf8_sv;
 		constexpr auto repeated = u8"a----b"_utf8_sv;
+		constexpr auto overlapping = u8"aaa"_utf8_sv;
 		constexpr auto missing = u8"abra"_utf8_sv;
 		constexpr auto unicode = u8"A\u00E9B\u00E9"_utf8_sv;
 		const auto exact_first = exact.split_once(u8"--"_utf8_sv);
@@ -2888,6 +2889,10 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 				u8"a"_utf8_sv,
 				u8""_utf8_sv,
 				u8"b"_utf8_sv
+			})
+			&& std::ranges::equal(overlapping.rsplit(u8"aa"_utf8_sv), std::array{
+				u8"a"_utf8_sv,
+				u8""_utf8_sv
 			})
 			&& std::ranges::equal(missing.split(u8"--"_utf8_sv), std::array{
 				u8"abra"_utf8_sv
@@ -3416,6 +3421,7 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		constexpr auto empty = u""_utf16_sv;
 		constexpr auto exact = u"--"_utf16_sv;
 		constexpr auto repeated = u"a----b"_utf16_sv;
+		constexpr auto overlapping = u"aaa"_utf16_sv;
 		constexpr auto missing = u"abra"_utf16_sv;
 		constexpr auto unicode = u"A\u00E9B\u00E9"_utf16_sv;
 		const auto exact_first = exact.split_once(u"--"_utf16_sv);
@@ -3453,6 +3459,10 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 				u"a"_utf16_sv,
 				u""_utf16_sv,
 				u"b"_utf16_sv
+			})
+			&& std::ranges::equal(overlapping.rsplit(u"aa"_utf16_sv), std::array{
+				u"a"_utf16_sv,
+				u""_utf16_sv
 			})
 			&& std::ranges::equal(missing.split(u"--"_utf16_sv), std::array{
 				u"abra"_utf16_sv
@@ -5365,6 +5375,7 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			[[maybe_unused]] const auto empty = u8""_utf8_sv;
 			const auto exact = u8"--"_utf8_sv;
 			[[maybe_unused]] const auto repeated = u8"a----b"_utf8_sv;
+			const auto overlapping = u8"aaa"_utf8_sv;
 			[[maybe_unused]] const auto missing = u8"abra"_utf8_sv;
 			const auto unicode = u8"A\u00E9B\u00E9"_utf8_sv;
 			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(empty.split(u8"--"_utf8_sv), std::array{
@@ -5400,6 +5411,10 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 				u8"a"_utf8_sv,
 				u8""_utf8_sv,
 				u8"b"_utf8_sv
+			}));
+			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(overlapping.rsplit(u8"aa"_utf8_sv), std::array{
+				u8"a"_utf8_sv,
+				u8""_utf8_sv
 			}));
 			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(missing.split(u8"--"_utf8_sv), std::array{
 				u8"abra"_utf8_sv
@@ -6153,6 +6168,10 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 				U"!"_utf32_sv,
 				U"abra--cadabra"_utf32_sv
 			}));
+			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(U"aaa"_utf32_sv.rsplit(U"aa"_utf32_sv), std::array{
+				U"a"_utf32_sv,
+				U""_utf32_sv
+			}));
 			[[maybe_unused]] const auto first = text.split_once(U"--"_utf32_sv);
 			UTF8_RANGES_TEST_ASSERT(first.has_value());
 			UTF8_RANGES_TEST_ASSERT(first.left() == U"abra"_utf32_sv);
@@ -6675,6 +6694,7 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			[[maybe_unused]] const auto empty = u""_utf16_sv;
 			const auto exact = u"--"_utf16_sv;
 			[[maybe_unused]] const auto repeated = u"a----b"_utf16_sv;
+			const auto overlapping = u"aaa"_utf16_sv;
 			[[maybe_unused]] const auto missing = u"abra"_utf16_sv;
 			const auto unicode = u"A\u00E9B\u00E9"_utf16_sv;
 			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(empty.split(u"--"_utf16_sv), std::array{
@@ -6710,6 +6730,10 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 				u"a"_utf16_sv,
 				u""_utf16_sv,
 				u"b"_utf16_sv
+			}));
+			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(overlapping.rsplit(u"aa"_utf16_sv), std::array{
+				u"a"_utf16_sv,
+				u""_utf16_sv
 			}));
 			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(missing.split(u"--"_utf16_sv), std::array{
 				u"abra"_utf16_sv

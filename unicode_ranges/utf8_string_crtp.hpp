@@ -477,6 +477,38 @@ inline constexpr bool utf8_split_input_ends_with_delimiter(
 		&& base.substr(base.size() - delimiter.size()) == delimiter;
 }
 
+inline constexpr bool utf8_split_delimiter_has_self_overlap(std::u8string_view delimiter) noexcept
+{
+	for (std::size_t size = 1; size < delimiter.size(); ++size)
+	{
+		if (delimiter.substr(0, size) == delimiter.substr(delimiter.size() - size))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+inline constexpr bool utf8_split_delimiter_has_overlapping_predecessor(
+	std::u8string_view base,
+	std::u8string_view delimiter,
+	std::size_t candidate) noexcept
+{
+	const auto first_overlapping = candidate < delimiter.size()
+		? std::size_t{ 0 }
+		: candidate - delimiter.size() + 1;
+	for (std::size_t pos = first_overlapping; pos < candidate; ++pos)
+	{
+		if (pos + delimiter.size() <= base.size() && base.substr(pos, delimiter.size()) == delimiter)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 struct borrowed_utf8_split_delimiter
 {
 	std::u8string_view value{};
@@ -1024,6 +1056,9 @@ template <typename View, bool DropTrailingEmpty, typename DelimiterStorage>
 class basic_utf8_split_view
 	: public std::ranges::view_interface<basic_utf8_split_view<View, DropTrailingEmpty, DelimiterStorage>>
 {
+	template <typename, bool, typename>
+	friend class basic_utf8_rsplit_view;
+
 public:
 	static constexpr basic_utf8_split_view from_delimiter_storage(
 		std::u8string_view base,
@@ -1189,6 +1224,30 @@ private:
 		std::u8string_view delimiter,
 		std::size_t current) noexcept
 	{
+		const auto delimiter_pos = [&]() constexpr noexcept {
+			if (current == std::u8string_view::npos)
+			{
+				return details::rfind_utf8_split_delimiter(base, delimiter, base.size());
+			}
+
+			if (current == 0)
+			{
+				return std::u8string_view::npos;
+			}
+
+			return details::rfind_utf8_split_delimiter(base, delimiter, current - 1);
+		}();
+		if (delimiter_pos == std::u8string_view::npos)
+		{
+			return 0;
+		}
+
+		if (!details::utf8_split_delimiter_has_self_overlap(delimiter)
+			|| !details::utf8_split_delimiter_has_overlapping_predecessor(base, delimiter, delimiter_pos))
+		{
+			return delimiter_pos + delimiter.size();
+		}
+
 		std::size_t previous_start = 0;
 		std::size_t next = details::find_utf8_split_delimiter(base, delimiter, 0);
 		while (next != std::u8string_view::npos
@@ -1219,6 +1278,178 @@ using utf8_split_view = basic_utf8_split_view<View, DropTrailingEmpty, borrowed_
 
 template <typename View, bool DropTrailingEmpty>
 using utf8_split_char_view = basic_utf8_split_view<View, DropTrailingEmpty, owned_utf8_split_char_delimiter>;
+
+template <typename View, bool DropTrailingEmpty, typename DelimiterStorage>
+class basic_utf8_rsplit_view
+	: public std::ranges::view_interface<basic_utf8_rsplit_view<View, DropTrailingEmpty, DelimiterStorage>>
+{
+public:
+	static constexpr basic_utf8_rsplit_view from_delimiter_storage(
+		std::u8string_view base,
+		DelimiterStorage delimiter_storage) noexcept
+	{
+		return basic_utf8_rsplit_view{ base, delimiter_storage };
+	}
+
+	class iterator
+	{
+	public:
+		using iterator_category = std::bidirectional_iterator_tag;
+		using iterator_concept = std::bidirectional_iterator_tag;
+		using value_type = View;
+		using difference_type = std::ptrdiff_t;
+		using reference = value_type;
+		using pointer = void;
+
+		iterator() = default;
+
+		constexpr iterator(
+			std::u8string_view base,
+			std::u8string_view delimiter,
+			std::size_t current,
+			std::size_t segment_end) noexcept
+			: base_(base),
+			  delimiter_(delimiter),
+			  current_(current),
+			  segment_end_(segment_end)
+		{}
+
+		constexpr reference operator*() const noexcept
+		{
+			return View::from_bytes_unchecked(base_.substr(current_, segment_end_ - current_));
+		}
+
+		constexpr iterator& operator++() noexcept
+		{
+			if (current_ == 0 || current_ == std::u8string_view::npos)
+			{
+				current_ = std::u8string_view::npos;
+				segment_end_ = std::u8string_view::npos;
+				return *this;
+			}
+
+			segment_end_ = current_ - delimiter_.size();
+			current_ = basic_utf8_split_view<View, DropTrailingEmpty, DelimiterStorage>::find_previous_segment_start(
+				base_,
+				delimiter_,
+				segment_end_);
+			return *this;
+		}
+
+		constexpr iterator operator++(int) noexcept
+		{
+			iterator old = *this;
+			++(*this);
+			return old;
+		}
+
+		constexpr iterator& operator--() noexcept
+		{
+			if (current_ == std::u8string_view::npos)
+			{
+				current_ = 0;
+				const auto next = details::find_utf8_split_delimiter(base_, delimiter_, 0);
+				segment_end_ = next == std::u8string_view::npos ? base_.size() : next;
+				return *this;
+			}
+
+			if (segment_end_ == base_.size())
+			{
+				return *this;
+			}
+
+			current_ = segment_end_ + delimiter_.size();
+			const auto next = details::find_utf8_split_delimiter(base_, delimiter_, current_);
+			segment_end_ = next == std::u8string_view::npos ? base_.size() : next;
+			return *this;
+		}
+
+		constexpr iterator operator--(int) noexcept
+		{
+			iterator old = *this;
+			--(*this);
+			return old;
+		}
+
+		friend constexpr bool operator==(const iterator& lhs, const iterator& rhs) noexcept
+		{
+			return lhs.base_.data() == rhs.base_.data()
+				&& lhs.base_.size() == rhs.base_.size()
+				&& lhs.delimiter_.data() == rhs.delimiter_.data()
+				&& lhs.delimiter_.size() == rhs.delimiter_.size()
+				&& lhs.current_ == rhs.current_
+				&& lhs.segment_end_ == rhs.segment_end_;
+		}
+
+	private:
+		std::u8string_view base_{};
+		std::u8string_view delimiter_{};
+		std::size_t current_ = std::u8string_view::npos;
+		std::size_t segment_end_ = std::u8string_view::npos;
+	};
+
+	constexpr iterator begin() const noexcept
+	{
+		const auto delimiter = delimiter_view();
+		const auto segment_end = [&]() constexpr noexcept {
+			if constexpr (DropTrailingEmpty)
+			{
+				if (details::utf8_split_input_ends_with_delimiter(base_, delimiter))
+				{
+					return base_.size() - delimiter.size();
+				}
+			}
+
+			return base_.size();
+		}();
+		const auto current = segment_end == base_.size()
+			? basic_utf8_split_view<View, DropTrailingEmpty, DelimiterStorage>::find_previous_segment_start(
+				base_,
+				delimiter,
+				std::u8string_view::npos)
+			: basic_utf8_split_view<View, DropTrailingEmpty, DelimiterStorage>::find_previous_segment_start(
+				base_,
+				delimiter,
+				segment_end);
+		return iterator{
+			base_,
+			delimiter,
+			current,
+			segment_end
+		};
+	}
+
+	constexpr iterator end() const noexcept
+	{
+		return iterator{
+			base_,
+			delimiter_view(),
+			std::u8string_view::npos,
+			std::u8string_view::npos
+		};
+	}
+
+private:
+	constexpr explicit basic_utf8_rsplit_view(
+		std::u8string_view base,
+		DelimiterStorage delimiter_storage) noexcept
+		: base_(base), delimiter_storage_(delimiter_storage)
+	{}
+
+	constexpr std::u8string_view delimiter_view() const noexcept
+	{
+		return delimiter_storage_.view();
+	}
+
+	std::u8string_view base_{};
+	DelimiterStorage delimiter_storage_{};
+};
+
+template <typename View, bool DropTrailingEmpty>
+using utf8_rsplit_view = basic_utf8_rsplit_view<View, DropTrailingEmpty, borrowed_utf8_split_delimiter>;
+
+template <typename View, bool DropTrailingEmpty>
+using utf8_rsplit_char_view = basic_utf8_rsplit_view<View, DropTrailingEmpty, owned_utf8_split_char_delimiter>;
 
 inline constexpr std::size_t find_utf8_non_delimiter_boundary(
 	std::u8string_view base,
@@ -2202,25 +2433,25 @@ private:
 		const Pred& pred,
 		std::size_t current) noexcept
 	{
-		std::size_t previous_start = 0;
-		for (auto next = details::find_utf8_predicate_match(base, 0, pred);
-			next.pos != std::u8string_view::npos && next.pos + next.size < current;
-			next = details::find_utf8_predicate_match(base, previous_start, pred))
-		{
-			previous_start = next.pos + next.size;
-		}
-
-		if (current == std::u8string_view::npos)
-		{
-			for (auto next = details::find_utf8_predicate_match(base, 0, pred);
-				next.pos != std::u8string_view::npos;
-				next = details::find_utf8_predicate_match(base, previous_start, pred))
+		auto previous = [&]() constexpr noexcept {
+			if (current == std::u8string_view::npos)
 			{
-				previous_start = next.pos + next.size;
+				return details::rfind_utf8_predicate_match(base, base.size(), pred);
 			}
-		}
 
-		return previous_start;
+			if (current == 0)
+			{
+				return utf8_predicate_match{};
+			}
+
+			auto match = details::rfind_utf8_predicate_match(base, current, pred);
+			while (match.pos != std::u8string_view::npos && match.pos + match.size >= current)
+			{
+				match = details::rfind_utf8_predicate_match(base, match.pos, pred);
+			}
+			return match;
+		}();
+		return previous.pos == std::u8string_view::npos ? 0 : previous.pos + previous.size;
 	}
 
 	std::u8string_view base_{};
@@ -3851,7 +4082,9 @@ public:
 	[[nodiscard]]
 	constexpr auto rsplit(utf8_char ch) const& noexcept
 	{
-		return std::views::reverse(split(ch));
+		return utf8_rsplit_char_view<View, false>::from_delimiter_storage(
+			byte_view(),
+			details::owned_utf8_split_char_delimiter{ ch });
 	}
 
 	[[nodiscard]]
@@ -3868,7 +4101,9 @@ public:
 	[[nodiscard]]
 	constexpr auto rsplit(View sv) const& noexcept
 	{
-		return std::views::reverse(split(sv));
+		return utf8_rsplit_view<View, false>::from_delimiter_storage(
+			byte_view(),
+			details::borrowed_utf8_split_delimiter{ sv.base() });
 	}
 
 	[[nodiscard]]
@@ -3963,7 +4198,9 @@ public:
 	[[nodiscard]]
 	constexpr auto rsplit_terminator(utf8_char ch) const& noexcept
 	{
-		return std::views::reverse(split_terminator(ch));
+		return utf8_rsplit_char_view<View, true>::from_delimiter_storage(
+			byte_view(),
+			details::owned_utf8_split_char_delimiter{ ch });
 	}
 
 	[[nodiscard]]
@@ -3980,7 +4217,9 @@ public:
 	[[nodiscard]]
 	constexpr auto rsplit_terminator(View sv) const& noexcept
 	{
-		return std::views::reverse(split_terminator(sv));
+		return utf8_rsplit_view<View, true>::from_delimiter_storage(
+			byte_view(),
+			details::borrowed_utf8_split_delimiter{ sv.base() });
 	}
 
 	[[nodiscard]]
@@ -5821,6 +6060,13 @@ namespace std::ranges
 	template <typename View, bool DropTrailingEmpty>
 	inline constexpr bool enable_borrowed_range<
 		unicode_ranges::details::basic_utf8_split_view<
+			View,
+			DropTrailingEmpty,
+			unicode_ranges::details::borrowed_utf8_split_delimiter>> = true;
+
+	template <typename View, bool DropTrailingEmpty>
+	inline constexpr bool enable_borrowed_range<
+		unicode_ranges::details::basic_utf8_rsplit_view<
 			View,
 			DropTrailingEmpty,
 			unicode_ranges::details::borrowed_utf8_split_delimiter>> = true;
