@@ -1013,6 +1013,32 @@ namespace unicode_ranges
 				return string_type::from_code_points_unchecked(std::move(base));
 			}
 
+			if (!std::is_constant_evaluated())
+			{
+				bool changed = false;
+				if (case_map_utf32_same_size<Lowercase>(code_points, changed))
+				{
+					if (!changed)
+					{
+						return string_type::from_code_points_unchecked(std::move(base));
+					}
+
+					base_type result{ base.get_allocator() };
+					write_case_map_utf32<Lowercase>(code_points, result, code_points.size());
+					return string_type::from_code_points_unchecked(std::move(result));
+				}
+
+				const auto measurement = measure_case_map_utf32<Lowercase>(code_points);
+				if (!measurement.changed)
+				{
+					return string_type::from_code_points_unchecked(std::move(base));
+				}
+
+				base_type result{ base.get_allocator() };
+				write_case_map_utf32<Lowercase>(code_points, result, measurement.output_size);
+				return string_type::from_code_points_unchecked(std::move(result));
+			}
+
 			std::size_t write_index = 0;
 			for (std::size_t index = 0; index < code_points.size();)
 			{
@@ -1386,6 +1412,11 @@ namespace unicode_ranges
 				{
 					ascii_lowercase_inplace(base.data(), base.size());
 					return string_type::from_code_points_unchecked(std::move(base));
+				}
+
+				if (!std::is_constant_evaluated())
+				{
+					return case_fold_utf32_copy(code_points, base.get_allocator());
 				}
 
 				std::size_t write_index = 0;

@@ -1844,6 +1844,25 @@ namespace unicode_ranges
 			return string_type::from_bytes_unchecked(std::move(base));
 		}
 
+		if (!std::is_constant_evaluated())
+		{
+			base_type same_size_result{ base.get_allocator() };
+			if (try_case_map_utf8_same_size<Lowercase>(bytes, same_size_result))
+			{
+				return string_type::from_bytes_unchecked(std::move(same_size_result));
+			}
+
+			const auto measurement = measure_case_map_utf8<Lowercase>(bytes);
+			if (!measurement.changed)
+			{
+				return string_type::from_bytes_unchecked(std::move(base));
+			}
+
+			base_type result{ base.get_allocator() };
+			write_case_map_utf8<Lowercase>(bytes, result, measurement.output_size);
+			return string_type::from_bytes_unchecked(std::move(result));
+		}
+
 		std::size_t write_index = 0;
 		for (std::size_t index = 0; index < bytes.size();)
 		{
@@ -2018,6 +2037,25 @@ namespace unicode_ranges
 					ascii_uppercase_inplace(base.data(), base.size());
 				}
 				return string_type::from_code_units_unchecked(std::move(base));
+			}
+
+			if (!std::is_constant_evaluated())
+			{
+				base_type same_size_result{ base.get_allocator() };
+				if (try_case_map_utf16_same_size<Lowercase>(code_units, same_size_result))
+				{
+					return string_type::from_code_units_unchecked(std::move(same_size_result));
+				}
+
+				const auto measurement = measure_case_map_utf16<Lowercase>(code_units);
+				if (!measurement.changed)
+				{
+					return string_type::from_code_units_unchecked(std::move(base));
+				}
+
+				base_type result{ base.get_allocator() };
+				write_case_map_utf16<Lowercase>(code_units, result, measurement.output_size);
+				return string_type::from_code_units_unchecked(std::move(result));
 			}
 
 			std::size_t write_index = 0;
@@ -2717,6 +2755,35 @@ namespace unicode_ranges
 				return string_type::from_bytes_unchecked(std::move(base));
 			}
 
+			if (!std::is_constant_evaluated())
+			{
+				base_type same_size_result{ base.get_allocator() };
+				bool changed = false;
+				if (try_case_fold_utf8_same_size(bytes, same_size_result, changed))
+				{
+					if (!changed)
+					{
+						return string_type::from_bytes_unchecked(std::move(base));
+					}
+
+					return string_type::from_bytes_unchecked(std::move(same_size_result));
+				}
+
+				const auto measurement = measure_case_fold_utf8(bytes);
+				if (!measurement.changed)
+				{
+					return string_type::from_bytes_unchecked(std::move(base));
+				}
+
+				base_type result{ base.get_allocator() };
+				result.resize_and_overwrite(measurement.output_size,
+					[&](char8_t* buffer, std::size_t) noexcept
+					{
+						return write_case_fold_utf8_into(bytes, buffer);
+					});
+				return string_type::from_bytes_unchecked(std::move(result));
+			}
+
 			std::size_t write_index = 0;
 			for (std::size_t index = 0; index < bytes.size();)
 			{
@@ -2859,6 +2926,35 @@ namespace unicode_ranges
 			{
 				ascii_lowercase_inplace(base.data(), base.size());
 				return string_type::from_code_units_unchecked(std::move(base));
+			}
+
+			if (!std::is_constant_evaluated())
+			{
+				base_type same_size_result{ base.get_allocator() };
+				bool changed = false;
+				if (try_case_fold_utf16_same_size(code_units, same_size_result, changed))
+				{
+					if (!changed)
+					{
+						return string_type::from_code_units_unchecked(std::move(base));
+					}
+
+					return string_type::from_code_units_unchecked(std::move(same_size_result));
+				}
+
+				const auto measurement = measure_case_fold_utf16(code_units);
+				if (!measurement.changed)
+				{
+					return string_type::from_code_units_unchecked(std::move(base));
+				}
+
+				base_type result{ base.get_allocator() };
+				result.resize_and_overwrite(measurement.output_size,
+					[&](char16_t* buffer, std::size_t) noexcept
+					{
+						return write_case_fold_utf16_into(code_units, buffer);
+					});
+				return string_type::from_code_units_unchecked(std::move(result));
 			}
 
 			std::size_t write_index = 0;

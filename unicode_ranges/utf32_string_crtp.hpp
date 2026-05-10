@@ -5749,6 +5749,21 @@ protected:
 		UTF8_RANGES_DEBUG_ASSERT(first <= last);
 		UTF8_RANGES_DEBUG_ASSERT(last <= old_size);
 
+		if constexpr (sizeof(void*) < 8u)
+		{
+			if (last != old_size)
+			{
+				text.erase(last, old_size - last);
+			}
+
+			if (first != 0)
+			{
+				text.erase(0, first);
+			}
+
+			return std::move(text);
+		}
+
 		if (first != 0)
 		{
 			const auto retained_size = last - first;
