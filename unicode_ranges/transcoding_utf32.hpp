@@ -991,6 +991,95 @@ namespace unicode_ranges
 			write_case_map_utf32<Lowercase>(code_points, result, measurement.output_size);
 			return basic_utf32_string<Allocator>::from_code_points_unchecked(std::move(result));
 		}
+
+		template <bool Lowercase, typename Allocator>
+		constexpr basic_utf32_string<Allocator> case_map_utf32_rvalue(basic_utf32_string<Allocator>&& source)
+		{
+			using string_type = basic_utf32_string<Allocator>;
+			using base_type = typename string_type::base_type;
+			auto base = std::move(source).base();
+			const auto code_points = std::u32string_view{ base };
+
+			if (is_ascii_only(code_points))
+			{
+				if constexpr (Lowercase)
+				{
+					ascii_lowercase_inplace(base.data(), base.size());
+				}
+				else
+				{
+					ascii_uppercase_inplace(base.data(), base.size());
+				}
+				return string_type::from_code_points_unchecked(std::move(base));
+			}
+
+			std::size_t write_index = 0;
+			for (std::size_t index = 0; index < code_points.size();)
+			{
+				const auto remaining = std::u32string_view{ code_points.data() + index, code_points.size() - index };
+				const auto ascii_run = ascii_prefix_length(remaining);
+				if (ascii_run != 0)
+				{
+					if constexpr (Lowercase)
+					{
+						ascii_lowercase_copy(base.data() + write_index, remaining.substr(0, ascii_run));
+					}
+					else
+					{
+						ascii_uppercase_copy(base.data() + write_index, remaining.substr(0, ascii_run));
+					}
+
+					write_index += ascii_run;
+					index += ascii_run;
+					continue;
+				}
+
+				const auto decoded = decode_next_scalar(code_points, index);
+				if (decoded.scalar <= encoding_constants::bmp_scalar_max)
+				{
+					const auto bmp_mapping = lookup_bmp_case_mapping<Lowercase>(decoded.scalar);
+					if (bmp_mapping.same_size)
+					{
+						base[write_index++] = static_cast<char32_t>(bmp_mapping.mapped);
+						index = decoded.next_index;
+						continue;
+					}
+				}
+
+				const auto mapping = lookup_case_mapping<Lowercase>(decoded.scalar);
+				if (mapping.has_special())
+				{
+					const auto& special = case_special_mapping_from_index<Lowercase>(mapping.special_index);
+					if (special.count != 1u)
+					{
+						const auto suffix = std::u32string_view{ code_points.data() + index, code_points.size() - index };
+						const auto measurement = measure_case_map_utf32<Lowercase>(suffix);
+						base_type result{ base.get_allocator() };
+						result.resize_and_overwrite(write_index + measurement.output_size,
+							[&](char32_t* buffer, std::size_t) noexcept
+							{
+								std::char_traits<char32_t>::copy(buffer, base.data(), write_index);
+								return write_index + write_case_map_utf32_into<Lowercase>(suffix, buffer + write_index);
+							});
+						return string_type::from_code_points_unchecked(std::move(result));
+					}
+
+					base[write_index++] = static_cast<char32_t>(special.mapped[0]);
+				}
+				else if (mapping.has_simple)
+				{
+					base[write_index++] = static_cast<char32_t>(mapping.simple_mapped);
+				}
+				else
+				{
+					base[write_index++] = code_points[index];
+				}
+
+				index = decoded.next_index;
+			}
+
+			return string_type::from_code_points_unchecked(std::move(base));
+		}
 		constexpr case_map_measurement measure_case_fold_utf32(std::u32string_view code_points) noexcept
 		{
 			// Measurement mirrors the write pass exactly. That lets callers allocate once
@@ -1284,6 +1373,97 @@ namespace unicode_ranges
 				});
 			return basic_utf32_string<Allocator>::from_code_points_unchecked(std::move(result));
 		}
+
+			template <typename Allocator>
+			constexpr basic_utf32_string<Allocator> case_fold_utf32_rvalue(basic_utf32_string<Allocator>&& source)
+			{
+				using string_type = basic_utf32_string<Allocator>;
+				using base_type = typename string_type::base_type;
+				auto base = std::move(source).base();
+				const auto code_points = std::u32string_view{ base };
+
+				if (is_ascii_only(code_points))
+				{
+					ascii_lowercase_inplace(base.data(), base.size());
+					return string_type::from_code_points_unchecked(std::move(base));
+				}
+
+				std::size_t write_index = 0;
+				case_fold_scalar_buffer mapping{};
+				for (std::size_t index = 0; index < code_points.size();)
+				{
+					const auto remaining = std::u32string_view{ code_points.data() + index, code_points.size() - index };
+					const auto ascii_run = ascii_prefix_length(remaining);
+					if (ascii_run != 0)
+					{
+						ascii_lowercase_copy(base.data() + write_index, remaining.substr(0, ascii_run));
+						write_index += ascii_run;
+						index += ascii_run;
+						continue;
+					}
+
+					const auto decoded = decode_next_scalar(code_points, index);
+					mapping.load(decoded.scalar);
+					if (mapping.count != 1u)
+					{
+						const auto suffix = std::u32string_view{ code_points.data() + index, code_points.size() - index };
+						if (!std::is_constant_evaluated())
+						{
+							const auto plan = make_utf32_parallel_plan(suffix.size());
+							if (plan.worker_count != 1)
+							{
+								auto chunk_measurements = std::make_unique<case_map_measurement[]>(plan.worker_count);
+								fill_parallel_utf32_chunk_results(
+									suffix,
+									plan,
+									chunk_measurements.get(),
+									[](std::u32string_view chunk) static noexcept
+									{
+										return measure_case_fold_utf32(chunk);
+									});
+
+								auto chunk_offsets = std::make_unique<std::size_t[]>(plan.worker_count);
+								case_map_measurement measurement{};
+								for (std::size_t chunk_index = 0; chunk_index != plan.worker_count; ++chunk_index)
+								{
+									chunk_offsets[chunk_index] = measurement.output_size;
+									measurement.output_size += chunk_measurements[chunk_index].output_size;
+									measurement.changed = measurement.changed || chunk_measurements[chunk_index].changed;
+								}
+
+								base_type result{ base.get_allocator() };
+								result.resize(write_index + measurement.output_size);
+								std::char_traits<char32_t>::copy(result.data(), base.data(), write_index);
+								write_parallel_utf32_chunks(
+									suffix,
+									plan,
+									chunk_offsets.get(),
+									result.data() + write_index,
+									[](std::u32string_view chunk, char32_t* out) static noexcept
+									{
+										write_case_fold_utf32_into(chunk, out);
+									});
+								return string_type::from_code_points_unchecked(std::move(result));
+							}
+						}
+
+						const auto measurement = measure_case_fold_utf32(suffix);
+						base_type result{ base.get_allocator() };
+						result.resize_and_overwrite(write_index + measurement.output_size,
+							[&](char32_t* buffer, std::size_t) noexcept
+							{
+								std::char_traits<char32_t>::copy(buffer, base.data(), write_index);
+								return write_index + write_case_fold_utf32_into(suffix, buffer + write_index);
+							});
+						return string_type::from_code_points_unchecked(std::move(result));
+					}
+
+					base[write_index++] = static_cast<char32_t>(mapping.data[0]);
+					index = decoded.next_index;
+				}
+
+				return string_type::from_code_points_unchecked(std::move(base));
+			}
 			class utf32_case_fold_reader
 			{
 			public:

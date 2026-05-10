@@ -9,11 +9,18 @@
 namespace unicode_ranges
 {
 
+template <typename Allocator>
+class basic_utf8_string;
+
 namespace details
 {
 	template <bool Lowercase>
 	constexpr bool case_map_utf8_inplace_if_same_size(std::u8string_view bytes, char8_t* buffer) noexcept;
+	template <bool Lowercase, typename Allocator>
+	constexpr basic_utf8_string<Allocator> case_map_utf8_rvalue(basic_utf8_string<Allocator>&& source);
 	constexpr bool case_fold_utf8_inplace_if_same_size(std::u8string_view bytes, char8_t* buffer) noexcept;
+	template <typename Allocator>
+	constexpr basic_utf8_string<Allocator> case_fold_utf8_rvalue(basic_utf8_string<Allocator>&& source);
 	template <typename InputView>
 	constexpr bool nfc_quick_check_pass(InputView input) noexcept;
 }
@@ -2083,19 +2090,7 @@ public:
 	[[nodiscard]]
 	constexpr basic_utf8_string to_lowercase() &&
 	{
-		auto bytes = std::u8string_view{ base_ };
-		if (details::is_ascii_only(bytes))
-		{
-			details::ascii_lowercase_inplace(base_.data(), base_.size());
-			return std::move(*this);
-		}
-
-		if (details::case_map_utf8_inplace_if_same_size<true>(bytes, base_.data()))
-		{
-			return std::move(*this);
-		}
-
-		return static_cast<const crtp&>(*this).template to_lowercase<Allocator>(base_.get_allocator());
+		return details::case_map_utf8_rvalue<true>(std::move(*this));
 	}
 
 	[[nodiscard]]
@@ -2284,19 +2279,7 @@ public:
 	[[nodiscard]]
 	constexpr basic_utf8_string to_uppercase() &&
 	{
-		auto bytes = std::u8string_view{ base_ };
-		if (details::is_ascii_only(bytes))
-		{
-			details::ascii_uppercase_inplace(base_.data(), base_.size());
-			return std::move(*this);
-		}
-
-		if (details::case_map_utf8_inplace_if_same_size<false>(bytes, base_.data()))
-		{
-			return std::move(*this);
-		}
-
-		return static_cast<const crtp&>(*this).template to_uppercase<Allocator>(base_.get_allocator());
+		return details::case_map_utf8_rvalue<false>(std::move(*this));
 	}
 
 	[[nodiscard]]
@@ -2459,19 +2442,7 @@ public:
 	[[nodiscard]]
 	constexpr basic_utf8_string case_fold() &&
 	{
-		auto bytes = std::u8string_view{ base_ };
-		if (details::is_ascii_only(bytes))
-		{
-			details::ascii_lowercase_inplace(base_.data(), base_.size());
-			return std::move(*this);
-		}
-
-		if (details::case_fold_utf8_inplace_if_same_size(bytes, base_.data()))
-		{
-			return std::move(*this);
-		}
-
-		return static_cast<const crtp&>(*this).template case_fold<Allocator>(base_.get_allocator());
+		return details::case_fold_utf8_rvalue(std::move(*this));
 	}
 
 	template <typename OtherAllocator>

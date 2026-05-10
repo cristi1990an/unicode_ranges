@@ -9,11 +9,18 @@
 namespace unicode_ranges
 {
 
+template <typename Allocator>
+class basic_utf32_string;
+
 namespace details
 {
 	template <bool Lowercase>
 	constexpr bool case_map_utf32_inplace_if_same_size(std::u32string_view code_points, char32_t* buffer) noexcept;
+	template <bool Lowercase, typename Allocator>
+	constexpr basic_utf32_string<Allocator> case_map_utf32_rvalue(basic_utf32_string<Allocator>&& source);
 	constexpr bool case_fold_utf32_inplace_if_same_size(std::u32string_view code_points, char32_t* buffer) noexcept;
+	template <typename Allocator>
+	constexpr basic_utf32_string<Allocator> case_fold_utf32_rvalue(basic_utf32_string<Allocator>&& source);
 	template <typename InputView>
 	constexpr bool nfc_quick_check_pass(InputView input) noexcept;
 }
@@ -1945,19 +1952,7 @@ public:
 	[[nodiscard]]
 	constexpr basic_utf32_string to_lowercase() &&
 	{
-		auto code_points = std::u32string_view{ base_ };
-		if (details::is_ascii_only(code_points))
-		{
-			details::ascii_lowercase_inplace(base_.data(), base_.size());
-			return std::move(*this);
-		}
-
-		if (details::case_map_utf32_inplace_if_same_size<true>(code_points, base_.data()))
-		{
-			return std::move(*this);
-		}
-
-		return static_cast<const crtp&>(*this).template to_lowercase<Allocator>(base_.get_allocator());
+		return details::case_map_utf32_rvalue<true>(std::move(*this));
 	}
 
 	[[nodiscard]]
@@ -2146,19 +2141,7 @@ public:
 	[[nodiscard]]
 	constexpr basic_utf32_string to_uppercase() &&
 	{
-		auto code_points = std::u32string_view{ base_ };
-		if (details::is_ascii_only(code_points))
-		{
-			details::ascii_uppercase_inplace(base_.data(), base_.size());
-			return std::move(*this);
-		}
-
-		if (details::case_map_utf32_inplace_if_same_size<false>(code_points, base_.data()))
-		{
-			return std::move(*this);
-		}
-
-		return static_cast<const crtp&>(*this).template to_uppercase<Allocator>(base_.get_allocator());
+		return details::case_map_utf32_rvalue<false>(std::move(*this));
 	}
 
 	[[nodiscard]]
@@ -2321,19 +2304,7 @@ public:
 	[[nodiscard]]
 	constexpr basic_utf32_string case_fold() &&
 	{
-		auto code_points = std::u32string_view{ base_ };
-		if (details::is_ascii_only(code_points))
-		{
-			details::ascii_lowercase_inplace(base_.data(), base_.size());
-			return std::move(*this);
-		}
-
-		if (details::case_fold_utf32_inplace_if_same_size(code_points, base_.data()))
-		{
-			return std::move(*this);
-		}
-
-		return static_cast<const crtp&>(*this).template case_fold<Allocator>(base_.get_allocator());
+		return details::case_fold_utf32_rvalue(std::move(*this));
 	}
 
 	template <typename OtherAllocator>

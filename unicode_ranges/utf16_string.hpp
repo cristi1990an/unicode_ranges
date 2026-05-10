@@ -9,11 +9,18 @@
 namespace unicode_ranges
 {
 
+template <typename Allocator>
+class basic_utf16_string;
+
 namespace details
 {
 	template <bool Lowercase>
 	constexpr bool case_map_utf16_inplace_if_same_size(std::u16string_view code_units, char16_t* buffer) noexcept;
+	template <bool Lowercase, typename Allocator>
+	constexpr basic_utf16_string<Allocator> case_map_utf16_rvalue(basic_utf16_string<Allocator>&& source);
 	constexpr bool case_fold_utf16_inplace_if_same_size(std::u16string_view code_units, char16_t* buffer) noexcept;
+	template <typename Allocator>
+	constexpr basic_utf16_string<Allocator> case_fold_utf16_rvalue(basic_utf16_string<Allocator>&& source);
 	template <typename InputView>
 	constexpr bool nfc_quick_check_pass(InputView input) noexcept;
 }
@@ -1964,19 +1971,7 @@ public:
 	[[nodiscard]]
 	constexpr basic_utf16_string to_lowercase() &&
 	{
-		auto code_units = std::u16string_view{ base_ };
-		if (details::is_ascii_only(code_units))
-		{
-			details::ascii_lowercase_inplace(base_.data(), base_.size());
-			return std::move(*this);
-		}
-
-		if (details::case_map_utf16_inplace_if_same_size<true>(code_units, base_.data()))
-		{
-			return std::move(*this);
-		}
-
-		return static_cast<const crtp&>(*this).template to_lowercase<Allocator>(base_.get_allocator());
+		return details::case_map_utf16_rvalue<true>(std::move(*this));
 	}
 
 	[[nodiscard]]
@@ -2165,19 +2160,7 @@ public:
 	[[nodiscard]]
 	constexpr basic_utf16_string to_uppercase() &&
 	{
-		auto code_units = std::u16string_view{ base_ };
-		if (details::is_ascii_only(code_units))
-		{
-			details::ascii_uppercase_inplace(base_.data(), base_.size());
-			return std::move(*this);
-		}
-
-		if (details::case_map_utf16_inplace_if_same_size<false>(code_units, base_.data()))
-		{
-			return std::move(*this);
-		}
-
-		return static_cast<const crtp&>(*this).template to_uppercase<Allocator>(base_.get_allocator());
+		return details::case_map_utf16_rvalue<false>(std::move(*this));
 	}
 
 	[[nodiscard]]
@@ -2340,19 +2323,7 @@ public:
 	[[nodiscard]]
 	constexpr basic_utf16_string case_fold() &&
 	{
-		auto code_units = std::u16string_view{ base_ };
-		if (details::is_ascii_only(code_units))
-		{
-			details::ascii_lowercase_inplace(base_.data(), base_.size());
-			return std::move(*this);
-		}
-
-		if (details::case_fold_utf16_inplace_if_same_size(code_units, base_.data()))
-		{
-			return std::move(*this);
-		}
-
-		return static_cast<const crtp&>(*this).template case_fold<Allocator>(base_.get_allocator());
+		return details::case_fold_utf16_rvalue(std::move(*this));
 	}
 
 	template <typename OtherAllocator>
