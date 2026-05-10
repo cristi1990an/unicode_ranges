@@ -5859,14 +5859,18 @@ protected:
 		UTF8_RANGES_DEBUG_ASSERT(first <= last);
 		UTF8_RANGES_DEBUG_ASSERT(last <= old_size);
 
-		if (last != old_size)
-		{
-			text.erase(last, old_size - last);
-		}
-
 		if (first != 0)
 		{
-			text.erase(0, first);
+			const auto retained_size = last - first;
+			if (retained_size != 0)
+			{
+				std::char_traits<char16_t>::move(text.base_.data(), text.base_.data() + first, retained_size);
+			}
+			text.base_.resize(retained_size);
+		}
+		else if (last != old_size)
+		{
+			text.base_.resize(last);
 		}
 
 		return std::move(text);

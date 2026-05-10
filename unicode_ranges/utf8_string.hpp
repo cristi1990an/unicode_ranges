@@ -28,6 +28,9 @@ namespace details
 template <typename Allocator>
 class basic_utf8_string : public details::utf8_string_crtp<basic_utf8_string<Allocator>, utf8_string_view>
 {
+	template <typename, typename>
+	friend class details::utf8_string_crtp;
+
 	using crtp = details::utf8_string_crtp<basic_utf8_string<Allocator>, utf8_string_view>;
 	using equivalent_utf8_string_view = utf8_string_view;
 	using equivalent_string_view = std::u8string_view;
@@ -961,9 +964,39 @@ private:
 			size_type search_pos = 0;
 			size_type replacements = 0;
 			const auto replacement_size = replacement.size();
+			const auto source = equivalent_string_view{ base_ };
+			if (count == npos && source.size() >= 4096u)
+			{
+				const auto first_match = searcher.find(source, 0);
+				if (first_match == equivalent_string_view::npos)
+				{
+					return *this;
+				}
+
+				const auto second_match = searcher.find(source, first_match + replacement_size);
+				if (second_match != equivalent_string_view::npos
+					&& second_match - first_match <= replacement_size * 4u)
+				{
+					// Dense equal-width UTF-8 replacement is mostly a copy workload; sparse inputs stay in place.
+					auto rebuilt = details::replace_utf8_bytes_copy(source, needle, replacement, count, base_.get_allocator());
+					base_.swap(rebuilt);
+					return *this;
+				}
+
+				std::char_traits<char8_t>::copy(base_.data() + first_match, replacement.data(), replacement_size);
+				search_pos = first_match + replacement_size;
+				++replacements;
+				if (second_match != equivalent_string_view::npos)
+				{
+					std::char_traits<char8_t>::copy(base_.data() + second_match, replacement.data(), replacement_size);
+					search_pos = second_match + replacement_size;
+					++replacements;
+				}
+			}
+
 			while (replacements != count)
 			{
-				const auto match = searcher.find(equivalent_string_view{ base_ }, search_pos);
+				const auto match = searcher.find(source, search_pos);
 				if (match == equivalent_string_view::npos)
 				{
 					break;

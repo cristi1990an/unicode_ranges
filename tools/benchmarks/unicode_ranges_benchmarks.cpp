@@ -485,6 +485,24 @@ int main(int argc, char** argv)
 	const auto utf32_replace_grow_expected = repeat_text(
 		U"prefixABCDEFGHIJ++middleABCDEFGHIJ++suffix-"sv,
 		1024);
+	const auto utf8_replace_sparse_storage = repeat_text(
+		u8"mostly ascii payload without the key until abcdefghij near the end;"sv,
+		512);
+	const auto utf16_replace_sparse_storage = repeat_text(
+		u"mostly ascii payload without the key until abcdefghij near the end;"sv,
+		512);
+	const auto utf32_replace_sparse_storage = repeat_text(
+		U"mostly ascii payload without the key until abcdefghij near the end;"sv,
+		512);
+	const auto utf8_replace_no_match_storage = repeat_text(
+		u8"mostly ascii payload without the searched token; "sv,
+		1024);
+	const auto utf16_replace_no_match_storage = repeat_text(
+		u"mostly ascii payload without the searched token; "sv,
+		1024);
+	const auto utf32_replace_no_match_storage = repeat_text(
+		U"mostly ascii payload without the searched token; "sv,
+		1024);
 
 	UTF8_RANGES_BENCHMARK_ASSERT(utf8_string{ utf8_string_view::from_bytes_unchecked(utf8_replace_same_storage) }
 		.replace_all(utf8_long_needle, u8"ABCDEFGHIJ"_utf8_sv)
@@ -663,6 +681,45 @@ int main(int argc, char** argv)
 	const auto utf32_trim_storage = repeat_text(
 		U" \t\n caf\u00E9 alpha beta \r\n "sv,
 		4096);
+	const auto utf8_trim_noop_storage = repeat_text(
+		u8"caf\u00E9-alpha-beta;"sv,
+		4096);
+	const auto utf16_trim_noop_storage = repeat_text(
+		u"caf\u00E9-alpha-beta;"sv,
+		4096);
+	const auto utf32_trim_noop_storage = repeat_text(
+		U"caf\u00E9-alpha-beta;"sv,
+		4096);
+	const auto utf8_trim_prefix_heavy_storage = [] {
+		auto result = repeat_text(u8" \t\n "sv, 4096);
+		result.append(u8"caf\u00E9-alpha-beta;"sv);
+		return result;
+	}();
+	const auto utf16_trim_prefix_heavy_storage = [] {
+		auto result = repeat_text(u" \t\n "sv, 4096);
+		result.append(u"caf\u00E9-alpha-beta;"sv);
+		return result;
+	}();
+	const auto utf32_trim_prefix_heavy_storage = [] {
+		auto result = repeat_text(U" \t\n "sv, 4096);
+		result.append(U"caf\u00E9-alpha-beta;"sv);
+		return result;
+	}();
+	const auto utf8_trim_suffix_heavy_storage = [] {
+		std::u8string result{ u8"caf\u00E9-alpha-beta;" };
+		result.append(repeat_text(u8" \t\n "sv, 4096));
+		return result;
+	}();
+	const auto utf16_trim_suffix_heavy_storage = [] {
+		std::u16string result{ u"caf\u00E9-alpha-beta;" };
+		result.append(repeat_text(u" \t\n "sv, 4096));
+		return result;
+	}();
+	const auto utf32_trim_suffix_heavy_storage = [] {
+		std::u32string result{ U"caf\u00E9-alpha-beta;" };
+		result.append(repeat_text(U" \t\n "sv, 4096));
+		return result;
+	}();
 	const auto utf8_compat_normalize_storage = repeat_text(
 		u8"\uFF21\uFB03 \u2163 \u00B5 "sv,
 		2048);
@@ -1323,6 +1380,33 @@ int main(int argc, char** argv)
 		[](auto&& source) { return std::move(source).replace_all(u8"abcdefghij"_utf8_sv, u8"ABCDEFGHIJ++"_utf8_sv); });
 	add_rvalue_aware_cases(
 		cases,
+		"utf8.replace_all.shrinking.const_lvalue",
+		"utf8.replace_all.shrinking.rvalue",
+		utf8_replace_same_storage.size(),
+		4,
+		[&] { return make_utf8_string(utf8_replace_same_storage); },
+		[](const auto& source) { return source.replace_all(u8"abcdefghij"_utf8_sv, u8"ABC"_utf8_sv); },
+		[](auto&& source) { return std::move(source).replace_all(u8"abcdefghij"_utf8_sv, u8"ABC"_utf8_sv); });
+	add_rvalue_aware_cases(
+		cases,
+		"utf8.replace_all.sparse.const_lvalue",
+		"utf8.replace_all.sparse.rvalue",
+		utf8_replace_sparse_storage.size(),
+		4,
+		[&] { return make_utf8_string(utf8_replace_sparse_storage); },
+		[](const auto& source) { return source.replace_all(u8"abcdefghij"_utf8_sv, u8"ABCDEFGHIJ"_utf8_sv); },
+		[](auto&& source) { return std::move(source).replace_all(u8"abcdefghij"_utf8_sv, u8"ABCDEFGHIJ"_utf8_sv); });
+	add_rvalue_aware_cases(
+		cases,
+		"utf8.replace_all.no_match.const_lvalue",
+		"utf8.replace_all.no_match.rvalue",
+		utf8_replace_no_match_storage.size(),
+		4,
+		[&] { return make_utf8_string(utf8_replace_no_match_storage); },
+		[](const auto& source) { return source.replace_all(u8"abcdefghij"_utf8_sv, u8"ABCDEFGHIJ"_utf8_sv); },
+		[](auto&& source) { return std::move(source).replace_all(u8"abcdefghij"_utf8_sv, u8"ABCDEFGHIJ"_utf8_sv); });
+	add_rvalue_aware_cases(
+		cases,
 		"utf8.replace_at.same_width.const_lvalue",
 		"utf8.replace_at.same_width.rvalue",
 		utf8_replace_same_storage.size(),
@@ -1357,6 +1441,33 @@ int main(int argc, char** argv)
 		[&] { return make_utf16_string(utf16_replace_same_storage); },
 		[](const auto& source) { return source.replace_all(u"abcdefghij"_utf16_sv, u"ABCDEFGHIJ++"_utf16_sv); },
 		[](auto&& source) { return std::move(source).replace_all(u"abcdefghij"_utf16_sv, u"ABCDEFGHIJ++"_utf16_sv); });
+	add_rvalue_aware_cases(
+		cases,
+		"utf16.replace_all.shrinking.const_lvalue",
+		"utf16.replace_all.shrinking.rvalue",
+		utf16_replace_same_storage.size() * sizeof(char16_t),
+		4,
+		[&] { return make_utf16_string(utf16_replace_same_storage); },
+		[](const auto& source) { return source.replace_all(u"abcdefghij"_utf16_sv, u"ABC"_utf16_sv); },
+		[](auto&& source) { return std::move(source).replace_all(u"abcdefghij"_utf16_sv, u"ABC"_utf16_sv); });
+	add_rvalue_aware_cases(
+		cases,
+		"utf16.replace_all.sparse.const_lvalue",
+		"utf16.replace_all.sparse.rvalue",
+		utf16_replace_sparse_storage.size() * sizeof(char16_t),
+		4,
+		[&] { return make_utf16_string(utf16_replace_sparse_storage); },
+		[](const auto& source) { return source.replace_all(u"abcdefghij"_utf16_sv, u"ABCDEFGHIJ"_utf16_sv); },
+		[](auto&& source) { return std::move(source).replace_all(u"abcdefghij"_utf16_sv, u"ABCDEFGHIJ"_utf16_sv); });
+	add_rvalue_aware_cases(
+		cases,
+		"utf16.replace_all.no_match.const_lvalue",
+		"utf16.replace_all.no_match.rvalue",
+		utf16_replace_no_match_storage.size() * sizeof(char16_t),
+		4,
+		[&] { return make_utf16_string(utf16_replace_no_match_storage); },
+		[](const auto& source) { return source.replace_all(u"abcdefghij"_utf16_sv, u"ABCDEFGHIJ"_utf16_sv); },
+		[](auto&& source) { return std::move(source).replace_all(u"abcdefghij"_utf16_sv, u"ABCDEFGHIJ"_utf16_sv); });
 	add_rvalue_aware_cases(
 		cases,
 		"utf16.replace_at.same_width.const_lvalue",
@@ -1906,6 +2017,33 @@ int main(int argc, char** argv)
 		[&] { return make_utf32_string(utf32_replace_same_storage); },
 		[](const auto& source) { return source.replace_all(U"abcdefghij"_utf32_sv, U"ABCDEFGHIJ++"_utf32_sv); },
 		[](auto&& source) { return std::move(source).replace_all(U"abcdefghij"_utf32_sv, U"ABCDEFGHIJ++"_utf32_sv); });
+	add_rvalue_aware_cases(
+		cases,
+		"utf32.replace_all.shrinking.const_lvalue",
+		"utf32.replace_all.shrinking.rvalue",
+		utf32_replace_same_storage.size() * sizeof(char32_t),
+		4,
+		[&] { return make_utf32_string(utf32_replace_same_storage); },
+		[](const auto& source) { return source.replace_all(U"abcdefghij"_utf32_sv, U"ABC"_utf32_sv); },
+		[](auto&& source) { return std::move(source).replace_all(U"abcdefghij"_utf32_sv, U"ABC"_utf32_sv); });
+	add_rvalue_aware_cases(
+		cases,
+		"utf32.replace_all.sparse.const_lvalue",
+		"utf32.replace_all.sparse.rvalue",
+		utf32_replace_sparse_storage.size() * sizeof(char32_t),
+		4,
+		[&] { return make_utf32_string(utf32_replace_sparse_storage); },
+		[](const auto& source) { return source.replace_all(U"abcdefghij"_utf32_sv, U"ABCDEFGHIJ"_utf32_sv); },
+		[](auto&& source) { return std::move(source).replace_all(U"abcdefghij"_utf32_sv, U"ABCDEFGHIJ"_utf32_sv); });
+	add_rvalue_aware_cases(
+		cases,
+		"utf32.replace_all.no_match.const_lvalue",
+		"utf32.replace_all.no_match.rvalue",
+		utf32_replace_no_match_storage.size() * sizeof(char32_t),
+		4,
+		[&] { return make_utf32_string(utf32_replace_no_match_storage); },
+		[](const auto& source) { return source.replace_all(U"abcdefghij"_utf32_sv, U"ABCDEFGHIJ"_utf32_sv); },
+		[](auto&& source) { return std::move(source).replace_all(U"abcdefghij"_utf32_sv, U"ABCDEFGHIJ"_utf32_sv); });
 	add_rvalue_aware_cases(
 		cases,
 		"utf32.replace_at.same_width.const_lvalue",
@@ -3554,6 +3692,33 @@ int main(int argc, char** argv)
 		[&] { return make_utf8_string(utf8_trim_storage); },
 		[](const auto& source) { return source.trim(); },
 		[](auto&& source) { return std::move(source).trim(); });
+	add_rvalue_aware_cases(
+		cases,
+		"utf8.trim.unicode.noop.const_lvalue",
+		"utf8.trim.unicode.noop.rvalue",
+		utf8_trim_noop_storage.size(),
+		64,
+		[&] { return make_utf8_string(utf8_trim_noop_storage); },
+		[](const auto& source) { return source.trim(); },
+		[](auto&& source) { return std::move(source).trim(); });
+	add_rvalue_aware_cases(
+		cases,
+		"utf8.trim.unicode.prefix_heavy.const_lvalue",
+		"utf8.trim.unicode.prefix_heavy.rvalue",
+		utf8_trim_prefix_heavy_storage.size(),
+		64,
+		[&] { return make_utf8_string(utf8_trim_prefix_heavy_storage); },
+		[](const auto& source) { return source.trim(); },
+		[](auto&& source) { return std::move(source).trim(); });
+	add_rvalue_aware_cases(
+		cases,
+		"utf8.trim.unicode.suffix_heavy.const_lvalue",
+		"utf8.trim.unicode.suffix_heavy.rvalue",
+		utf8_trim_suffix_heavy_storage.size(),
+		64,
+		[&] { return make_utf8_string(utf8_trim_suffix_heavy_storage); },
+		[](const auto& source) { return source.trim(); },
+		[](auto&& source) { return std::move(source).trim(); });
 	cases.push_back({
 		"utf8.trim_ascii.view",
 		utf8_trim_storage.size(),
@@ -3599,6 +3764,33 @@ int main(int argc, char** argv)
 		[&] { return make_utf16_string(utf16_trim_storage); },
 		[](const auto& source) { return source.trim(); },
 		[](auto&& source) { return std::move(source).trim(); });
+	add_rvalue_aware_cases(
+		cases,
+		"utf16.trim.unicode.noop.const_lvalue",
+		"utf16.trim.unicode.noop.rvalue",
+		utf16_trim_noop_storage.size() * sizeof(char16_t),
+		64,
+		[&] { return make_utf16_string(utf16_trim_noop_storage); },
+		[](const auto& source) { return source.trim(); },
+		[](auto&& source) { return std::move(source).trim(); });
+	add_rvalue_aware_cases(
+		cases,
+		"utf16.trim.unicode.prefix_heavy.const_lvalue",
+		"utf16.trim.unicode.prefix_heavy.rvalue",
+		utf16_trim_prefix_heavy_storage.size() * sizeof(char16_t),
+		64,
+		[&] { return make_utf16_string(utf16_trim_prefix_heavy_storage); },
+		[](const auto& source) { return source.trim(); },
+		[](auto&& source) { return std::move(source).trim(); });
+	add_rvalue_aware_cases(
+		cases,
+		"utf16.trim.unicode.suffix_heavy.const_lvalue",
+		"utf16.trim.unicode.suffix_heavy.rvalue",
+		utf16_trim_suffix_heavy_storage.size() * sizeof(char16_t),
+		64,
+		[&] { return make_utf16_string(utf16_trim_suffix_heavy_storage); },
+		[](const auto& source) { return source.trim(); },
+		[](auto&& source) { return std::move(source).trim(); });
 	cases.push_back({
 		"utf16.trim_ascii.view",
 		utf16_trim_storage.size() * sizeof(char16_t),
@@ -3633,6 +3825,33 @@ int main(int argc, char** argv)
 		utf32_trim_storage.size() * sizeof(char32_t),
 		64,
 		[&] { return make_utf32_string(utf32_trim_storage); },
+		[](const auto& source) { return source.trim(); },
+		[](auto&& source) { return std::move(source).trim(); });
+	add_rvalue_aware_cases(
+		cases,
+		"utf32.trim.unicode.noop.const_lvalue",
+		"utf32.trim.unicode.noop.rvalue",
+		utf32_trim_noop_storage.size() * sizeof(char32_t),
+		64,
+		[&] { return make_utf32_string(utf32_trim_noop_storage); },
+		[](const auto& source) { return source.trim(); },
+		[](auto&& source) { return std::move(source).trim(); });
+	add_rvalue_aware_cases(
+		cases,
+		"utf32.trim.unicode.prefix_heavy.const_lvalue",
+		"utf32.trim.unicode.prefix_heavy.rvalue",
+		utf32_trim_prefix_heavy_storage.size() * sizeof(char32_t),
+		64,
+		[&] { return make_utf32_string(utf32_trim_prefix_heavy_storage); },
+		[](const auto& source) { return source.trim(); },
+		[](auto&& source) { return std::move(source).trim(); });
+	add_rvalue_aware_cases(
+		cases,
+		"utf32.trim.unicode.suffix_heavy.const_lvalue",
+		"utf32.trim.unicode.suffix_heavy.rvalue",
+		utf32_trim_suffix_heavy_storage.size() * sizeof(char32_t),
+		64,
+		[&] { return make_utf32_string(utf32_trim_suffix_heavy_storage); },
 		[](const auto& source) { return source.trim(); },
 		[](auto&& source) { return std::move(source).trim(); });
 	cases.push_back({

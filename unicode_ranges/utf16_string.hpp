@@ -28,6 +28,9 @@ namespace details
 template <typename Allocator>
 class basic_utf16_string : public details::utf16_string_crtp<basic_utf16_string<Allocator>, utf16_string_view>
 {
+	template <typename, typename>
+	friend class details::utf16_string_crtp;
+
 	using crtp = details::utf16_string_crtp<basic_utf16_string<Allocator>, utf16_string_view>;
 	using equivalent_utf16_string_view = utf16_string_view;
 	using equivalent_string_view = std::u16string_view;
