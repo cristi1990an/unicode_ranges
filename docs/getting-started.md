@@ -4,14 +4,14 @@
 
 `unicode_ranges` requires a compiler and standard library with strong C++23 support.
 
-Minimum toolchains currently exercised in CI:
+Minimum toolchains exercised in CI:
 
 - MSVC with the MSVC STL: Visual Studio 2022 toolset `v143` or newer
-- Clang-cl with the MSVC STL: current Visual Studio 2022 `ClangCL`
+- Clang-cl with the MSVC STL: Visual Studio 2022 `ClangCL`
 - GCC with libstdc++: GCC 14 / libstdc++ 14 or newer
 - Clang with libc++: Clang 22 / libc++ 22 or newer
 
-The checked-in Unicode data currently tracks Unicode `17.0.0`.
+The checked-in Unicode data tracks Unicode `17.0.0`.
 
 ## Install and integrate
 
@@ -19,12 +19,12 @@ If you have not wired the library into your build yet, start with [Install And I
 
 Short version:
 
-- today, the normal consumption path is vendoring, a git submodule, or source-fetching in CMake
+- the normal consumption path is vendoring, a git submodule, or source-fetching in CMake
 - build and link the `unicode_ranges` library target, or an equivalent library target in your own build
 - there is not yet a first-party package-manager distribution
 - your build needs C++23 and the repository root on the include path
 - the repository already vendors pinned `simdutf` (`v7.7.0`) under `third_party/simdutf`
-- runtime UTF validation, UTF-8/UTF-16/UTF-32 transcoding, selected ASCII checks, and UTF-8/UTF-16 character counting currently go through the `simdutf` backend; compile-time and higher-level APIs remain in `unicode_ranges`
+- runtime UTF validation, UTF-8/UTF-16/UTF-32 transcoding, selected ASCII checks, and UTF-8/UTF-16 character counting use the `simdutf` backend; compile-time and higher-level APIs remain in `unicode_ranges`
 
 ## Include the library
 
@@ -53,7 +53,7 @@ Use `unicode_ranges_all.hpp` when you want the all-in umbrella, including owning
 
 ## A first validated view
 
-This is the style the docs will use going forward: visible Unicode text, runnable code, `std::println`, and comments showing what to expect.
+The examples use visible Unicode text, runnable code, `std::println`, and comments showing what to expect.
 
 ```cpp
 --8<-- "examples/getting-started/validated-view.cpp"
@@ -83,7 +83,7 @@ Library-defined UTF-8, UTF-16, and UTF-32 types support formatting and printing 
     `std::println("{}", text.chars())` and `std::println("{::s}", text.graphemes())` rely on C++23 range-formatting support in the standard library.
 
     - this works on the MSVC STL and on libc++
-    - libstdc++ 14 does not currently format these custom helper views directly
+    - libstdc++ 14 does not format these custom helper views directly
     - the GCC docs-example CI job therefore treats that specific limitation as informational rather than blocking
 
 ```cpp
@@ -112,7 +112,7 @@ UTF-8 view/string search APIs generally return byte offsets. UTF-16 and UTF-32 v
 
 ## Example sanity checks
 
-The examples under `docs/examples/` are compiled in CI so the docs do not silently drift away from the library surface. The one current exception is direct `std::print` formatting of helper views on GCC/libstdc++ 14, which is tracked as an informational, non-blocking docs-example failure.
+The examples under `docs/examples/` are compiled in CI so the docs do not silently drift away from the library surface. Direct `std::print` formatting of helper views on GCC/libstdc++ 14 is tracked as an informational, non-blocking docs-example failure because that standard library does not format those helper views directly.
 
 ## Where to go next
 

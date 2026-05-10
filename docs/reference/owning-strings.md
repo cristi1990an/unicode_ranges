@@ -30,7 +30,7 @@ auto new_string = my_string.operation();              // create a new string
 my_string = std::move(my_string).operation();         // reuse my_string when possible
 ```
 
-The lvalue form keeps the source string unchanged. The rvalue form treats the source as disposable and may reuse its existing buffer, but it is not a promise that the operation will never allocate. After an `&&` call, the moved-from string remains valid with an unspecified value; use the returned string.
+The lvalue form keeps the source string unchanged. The rvalue form treats the source as disposable and may reuse its existing buffer, but it is not a promise that the operation never allocates. After an `&&` call, the moved-from string remains valid with an unspecified value; use the returned string.
 
 This keeps the public surface compact: the method name describes the text operation, while `const&` or `&&` decides whether the call copies or may consume and optimize the source. It also makes chains such as `std::move(text).trim().to_lowercase().replace_all(...)` efficient without adding separate in-place names for every transformation.
 
@@ -521,7 +521,7 @@ constexpr basic_utf8_string& reverse_graphemes(size_type pos, size_type count = 
 - `reverse()` reverses characters, not raw code units.
 - `reverse_graphemes()` reverses grapheme clusters, not raw code units.
 - `pop_back()` removes and returns the last validated character when present.
-- `reverse_graphemes()` is only an owning-string mutator. String views and `graphemes()` views do not expose a lazy reverse-grapheme member.
+- `reverse_graphemes()` is only an owning-string mutator. String views and `graphemes()` views do not expose a lazy reverse-grapheme member because reverse grapheme traversal requires forward splitting plus stored slices.
 
 ### Overload differences
 
@@ -680,9 +680,9 @@ Linear in the processed code units, plus extra work for Unicode case expansion a
 
 ### Performance Notes
 
-- `&&` overloads may reuse the current allocation when profitable.
-- Whole-string `&&` `to_lowercase()`, `to_uppercase()`, and `case_fold()` reuse the current allocation for ASCII and for Unicode mappings that are proven to keep the same encoded size. Expanding mappings still use the allocation-building path.
-- `normalize(normalization_form::nfc) &&` and `to_nfc() &&` reuse the current allocation when NFC quick-check proves the text is already normalized. Other normalization forms keep the ASCII-only reuse path.
+- `&&` overloads may reuse the existing allocation when profitable.
+- Whole-string `&&` `to_lowercase()`, `to_uppercase()`, and `case_fold()` reuse the existing allocation for ASCII and for Unicode mappings that are proven to keep the same encoded size. Expanding mappings still use the allocation-building path.
+- `normalize(normalization_form::nfc) &&` and `to_nfc() &&` reuse the existing allocation when NFC quick-check proves the text is already normalized. Other normalization forms keep the ASCII-only reuse path.
 
 ### Exceptions
 
@@ -762,7 +762,7 @@ constexpr std::weak_ordering compare_ignore_case(utf16_string_view sv) const noe
 
 ### Behavior
 
-- These helpers operate on the owning string's current contents without allocating.
+- These helpers operate on the owning string contents without allocating.
 - They compare Unicode case-folded scalar sequences.
 - They do not normalize. Canonically equivalent representations still compare different unless the caller normalizes first.
 - This is deliberate: normalization remains an explicit caller choice rather than hidden work inside the case-insensitive comparison helpers.
@@ -807,7 +807,7 @@ bool ends_with_ignore_case(utf16_string_view sv, locale_id locale) const;
 std::weak_ordering compare_ignore_case(utf16_string_view sv, locale_id locale) const;
 ```
 
-- These overloads still stream the current contents instead of allocating a temporary folded string.
+- These overloads stream the owning string contents instead of allocating a temporary folded string.
 - They keep the same explicit non-normalizing semantics as the default helpers.
 - They are not `noexcept` because locale handling follows the same ICU-backed rules as the other locale-aware casing members.
 
@@ -903,8 +903,8 @@ Linear in the source size plus the size of the produced output.
 
 ### Performance Notes
 
-- `&&` overloads may reuse and rewrite the current storage.
-- Exact `View from, View to` `&&` overloads rewrite in the moved storage when the result fits its current capacity; otherwise they keep the allocation-building path.
+- `&&` overloads may reuse and rewrite the existing storage.
+- Exact `View from, View to` `&&` overloads rewrite in the moved storage when the result fits its capacity; otherwise they keep the allocation-building path.
 - `&&` overloads can return the original storage unchanged when no replacement is found.
 
 ### Exceptions
@@ -1048,7 +1048,7 @@ friend constexpr void swap(basic_utf8_string& lhs, basic_utf8_string& rhs) noexc
 ### Behavior
 
 - `base()` exposes the underlying `std::basic_string` storage.
-- `as_view()` and the implicit conversion create a borrowed validated view over the current contents.
+- `as_view()` and the implicit conversion create a borrowed validated view over the stored contents.
 - `data()` and `c_str()` expose raw code units.
 - `copy(dest, count, pos)` copies raw code units into caller-owned storage and does not append a null terminator.
 - Unlike `std::basic_string::copy`, UTF-8 and UTF-16 copies also require the copied substring to begin and end on validated character boundaries.
@@ -1072,7 +1072,7 @@ The examples below use `utf8_string text = "😄🇷🇴✨"_utf8_s;`.
 | `swap(other)` | exchange the underlying storage | `text.swap(other);` |
 | `swap(lhs, rhs)` | exchange storage through ADL; this is the form used by `std::ranges::swap` | `using std::swap; swap(lhs, rhs);` |
 
-`base()` and `as_view()` solve different problems. `base()` is for interop with APIs that truly need the owning `std::basic_string`. `as_view()` is for APIs that only need a validated borrowed text view and should not take ownership.
+`base()` and `as_view()` solve different problems. `base()` is for interop with APIs that truly need the owning `std::basic_string`. `as_view()` is for APIs that only need a validated borrowed text view and do not take ownership.
 
 For generic code, prefer the standard ADL pattern:
 

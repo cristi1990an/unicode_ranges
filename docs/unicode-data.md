@@ -10,7 +10,7 @@ inline constexpr std::tuple<std::size_t, std::size_t, std::size_t> unicode_versi
 
 That constant reflects the generated Unicode tables checked into the repository.
 
-Current version: Unicode `17.0.0`.
+Generated version: Unicode `17.0.0`.
 
 ## What is generated
 
@@ -28,7 +28,7 @@ The generated constexpr table output lives in `unicode_ranges/unicode_tables_con
 
 The update pipeline consumes official Unicode Character Database inputs under `tools/unicode_data/<version>/`.
 
-Important files now in the pipeline include:
+Important pipeline files include:
 
 - `UnicodeData.txt`
 - `CompositionExclusions.txt`

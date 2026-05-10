@@ -1,11 +1,12 @@
 # Benchmarking
 
-This page defines how `unicode_ranges` will be benchmarked against other libraries.
+This page defines the comparative benchmark policy for `unicode_ranges`: what is measured, which semantics must match, which baselines are useful, and how results are interpreted.
 
-Current implementation note:
+## Runtime Backend Context
 
-- `unicode_ranges` now uses `simdutf` as its production runtime backend for hot UTF validation, UTF-8/UTF-16/UTF-32 transcoding, selected ASCII checks, and UTF-8/UTF-16 character-count paths.
-- That means current comparative rows in those families measure `unicode_ranges` integration overhead, API shape, allocation behavior, and fallback decisions against raw `simdutf` public API usage; they are not a claim that `unicode_ranges` and `simdutf` are independent low-level codec implementations.
+`unicode_ranges` uses `simdutf` as its production runtime backend for hot UTF validation, UTF-8/UTF-16/UTF-32 transcoding, selected ASCII checks, and UTF-8/UTF-16 character-count paths.
+
+For those families, raw `simdutf` rows measure the overhead and ergonomics of the `unicode_ranges` integration layer: API shape, allocation behavior, error mapping, and fallback decisions. They are not a comparison between independent low-level codec implementations.
 
 The benchmark suite is intended to answer a narrow question:
 
@@ -46,8 +47,7 @@ Examples:
 
 ### Prefer the closest realistic public API
 
-Rows should use the closest documented public API that a competent user would
-actually choose for the task.
+Rows use the closest documented public API that a competent user would actually choose for the task.
 
 That means:
 
@@ -58,12 +58,11 @@ That means:
 - do not use obscure internal hooks or unnatural setup code that ordinary users
   would not write
 
-When exact equivalence is impossible, the row should document the remaining
-difference and use the most defensible public approximation.
+When exact equivalence is impossible, the row documents the remaining difference and uses the most defensible public approximation.
 
 ### Separate raw and convenience paths
 
-Whenever possible, a benchmark family should have two tracks:
+Benchmark families use two tracks when both are meaningful:
 
 - raw or caller-provided output
 - convenience or owned-result API
@@ -92,7 +91,7 @@ No averages across toolchains. A trend is only considered strong if it appears o
 
 ### Prefer official or primary implementations
 
-Comparison baselines should come from the primary project, not from wrappers or secondary bindings, unless the wrapper is the de facto C++ interface being compared.
+Comparison baselines come from the primary project, not from wrappers or secondary bindings, unless the wrapper is the de facto C++ interface being compared.
 
 ## Candidate Libraries
 
@@ -100,7 +99,7 @@ No single library overlaps the full `unicode_ranges` surface. Comparisons are th
 
 | Library | Best comparison families | Notes |
 | --- | --- | --- |
-| [simdutf](https://github.com/simdutf/simdutf) | UTF validation, UTF transcoding | strongest raw UTF codec baseline; also the current `unicode_ranges` runtime backend for those hot paths |
+| [simdutf](https://github.com/simdutf/simdutf) | UTF validation, UTF transcoding | strongest raw UTF codec baseline; also the `unicode_ranges` runtime backend for those hot paths |
 | [ICU](https://unicode-org.github.io/icu/userguide/) | normalization, case mapping, segmentation, legacy encoding conversion | broadest feature overlap; use converter APIs for boundary encodings |
 | [Boost.Text](https://tzlaine.github.io/text/doc/html/index.html) | transcoding, normalization, segmentation, case mapping | broad algorithm overlap in modern C++ |
 | [uni-algo](https://github.com/uni-algo/uni-algo) | conversion, normalization, case mapping, segmentation | strong safe-Unicode algorithm baseline; strict conversion and validation APIs are public in `conv.h` |
@@ -110,7 +109,7 @@ No single library overlaps the full `unicode_ranges` surface. Comparisons are th
 
 ## Benchmark Families
 
-The suite should be organized by feature family, not by library.
+The suite is organized by feature family, not by library.
 
 ### UTF Validation
 
@@ -130,7 +129,7 @@ Primary comparisons:
 
 Interpretation note:
 
-- current `unicode_ranges` rows in this family are wrapper/integration comparisons against raw `simdutf` usage, not independent codec-algorithm competitions
+- `unicode_ranges` rows in this family are wrapper/integration comparisons against raw `simdutf` usage, not independent codec-algorithm competitions
 
 ### UTF Transcoding
 
@@ -150,7 +149,7 @@ Primary comparisons:
 
 Interpretation note:
 
-- current `unicode_ranges` rows in this family are wrapper/integration comparisons against raw `simdutf` usage for the same reason as UTF validation
+- `unicode_ranges` rows in this family are wrapper/integration comparisons against raw `simdutf` usage for the same reason as UTF validation
 
 ### Normalization
 
@@ -211,7 +210,7 @@ Primary comparisons:
 - `ICU` converter APIs
 - `libiconv`
 
-Initial built-in rows should include:
+Built-in rows include:
 
 - `ascii_strict`
 - `ascii_lossy`
@@ -220,13 +219,13 @@ Initial built-in rows should include:
 - `windows_1251`
 - `windows_1252`
 
-Future rows should include:
+Extended rows include:
 
 - `shift_jis`
 
 ## Corpus Policy
 
-Synthetic microbenchmarks are useful, but not enough. Each family should use multiple corpora.
+Synthetic microbenchmarks are useful, but not enough. Each family uses multiple corpora.
 
 Minimum corpus set:
 
@@ -248,7 +247,7 @@ Each corpus must be shared across libraries for that row.
 - report `ns/op`, throughput, and iteration count
 - report allocation-sensitive rows separately when allocation is part of the benchmarked contract
 - never hide failed rows; if a library cannot express the required semantics, mark the row unsupported
-- unsupported rows should still appear in the suite output with a short reason instead of silently disappearing
+- unsupported rows appear in the suite output with a short reason instead of silently disappearing
 
 ## Result Interpretation
 
@@ -266,84 +265,32 @@ This matters especially for:
 - growable container output paths
 - standard-library-dependent behavior
 
-## Planned Implementation Phases
+## Suite Layout
 
-### Phase 1
+The comparative benchmark implementation lives under:
 
-- benchmark charter and reporting policy
-- benchmark project layout
-- corpus layout
-- toolchain matrix in CI
+- `tools/comparative_benchmarks/main.cpp`
+- `tools/comparative_benchmarks/`
+- `tools/comparative_benchmarks/dependencies.json`
+- `tools/fetch_comparative_dependency.ps1`
 
-### Phase 2
+The dependency manifest pins external baselines used by the comparative suite. Unsupported rows remain visible in the output with a reason, so missing feature overlap does not silently disappear from the report.
 
-- UTF validation and UTF transcoding comparisons
-- initial baselines: `simdutf`, `utfcpp`, `uni-algo`
+## Dependency Model
 
-### Phase 3
+`simdutf` is both a vendored runtime dependency and a comparative baseline:
 
-- normalization and case mapping comparisons
-- initial baselines: `ICU`, `Boost.Text`, `uni-algo`, `utf8proc`
+- the runtime backend uses the vendored copy under `third_party/simdutf`
+- standalone `simdutf` benchmark rows exercise raw public `simdutf` API usage
 
-### Phase 4
+Other comparative baselines are fetched for the benchmark suite and are not runtime dependencies of `unicode_ranges`.
 
-- grapheme and word segmentation comparisons
-- initial baselines: `ICU`, `Boost.Text`, `uni-algo`
+## Interpreting Backend-Shared Rows
 
-### Phase 5
+UTF validation, UTF transcoding, selected ASCII checks, and UTF-8/UTF-16 character counting share a runtime backend with `simdutf`. Read those rows as:
 
-- boundary encoding comparisons
-- initial baselines: `ICU` converters and `libiconv`
-- start with currently built-in single-byte codecs
-- extend to `shift_jis` after native support lands
+- wrapper overhead comparisons
+- API-shape and allocation-model comparisons
+- error-mapping and fallback-policy comparisons
 
-## Current Status
-
-This page started as the design charter and now also reflects the initial scaffold on the `feature/comparative-benchmarks` branch.
-
-Current comparative suite:
-
-- a dedicated comparative benchmark runner: `tools/comparative_benchmarks/main.cpp`
-- a shared benchmark model and harness under `tools/comparative_benchmarks/`
-- initial corpus layout for UTF-8 validation and UTF-8 transcoding rows
-- initial `unicode_ranges` baseline adapters for strict UTF-8 validation and strict UTF-8 owned transcoding
-- initial third-party baselines:
-  - `simdutf`
-    - pinned to upstream `v7.7.0`
-    - vendored in the repository under `third_party/simdutf` for the shipped runtime backend
-    - the comparative CI may still fetch an explicit baseline copy when exercising the standalone `simdutf` row
-    - wired for strict UTF-8 validation and strict UTF-8 transcoding
-  - `utfcpp`
-    - pinned to tag `v4.0.9`
-    - fetched dynamically in CI through a shallow tag clone
-    - wired for strict UTF-8 validation and strict UTF-8 transcoding
-  - `uni-algo`
-    - pinned to tag `v1.0.0`
-    - fetched dynamically in CI through a shallow tag clone
-    - wired for strict UTF-8 validation and strict UTF-8 owned transcoding
-    - reported as unsupported for current caller-buffer rows because its public conversion API materializes owned strings
-- strict UTF-8 caller-buffer transcoding rows are present too
-  - `simdutf` and `utfcpp` are currently the supported external baselines there
-  - `uni-algo` is reported as unsupported there because the public API does not expose caller-buffer UTF transcoding
-  - `unicode_ranges` is reported as unsupported for those rows because it does
-    not currently expose a public caller-buffer UTF transcoding API
-- comparative dependencies are defined in `tools/comparative_benchmarks/dependencies.json`
-  and fetched through `tools/fetch_comparative_dependency.ps1`
-- a manifest-driven dependency fetch script for external comparative baselines
-- CI jobs that fetch, build, and run the comparative suite on GCC, Clang, and MSVC
-
-Important current caveat:
-
-- because `unicode_ranges` now uses `simdutf` as the production runtime backend for UTF validation, UTF-8/UTF-16/UTF-32 transcoding, selected ASCII checks, and UTF-8/UTF-16 character counting, those comparative families should be read primarily as:
-  - wrapper overhead comparisons
-  - API-shape and allocation-model comparisons
-  - fallback-policy comparisons
-  rather than as "completely unrelated low-level algorithm A versus algorithm B"
-
-It still does not imply:
-
-- vendored third-party dependencies
-- broad cross-library coverage beyond the initial `simdutf`, `utfcpp`, and `uni-algo` baselines
-- benchmark rows for normalization, case mapping, segmentation, or boundary encodings
-
-The next implementation phases on this branch are additional external baselines and additional benchmark families.
+Do not read them as unrelated low-level algorithm competitions.

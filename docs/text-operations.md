@@ -113,7 +113,9 @@ Case-transformation APIs also support partial overloads on owning strings:
 --8<-- "examples/text-operations/reverse.cpp"
 ```
 
-`reverse_graphemes()` is an owning-string mutator. It is not available on string views, and there is no lazy `reversed_graphemes()` view today.
+`reverse_graphemes()` is an owning-string mutator. It is not available on string views, and there is no lazy `reversed_graphemes()` view.
+
+A reverse-grapheme view would need to discover grapheme boundaries in forward order, store the resulting slices, and then iterate that storage backwards. That hidden allocation is too surprising for creating a view. Materialize `graphemes()` into a container and reverse that container when this behavior is needed.
 
 ## Return-unit semantics
 
@@ -122,7 +124,7 @@ The most important rule to keep in mind:
 - UTF-8 view/string search offsets are byte offsets unless the API name says otherwise.
 - UTF-16 view/string search offsets are code-unit offsets unless the API name says otherwise.
 
-Character- and grapheme-oriented APIs are named explicitly and should be preferred when the distinction matters.
+Use the explicitly named character- and grapheme-oriented APIs when the distinction matters.
 
 ## Grapheme-aware operations
 

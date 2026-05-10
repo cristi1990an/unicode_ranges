@@ -13,7 +13,7 @@ This page documents the exact public surface. For the higher-level guide to buil
 - Include [`unicode_ranges_all.hpp`](https://github.com/cristi1990an/unicode_ranges/blob/main/unicode_ranges_all.hpp) for the full surface.
 - Include [`unicode_ranges_borrowed.hpp`](https://github.com/cristi1990an/unicode_ranges/blob/main/unicode_ranges_borrowed.hpp) for the lighter borrowed/core umbrella.
 - The boundary API lives in namespace `unicode_ranges`.
-- Built-in codecs currently live in namespace `unicode_ranges::encodings`.
+- Built-in codecs live in namespace `unicode_ranges::encodings`.
 
 ## Core Types
 
@@ -201,7 +201,7 @@ struct Writer {
 ### Behavior
 
 - Writer copies share the same underlying destination state.
-- Writers are call-scoped handles and should not be retained by codecs.
+- Writers are call-scoped handles; codecs do not retain them.
 - Raw bounded writers report overflow through `encode_to(...)`, not by throwing.
 - Growable container writers propagate ordinary container exceptions.
 - For container appenders, the implementation prefers:
@@ -292,7 +292,7 @@ constexpr auto encode_append_to(Container& container) const
 
 ## Built-in Codecs
 
-The built-in single-byte codecs follow documented source mappings rather than ad hoc byte tables. The current built-ins use either:
+The built-in single-byte codecs follow documented source mappings rather than ad hoc byte tables. Built-ins use either:
 
 - direct identity mapping over `U+0000..U+00FF`
 - or a published WHATWG index file

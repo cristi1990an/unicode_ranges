@@ -1,17 +1,17 @@
 # Install And Integrate
 
-`unicode_ranges` is now a compiled library with a header-first public API. The supported integration model is:
+`unicode_ranges` is a compiled library with a header-first public API. The supported integration model is:
 
 1. bring this repository into your tree
 2. build and link the `unicode_ranges` library target, or an equivalent library target in your own build
 
-## Current packaging status
+## Packaging Status
 
 - There is no first-party package-manager distribution yet.
 - Runtime UTF validation, UTF-8/UTF-16/UTF-32 transcoding, selected ASCII checks, and UTF-8/UTF-16 character counting use pinned vendored `simdutf` `v7.7.0` under `third_party/simdutf`.
 - The repository ships first-party Visual Studio and CMake build definitions for the compiled library target.
 
-So the practical choices right now are:
+The practical source-based choices are:
 
 1. Vendor a snapshot of the repository into your source tree.
 2. Add the repository as a git submodule.
@@ -94,7 +94,7 @@ Then build with:
 
 ## Visual Studio
 
-The repository now contains a first-party Visual Studio library project:
+The repository contains first-party Visual Studio projects:
 
 - `unicode_ranges.vcxproj`: static library
 - `unicode_ranges_tests.vcxproj`: test runner linked against the library
@@ -105,7 +105,7 @@ If you are consuming the repository directly from Visual Studio, build `unicode_
 
 ## CMake: first-party target
 
-The repository now ships a first-party CMake build, install, and package-export surface:
+The repository ships a first-party CMake build, install, and package-export surface:
 
 - target: `unicode_ranges::unicode_ranges`
 - package config: `unicode_rangesConfig.cmake`
@@ -163,7 +163,7 @@ Do not track `main` in production builds. Pin an exact commit that you have vali
 
 The default library build depends only on pinned `simdutf` and exposes only locale-independent Unicode casing.
 
-If you want ICU-backed locale-sensitive casing overloads such as `to_lowercase("tr"_locale)`, `to_uppercase("tr"_locale)`, or `case_fold("tr"_locale)`, leave `UTF8_RANGES_ENABLE_ICU` enabled and make ICU available to CMake. The shipped build will then:
+If you want ICU-backed locale-sensitive casing overloads such as `to_lowercase("tr"_locale)`, `to_uppercase("tr"_locale)`, or `case_fold("tr"_locale)`, leave `UTF8_RANGES_ENABLE_ICU` enabled and make ICU available to CMake. The shipped build:
 
 - find `ICU::uc` and `ICU::i18n`
 - define `UTF8_RANGES_ENABLE_ICU=1`
@@ -171,7 +171,7 @@ If you want ICU-backed locale-sensitive casing overloads such as `to_lowercase("
 
 If ICU is not found, the default build falls back to the locale-independent surface.
 
-When ICU is enabled, locale-aware casing follows ICU locale resolution behavior. `locale_id` is a raw null-terminated locale-name token, while `_locale` gives you a compile-time checked literal form. The locale-aware overloads pass the token through to ICU, which may canonicalize it or fall back to a more general locale instead of failing. Use `is_available_locale(...)` if you want to require that the current ICU data set explicitly exposes a locale before calling a locale-aware casing overload.
+When ICU is enabled, locale-aware casing follows ICU locale resolution behavior. `locale_id` is a raw null-terminated locale-name token, while `_locale` gives you a compile-time checked literal form. The locale-aware overloads pass the token through to ICU, which may canonicalize it or fall back to a more general locale instead of failing. Use `is_available_locale(...)` when the active ICU data set must explicitly expose a locale before a locale-aware casing call.
 
 ## Licensing
 
@@ -189,7 +189,7 @@ For the exact repository licenses, third-party dependency versions, and notice p
 ## Toolchains exercised in CI
 
 - MSVC with the MSVC STL: Visual Studio 2022 toolset `v143` or newer
-- Clang-cl with the MSVC STL: current Visual Studio 2022 `ClangCL`
+- Clang-cl with the MSVC STL: Visual Studio 2022 `ClangCL`
 - GCC with libstdc++: GCC 14 / libstdc++ 14 or newer
 - Clang with libc++: Clang 22 / libc++ 22 or newer
 

@@ -26,13 +26,13 @@ If the library is built with `UTF8_RANGES_ENABLE_ICU=1`, additional ICU-backed l
 --8<-- "examples/casing/locale-case.cpp"
 ```
 
-You can also check whether the current ICU data set explicitly exposes a locale identifier:
+You can also check whether the active ICU data set explicitly exposes a locale identifier:
 
 ```cpp
 assert(is_available_locale("tr"_locale));
 ```
 
-`is_available_locale(...)` is a non-throwing probe. It returns `false` for invalid or unusable locale identifiers as well as for locale identifiers that are simply not exposed by the current ICU data set.
+`is_available_locale(...)` is a non-throwing probe. It returns `false` for invalid or unusable locale identifiers as well as for locale identifiers that are simply not exposed by the active ICU data set.
 
 Behavior note:
 
@@ -41,7 +41,7 @@ Behavior note:
 - Raw `locale_id{ ... }` values do not own storage; the pointed-to locale name must stay alive for the duration of the call.
 - The locale-aware overloads reject obviously unusable tokens such as `locale_id{ nullptr }`.
 - Otherwise, locale-aware `to_lowercase(...)`, `to_uppercase(...)`, `to_titlecase(...)`, and `case_fold(...)` forward the locale name to ICU.
-- If the locale is not explicitly available in the current ICU data set, ICU may canonicalize the locale or fall back to a more general locale instead of failing the call.
+- If the locale is not explicitly available in the active ICU data set, ICU may canonicalize the locale or fall back to a more general locale instead of failing the call.
 - If ICU rejects the locale name or another ICU operation fails, the locale-aware overload throws `std::runtime_error`.
 - If you need an exact availability check before calling a locale-aware casing overload, use `is_available_locale(...)`.
 
@@ -79,8 +79,8 @@ The string-view types also expose allocation-free helpers built on top of defaul
 Those helpers do not normalize. That is intentional:
 
 - case folding and normalization stay separate operations in this library
-- caseless comparison should not silently add normalization work or broaden equivalence
-- callers who need canonical-equivalence-aware caseless matching should say so explicitly
+- caseless comparison does not silently add normalization work or broaden equivalence
+- callers who need canonical-equivalence-aware caseless matching state that requirement explicitly
 
 So the default rule is: case-fold only. If you want canonical-equivalence-aware caseless matching, normalize explicitly first and then compare.
 
@@ -127,7 +127,7 @@ The library intentionally does not expose `normalize(pos, count)` style APIs.
 
 Normalization is less local than casing because boundary behavior can depend on combining marks and composition opportunities around the edge of a slice. Whole-string normalization is the safer and clearer initial contract.
 
-## Current scope
+## Scope
 
 Implemented:
 

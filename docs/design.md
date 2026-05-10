@@ -31,13 +31,13 @@ The library is built around a few explicit rules:
 
 ## Compiled runtime backend
 
-The library now has a compiled runtime backend. The hot runtime UTF boundary operations live in the compiled `unicode_ranges` library target and use `simdutf` as the backend for:
+The library has a compiled runtime backend. The hot runtime UTF boundary operations live in the compiled `unicode_ranges` library target and use `simdutf` as the backend for:
 
 - UTF-8, UTF-16, and UTF-32 validation
 - UTF-8, UTF-16, and UTF-32 transcoding on runtime paths
 - UTF-8/UTF-16 character counting and selected ASCII-only checks
 
-This is a pragmatic design decision. In the comparative benchmark suite, `simdutf` has been the strongest raw UTF codec baseline, so the library now uses it through its public API instead of re-implementing the same runtime dispatch ladder itself.
+This is a pragmatic design decision. In the comparative benchmark suite, `simdutf` has been the strongest raw UTF codec baseline, so the library uses it through its public API instead of re-implementing the same runtime dispatch ladder itself.
 
 That backend choice does not change the core model:
 
@@ -132,7 +132,7 @@ These views are created through member functions only:
 
 That keeps scalar iteration discoverable and explicit at the string/view API boundary.
 
-Construction is currently O(1) because the returned view wraps existing validated storage, but that is current behavior rather than a promised long-term complexity guarantee.
+Construction wraps existing validated storage and is cheap. Code that depends on exact construction complexity rather than the documented view semantics is relying on an implementation detail.
 
 The iteration strength depends on the encoding:
 
@@ -149,7 +149,7 @@ The iteration strength depends on the encoding:
 
 Each element represents one grapheme cluster under the default Unicode grapheme-cluster rules.
 
-There is intentionally no `reversed_graphemes()` companion today. Reverse grapheme iteration needs different machinery and tradeoffs, and the library does not currently want to standardize that surface prematurely.
+There is intentionally no `reversed_graphemes()` companion. Default grapheme boundaries are discovered in forward order, so a practical reverse-grapheme implementation has to split forward, store the grapheme slices, and then iterate that storage backwards. That allocation-heavy behavior is too surprising for view creation. Callers that want those semantics can materialize `graphemes()` into a container and reverse that container explicitly.
 
 ### Alternatives considered for grapheme iteration
 
@@ -191,7 +191,14 @@ Many literals and core operations are meant to remain usable in constant evaluat
 - Unicode property lookup
 - grapheme segmentation
 
-Not every operation is `constexpr`, but it is a deliberate design target rather than an accidental bonus.
+The non-`constexpr` surface is intentionally the exception, not the rule. The main outliers are operation families that require runtime services outside the library's compile-time tables:
+
+- ICU-backed locale-aware casing and caseless comparison, such as `to_lowercase(locale)`, `to_uppercase(locale)`, `to_titlecase(locale)`, `case_fold(locale)`, and the locale-aware `*_ignore_case(...)` helpers
+- runtime locale availability probing through `is_available_locale(...)`
+- formatting, printing, and streaming integration, including `std::formatter` specializations, `std::print` / `std::println` usage, and `operator<<`
+- hashing integration through `std::hash` specializations
+
+The compiled runtime backend is also runtime-only internally. That does not make the public checked UTF APIs non-`constexpr`; when an API is declared `constexpr`, constant evaluation uses the library's compile-time path instead of the runtime backend.
 
 ## You do not pay for what you do not use
 

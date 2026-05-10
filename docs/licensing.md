@@ -19,13 +19,13 @@ Unless otherwise noted, repository source files are available under that dual-li
 
 ## Runtime dependency license
 
-The compiled runtime backend currently depends on pinned `simdutf` `v7.7.0` for:
+The compiled runtime backend depends on pinned `simdutf` `v7.7.0` for:
 
 - UTF-8, UTF-16, and UTF-32 validation
 - UTF-8, UTF-16, and UTF-32 transcoding on runtime paths
 - UTF-8/UTF-16 character counting and selected ASCII-only checks
 
-`simdutf` is also dual-licensed under `MIT OR Apache-2.0`, which keeps the licensing model straightforward for the current compiled-library design.
+`simdutf` is also dual-licensed under `MIT OR Apache-2.0`, which keeps the licensing model straightforward for the compiled-library design.
 
 `unicode_ranges` vendors the pinned `simdutf` singleheader distribution under `third_party/simdutf`:
 
@@ -44,7 +44,7 @@ The comparative benchmark suite also uses pinned external libraries:
 - `utfcpp` `v4.0.9`
 - `uni-algo` `v1.0.0`
 
-These keep their own licenses. See [`THIRD_PARTY_NOTICES.md`](https://github.com/cristi1990an/unicode_ranges/blob/main/THIRD_PARTY_NOTICES.md) for the current dependency list and license expressions.
+These keep their own licenses. See [`THIRD_PARTY_NOTICES.md`](https://github.com/cristi1990an/unicode_ranges/blob/main/THIRD_PARTY_NOTICES.md) for the dependency list and license expressions.
 
 ## Notices and provenance policy
 
@@ -56,7 +56,7 @@ That file records:
 
 - pinned dependency versions
 - third-party license expressions
-- the provenance-header format required for any future copied or adapted source files
+- the provenance-header format required for copied or adapted source files
 
 At the moment:
 

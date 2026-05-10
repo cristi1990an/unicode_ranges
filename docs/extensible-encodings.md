@@ -1,6 +1,6 @@
 # Boundary Encodings
 
-`unicode_ranges` stays UTF-centric internally, but it can now encode to and decode from external non-UTF formats at the boundary.
+`unicode_ranges` stays UTF-centric internally, but it can encode to and decode from external non-UTF formats at the boundary.
 
 This is the layer to use when text must cross an interface that speaks something other than validated UTF-8 / UTF-16 / UTF-32:
 
@@ -27,7 +27,7 @@ For the exact public API surface, see [Boundary Encodings](reference/encodings.m
 
 ## Built-in Codecs
 
-The library currently ships these boundary codecs:
+The library ships these boundary codecs:
 
 | Codec | Direction | Behavior |
 | --- | --- | --- |
@@ -179,7 +179,7 @@ Important properties:
 - writers are passed by value
 - copying a writer copies only the handle, not the destination
 - writer copies still talk to the same underlying sink
-- writers are call-scoped and should not be retained by codec objects
+- writers are call-scoped; codec objects do not retain them
 
 Writers provide three operations:
 
@@ -297,7 +297,7 @@ When contract checks are disabled, violating the codec contract is undefined beh
 
 The built-ins are meant to demonstrate the supported codec shapes as well as provide immediate value.
 
-This example uses all currently supported native codecs:
+This example uses all supported native codecs:
 
 ```cpp
 --8<-- "examples/encodings/built-in-codecs.cpp"
@@ -314,7 +314,7 @@ Typical uses:
 - buffered partial sequences
 - runtime configuration
 
-Because state lives on the object itself, stateful codecs usually should not opt into implicit construction. You normally want to inspect the same object after the operation finishes.
+Because state lives on the object itself, stateful codecs normally do not opt into implicit construction. Keep the same codec object when counters, diagnostics, or buffered state must be inspected after the operation finishes.
 
 This example shows a small stateful lossy encoder:
 

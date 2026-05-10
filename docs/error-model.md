@@ -21,7 +21,7 @@ struct utf8_error
 
 These are returned by checked APIs such as `utf8_string_view::from_bytes(...)` and `utf8_string::from_bytes(...)`.
 
-At runtime, the hot UTF validation and checked UTF transcoding paths currently use `simdutf` underneath. `unicode_ranges` still presents its own error types, such as `utf8_error` and `utf8_error_code`; runtime backend results are mapped into this library-specific error model before they reach the caller.
+At runtime, the hot UTF validation and checked UTF transcoding paths use `simdutf` underneath. `unicode_ranges` still presents its own error types, such as `utf8_error` and `utf8_error_code`; runtime backend results are mapped into this library-specific error model before they reach the caller.
 
 Example:
 

@@ -6,7 +6,7 @@ They expose most of the library's read-only Unicode surface: validated iteration
 
 Unlike the helper adapters in `unicode_ranges::views`, these types are not themselves direct subclasses of [`std::ranges::view_interface`](https://en.cppreference.com/w/cpp/ranges/view_interface). They are validated string-view classes with a `std::basic_string_view`-like owning model and a string-oriented API surface. The lazy range adapters returned by members such as `chars()`, `graphemes()`, `split(...)`, and `matches(...)` are the actual view types.
 
-When a signature block uses `Char`, `View`, or `Predicate`, it refers to the encoding-specific type family for the current section:
+When a signature block uses `Char`, `View`, or `Predicate`, it refers to the encoding-specific type family in that section:
 
 - UTF-8: `utf8_char`, `utf8_string_view`, `details::utf8_char_predicate`
 - UTF-16: `utf16_char`, `utf16_string_view`, `details::utf16_char_predicate`
@@ -268,11 +268,11 @@ constexpr bool is_nfkd() const;
 
 ### Behavior
 
-These members normalize the current contents into the requested form and compare the result against the original view.
+These members normalize the view contents into the requested form and compare the result against the original view.
 
 ### Return value
 
-Returns `true` when the current view is already in the requested normalization form.
+Returns `true` when the view is already in the requested normalization form.
 
 ### Complexity
 
@@ -506,7 +506,7 @@ constexpr size_type find_last_not_of(utf16_string_view sv, size_type pos = npos)
 
 - Raw code-unit overloads examine code units directly.
 - `Char` and `View` overloads are character-aware.
-- `View` overloads treat the view as a set of characters that may match or fail the current character.
+- `View` overloads treat the view as a set of characters that may match or fail the character being examined.
 
 ### Overload differences
 
@@ -1415,7 +1415,7 @@ The examples below use `const auto text = "😄🇷🇴✨"_utf8_sv;`.
 
 The same overload differences apply to `replace_n(...)`, except that it stops after at most `count` replacements.
 
-Again, the span overload is character-set based. `std::array{"🇷"_u8c, "🇴"_u8c}` will replace either regional-indicator character independently; it will not wait for the adjacent pair `🇷🇴`.
+Again, the span overload is character-set based. `std::array{"🇷"_u8c, "🇴"_u8c}` replaces either regional-indicator character independently; it does not wait for the adjacent pair `🇷🇴`.
 
 ### Inspiration
 

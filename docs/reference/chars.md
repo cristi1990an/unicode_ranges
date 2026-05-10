@@ -199,11 +199,11 @@ constexpr std::size_t encode_utf32(OutIt out) const noexcept;
 - `as_scalar()` returns the Unicode scalar value represented by the object.
 - The conversion operators transcode a single scalar between the UTF-8, UTF-16, and UTF-32 character representations.
 - `to_utf8()`, `to_utf16()`, and `to_utf32()` materialize a one-character owning string in the corresponding encoding.
-- `code_unit_count()` returns the number of code units used by the current encoding:
+- `code_unit_count()` returns the number of code units used by this encoding:
   - UTF-8: `1` to `4`
   - UTF-16: `1` or `2`
   - UTF-32: `1`
-- `encode_utf8()`, `encode_utf16()`, and `encode_utf32()` copy the current value into an output iterator and return the number of code units written.
+- `encode_utf8()`, `encode_utf16()`, and `encode_utf32()` copy the character into an output iterator and return the number of code units written.
 
 ### Return value
 
@@ -303,7 +303,7 @@ constexpr bool is_whitespace() const noexcept;
 
 ### Return value
 
-Returns `true` when the current scalar has the queried property.
+Returns `true` when the scalar has the queried property.
 
 ### Complexity
 
@@ -358,7 +358,7 @@ constexpr bool is_extended_pictographic() const noexcept;
 
 ### Return value
 
-- The enum-returning methods return the property value for the current scalar.
+- The enum-returning methods return the property value for the scalar.
 - `canonical_combining_class()` returns the canonical combining class number.
 - The boolean methods return `true` when the scalar has the queried property.
 

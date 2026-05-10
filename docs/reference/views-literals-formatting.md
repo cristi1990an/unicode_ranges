@@ -297,18 +297,18 @@ bool is_available_locale(locale_id locale) noexcept;
 - `locale_id` is a non-owning null-terminated locale token for ICU-backed casing operations.
 - `_locale` validates string literals at compile time and rejects embedded NUL bytes.
 - Raw `locale_id{ ... }` values must point to storage that stays alive for the duration of the call.
-- `is_available_locale(...)` is a non-throwing probe against the current ICU data set.
+- `is_available_locale(...)` is a non-throwing probe against the active ICU data set.
 - Locale-aware casing overloads may still succeed for locales that are not explicitly available, because ICU may canonicalize or fall back to a more general locale.
 
 ### Return value
 
 - `_locale` returns a `locale_id`.
-- `is_available_locale(...)` returns `true` when the current ICU data set explicitly exposes the locale and `false` otherwise.
+- `is_available_locale(...)` returns `true` when the active ICU data set explicitly exposes the locale and `false` otherwise.
 
 ### Complexity
 
 - `_locale` is constant evaluation only.
-- `is_available_locale(...)` is linear in the number of locales exposed by the current ICU data set.
+- `is_available_locale(...)` is linear in the number of locales exposed by the active ICU data set.
 
 ### Exceptions
 
@@ -361,8 +361,8 @@ Compatibility note:
 
 - the library-defined character, string-view, and owning-string types have direct formatter support
 - direct formatting of helper views such as `utf8_view` and `grapheme_cluster_view<char8_t>` depends on the standard library's implementation of C++23 range formatting
-- this currently works with the MSVC STL and with libc++
-- libstdc++ 14 does not currently format these custom helper views directly, so the GCC docs-example CI job is allowed to fail without blocking the overall workflow
+- this works with the MSVC STL and with libc++
+- libstdc++ 14 does not format these custom helper views directly, so the GCC docs-example CI job is allowed to fail without blocking the overall workflow
 
 ### Complexity
 

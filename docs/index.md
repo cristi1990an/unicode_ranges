@@ -16,20 +16,20 @@ Existing C and C++ text handling often starts from raw byte buffers, raw code-un
 - keep construction available both at compile time through validated literals and at runtime through checked factories
 - still expose explicit unchecked fast paths when the caller has already proved validity elsewhere
 
-The design goal is not "maximum abstraction". It is predictable Unicode handling with clear invariants, explicit failure modes, and no repeated worry about whether the current value is valid text.
+The design goal is not "maximum abstraction". It is predictable Unicode handling with clear invariants, explicit failure modes, and no repeated worry about whether a value is valid text.
 
-The public surface is still header-first, but the runtime UTF hot paths now live in the compiled `unicode_ranges` library target, built from `unicode_ranges.cpp` and backed by pinned vendored `simdutf` (`v7.7.0`) under `third_party/simdutf`. Consumers should link that library target, or an equivalent library in their own build. There is no separate `simdutf` include-path step for normal use.
+The public surface is header-first, but the runtime UTF hot paths live in the compiled `unicode_ranges` library target, built from `unicode_ranges.cpp` and backed by pinned vendored `simdutf` (`v7.7.0`) under `third_party/simdutf`. Consumers link that library target, or an equivalent library in their own build. There is no separate `simdutf` include-path step for normal use.
 
-That backend choice is intentional: `simdutf` has been the strongest raw UTF validation/transcoding baseline in the comparative benchmark suite, so `unicode_ranges` now uses it directly for those runtime hot paths plus selected counting and ASCII-scan paths while keeping the higher-level validated type model and the rest of the Unicode algorithms in `unicode_ranges` itself.
+That backend choice is intentional: `simdutf` has been the strongest raw UTF validation/transcoding baseline in the comparative benchmark suite, so `unicode_ranges` uses it directly for those runtime hot paths plus selected counting and ASCII-scan paths while keeping the higher-level validated type model and the rest of the Unicode algorithms in `unicode_ranges` itself.
 
 ## New users: start here
 
-- [Install And Integrate](install-and-integrate.md): how to consume the library today, including the current packaging reality.
+- [Install And Integrate](install-and-integrate.md): how to consume the library from a build system.
 - [Getting Started](getting-started.md): include, validate, and use the core types quickly.
 - [Common Tasks](common-tasks.md): validate input, iterate scalars versus graphemes, normalize, case-map, and convert encodings.
 - [Design](design.md): ownership, indexing, boundaries, and what the library treats as a character.
 - [Boundary Encodings](extensible-encodings.md): built-in codecs, custom encoder/decoder requirements, generated APIs, and boundary-specific error handling.
-- [Benchmarking](benchmarking.md): the cross-library benchmark charter, comparison rules, toolchain matrix, and planned benchmark families.
+- [Benchmarking](benchmarking.md): cross-library benchmark policy, comparison rules, toolchain matrix, and benchmark families.
 - [Licensing](licensing.md): repository dual-license model, runtime dependency license notes, and third-party notices.
 - Stability policy: the repository root `STABILITY.md` defines the intended support and compatibility surface while the API stabilizes.
 - [Text Operations](text-operations.md): search, split, trim, replace, reverse, and boundary queries.
