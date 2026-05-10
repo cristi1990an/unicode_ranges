@@ -1015,16 +1015,49 @@ namespace unicode_ranges
 
 			if (!std::is_constant_evaluated())
 			{
-				bool changed = false;
-				if (case_map_utf32_same_size<Lowercase>(code_points, changed))
+				if (case_map_utf32_inplace_if_same_size<Lowercase>(code_points, base.data()))
 				{
-					if (!changed)
+					return string_type::from_code_points_unchecked(std::move(base));
+				}
+
+				const auto plan = make_utf32_parallel_plan(code_points.size());
+				if (plan.worker_count != 1)
+				{
+					auto chunk_measurements = std::make_unique<case_map_measurement[]>(plan.worker_count);
+					fill_parallel_utf32_chunk_results(
+						code_points,
+						plan,
+						chunk_measurements.get(),
+						[](std::u32string_view chunk) static noexcept
+						{
+							return measure_case_map_utf32<Lowercase>(chunk);
+						});
+
+					auto chunk_offsets = std::make_unique<std::size_t[]>(plan.worker_count);
+					case_map_measurement measurement{};
+					for (std::size_t chunk_index = 0; chunk_index != plan.worker_count; ++chunk_index)
+					{
+						chunk_offsets[chunk_index] = measurement.output_size;
+						measurement.output_size += chunk_measurements[chunk_index].output_size;
+						measurement.changed = measurement.changed || chunk_measurements[chunk_index].changed;
+					}
+
+					if (!measurement.changed)
 					{
 						return string_type::from_code_points_unchecked(std::move(base));
 					}
 
 					base_type result{ base.get_allocator() };
-					write_case_map_utf32<Lowercase>(code_points, result, code_points.size());
+					result.resize(measurement.output_size);
+					write_parallel_utf32_chunks(
+						code_points,
+						plan,
+						chunk_offsets.get(),
+						result.data(),
+						[](std::u32string_view chunk, char32_t* out) static noexcept
+						{
+							write_case_map_utf32_into<Lowercase>(chunk, out);
+						});
 					return string_type::from_code_points_unchecked(std::move(result));
 				}
 
