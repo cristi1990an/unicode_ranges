@@ -55,7 +55,6 @@ Construction returns the helper view directly.
 
 None.
 
-
 All listed members are `noexcept`.
 
 ### Example
@@ -94,6 +93,10 @@ using reversed_utf32_view = std::ranges::reverse_view<utf32_view>;
 - They iterate validated characters from the end without first materializing a reversed string.
 - `views::reversed_utf32_view` is just `std::ranges::reverse_view<views::utf32_view>`, so it is also sized, common, and random-access.
 
+### Return value
+
+Construction returns the helper view directly.
+
 ### Complexity
 
 - Constructing the view is constant.
@@ -102,7 +105,6 @@ using reversed_utf32_view = std::ranges::reverse_view<utf32_view>;
 ### Exceptions And `noexcept`
 
 None.
-
 
 All listed members are `noexcept`.
 
@@ -140,6 +142,10 @@ public:
 - It is normally obtained from validated text via `graphemes()`.
 - It is a lazy borrowed forward view and computes grapheme boundaries on demand during iteration.
 
+### Return value
+
+Construction returns the helper view directly.
+
 ### Complexity
 
 - Constructing the view is constant.
@@ -148,7 +154,6 @@ public:
 ### Exceptions And `noexcept`
 
 None.
-
 
 All listed members are `noexcept`.
 
@@ -213,6 +218,10 @@ inline constexpr lossy_utf32_fn lossy_utf32{};
 - The closure objects are [`std::ranges::range_adaptor_closure`](https://en.cppreference.com/w/cpp/ranges/range_adaptor_closure)-style adapters, which makes the lossy views pipe-friendly.
 - `lossy_utf32_view<CharT>` is a borrowed sized common random-access view because each input element yields exactly one output scalar.
 
+### Return value
+
+Construction and adaptor application return the corresponding lossy view.
+
 ### Complexity
 
 Linear in the source length.
@@ -220,7 +229,6 @@ Linear in the source length.
 ### Exceptions And `noexcept`
 
 None.
-
 
 All listed members are `noexcept`.
 
@@ -359,6 +367,10 @@ Compatibility note:
 - this works with the MSVC STL and with libc++
 - libstdc++ 14 does not format these custom helper views directly, so the GCC docs-example CI job is allowed to fail without blocking the overall workflow
 
+### Return value
+
+Formatting and printing write the textual representation expected by the standard formatting APIs for the participating types.
+
 ### Complexity
 
 Linear in the amount of formatted text.
@@ -366,7 +378,6 @@ Linear in the amount of formatted text.
 ### Exceptions And `noexcept`
 
 Formatter parsing may throw [`std::format_error`](https://en.cppreference.com/w/cpp/utility/format/format_error) for unsupported presentation types.
-
 
 Not `noexcept`.
 
@@ -396,3 +407,7 @@ In other words:
 - the helper adapters on this page are real range views, implemented as `std::ranges::view_interface` subclasses
 - they are lazy rather than eagerly materialized
 - and they remain borrowed ranges, so iterators and subviews may refer back to the original storage
+
+### Return value
+
+Queries against these `std::ranges::enable_borrowed_range` specializations evaluate to `true` for the listed helper views.

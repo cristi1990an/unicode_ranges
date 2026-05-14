@@ -130,6 +130,13 @@ template<> struct std::formatter<utf32_string_view, char>;
 - The [`std::formatter`](https://en.cppreference.com/w/cpp/utility/format/formatter) specializations format textual output.
 - The [`std::hash`](https://en.cppreference.com/w/cpp/utility/hash) specializations hash the underlying standard-library string view.
 
+### Return value
+
+- Equality operators return `bool`.
+- Ordering operators return the corresponding ordering category.
+- Stream insertion returns the output stream.
+- Hashing and formatting integrate with the standard-library customization points for the validated view types.
+
 ### Complexity
 
 - Comparison is linear in the compared prefix.
@@ -141,7 +148,6 @@ template<> struct std::formatter<utf32_string_view, char>;
 - Streaming may report stream errors through the stream state.
 - UTF-16 formatting may allocate internally while transcoding.
 - UTF-32 formatting may allocate internally while transcoding.
-
 
 - Comparison and hashing are non-throwing.
 - Streaming and formatting are not `noexcept`.

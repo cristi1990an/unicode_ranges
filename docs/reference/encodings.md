@@ -62,6 +62,10 @@ struct codec_contract_violation : std::logic_error {};
 - `encode_to_error_kind::encoding_error` wraps the codec's `encode_error`
 - `codec_contract_violation` is reserved for codec bugs when contract checks are enabled
 
+### Return value
+
+These declarations define the traits, concepts, result aliases, and support types that the boundary-encoding API uses; they do not perform runtime work by themselves.
+
 ### Contract checks
 
 `UTF8_RANGES_ENABLE_CODEC_CONTRACT_CHECKS` defaults to:

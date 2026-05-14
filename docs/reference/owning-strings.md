@@ -181,6 +181,10 @@ static constexpr basic_utf32_string from_code_points_lossy(base_type&& code_poin
 | `from_code_points_lossy(std::u32string_view code_points, alloc)` | repair invalid UTF-32 scalar values while constructing a validated UTF-32 string | `auto text = utf32_string::from_code_points_lossy(std::u32string_view{ U"A\U0000D800B" });` |
 | `from_code_points_lossy(base_type&& code_points)` | take ownership of a UTF-32 string and repair it in place | `auto text = utf32_string::from_code_points_lossy(std::u32string{ U"A\U0000D800B" });` |
 
+### Return value
+
+Returns the repaired owning string in the destination encoding.
+
 ### Complexity
 
 Linear in the source length.
@@ -188,7 +192,6 @@ Linear in the source length.
 ### Exceptions And `noexcept`
 
 Borrowed-input overloads may throw allocator or container exceptions. The UTF-8 owned overload may also throw if malformed repair expands and requires reallocation.
-
 
 - Borrowed-input and allocator-taking lossy overloads are not `noexcept`.
 - `utf16_string::from_code_units_lossy(base_type&&)` and `utf32_string::from_code_points_lossy(base_type&&)` are `noexcept` because those repairs are width-preserving and stay in place.
@@ -257,6 +260,10 @@ The braced-list constructor uses [`std::initializer_list`](https://en.cppreferen
 
 This family deliberately mirrors the shape of [`std::basic_string`](https://en.cppreference.com/w/cpp/string/basic_string/basic_string) constructors, with the extra guarantee that every source path is either validated or explicitly marked unchecked elsewhere.
 
+### Return value
+
+Constructors produce the requested owning string object.
+
 ### Complexity
 
 Linear in the size of the constructed string.
@@ -270,7 +277,6 @@ Linear in the size of the constructed string.
 ### Exceptions And `noexcept`
 
 May throw allocator or container exceptions.
-
 
 Only the move-with-allocator constructor is conditionally `noexcept`.
 
@@ -439,6 +445,16 @@ split_once_at_unchecked_result<utf8_string_view> split_once_at_unchecked(size_ty
 
 ### Behavior
 
+- `strip_prefix` and `strip_suffix` remove exactly one matching prefix or suffix and preserve failure information with [`std::optional`](https://en.cppreference.com/w/cpp/utility/optional).
+- `strip_circumfix` removes exactly one matching prefix and one matching suffix in the same call; it fails if either side does not match.
+- `trim_prefix` and `trim_suffix` remove exactly one matching prefix or suffix and return the original string unchanged when no removal happens.
+- `trim_start_matches`, `trim_end_matches`, and `trim_matches` repeatedly remove matching characters or matching substrings from one or both ends.
+- The `std::span<const Char>` overloads treat the span as a character set, not as one contiguous substring.
+- Predicate overloads trim while the boundary characters satisfy the predicate.
+- `trim_start`, `trim_end`, and `trim` use Unicode whitespace semantics.
+- `trim_ascii_start`, `trim_ascii_end`, and `trim_ascii` use ASCII whitespace only.
+- `substr(pos, count)` interprets `pos` and `count` as code-unit offsets and requires the selected slice to be a valid UTF substring.
+- `grapheme_substr(pos, count)` interprets `pos` and `count` as grapheme-cluster indices.
 - `const&` overloads keep the source string unchanged and return a new owning result.
 - `const&&` bound-adjusting calls use the `const&` copy-producing overloads because a const object cannot be reused in place.
 - Bound-adjusting `&&` overloads do not return views into the moved-from source; the result owns its storage.
@@ -447,18 +463,39 @@ split_once_at_unchecked_result<utf8_string_view> split_once_at_unchecked(size_ty
 
 ### Overload differences
 
-The examples below use `utf8_string text = u8"  cafe  "_utf8_s;`.
+The examples below use `utf8_string text = u8"  cafe  "_utf8_s;` and `utf8_string framed = u8"<<cafe>>"_utf8_s;`.
 
 | Overload | Meaning | Example |
 | --- | --- | --- |
+| `strip_prefix(View sv)` | remove one exact prefix occurrence or return `std::nullopt` | `framed.strip_prefix(u8"<<"_utf8_sv)` |
+| `trim_prefix(View sv)` | remove one exact prefix occurrence or return the original string unchanged | `framed.trim_prefix(u8"<<"_utf8_sv)` |
+| `trim_start_matches(Char ch)` | repeatedly remove one exact character from the start | `framed.trim_start_matches(u8"<"_u8c)` |
+| `trim_start_matches(View sv)` | repeatedly remove one exact substring from the start | `framed.trim_start_matches(u8"<<"_utf8_sv)` |
+| `trim_start_matches(std::span<const Char> chars)` | repeatedly remove any leading character that belongs to a set | `framed.trim_start_matches(std::array{ u8"<"_u8c, u8">"_u8c })` |
+| `trim_start_matches(Pred pred)` | repeatedly remove leading characters satisfying a predicate | `u8"✨✨cafe"_utf8_s.trim_start_matches([](utf8_char ch) { return !ch.is_ascii(); })` |
+| `substr(pos, count)` | copy or reuse one boundary-aligned UTF substring selected by code-unit offsets | `text.substr(2, 4)` |
+| `grapheme_substr(pos, count)` | copy or reuse one grapheme-aligned slice selected by grapheme indices | `text.grapheme_substr(2, 4)` |
 | `const&` strip/trim/substr | copy the selected owned text and keep `text` usable unchanged | `auto copy = text.trim();` |
 | `&&` strip/trim/substr | consume a disposable string and return an owning result | `auto trimmed = std::move(text).trim();` |
 | deleted `&&` one-shot split/access | reject APIs whose result would be borrowed from a temporary owning string | `std::move(text).split_once(u8"="_u8c)` is ill-formed |
 
+The same distinctions apply to `strip_suffix`, `strip_circumfix`, `trim_suffix`, `trim_end_matches`, `trim_matches`, `trim_start`, `trim_end`, `trim`, `trim_ascii_start`, `trim_ascii_end`, and `trim_ascii`.
+
+For the span overload, adjacency does not matter. `std::array{ u8"<"_u8c, u8">"_u8c }` means "keep trimming while the next edge character is either `<` or `>`". It does **not** mean "trim the substring `<>`".
+
+### Return value
+
+- `strip_*` returns [`std::nullopt`](https://en.cppreference.com/w/cpp/utility/optional/nullopt) when the requested removal does not match.
+- `trim_*` returns an owning string and leaves the contents unchanged when nothing is removed.
+- `substr()` and `grapheme_substr()` return [`std::nullopt`](https://en.cppreference.com/w/cpp/utility/optional/nullopt) when `pos` or `count` would select an invalid UTF or grapheme-bounded slice.
+- Owning rvalue results do not refer to the moved-from source string.
+
 ### Complexity
 
-- `const&` overloads are linear in the selected text and may allocate.
-- `&&` overloads are linear in boundary and trimming work.
+- `strip_*` and `trim_*` are linear in the number of leading or trailing characters examined.
+- `substr()` is linear in the amount of boundary validation and the size of the selected slice.
+- `grapheme_substr()` is linear in the grapheme-boundary work needed to reach the requested slice.
+- `const&` overloads may also allocate.
 
 ### Performance Notes
 
@@ -470,7 +507,6 @@ The examples below use `utf8_string text = u8"  cafe  "_utf8_s;`.
 - `const&` overloads may throw allocator or container exceptions.
 - `&&` bound-adjusting overloads do not allocate in the bound-adjustment path.
 - Predicate overloads may throw if the predicate throws.
-
 
 - `const&` overloads are not `noexcept`.
 - `&&` overloads are conditionally `noexcept`; with the default owning string types, non-predicate bound-adjusting overloads are `noexcept`.
@@ -1155,6 +1191,13 @@ constexpr auto operator ""_utf8_s();
 
 Comparison and concatenation follow the general shape of [`std::basic_string`](https://en.cppreference.com/w/cpp/string/basic_string/basic_string) and Rust's [`String`](https://doc.rust-lang.org/std/string/struct.String.html), but the literal forms add compile-time Unicode validation instead of accepting arbitrary raw code units.
 
+### Return value
+
+- Comparison operators return `bool` or the corresponding ordering category.
+- `operator+` returns a new owning string.
+- Stream insertion returns the output stream.
+- Owning-string literals return the validated owning string object.
+
 ### Complexity
 
 - Comparison is linear in the compared prefix.
@@ -1171,6 +1214,5 @@ Comparison and concatenation follow the general shape of [`std::basic_string`](h
 - Comparison does not throw.
 - Concatenation, formatting, and owning-string literal materialization may throw allocator or container exceptions.
 - Invalid `_utf8_s`, `_utf16_s`, or `_utf32_s` literals are rejected during constant evaluation.
-
 
 Only the comparison operators are `noexcept`.

@@ -41,6 +41,11 @@ static const utf32_char null_terminator;
 - `replacement_character` is U+FFFD.
 - `null_terminator` is U+0000.
 
+### Return value
+
+- Default construction yields the corresponding validated character object for U+0000.
+- Accessing `replacement_character` or `null_terminator` yields the corresponding named constant.
+
 ### Complexity
 
 Constant.
@@ -48,7 +53,6 @@ Constant.
 ### Exceptions And `noexcept`
 
 None.
-
 
 Default construction is non-throwing.
 
@@ -255,6 +259,11 @@ The operations wrap:
 - decrementing U+0000 produces U+10FFFF
 - incrementing U+10FFFF produces U+0000
 
+### Return value
+
+- Prefix `++` and `--` return `*this` after the update.
+- Postfix `++` and `--` return the previous value.
+
 ### Complexity
 
 Constant.
@@ -262,7 +271,6 @@ Constant.
 ### Exceptions And `noexcept`
 
 None.
-
 
 All four operators are `noexcept`.
 
@@ -442,6 +450,12 @@ constexpr void swap(utf32_char& other) noexcept;
 - `eq_ignore_ascii_case()` lowercases both operands with the ASCII-only transform and compares the results.
 - `swap()` exchanges the stored code units.
 
+### Return value
+
+- `ascii_lowercase()` and `ascii_uppercase()` return the transformed character.
+- `eq_ignore_ascii_case()` returns `true` when the ASCII-folded characters match.
+- `swap()` returns no value.
+
 ### Complexity
 
 Constant.
@@ -449,7 +463,6 @@ Constant.
 ### Exceptions And `noexcept`
 
 None.
-
 
 All listed overloads are `noexcept`.
 
@@ -508,6 +521,12 @@ template<> struct std::formatter<utf32_char, wchar_t>;
   - `'c'` as a text presentation alias
   - numeric presentations `d`, `b`, `B`, `o`, `x`, `X`, which format `as_scalar()`
 
+### Return value
+
+- Comparison operators return `bool` or the corresponding ordering category.
+- Stream insertion returns the output stream.
+- Hashing and formatting participate through the standard-library customization points for the character types.
+
 ### Complexity
 
 Constant.
@@ -517,7 +536,6 @@ Constant.
 - The comparison overloads and hashers do not throw.
 - Stream insertion may report stream errors through the stream object.
 - Formatter parsing may throw [`std::format_error`](https://en.cppreference.com/w/cpp/utility/format/format_error) for unsupported or malformed format specifiers.
-
 
 - The comparison overloads and hashers are non-throwing.
 - Stream insertion and formatters are not `noexcept`.
@@ -603,6 +621,10 @@ namespace unicode_ranges::characters::utf32
 - Both trees expose the same names so you can choose the encoding that matches the surrounding API.
 - This is intentionally not a complete Unicode catalog.
 
+### Return value
+
+Each named constant evaluates to the corresponding validated character object in the selected encoding namespace.
+
 ### Complexity
 
 Constant.
@@ -610,7 +632,6 @@ Constant.
 ### Exceptions And `noexcept`
 
 None.
-
 
 Accessing the constants is non-throwing.
 
