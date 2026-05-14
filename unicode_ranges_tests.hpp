@@ -7359,7 +7359,7 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		else
 		{
 			UTF8_RANGES_TEST_ASSERT(result.error().code == utf16_error_code::truncated_surrogate_pair);
-			UTF8_RANGES_TEST_ASSERT(result.error().first_invalid_code_unit_index == 0);
+			UTF8_RANGES_TEST_ASSERT(result.error().first_invalid_element_index == 0);
 		}
 	}
 	{
@@ -7371,7 +7371,7 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		const auto result = utf32_string_view::from_code_points({ invalid.data(), invalid.size() });
 		UTF8_RANGES_TEST_ASSERT(!result.has_value());
 		UTF8_RANGES_TEST_ASSERT(result.error().code == utf32_error_code::invalid_scalar);
-		UTF8_RANGES_TEST_ASSERT(result.error().first_invalid_code_point_index == 1);
+		UTF8_RANGES_TEST_ASSERT(result.error().first_invalid_element_index == 1);
 	}
 
 	// Formatting ranges by first materializing them into owning strings.
@@ -7398,6 +7398,16 @@ static_assert(std::same_as<decltype(utf8_string{}.copy(static_cast<char8_t*>(nul
 static_assert(std::same_as<decltype(utf8_string{}.pop_back()), std::optional<utf8_char>>);
 static_assert(std::same_as<decltype(utf8_string{}.reverse()), utf8_string&>);
 static_assert(std::same_as<decltype(utf8_string{}.reverse_graphemes()), utf8_string&>);
+static_assert(std::same_as<utf8_error_code, unicode_error_code>);
+static_assert(std::same_as<utf16_error_code, unicode_error_code>);
+static_assert(std::same_as<utf32_error_code, unicode_error_code>);
+static_assert(std::same_as<unicode_scalar_error_code, unicode_error_code>);
+static_assert(std::same_as<wide_string_error_code, unicode_error_code>);
+static_assert(std::same_as<utf8_error, unicode_error>);
+static_assert(std::same_as<utf16_error, unicode_error>);
+static_assert(std::same_as<utf32_error, unicode_error>);
+static_assert(std::same_as<unicode_scalar_error, unicode_error>);
+static_assert(std::same_as<wide_string_error, unicode_error>);
 static_assert(std::same_as<decltype(utf8_string::from_bytes(std::wstring_view{})), std::expected<utf8_string, wide_string_error>>);
 static_assert(std::same_as<decltype(utf16_string::from_bytes(std::wstring_view{})), std::expected<utf16_string, wide_string_error>>);
 static_assert(std::same_as<decltype(utf32_string::from_bytes(std::wstring_view{})), std::expected<utf32_string, wide_string_error>>);
@@ -9016,37 +9026,37 @@ static_assert([] {
 		const auto result = utf8_string::from_bytes(std::string_view{ "A\xFF", 2 });
 		UTF8_RANGES_TEST_ASSERT(!result.has_value());
 		UTF8_RANGES_TEST_ASSERT(result.error().code == utf8_error_code::invalid_lead_byte);
-		UTF8_RANGES_TEST_ASSERT(result.error().first_invalid_byte_index == 1);
+		UTF8_RANGES_TEST_ASSERT(result.error().first_invalid_element_index == 1);
 	}
 	{
 		const auto result = utf16_string::from_bytes(std::string_view{ "A\xFF", 2 });
 		UTF8_RANGES_TEST_ASSERT(!result.has_value());
 		UTF8_RANGES_TEST_ASSERT(result.error().code == utf8_error_code::invalid_lead_byte);
-		UTF8_RANGES_TEST_ASSERT(result.error().first_invalid_byte_index == 1);
+		UTF8_RANGES_TEST_ASSERT(result.error().first_invalid_element_index == 1);
 	}
 	{
 		const auto result = utf8_string::from_bytes(std::string_view{ "\xE2\x82", 2 });
 		UTF8_RANGES_TEST_ASSERT(!result.has_value());
 		UTF8_RANGES_TEST_ASSERT(result.error().code == utf8_error_code::truncated_sequence);
-		UTF8_RANGES_TEST_ASSERT(result.error().first_invalid_byte_index == 0);
+		UTF8_RANGES_TEST_ASSERT(result.error().first_invalid_element_index == 0);
 	}
 	{
 		const auto result = utf8_string::from_bytes(std::string_view{ "\xE0\x80\x80", 3 });
 		UTF8_RANGES_TEST_ASSERT(!result.has_value());
 		UTF8_RANGES_TEST_ASSERT(result.error().code == utf8_error_code::invalid_sequence);
-		UTF8_RANGES_TEST_ASSERT(result.error().first_invalid_byte_index == 0);
+		UTF8_RANGES_TEST_ASSERT(result.error().first_invalid_element_index == 0);
 	}
 	{
 		const auto result = utf8_string::from_bytes(std::string_view{ "\xED\xA0\x80", 3 });
 		UTF8_RANGES_TEST_ASSERT(!result.has_value());
 		UTF8_RANGES_TEST_ASSERT(result.error().code == utf8_error_code::invalid_sequence);
-		UTF8_RANGES_TEST_ASSERT(result.error().first_invalid_byte_index == 0);
+		UTF8_RANGES_TEST_ASSERT(result.error().first_invalid_element_index == 0);
 	}
 	{
 		const auto result = utf8_string::from_bytes(std::string_view{ "\xF4\x90\x80\x80", 4 });
 		UTF8_RANGES_TEST_ASSERT(!result.has_value());
 		UTF8_RANGES_TEST_ASSERT(result.error().code == utf8_error_code::invalid_sequence);
-		UTF8_RANGES_TEST_ASSERT(result.error().first_invalid_byte_index == 0);
+		UTF8_RANGES_TEST_ASSERT(result.error().first_invalid_element_index == 0);
 	}
 	// Formatting, hashing, and stream insertion for borrowed and owning strings.
 	UTF8_RANGES_TEST_ASSERT(std::format("{}", utf8_text) == "Aé€");

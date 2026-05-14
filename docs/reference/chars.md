@@ -4,6 +4,8 @@
 
 They are useful when you want to store or pass one Unicode scalar value without dropping down to raw UTF-8 bytes or UTF-16 code units.
 
+Their semantics are scalar-value semantics, but their object representation stays encoding-specific. `utf8_char` stores the validated UTF-8 byte sequence for one scalar, `utf16_char` stores the validated UTF-16 code-unit sequence, and `utf32_char` stores one validated UTF-32 code unit. That differs from Rust `char`, whose in-memory representation is a scalar value rather than an encoded UTF sequence.
+
 For the named `unicode_ranges::characters` catalog, include `unicode_ranges_all.hpp` or include `unicode_ranges/characters.hpp` directly. The lighter `unicode_ranges_borrowed.hpp` umbrella no longer pulls that catalog in automatically.
 
 When the character is known at compile time, the literal operators such as `_u8c`, `_u16c`, and `_u32c` are usually the nicest entry point. `from_scalar(...)` is the runtime path when the scalar value arrives as data.
@@ -43,11 +45,10 @@ static const utf32_char null_terminator;
 
 Constant.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 None.
 
-### `noexcept`
 
 Default construction is non-throwing.
 
@@ -80,11 +81,10 @@ Constructs a validated character from a Unicode scalar value and reports failure
 
 Constant.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 None.
 
-### `noexcept`
 
 Always `noexcept`.
 
@@ -144,11 +144,10 @@ from_utf32_code_points_unchecked(const CharT* code_points, std::size_t size) noe
 
 Constant.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 None.
 
-### `noexcept`
 
 All listed overloads are `noexcept`.
 
@@ -209,21 +208,16 @@ constexpr std::size_t encode_utf32(OutIt out) const noexcept;
 
 - `as_scalar()` returns the scalar directly.
 - `encode_*()` returns the number of output code units.
-- `to_*_owned()` returns an owning validated string containing exactly one character.
+- `to_utf8()`, `to_utf16()`, and `to_utf32()` return an owning validated string containing exactly one character.
 
 ### Complexity
 
 Constant.
 
-### Exceptions
+### Exceptions And `noexcept`
 
-- `as_scalar()`, the conversion operators, `code_unit_count()`, and `encode_*()` do not throw.
-- `to_*_owned()` may throw allocator or container exceptions.
-
-### `noexcept`
-
-- `as_scalar()`, conversion operators, `code_unit_count()`, and `encode_*()` are `noexcept`.
-- `to_*_owned()` is not `noexcept`.
+- `as_scalar()`, the conversion operators, `code_unit_count()`, and `encode_*()` do not throw and are declared `noexcept`.
+- `to_utf8()`, `to_utf16()`, and `to_utf32()` are not `noexcept`; they can fail only while materializing the owning result, through allocator or container exceptions.
 
 ### Example
 
@@ -265,11 +259,10 @@ The operations wrap:
 
 Constant.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 None.
 
-### `noexcept`
 
 All four operators are `noexcept`.
 
@@ -309,11 +302,10 @@ Returns `true` when the scalar has the queried property.
 
 Constant, with table lookups for the Unicode property predicates.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 None.
 
-### `noexcept`
 
 All listed overloads are `noexcept`.
 
@@ -366,11 +358,10 @@ constexpr bool is_extended_pictographic() const noexcept;
 
 Constant, with table lookups.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 None.
 
-### `noexcept`
 
 All listed overloads are `noexcept`.
 
@@ -410,11 +401,10 @@ Returns `false` for all non-ASCII characters.
 
 Constant.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 None.
 
-### `noexcept`
 
 All listed overloads are `noexcept`.
 
@@ -456,11 +446,10 @@ constexpr void swap(utf32_char& other) noexcept;
 
 Constant.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 None.
 
-### `noexcept`
 
 All listed overloads are `noexcept`.
 
@@ -523,13 +512,12 @@ template<> struct std::formatter<utf32_char, wchar_t>;
 
 Constant.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 - The comparison overloads and hashers do not throw.
 - Stream insertion may report stream errors through the stream object.
 - Formatter parsing may throw [`std::format_error`](https://en.cppreference.com/w/cpp/utility/format/format_error) for unsupported or malformed format specifiers.
 
-### `noexcept`
 
 - The comparison overloads and hashers are non-throwing.
 - Stream insertion and formatters are not `noexcept`.
@@ -619,11 +607,10 @@ namespace unicode_ranges::characters::utf32
 
 Constant.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 None.
 
-### `noexcept`
 
 Accessing the constants is non-throwing.
 

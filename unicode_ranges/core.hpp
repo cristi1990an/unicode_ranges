@@ -667,88 +667,40 @@ concept unicode_character =
 	|| std::same_as<std::remove_cvref_t<T>, utf16_char>
 	|| std::same_as<std::remove_cvref_t<T>, utf32_char>;
 
-enum class utf8_error_code
+enum class unicode_error_code
 {
 	invalid_lead_byte,
 	truncated_sequence,
-	invalid_sequence
-};
-
-struct utf8_error
-{
-	utf8_error_code code{};
-	std::size_t first_invalid_byte_index = 0;
-};
-
-enum class utf16_error_code
-{
-	truncated_surrogate_pair,
-	invalid_sequence
-};
-
-struct utf16_error
-{
-	utf16_error_code code{};
-	std::size_t first_invalid_code_unit_index = 0;
-};
-
-enum class utf32_error_code
-{
-	invalid_scalar
-};
-
-struct utf32_error
-{
-	utf32_error_code code{};
-	std::size_t first_invalid_code_point_index = 0;
-};
-
-enum class unicode_scalar_error_code
-{
-	invalid_scalar
-};
-
-struct unicode_scalar_error
-{
-	unicode_scalar_error_code code{};
-	std::size_t first_invalid_element_index = 0;
-};
-
-enum class wide_string_error_code
-{
-	truncated_surrogate_pair,
 	invalid_sequence,
+	truncated_surrogate_pair,
 	invalid_scalar
 };
 
-struct wide_string_error
+struct unicode_error
 {
-	wide_string_error_code code{};
+	unicode_error_code code{};
 	std::size_t first_invalid_element_index = 0;
 };
+
+using utf8_error_code = unicode_error_code;
+using utf16_error_code = unicode_error_code;
+using utf32_error_code = unicode_error_code;
+using unicode_scalar_error_code = unicode_error_code;
+using wide_string_error_code = unicode_error_code;
+
+using utf8_error = unicode_error;
+using utf16_error = unicode_error;
+using utf32_error = unicode_error;
+using unicode_scalar_error = unicode_error;
+using wide_string_error = unicode_error;
 
 namespace details
 {
 	[[nodiscard]]
-	constexpr wide_string_error to_wide_string_error(utf16_error error) noexcept
-	{
-		const auto code = error.code == utf16_error_code::truncated_surrogate_pair
-			? wide_string_error_code::truncated_surrogate_pair
-			: wide_string_error_code::invalid_sequence;
-
-		return wide_string_error{
-			.code = code,
-			.first_invalid_element_index = error.first_invalid_code_unit_index
-		};
-	}
-
 	[[nodiscard]]
-	constexpr wide_string_error to_wide_string_error(unicode_scalar_error error) noexcept
+	constexpr wide_string_error to_wide_string_error(unicode_error error) noexcept
 	{
-		return wide_string_error{
-			.code = wide_string_error_code::invalid_scalar,
-			.first_invalid_element_index = error.first_invalid_element_index
-		};
+		return error;
 	}
 
 	template <typename Allocator, typename CharT>
@@ -3236,7 +3188,7 @@ namespace details
 
 		return std::unexpected(utf8_error{
 			.code = result.code,
-			.first_invalid_byte_index = index
+			.first_invalid_element_index = index
 		});
 	}
 
@@ -3304,7 +3256,7 @@ namespace details
 		{
 			return std::unexpected(utf16_error{
 				.code = utf16_error_code::invalid_sequence,
-				.first_invalid_code_unit_index = index
+				.first_invalid_element_index = index
 			});
 		}
 
@@ -3312,7 +3264,7 @@ namespace details
 		{
 			return std::unexpected(utf16_error{
 				.code = utf16_error_code::truncated_surrogate_pair,
-				.first_invalid_code_unit_index = index
+				.first_invalid_element_index = index
 			});
 		}
 
@@ -3321,7 +3273,7 @@ namespace details
 		{
 			return std::unexpected(utf16_error{
 				.code = utf16_error_code::invalid_sequence,
-				.first_invalid_code_unit_index = index
+				.first_invalid_element_index = index
 			});
 		}
 
@@ -3382,7 +3334,7 @@ namespace details
 			{
 				return std::unexpected(utf8_error{
 					.code = sequence.code,
-					.first_invalid_byte_index = index
+					.first_invalid_element_index = index
 				});
 			}
 
@@ -3443,7 +3395,7 @@ namespace details
 			{
 				return std::unexpected(utf32_error{
 					.code = utf32_error_code::invalid_scalar,
-					.first_invalid_code_point_index = index
+					.first_invalid_element_index = index
 				});
 			}
 		}
@@ -3778,7 +3730,7 @@ namespace details
 					{
 						error = utf8_error{
 							.code = sequence.code,
-							.first_invalid_byte_index = read_index
+							.first_invalid_element_index = read_index
 						};
 						return std::size_t{ 0 };
 					}
@@ -3848,7 +3800,7 @@ namespace details
 					UTF8_RANGES_DEBUG_ASSERT(error != nullptr);
 					*error = utf8_error{
 						.code = sequence.code,
-						.first_invalid_byte_index = read_index
+						.first_invalid_element_index = read_index
 					};
 					return std::size_t{ 0 };
 				}
@@ -4034,7 +3986,7 @@ namespace details
 					{
 						error = utf8_error{
 							.code = sequence.code,
-							.first_invalid_byte_index = read_index
+							.first_invalid_element_index = read_index
 						};
 						return std::size_t{ 0 };
 					}
@@ -4190,7 +4142,7 @@ namespace details
 					UTF8_RANGES_DEBUG_ASSERT(error != nullptr);
 					*error = utf8_error{
 						.code = sequence.code,
-						.first_invalid_byte_index = read_index
+						.first_invalid_element_index = read_index
 					};
 					return std::size_t{ 0 };
 				}

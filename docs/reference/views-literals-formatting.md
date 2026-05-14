@@ -51,11 +51,10 @@ Construction returns the helper view directly.
 - Constructing the view is constant.
 - Iterating the full view is linear in the source length.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 None.
 
-### `noexcept`
 
 All listed members are `noexcept`.
 
@@ -100,11 +99,10 @@ using reversed_utf32_view = std::ranges::reverse_view<utf32_view>;
 - Constructing the view is constant.
 - Iterating the full view is linear in the source length.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 None.
 
-### `noexcept`
 
 All listed members are `noexcept`.
 
@@ -147,11 +145,10 @@ public:
 - Constructing the view is constant.
 - Iterating the full view is linear in the number of code units plus the segmentation work required by Unicode grapheme rules.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 None.
 
-### `noexcept`
 
 All listed members are `noexcept`.
 
@@ -220,11 +217,10 @@ inline constexpr lossy_utf32_fn lossy_utf32{};
 
 Linear in the source length.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 None.
 
-### `noexcept`
 
 All listed members are `noexcept`.
 
@@ -310,12 +306,11 @@ bool is_available_locale(locale_id locale) noexcept;
 - `_locale` is constant evaluation only.
 - `is_available_locale(...)` is linear in the number of locales exposed by the active ICU data set.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 - `_locale` rejects embedded NUL bytes during constant evaluation.
 - `is_available_locale(...)` does not throw.
 
-### `noexcept`
 
 - `is_available_locale(...)` is `noexcept`.
 
@@ -368,11 +363,10 @@ Compatibility note:
 
 Linear in the amount of formatted text.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 Formatter parsing may throw [`std::format_error`](https://en.cppreference.com/w/cpp/utility/format/format_error) for unsupported presentation types.
 
-### `noexcept`
 
 Not `noexcept`.
 

@@ -4,9 +4,9 @@
 
 It provides validated character types, borrowed string views, owning strings, grapheme-aware iteration, Unicode casing, normalization, and conversion between UTF-8, UTF-16, and UTF-32.
 
-`unicode_ranges` is now a compiled library. The public API stays header-first, but runtime UTF validation, runtime UTF-8/UTF-16/UTF-32 transcoding, selected ASCII checks, and UTF-8/UTF-16 character counting are provided by the `unicode_ranges` library target built from `unicode_ranges.cpp`, backed by pinned vendored `simdutf` (`v7.7.0`) under [`third_party/simdutf`](third_party/simdutf). Consumers should link the library target, or produce an equivalent static/shared library in their own build. No separate `simdutf` setup step is required for normal consumption.
+`unicode_ranges` is a compiled library. The public API stays header-first, but runtime UTF validation, runtime UTF-8/UTF-16/UTF-32 transcoding, selected ASCII checks, and UTF-8/UTF-16 character counting are provided by the `unicode_ranges` library target built from `unicode_ranges.cpp`, backed by pinned vendored `simdutf` (`v7.7.0`) under [`third_party/simdutf`](third_party/simdutf). Consumers link the library target, or produce an equivalent static/shared library in their own build. No separate `simdutf` setup step is required for normal consumption.
 
-The repository now also ships a first-party CMake build and install/export package for that compiled library target.
+The repository also ships a first-party CMake build and install/export package for that compiled library target.
 
 Umbrella headers:
 
@@ -55,7 +55,7 @@ int main()
 
 `std::println("{}", text.chars())` and `std::println("{::s}", text.graphemes())`
 depend on C++23 range-formatting support in the active standard library. The
-library types have direct formatter support, but libstdc++ 14 currently does not
+library types have direct formatter support, but libstdc++ 14 does not
 format these custom helper views directly; libc++ trunk is covered by CI.
 
 For runtime validation of raw input without copying:
@@ -77,7 +77,7 @@ int main()
     {
         std::println(stderr,
                      "Invalid UTF-8 at byte {}",
-                     text.error().first_invalid_byte_index);
+                     text.error().first_invalid_element_index);
         return 1;
     }
 
@@ -139,7 +139,7 @@ int main()
 
 ## Runtime Backend
 
-`unicode_ranges` now uses `simdutf` as its production runtime backend for the hot UTF boundary operations:
+`unicode_ranges` uses `simdutf` as its production runtime backend for the hot UTF boundary operations:
 
 - UTF-8, UTF-16, and UTF-32 validation
 - UTF-8, UTF-16, and UTF-32 transcoding on runtime paths
@@ -166,14 +166,14 @@ The large monolithic README has been replaced with a dedicated docs site so the 
 
 This library requires a compiler and standard library with strong C++23 support.
 
-Minimum toolchains currently covered by CI:
+Minimum toolchains covered by CI:
 
 - MSVC with the MSVC STL: Visual Studio 2022 toolset `v143` or newer
-- Clang-cl with the MSVC STL: the `ClangCL` toolset from current Visual Studio 2022 builds
+- Clang-cl with the MSVC STL: the Visual Studio 2022 `ClangCL` toolset
 - GCC with libstdc++: GCC 14 / libstdc++ 14 or newer
 - Clang with libc++: Clang 22 / libc++ 22 or newer
 
-Unicode tables currently track Unicode `17.0.0`.
+Unicode tables track Unicode `17.0.0`.
 
 ## Build docs locally
 
@@ -196,4 +196,4 @@ The full license texts are in:
 
 The pinned vendored runtime dependency `simdutf` is also dual-licensed under `MIT OR Apache-2.0`, which keeps the licensing model straightforward for the compiled runtime backend.
 
-Third-party dependency notices, pinned versions, and the provenance-header policy for any future copied source files are documented in `THIRD_PARTY_NOTICES.md`.
+Third-party dependency notices, pinned versions, and the provenance-header policy for copied source files are documented in `THIRD_PARTY_NOTICES.md`.

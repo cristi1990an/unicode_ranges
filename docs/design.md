@@ -29,6 +29,8 @@ The library is built around a few explicit rules:
 - Borrowed and owning types are separate.
 - Performance matters, especially on ASCII-heavy paths, but not at the expense of Unicode correctness.
 
+Those semantic rules do not require every character type to store a scalar directly. `utf8_char` stores one validated UTF-8 byte sequence, `utf16_char` stores one validated UTF-16 code-unit sequence, and `utf32_char` stores one validated UTF-32 code unit.
+
 ## Compiled runtime backend
 
 The library has a compiled runtime backend. The hot runtime UTF boundary operations live in the compiled `unicode_ranges` library target and use `simdutf` as the backend for:

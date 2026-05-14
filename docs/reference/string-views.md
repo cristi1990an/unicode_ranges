@@ -72,6 +72,7 @@ public:
 - Checked factories validate the source encoding.
 - Unchecked factories assume the input is already valid.
 - `base()`, `as_view()`, and the implicit conversion expose the corresponding standard-library [`std::basic_string_view`](https://en.cppreference.com/w/cpp/string/basic_string_view).
+- `utf8_error`, `utf16_error`, and `utf32_error` are operation-specific aliases of `unicode_error`; read `first_invalid_element_index` for the failing byte, code-unit, or code-point index.
 
 ### Return value
 
@@ -83,11 +84,10 @@ public:
 - Checked factories are linear in the number of code units.
 - Unchecked factories and raw-view accessors are constant.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 None.
 
-### `noexcept`
 
 All listed overloads are `noexcept`.
 
@@ -135,14 +135,13 @@ template<> struct std::formatter<utf32_string_view, char>;
 - Comparison is linear in the compared prefix.
 - Streaming, hashing, and formatting are linear in the amount of text processed.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 - Comparison and hashing do not throw.
 - Streaming may report stream errors through the stream state.
 - UTF-16 formatting may allocate internally while transcoding.
 - UTF-32 formatting may allocate internally while transcoding.
 
-### `noexcept`
 
 - Comparison and hashing are non-throwing.
 - Streaming and formatting are not `noexcept`.
@@ -187,11 +186,10 @@ Returns a lightweight range or view object.
 - Constructing the range is constant.
 - Iterating the whole range is linear in the number of scalars or grapheme clusters.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 None.
 
-### `noexcept`
 
 - View and owning-lvalue receiver overloads are `noexcept`.
 - Owning-rvalue receiver overloads are conditionally `noexcept`; with the default owning string types, they are `noexcept`.
@@ -244,12 +242,11 @@ constexpr size_type grapheme_count() const noexcept;
 - `is_ascii()` and `grapheme_count()` are linear in the view length.
 - `char_count()` is constant for UTF-32 and linear for UTF-8/UTF-16.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 - `copy()` throws [`std::out_of_range`](https://en.cppreference.com/w/cpp/error/out_of_range) when `pos > size()` or when the requested UTF-8/UTF-16 substring would split a character.
 - Other listed members do not throw.
 
-### `noexcept`
 
 - All listed members except `copy()` are `noexcept`.
 - `copy()` is not `noexcept`.
@@ -278,11 +275,10 @@ Returns `true` when the view is already in the requested normalization form.
 
 Linear to super-linear in the input length, depending on the amount of Unicode decomposition and composition required.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 May throw allocator or container exceptions while materializing the normalized copy.
 
-### `noexcept`
 
 Not `noexcept`.
 
@@ -307,7 +303,8 @@ constexpr bool contains(Pred pred) const noexcept;
 ### Behavior
 
 - Character, view, span, and predicate overloads are character-aware.
-- The [`std::span`](https://en.cppreference.com/w/cpp/container/span) overload treats the span as a character set rather than as one contiguous substring.
+- In this family, the character-set overload is spelled as [`std::span<const Char>`](https://en.cppreference.com/w/cpp/container/span).
+- The `std::span` overload treats the span as a character set rather than as one contiguous substring.
 
 ### Overload differences
 
@@ -320,7 +317,7 @@ The examples below use `constexpr auto text = "😄🇷🇴✨"_utf8_sv;`.
 | `contains(std::span<const Char> chars)` | character-set membership: succeeds if **any one character** in the text equals **any one element** of the span | `text.contains(std::array{"🔥"_u8c, "✨"_u8c})` |
 | `contains(Pred pred)` | predicate match on validated characters | `text.contains([](utf8_char ch) { return !ch.is_ascii(); })` |
 
-The span overload is special because it is **not** substring matching. `std::array{"🇷"_u8c, "🇴"_u8c}` does not mean "find the grapheme `🇷🇴`" and it does not require adjacent characters. It means "match a single character that is either `🇷` or `🇴`".
+The `std::span` overload is special because it is **not** substring matching. `std::array{"🇷"_u8c, "🇴"_u8c}` does not mean "find the grapheme `🇷🇴`" and it does not require adjacent characters. It means "match a single character that is either `🇷` or `🇴`".
 
 ### Inspiration
 
@@ -334,11 +331,10 @@ Equivalent to `find(...) != npos`.
 
 Linear in the view length.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 None.
 
-### `noexcept`
 
 All overloads are `noexcept`.
 
@@ -374,11 +370,10 @@ Returns the matching offset in UTF-8 bytes or UTF-16 code units, or `npos`.
 
 Linear in the view length.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 None.
 
-### `noexcept`
 
 All overloads are `noexcept`.
 
@@ -450,11 +445,10 @@ Returns the matching code-unit offset, or `npos`.
 
 Linear in the number of remaining code units or scalars.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 None.
 
-### `noexcept`
 
 All overloads are `noexcept`.
 
@@ -534,11 +528,10 @@ Returns the matching code-unit offset, or `npos`.
 
 Linear in the view length.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 None.
 
-### `noexcept`
 
 All overloads are `noexcept`.
 
@@ -571,11 +564,10 @@ Returns a boolean for predicate queries and a boundary offset for `ceil_*` / `fl
 - `is_char_boundary()` is constant.
 - The other members are linear in the distance to the nearest boundary.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 None.
 
-### `noexcept`
 
 All listed members are `noexcept`.
 
@@ -641,13 +633,12 @@ Returns the requested character, borrowed subview, or owning slice when the requ
 - Owning lvalue `substr()` and `grapheme_substr()` copy the selected slice.
 - Owning rvalue `substr()` and `grapheme_substr()` are linear in the amount of boundary work plus the cost of adjusting the existing storage.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 - View accessors do not throw.
 - Owning lvalue `substr()` and `grapheme_substr()` may throw allocator or container exceptions.
 - Owning rvalue `substr()` and `grapheme_substr()` do not allocate in the bound-adjustment path; their `noexcept` status follows the owning string move constructor.
 
-### `noexcept`
 
 - View accessors are `noexcept`.
 - Deleted owning-rvalue `grapheme_at()` signatures cannot be called.
@@ -718,11 +709,10 @@ Returns `false` when the view is empty and no character is available to test.
 
 Constant for single-character and predicate overloads, linear in the compared prefix or suffix for view overloads.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 Only predicate overloads can throw, and only if the predicate throws.
 
-### `noexcept`
 
 - Non-predicate overloads are `noexcept`.
 - Predicate overloads are conditionally `noexcept`.
@@ -813,11 +803,10 @@ Returns a lazy range; iteration performs the actual split. View and owning-lvalu
 
 - ASCII whitespace scans avoid constructing character objects on UTF-8 input; non-ASCII bytes are treated as non-delimiters for `split_ascii_whitespace`.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 Construction does not allocate. Predicate objects may throw later when the returned range is iterated.
 
-### `noexcept`
 
 - View and owning-lvalue receiver overloads are `noexcept`.
 - Owning-rvalue receiver overloads are conditionally `noexcept`; with the default owning string types, they are `noexcept`.
@@ -979,11 +968,10 @@ Linear in the view length.
 
 - Character-set matchers cache ASCII membership, so ASCII-heavy match sets can scan without decoding every character.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 None, unless a predicate object throws when invoked.
 
-### `noexcept`
 
 - Match-family `Char`, `View`, and predicate overloads are `noexcept`.
 - Match-family character-set range overloads are conditionally `noexcept` based on adapting the delimiter range.
@@ -1104,13 +1092,12 @@ Owning rvalue results do not refer to the moved-from object. If a strip operatio
 
 Linear in the number of leading or trailing characters examined.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 - View receivers do not throw, unless a predicate object throws when invoked.
 - Owning lvalue receivers may throw allocator or container exceptions because they produce an owning copy.
 - Owning rvalue receivers do not allocate in the bound-adjustment path; predicate overloads can still throw if the predicate throws.
 
-### `noexcept`
 
 - View receiver overloads are `noexcept` except predicate forms, which are conditionally `noexcept`.
 - Owning lvalue receiver overloads are not `noexcept`.
@@ -1217,12 +1204,11 @@ Returns a new owning string in the target encoding or transformed form.
 
 Linear in the number of processed code units, plus any additional work required by Unicode case expansion or normalization.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 - Partial case transforms may throw [`std::out_of_range`](https://en.cppreference.com/w/cpp/error/out_of_range) for invalid boundaries.
 - All owning transforms may throw allocator or container exceptions.
 
-### `noexcept`
 
 Not `noexcept`.
 
@@ -1318,13 +1304,9 @@ The UTF-32 view type exposes the same four non-allocating helpers with `utf32_st
 
 Linear in the number of code units read from both operands.
 
-### Exceptions
+### Exceptions And `noexcept`
 
-Do not throw.
-
-### `noexcept`
-
-`noexcept`
+Do not throw and are declared `noexcept`.
 
 ### Example
 
@@ -1429,10 +1411,9 @@ Returns a new owning string in the same encoding as the source view.
 
 Linear in the source length plus the size of the produced output.
 
-### Exceptions
+### Exceptions And `noexcept`
 
 `replace_at` throws [`std::out_of_range`](https://en.cppreference.com/w/cpp/error/out_of_range) when `pos` is out of range or the affected range is not a valid UTF substring. All replacement families may throw allocator or container exceptions.
 
-### `noexcept`
 
 Not `noexcept`.

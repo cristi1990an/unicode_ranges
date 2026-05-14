@@ -14,7 +14,7 @@ int main()
 	{
 		std::println(stderr,
 			"Invalid UTF-8 at byte {}",
-			text.error().first_invalid_byte_index);
+			text.error().first_invalid_element_index);
 		return 1;
 	}
 

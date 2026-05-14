@@ -43,13 +43,13 @@ namespace
 		case simdutf::TOO_LONG:
 			return utf8_error{
 				.code = utf8_error_code::invalid_lead_byte,
-				.first_invalid_byte_index = result.count
+				.first_invalid_element_index = result.count
 			};
 
 		case simdutf::TOO_SHORT:
 			return utf8_error{
 				.code = utf8_error_code::truncated_sequence,
-				.first_invalid_byte_index = result.count
+				.first_invalid_element_index = result.count
 			};
 
 		case simdutf::OVERLONG:
@@ -57,7 +57,7 @@ namespace
 		case simdutf::SURROGATE:
 			return utf8_error{
 				.code = utf8_error_code::invalid_sequence,
-				.first_invalid_byte_index = result.count
+				.first_invalid_element_index = result.count
 			};
 
 		case simdutf::OUTPUT_BUFFER_TOO_SMALL:
@@ -67,7 +67,7 @@ namespace
 		default:
 			return utf8_error{
 				.code = utf8_error_code::invalid_sequence,
-				.first_invalid_byte_index = result.count
+				.first_invalid_element_index = result.count
 			};
 		}
 	}
@@ -82,13 +82,13 @@ namespace
 		{
 			return utf16_error{
 				.code = utf16_error_code::truncated_surrogate_pair,
-				.first_invalid_code_unit_index = index
+				.first_invalid_element_index = index
 			};
 		}
 
 		return utf16_error{
 			.code = utf16_error_code::invalid_sequence,
-			.first_invalid_code_unit_index = index
+			.first_invalid_element_index = index
 		};
 	}
 
@@ -97,7 +97,7 @@ namespace
 	{
 		return utf32_error{
 			.code = utf32_error_code::invalid_scalar,
-			.first_invalid_code_point_index = result.count
+			.first_invalid_element_index = result.count
 		};
 	}
 
