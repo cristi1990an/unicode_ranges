@@ -11,6 +11,7 @@
 #include <concepts>
 #include <cstdint>
 #include <cstring>
+#include <cstdlib>
 #include <expected>
 #include <format>
 #include <functional>
@@ -82,16 +83,15 @@
 #define UTF8_RANGES_UNCHECKED_PRECONDITION(expr, message) \
 	do \
 	{ \
-		const bool utf8_ranges_precondition_holds_ = static_cast<bool>(expr); \
-		if (!utf8_ranges_precondition_holds_) \
+		if (!(expr)) \
 		{ \
 			if consteval \
 			{ \
-				throw message; \
+				std::abort(); \
 			} \
 			else \
 			{ \
-				UTF8_RANGES_DEBUG_ASSERT(utf8_ranges_precondition_holds_); \
+				UTF8_RANGES_DEBUG_ASSERT(expr); \
 			} \
 		} \
 	} while (false)

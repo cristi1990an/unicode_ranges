@@ -55,7 +55,7 @@ public:
 	[[nodiscard]]
 	static constexpr utf8_char from_utf8_bytes_unchecked(const CharT* bytes, std::size_t size) noexcept
 	{
-		UTF8_RANGES_UNCHECKED_PRECONDITION(bytes != nullptr, "from_utf8_bytes_unchecked requires a non-null pointer");
+		UTF8_RANGES_DEBUG_ASSERT(bytes != nullptr);
 		UTF8_RANGES_UNCHECKED_PRECONDITION(
 			details::is_single_valid_utf8_char(std::basic_string_view<CharT>{ bytes, size }),
 			"from_utf8_bytes_unchecked requires exactly one valid UTF-8 character");
