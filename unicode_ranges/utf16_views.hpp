@@ -105,7 +105,9 @@ namespace views
 
 		static constexpr utf16_view from_code_units_unchecked(std::u16string_view base) noexcept
 		{
-			UTF8_RANGES_DEBUG_ASSERT(details::validate_utf16(base).has_value());
+			UTF8_RANGES_UNCHECKED_PRECONDITION(
+				details::validate_utf16(base).has_value(),
+				"from_code_units_unchecked requires valid UTF-16 input");
 			return utf16_view{ base };
 		}
 
@@ -242,7 +244,9 @@ namespace views
 
 		static constexpr reversed_utf16_view from_code_units_unchecked(std::u16string_view base) noexcept
 		{
-			UTF8_RANGES_DEBUG_ASSERT(details::validate_utf16(base).has_value());
+			UTF8_RANGES_UNCHECKED_PRECONDITION(
+				details::validate_utf16(base).has_value(),
+				"from_code_units_unchecked requires valid UTF-16 input");
 			return reversed_utf16_view{ base };
 		}
 

@@ -16,7 +16,9 @@ class utf32_char_indices_view : public std::ranges::view_interface<utf32_char_in
 public:
 	static constexpr utf32_char_indices_view from_code_points_unchecked(std::u32string_view base) noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf32(base).has_value());
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			details::validate_utf32(base).has_value(),
+			"from_code_points_unchecked requires valid UTF-32 input");
 		return utf32_char_indices_view{ base };
 	}
 
@@ -152,7 +154,9 @@ class utf32_grapheme_indices_view : public std::ranges::view_interface<utf32_gra
 public:
 	static constexpr utf32_grapheme_indices_view from_code_points_unchecked(std::u32string_view base) noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf32(base).has_value());
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			details::validate_utf32(base).has_value(),
+			"from_code_points_unchecked requires valid UTF-32 input");
 		return utf32_grapheme_indices_view{ base };
 	}
 
@@ -3201,7 +3205,9 @@ class utf32_whitespace_split_view : public std::ranges::view_interface<utf32_whi
 private:
 	static constexpr utf32_whitespace_split_view from_code_points_unchecked(std::u32string_view base) noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf32(base).has_value());
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			details::validate_utf32(base).has_value(),
+			"from_code_points_unchecked requires valid UTF-32 input");
 		return utf32_whitespace_split_view{ base };
 	}
 
@@ -4939,7 +4945,9 @@ public:
 	[[nodiscard]]
 	constexpr split_once_at_unchecked_result<View> split_once_at_unchecked(size_type delim) const& noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(is_char_boundary(delim));
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			is_char_boundary(delim),
+			"split_once_at_unchecked requires delim to be a UTF-32 character boundary");
 
 		const auto code_points = code_unit_view();
 		return split_once_at_unchecked_result<View>::success(
@@ -5400,8 +5408,10 @@ public:
 	[[nodiscard]]
 	constexpr utf32_char char_at_unchecked(size_type index) const noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(index < size());
-		UTF8_RANGES_DEBUG_ASSERT(is_char_boundary(index));
+		UTF8_RANGES_UNCHECKED_PRECONDITION(index < size(), "char_at_unchecked requires index < size()");
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			is_char_boundary(index),
+			"char_at_unchecked requires index to be a UTF-32 character boundary");
 		return utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(code_unit_view()[index]));
 	}
 
@@ -5470,7 +5480,7 @@ public:
 	[[nodiscard]]
 	constexpr utf32_char front_unchecked() const noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(!empty());
+		UTF8_RANGES_UNCHECKED_PRECONDITION(!empty(), "front_unchecked requires a non-empty string");
 		return utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(code_unit_view().front()));
 	}
 
@@ -5488,7 +5498,7 @@ public:
 	[[nodiscard]]
 	constexpr utf32_char back_unchecked() const noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(!empty());
+		UTF8_RANGES_UNCHECKED_PRECONDITION(!empty(), "back_unchecked requires a non-empty string");
 		return utf32_char::from_scalar_unchecked(static_cast<std::uint32_t>(code_unit_view().back()));
 	}
 

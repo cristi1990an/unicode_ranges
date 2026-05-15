@@ -16,7 +16,9 @@ class utf16_char_indices_view : public std::ranges::view_interface<utf16_char_in
 public:
 	static constexpr utf16_char_indices_view from_code_units_unchecked(std::u16string_view base) noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf16(base).has_value());
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			details::validate_utf16(base).has_value(),
+			"from_code_units_unchecked requires valid UTF-16 input");
 		return utf16_char_indices_view{ base };
 	}
 
@@ -103,7 +105,9 @@ class utf16_grapheme_indices_view : public std::ranges::view_interface<utf16_gra
 public:
 	static constexpr utf16_grapheme_indices_view from_code_units_unchecked(std::u16string_view base) noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf16(base).has_value());
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			details::validate_utf16(base).has_value(),
+			"from_code_units_unchecked requires valid UTF-16 input");
 		return utf16_grapheme_indices_view{ base };
 	}
 
@@ -3278,7 +3282,9 @@ class utf16_whitespace_split_view : public std::ranges::view_interface<utf16_whi
 private:
 	static constexpr utf16_whitespace_split_view from_code_units_unchecked(std::u16string_view base) noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf16(base).has_value());
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			details::validate_utf16(base).has_value(),
+			"from_code_units_unchecked requires valid UTF-16 input");
 		return utf16_whitespace_split_view{ base };
 	}
 
@@ -5045,7 +5051,9 @@ public:
 	[[nodiscard]]
 	constexpr split_once_at_unchecked_result<View> split_once_at_unchecked(size_type delim) const& noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(is_char_boundary(delim));
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			is_char_boundary(delim),
+			"split_once_at_unchecked requires delim to be a UTF-16 character boundary");
 
 		const auto code_units = code_unit_view();
 		return split_once_at_unchecked_result<View>::success(
@@ -5506,8 +5514,10 @@ public:
 	[[nodiscard]]
 	constexpr utf16_char char_at_unchecked(size_type index) const noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(index < size());
-		UTF8_RANGES_DEBUG_ASSERT(is_char_boundary(index));
+		UTF8_RANGES_UNCHECKED_PRECONDITION(index < size(), "char_at_unchecked requires index < size()");
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			is_char_boundary(index),
+			"char_at_unchecked requires index to be a UTF-16 character boundary");
 
 		const auto code_units = code_unit_view();
 		const auto first = static_cast<std::uint16_t>(code_units[index]);
@@ -5580,7 +5590,7 @@ public:
 	[[nodiscard]]
 	constexpr utf16_char front_unchecked() const noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(!empty());
+		UTF8_RANGES_UNCHECKED_PRECONDITION(!empty(), "front_unchecked requires a non-empty string");
 		return *chars().begin();
 	}
 
@@ -5598,7 +5608,7 @@ public:
 	[[nodiscard]]
 	constexpr utf16_char back_unchecked() const noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(!empty());
+		UTF8_RANGES_UNCHECKED_PRECONDITION(!empty(), "back_unchecked requires a non-empty string");
 		return *reversed_chars().begin();
 	}
 

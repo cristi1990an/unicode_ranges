@@ -152,7 +152,9 @@ namespace views
 
 		static constexpr utf32_view from_code_points_unchecked(std::u32string_view base) noexcept
 		{
-			UTF8_RANGES_DEBUG_ASSERT(details::validate_utf32(base).has_value());
+			UTF8_RANGES_UNCHECKED_PRECONDITION(
+				details::validate_utf32(base).has_value(),
+				"from_code_points_unchecked requires valid UTF-32 input");
 			return utf32_view{ base };
 		}
 

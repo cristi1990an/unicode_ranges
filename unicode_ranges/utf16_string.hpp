@@ -101,7 +101,9 @@ public:
 
 	static constexpr basic_utf16_string from_code_units_unchecked(base_type code_units) noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf16(equivalent_string_view{ code_units }).has_value());
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			details::validate_utf16(equivalent_string_view{ code_units }).has_value(),
+			"from_code_units_unchecked requires valid UTF-16 input");
 		return basic_utf16_string{ std::move(code_units) };
 	}
 
@@ -114,7 +116,9 @@ public:
 		equivalent_string_view code_units,
 		const Allocator& alloc = Allocator())
 	{
-		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf16(code_units).has_value());
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			details::validate_utf16(code_units).has_value(),
+			"from_code_units_unchecked requires valid UTF-16 input");
 
 		basic_utf16_string result;
 		result.base_ = base_type{ code_units, alloc };
@@ -142,7 +146,9 @@ public:
 	static constexpr auto from_bytes_unchecked(std::string_view bytes, const Allocator& alloc = Allocator())
 		-> basic_utf16_string
 	{
-		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf8(bytes).has_value());
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			details::validate_utf8(bytes).has_value(),
+			"from_bytes_unchecked requires valid UTF-8 input");
 		return from_code_units_unchecked(details::transcode_valid_utf8_to_utf16_unchecked(bytes, alloc));
 	}
 
@@ -151,7 +157,9 @@ public:
 	{
 		if constexpr (sizeof(wchar_t) == 2)
 		{
-			UTF8_RANGES_DEBUG_ASSERT(details::validate_utf16(bytes).has_value());
+			UTF8_RANGES_UNCHECKED_PRECONDITION(
+				details::validate_utf16(bytes).has_value(),
+				"from_bytes_unchecked requires valid UTF-16 input when sizeof(wchar_t) == 2");
 
 			base_type result{ alloc };
 			result.resize_and_overwrite(bytes.size(),
@@ -169,7 +177,9 @@ public:
 		}
 		else
 		{
-			UTF8_RANGES_DEBUG_ASSERT(details::validate_unicode_scalars(bytes).has_value());
+			UTF8_RANGES_UNCHECKED_PRECONDITION(
+				details::validate_unicode_scalars(bytes).has_value(),
+				"from_bytes_unchecked requires valid Unicode scalar values when sizeof(wchar_t) == 4");
 
 			base_type utf16_code_units{ alloc };
 			utf16_code_units.resize_and_overwrite(bytes.size() * details::encoding_constants::utf16_surrogate_code_unit_count,
@@ -1004,10 +1014,14 @@ private:
 
 	constexpr basic_utf16_string& reverse_code_units_unchecked(size_type pos, size_type count) noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(pos <= size());
-		UTF8_RANGES_DEBUG_ASSERT(count <= size() - pos);
-		UTF8_RANGES_DEBUG_ASSERT(this->is_char_boundary(pos));
-		UTF8_RANGES_DEBUG_ASSERT(this->is_char_boundary(pos + count));
+		UTF8_RANGES_UNCHECKED_PRECONDITION(pos <= size(), "reverse_code_units_unchecked requires pos <= size()");
+		UTF8_RANGES_UNCHECKED_PRECONDITION(count <= size() - pos, "reverse_code_units_unchecked requires count <= size() - pos");
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			this->is_char_boundary(pos),
+			"reverse_code_units_unchecked requires pos to be a UTF-16 character boundary");
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			this->is_char_boundary(pos + count),
+			"reverse_code_units_unchecked requires pos + count to be a UTF-16 character boundary");
 
 		const auto end = pos + count;
 		for (size_type index = pos; index < end; )
@@ -1033,10 +1047,16 @@ private:
 
 	constexpr basic_utf16_string& reverse_grapheme_code_units_unchecked(size_type pos, size_type count) noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(pos <= size());
-		UTF8_RANGES_DEBUG_ASSERT(count <= size() - pos);
-		UTF8_RANGES_DEBUG_ASSERT(this->is_grapheme_boundary(pos));
-		UTF8_RANGES_DEBUG_ASSERT(this->is_grapheme_boundary(pos + count));
+		UTF8_RANGES_UNCHECKED_PRECONDITION(pos <= size(), "reverse_grapheme_code_units_unchecked requires pos <= size()");
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			count <= size() - pos,
+			"reverse_grapheme_code_units_unchecked requires count <= size() - pos");
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			this->is_grapheme_boundary(pos),
+			"reverse_grapheme_code_units_unchecked requires pos to be a grapheme boundary");
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			this->is_grapheme_boundary(pos + count),
+			"reverse_grapheme_code_units_unchecked requires pos + count to be a grapheme boundary");
 
 		const auto end = pos + count;
 		const auto code_units = equivalent_string_view{ base_ };

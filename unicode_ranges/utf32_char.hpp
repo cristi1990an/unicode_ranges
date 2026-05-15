@@ -61,8 +61,10 @@ public:
 	[[nodiscard]]
 	static constexpr utf32_char from_utf32_code_points_unchecked(const CharT* code_points, std::size_t size) noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(code_points != nullptr);
-		UTF8_RANGES_DEBUG_ASSERT(details::is_single_valid_utf32_char(std::basic_string_view<CharT>{ code_points, size }));
+		UTF8_RANGES_UNCHECKED_PRECONDITION(code_points != nullptr, "from_utf32_code_points_unchecked requires a non-null pointer");
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			details::is_single_valid_utf32_char(std::basic_string_view<CharT>{ code_points, size }),
+			"from_utf32_code_points_unchecked requires exactly one valid UTF-32 character");
 
 		utf32_char value;
 		std::ranges::copy_n(code_points, size, value.code_points_.begin());
@@ -512,7 +514,9 @@ private:
 
 	constexpr void assign_scalar_unchecked(std::uint32_t scalar) noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(details::is_valid_unicode_scalar(scalar));
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			details::is_valid_unicode_scalar(scalar),
+			"assign_scalar_unchecked requires a valid Unicode scalar value");
 
 		code_points_.fill(0);
 		details::encode_unicode_scalar_utf32_unchecked(scalar, code_points_.data());

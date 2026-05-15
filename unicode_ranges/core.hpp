@@ -79,6 +79,23 @@
 	} while (false)
 #endif
 
+#define UTF8_RANGES_UNCHECKED_PRECONDITION(expr, message) \
+	do \
+	{ \
+		const bool utf8_ranges_precondition_holds_ = static_cast<bool>(expr); \
+		if (!utf8_ranges_precondition_holds_) \
+		{ \
+			if consteval \
+			{ \
+				throw message; \
+			} \
+			else \
+			{ \
+				UTF8_RANGES_DEBUG_ASSERT(utf8_ranges_precondition_holds_); \
+			} \
+		} \
+	} while (false)
+
 #if defined(_MSC_VER) && !defined(__clang__)
 #define UTF8_RANGES_NO_UNIQUE_ADDRESS [[msvc::no_unique_address]]
 #define UTF8_RANGES_FORCEINLINE __forceinline

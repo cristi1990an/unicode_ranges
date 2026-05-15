@@ -27,7 +27,9 @@ public:
 
 	static constexpr utf16_string_view from_code_units_unchecked(std::u16string_view code_units) noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf16(code_units).has_value());
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			details::validate_utf16(code_units).has_value(),
+			"from_code_units_unchecked requires valid UTF-16 input");
 		return utf16_string_view{ code_units };
 	}
 

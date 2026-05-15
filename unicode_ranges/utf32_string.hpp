@@ -101,7 +101,9 @@ public:
 
 	static constexpr basic_utf32_string from_code_points_unchecked(base_type code_points) noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf32(equivalent_string_view{ code_points }).has_value());
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			details::validate_utf32(equivalent_string_view{ code_points }).has_value(),
+			"from_code_points_unchecked requires valid UTF-32 input");
 		return basic_utf32_string{ std::move(code_points) };
 	}
 
@@ -114,7 +116,9 @@ public:
 		equivalent_string_view code_points,
 		const Allocator& alloc = Allocator())
 	{
-		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf32(code_points).has_value());
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			details::validate_utf32(code_points).has_value(),
+			"from_code_points_unchecked requires valid UTF-32 input");
 
 		basic_utf32_string result;
 		result.base_ = base_type{ code_points, alloc };
@@ -142,7 +146,9 @@ public:
 	static constexpr auto from_bytes_unchecked(std::string_view bytes, const Allocator& alloc = Allocator())
 		-> basic_utf32_string
 	{
-		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf8(bytes).has_value());
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			details::validate_utf8(bytes).has_value(),
+			"from_bytes_unchecked requires valid UTF-8 input");
 		return from_code_points_unchecked(details::transcode_valid_utf8_to_utf32_unchecked(bytes, alloc));
 	}
 
@@ -151,7 +157,9 @@ public:
 	{
 		if constexpr (sizeof(wchar_t) == 2)
 		{
-			UTF8_RANGES_DEBUG_ASSERT(details::validate_utf16(bytes).has_value());
+			UTF8_RANGES_UNCHECKED_PRECONDITION(
+				details::validate_utf16(bytes).has_value(),
+				"from_bytes_unchecked requires valid UTF-16 input when sizeof(wchar_t) == 2");
 
 			base_type result{ alloc };
 			result.resize_and_overwrite(bytes.size(),
@@ -191,7 +199,9 @@ public:
 		}
 		else
 		{
-			UTF8_RANGES_DEBUG_ASSERT(details::validate_unicode_scalars(bytes).has_value());
+			UTF8_RANGES_UNCHECKED_PRECONDITION(
+				details::validate_unicode_scalars(bytes).has_value(),
+				"from_bytes_unchecked requires valid Unicode scalar values when sizeof(wchar_t) == 4");
 
 			base_type utf32_code_points{ alloc };
 			utf32_code_points.resize_and_overwrite(bytes.size() * details::encoding_constants::utf32_surrogate_code_unit_count,
@@ -1039,10 +1049,16 @@ private:
 
 	constexpr basic_utf32_string& reverse_code_points_unchecked(size_type pos, size_type count) noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(pos <= size());
-		UTF8_RANGES_DEBUG_ASSERT(count <= size() - pos);
-		UTF8_RANGES_DEBUG_ASSERT(this->is_char_boundary(pos));
-		UTF8_RANGES_DEBUG_ASSERT(this->is_char_boundary(pos + count));
+		UTF8_RANGES_UNCHECKED_PRECONDITION(pos <= size(), "reverse_code_points_unchecked requires pos <= size()");
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			count <= size() - pos,
+			"reverse_code_points_unchecked requires count <= size() - pos");
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			this->is_char_boundary(pos),
+			"reverse_code_points_unchecked requires pos to be a UTF-32 character boundary");
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			this->is_char_boundary(pos + count),
+			"reverse_code_points_unchecked requires pos + count to be a UTF-32 character boundary");
 
 		std::reverse(
 			base_.begin() + static_cast<difference_type>(pos),
@@ -1052,10 +1068,16 @@ private:
 
 	constexpr basic_utf32_string& reverse_grapheme_code_points_unchecked(size_type pos, size_type count) noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(pos <= size());
-		UTF8_RANGES_DEBUG_ASSERT(count <= size() - pos);
-		UTF8_RANGES_DEBUG_ASSERT(this->is_grapheme_boundary(pos));
-		UTF8_RANGES_DEBUG_ASSERT(this->is_grapheme_boundary(pos + count));
+		UTF8_RANGES_UNCHECKED_PRECONDITION(pos <= size(), "reverse_grapheme_code_points_unchecked requires pos <= size()");
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			count <= size() - pos,
+			"reverse_grapheme_code_points_unchecked requires count <= size() - pos");
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			this->is_grapheme_boundary(pos),
+			"reverse_grapheme_code_points_unchecked requires pos to be a grapheme boundary");
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			this->is_grapheme_boundary(pos + count),
+			"reverse_grapheme_code_points_unchecked requires pos + count to be a grapheme boundary");
 
 		const auto end = pos + count;
 		const auto code_points = equivalent_string_view{ base_ };

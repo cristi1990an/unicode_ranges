@@ -128,15 +128,21 @@ namespace views
 		{
 			if constexpr (std::same_as<CharT, char8_t>)
 			{
-				UTF8_RANGES_DEBUG_ASSERT(details::validate_utf8(base).has_value());
+				UTF8_RANGES_UNCHECKED_PRECONDITION(
+					details::validate_utf8(base).has_value(),
+					"from_code_units_unchecked requires valid UTF-8 input");
 			}
 			else if constexpr (std::same_as<CharT, char16_t>)
 			{
-				UTF8_RANGES_DEBUG_ASSERT(details::validate_utf16(base).has_value());
+				UTF8_RANGES_UNCHECKED_PRECONDITION(
+					details::validate_utf16(base).has_value(),
+					"from_code_units_unchecked requires valid UTF-16 input");
 			}
 			else
 			{
-				UTF8_RANGES_DEBUG_ASSERT(details::validate_utf32(base).has_value());
+				UTF8_RANGES_UNCHECKED_PRECONDITION(
+					details::validate_utf32(base).has_value(),
+					"from_code_units_unchecked requires valid UTF-32 input");
 			}
 
 			return grapheme_cluster_view{ base };

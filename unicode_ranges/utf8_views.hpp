@@ -106,7 +106,9 @@ namespace views
 
 		static constexpr utf8_view from_bytes_unchecked(std::u8string_view base) noexcept
 		{
-			UTF8_RANGES_DEBUG_ASSERT(details::validate_utf8(base).has_value());
+			UTF8_RANGES_UNCHECKED_PRECONDITION(
+				details::validate_utf8(base).has_value(),
+				"from_bytes_unchecked requires valid UTF-8 input");
 			return utf8_view{ base };
 		}
 
@@ -220,7 +222,9 @@ namespace views
 
 		static constexpr reversed_utf8_view from_bytes_unchecked(std::u8string_view base) noexcept
 		{
-			UTF8_RANGES_DEBUG_ASSERT(details::validate_utf8(base).has_value());
+			UTF8_RANGES_UNCHECKED_PRECONDITION(
+				details::validate_utf8(base).has_value(),
+				"from_bytes_unchecked requires valid UTF-8 input");
 			return reversed_utf8_view{ base };
 		}
 

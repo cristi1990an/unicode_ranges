@@ -16,7 +16,9 @@ class utf8_char_indices_view : public std::ranges::view_interface<utf8_char_indi
 public:
 	static constexpr utf8_char_indices_view from_bytes_unchecked(std::u8string_view base) noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf8(base).has_value());
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			details::validate_utf8(base).has_value(),
+			"from_bytes_unchecked requires valid UTF-8 input");
 		return utf8_char_indices_view{ base };
 	}
 
@@ -101,7 +103,9 @@ class utf8_grapheme_indices_view : public std::ranges::view_interface<utf8_graph
 public:
 	static constexpr utf8_grapheme_indices_view from_bytes_unchecked(std::u8string_view base) noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf8(base).has_value());
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			details::validate_utf8(base).has_value(),
+			"from_bytes_unchecked requires valid UTF-8 input");
 		return utf8_grapheme_indices_view{ base };
 	}
 
@@ -3092,7 +3096,9 @@ class utf8_whitespace_split_view : public std::ranges::view_interface<utf8_white
 private:
 	static constexpr utf8_whitespace_split_view from_bytes_unchecked(std::u8string_view base) noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf8(base).has_value());
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			details::validate_utf8(base).has_value(),
+			"from_bytes_unchecked requires valid UTF-8 input");
 		return utf8_whitespace_split_view{ base };
 	}
 
@@ -4884,7 +4890,9 @@ public:
 	[[nodiscard]]
 	constexpr split_once_at_unchecked_result<View> split_once_at_unchecked(size_type delim) const& noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(is_char_boundary(delim));
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			is_char_boundary(delim),
+			"split_once_at_unchecked requires delim to be a UTF-8 character boundary");
 
 		const auto bytes = byte_view();
 		return split_once_at_unchecked_result<View>::success(
@@ -5345,8 +5353,10 @@ public:
 	[[nodiscard]]
 	constexpr utf8_char char_at_unchecked(size_type index) const noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(index < size());
-		UTF8_RANGES_DEBUG_ASSERT(is_char_boundary(index));
+		UTF8_RANGES_UNCHECKED_PRECONDITION(index < size(), "char_at_unchecked requires index < size()");
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			is_char_boundary(index),
+			"char_at_unchecked requires index to be a UTF-8 character boundary");
 
 		const auto bytes = byte_view();
 		const auto len = details::utf8_byte_count_from_lead(static_cast<std::uint8_t>(bytes[index]));
@@ -5418,7 +5428,7 @@ public:
 	[[nodiscard]]
 	constexpr utf8_char front_unchecked() const noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(!empty());
+		UTF8_RANGES_UNCHECKED_PRECONDITION(!empty(), "front_unchecked requires a non-empty string");
 		return *chars().begin();
 	}
 
@@ -5436,7 +5446,7 @@ public:
 	[[nodiscard]]
 	constexpr utf8_char back_unchecked() const noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(!empty());
+		UTF8_RANGES_UNCHECKED_PRECONDITION(!empty(), "back_unchecked requires a non-empty string");
 		return *reversed_chars().begin();
 	}
 

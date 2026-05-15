@@ -27,7 +27,9 @@ public:
 
 	static constexpr utf32_string_view from_code_points_unchecked(std::u32string_view code_points) noexcept
 	{
-		UTF8_RANGES_DEBUG_ASSERT(details::validate_utf32(code_points).has_value());
+		UTF8_RANGES_UNCHECKED_PRECONDITION(
+			details::validate_utf32(code_points).has_value(),
+			"from_code_points_unchecked requires valid UTF-32 input");
 		return utf32_string_view{ code_points };
 	}
 
