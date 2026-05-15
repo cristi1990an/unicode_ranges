@@ -31,7 +31,7 @@ int main()
 {
 	counting_ascii_lossy_encoder encoder{};
 	std::vector<char8_t> bytes{};
-	u8"Caf\u00E9"_utf8_sv.to_utf8().encode_append_to(bytes, encoder);
+	u8"Café"_utf8_sv.to_utf8().encode_append_to(bytes, encoder);
 
 	return encoder.replacement_count == 1
 		&& bytes == std::vector<char8_t>{

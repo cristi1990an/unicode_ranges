@@ -879,9 +879,9 @@ int main(int argc, char** argv)
 	UTF8_RANGES_BENCHMARK_ASSERT(utf8_split_delimiter_text.ends_with(utf8_split_delimiter));
 	UTF8_RANGES_BENCHMARK_ASSERT(utf16_split_delimiter_text.ends_with(utf16_split_delimiter));
 	UTF8_RANGES_BENCHMARK_ASSERT(utf32_split_delimiter_text.ends_with(utf32_split_delimiter));
-	UTF8_RANGES_BENCHMARK_ASSERT(utf8_trim_text.trim().starts_with(u8"caf\u00E9"_utf8_sv));
-	UTF8_RANGES_BENCHMARK_ASSERT(utf16_trim_text.trim().starts_with(u"caf\u00E9"_utf16_sv));
-	UTF8_RANGES_BENCHMARK_ASSERT(utf32_trim_text.trim().starts_with(U"caf\u00E9"_utf32_sv));
+	UTF8_RANGES_BENCHMARK_ASSERT(utf8_trim_text.trim_whitespace().starts_with(u8"café"_utf8_sv));
+	UTF8_RANGES_BENCHMARK_ASSERT(utf16_trim_text.trim_whitespace().starts_with(u"café"_utf16_sv));
+	UTF8_RANGES_BENCHMARK_ASSERT(utf32_trim_text.trim_whitespace().starts_with(U"café"_utf32_sv));
 	UTF8_RANGES_BENCHMARK_ASSERT(utf8_compat_normalize_text.to_nfkc().is_nfkc());
 	UTF8_RANGES_BENCHMARK_ASSERT(utf16_compat_normalize_text.to_nfkc().is_nfkc());
 	UTF8_RANGES_BENCHMARK_ASSERT(utf32_compat_normalize_text.to_nfkc().is_nfkc());
@@ -3680,7 +3680,7 @@ int main(int argc, char** argv)
 		64,
 		[&]() -> std::size_t
 		{
-			return checksum(utf8_trim_text.trim().base());
+			return checksum(utf8_trim_text.trim_whitespace().base());
 		}
 	});
 	add_rvalue_aware_cases(
@@ -3690,8 +3690,8 @@ int main(int argc, char** argv)
 		utf8_trim_storage.size(),
 		64,
 		[&] { return make_utf8_string(utf8_trim_storage); },
-		[](const auto& source) { return source.trim(); },
-		[](auto&& source) { return std::move(source).trim(); });
+		[](const auto& source) { return source.trim_whitespace(); },
+		[](auto&& source) { return std::move(source).trim_whitespace(); });
 	add_rvalue_aware_cases(
 		cases,
 		"utf8.trim.unicode.noop.const_lvalue",
@@ -3699,8 +3699,8 @@ int main(int argc, char** argv)
 		utf8_trim_noop_storage.size(),
 		64,
 		[&] { return make_utf8_string(utf8_trim_noop_storage); },
-		[](const auto& source) { return source.trim(); },
-		[](auto&& source) { return std::move(source).trim(); });
+		[](const auto& source) { return source.trim_whitespace(); },
+		[](auto&& source) { return std::move(source).trim_whitespace(); });
 	add_rvalue_aware_cases(
 		cases,
 		"utf8.trim.unicode.prefix_heavy.const_lvalue",
@@ -3708,8 +3708,8 @@ int main(int argc, char** argv)
 		utf8_trim_prefix_heavy_storage.size(),
 		64,
 		[&] { return make_utf8_string(utf8_trim_prefix_heavy_storage); },
-		[](const auto& source) { return source.trim(); },
-		[](auto&& source) { return std::move(source).trim(); });
+		[](const auto& source) { return source.trim_whitespace(); },
+		[](auto&& source) { return std::move(source).trim_whitespace(); });
 	add_rvalue_aware_cases(
 		cases,
 		"utf8.trim.unicode.suffix_heavy.const_lvalue",
@@ -3717,15 +3717,15 @@ int main(int argc, char** argv)
 		utf8_trim_suffix_heavy_storage.size(),
 		64,
 		[&] { return make_utf8_string(utf8_trim_suffix_heavy_storage); },
-		[](const auto& source) { return source.trim(); },
-		[](auto&& source) { return std::move(source).trim(); });
+		[](const auto& source) { return source.trim_whitespace(); },
+		[](auto&& source) { return std::move(source).trim_whitespace(); });
 	cases.push_back({
 		"utf8.trim_ascii.view",
 		utf8_trim_storage.size(),
 		64,
 		[&]() -> std::size_t
 		{
-			return checksum(utf8_trim_text.trim_ascii().base());
+			return checksum(utf8_trim_text.trim_ascii_whitespace().base());
 		}
 	});
 	add_rvalue_aware_cases(
@@ -3735,8 +3735,8 @@ int main(int argc, char** argv)
 		utf8_trim_storage.size(),
 		64,
 		[&] { return make_utf8_string(utf8_trim_storage); },
-		[](const auto& source) { return source.trim_ascii(); },
-		[](auto&& source) { return std::move(source).trim_ascii(); });
+		[](const auto& source) { return source.trim_ascii_whitespace(); },
+		[](auto&& source) { return std::move(source).trim_ascii_whitespace(); });
 	cases.push_back({
 		"utf8.trim_matches.char",
 		utf8_split_delimiter_storage.size(),
@@ -3752,7 +3752,7 @@ int main(int argc, char** argv)
 		64,
 		[&]() -> std::size_t
 		{
-			return checksum(utf16_trim_text.trim().base());
+			return checksum(utf16_trim_text.trim_whitespace().base());
 		}
 	});
 	add_rvalue_aware_cases(
@@ -3762,8 +3762,8 @@ int main(int argc, char** argv)
 		utf16_trim_storage.size() * sizeof(char16_t),
 		64,
 		[&] { return make_utf16_string(utf16_trim_storage); },
-		[](const auto& source) { return source.trim(); },
-		[](auto&& source) { return std::move(source).trim(); });
+		[](const auto& source) { return source.trim_whitespace(); },
+		[](auto&& source) { return std::move(source).trim_whitespace(); });
 	add_rvalue_aware_cases(
 		cases,
 		"utf16.trim.unicode.noop.const_lvalue",
@@ -3771,8 +3771,8 @@ int main(int argc, char** argv)
 		utf16_trim_noop_storage.size() * sizeof(char16_t),
 		64,
 		[&] { return make_utf16_string(utf16_trim_noop_storage); },
-		[](const auto& source) { return source.trim(); },
-		[](auto&& source) { return std::move(source).trim(); });
+		[](const auto& source) { return source.trim_whitespace(); },
+		[](auto&& source) { return std::move(source).trim_whitespace(); });
 	add_rvalue_aware_cases(
 		cases,
 		"utf16.trim.unicode.prefix_heavy.const_lvalue",
@@ -3780,8 +3780,8 @@ int main(int argc, char** argv)
 		utf16_trim_prefix_heavy_storage.size() * sizeof(char16_t),
 		64,
 		[&] { return make_utf16_string(utf16_trim_prefix_heavy_storage); },
-		[](const auto& source) { return source.trim(); },
-		[](auto&& source) { return std::move(source).trim(); });
+		[](const auto& source) { return source.trim_whitespace(); },
+		[](auto&& source) { return std::move(source).trim_whitespace(); });
 	add_rvalue_aware_cases(
 		cases,
 		"utf16.trim.unicode.suffix_heavy.const_lvalue",
@@ -3789,15 +3789,15 @@ int main(int argc, char** argv)
 		utf16_trim_suffix_heavy_storage.size() * sizeof(char16_t),
 		64,
 		[&] { return make_utf16_string(utf16_trim_suffix_heavy_storage); },
-		[](const auto& source) { return source.trim(); },
-		[](auto&& source) { return std::move(source).trim(); });
+		[](const auto& source) { return source.trim_whitespace(); },
+		[](auto&& source) { return std::move(source).trim_whitespace(); });
 	cases.push_back({
 		"utf16.trim_ascii.view",
 		utf16_trim_storage.size() * sizeof(char16_t),
 		64,
 		[&]() -> std::size_t
 		{
-			return checksum(utf16_trim_text.trim_ascii().base());
+			return checksum(utf16_trim_text.trim_ascii_whitespace().base());
 		}
 	});
 	add_rvalue_aware_cases(
@@ -3807,15 +3807,15 @@ int main(int argc, char** argv)
 		utf16_trim_storage.size() * sizeof(char16_t),
 		64,
 		[&] { return make_utf16_string(utf16_trim_storage); },
-		[](const auto& source) { return source.trim_ascii(); },
-		[](auto&& source) { return std::move(source).trim_ascii(); });
+		[](const auto& source) { return source.trim_ascii_whitespace(); },
+		[](auto&& source) { return std::move(source).trim_ascii_whitespace(); });
 	cases.push_back({
 		"utf32.trim.unicode.view",
 		utf32_trim_storage.size() * sizeof(char32_t),
 		64,
 		[&]() -> std::size_t
 		{
-			return checksum(utf32_trim_text.trim().base());
+			return checksum(utf32_trim_text.trim_whitespace().base());
 		}
 	});
 	add_rvalue_aware_cases(
@@ -3825,8 +3825,8 @@ int main(int argc, char** argv)
 		utf32_trim_storage.size() * sizeof(char32_t),
 		64,
 		[&] { return make_utf32_string(utf32_trim_storage); },
-		[](const auto& source) { return source.trim(); },
-		[](auto&& source) { return std::move(source).trim(); });
+		[](const auto& source) { return source.trim_whitespace(); },
+		[](auto&& source) { return std::move(source).trim_whitespace(); });
 	add_rvalue_aware_cases(
 		cases,
 		"utf32.trim.unicode.noop.const_lvalue",
@@ -3834,8 +3834,8 @@ int main(int argc, char** argv)
 		utf32_trim_noop_storage.size() * sizeof(char32_t),
 		64,
 		[&] { return make_utf32_string(utf32_trim_noop_storage); },
-		[](const auto& source) { return source.trim(); },
-		[](auto&& source) { return std::move(source).trim(); });
+		[](const auto& source) { return source.trim_whitespace(); },
+		[](auto&& source) { return std::move(source).trim_whitespace(); });
 	add_rvalue_aware_cases(
 		cases,
 		"utf32.trim.unicode.prefix_heavy.const_lvalue",
@@ -3843,8 +3843,8 @@ int main(int argc, char** argv)
 		utf32_trim_prefix_heavy_storage.size() * sizeof(char32_t),
 		64,
 		[&] { return make_utf32_string(utf32_trim_prefix_heavy_storage); },
-		[](const auto& source) { return source.trim(); },
-		[](auto&& source) { return std::move(source).trim(); });
+		[](const auto& source) { return source.trim_whitespace(); },
+		[](auto&& source) { return std::move(source).trim_whitespace(); });
 	add_rvalue_aware_cases(
 		cases,
 		"utf32.trim.unicode.suffix_heavy.const_lvalue",
@@ -3852,15 +3852,15 @@ int main(int argc, char** argv)
 		utf32_trim_suffix_heavy_storage.size() * sizeof(char32_t),
 		64,
 		[&] { return make_utf32_string(utf32_trim_suffix_heavy_storage); },
-		[](const auto& source) { return source.trim(); },
-		[](auto&& source) { return std::move(source).trim(); });
+		[](const auto& source) { return source.trim_whitespace(); },
+		[](auto&& source) { return std::move(source).trim_whitespace(); });
 	cases.push_back({
 		"utf32.trim_ascii.view",
 		utf32_trim_storage.size() * sizeof(char32_t),
 		64,
 		[&]() -> std::size_t
 		{
-			return checksum(utf32_trim_text.trim_ascii().base());
+			return checksum(utf32_trim_text.trim_ascii_whitespace().base());
 		}
 	});
 	add_rvalue_aware_cases(
@@ -3870,8 +3870,8 @@ int main(int argc, char** argv)
 		utf32_trim_storage.size() * sizeof(char32_t),
 		64,
 		[&] { return make_utf32_string(utf32_trim_storage); },
-		[](const auto& source) { return source.trim_ascii(); },
-		[](auto&& source) { return std::move(source).trim_ascii(); });
+		[](const auto& source) { return source.trim_ascii_whitespace(); },
+		[](auto&& source) { return std::move(source).trim_ascii_whitespace(); });
 	cases.push_back({
 		"utf32.append_range.utf32_char_vector",
 		utf32_chars.size() * 4u,

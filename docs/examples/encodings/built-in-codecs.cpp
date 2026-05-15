@@ -21,7 +21,7 @@ int main()
 
 	const auto windows_text = utf8_string::from_encoded<encodings::windows_1252>(
 		std::u8string_view{ windows_bytes.data(), windows_bytes.size() });
-	if (windows_text.base() != u8"Price: \u20AC")
+	if (windows_text.base() != u8"Price: €")
 	{
 		return 1;
 	}
@@ -38,7 +38,7 @@ int main()
 	};
 	const auto latin1_text = utf8_string::from_encoded<encodings::iso_8859_1>(
 		std::u8string_view{ latin1_bytes.data(), latin1_bytes.size() });
-	if (latin1_text.base() != u8"C\u00E9")
+	if (latin1_text.base() != u8"Cé")
 	{
 		return 1;
 	}
@@ -57,7 +57,7 @@ int main()
 	};
 	const auto latin9_text = utf8_string::from_encoded<encodings::iso_8859_15>(
 		std::u8string_view{ latin9_bytes.data(), latin9_bytes.size() });
-	if (latin9_text.base() != u8"\u20AC\u0152\u0153\u0178")
+	if (latin9_text.base() != u8"€ŒœŸ")
 	{
 		return 1;
 	}
@@ -78,7 +78,7 @@ int main()
 	};
 	const auto windows_1251_text = utf8_string::from_encoded<encodings::windows_1251>(
 		std::u8string_view{ windows_1251_bytes.data(), windows_1251_bytes.size() });
-	if (windows_1251_text.base() != u8"\u041F\u0440\u0438\u0432\u0435\u0442")
+	if (windows_1251_text.base() != u8"Привет")
 	{
 		return 1;
 	}
@@ -97,7 +97,7 @@ int main()
 
 	encodings::ascii_lossy lossy{};
 	std::vector<char8_t> lossy_bytes{};
-	u8"Caf\u00E9"_utf8_sv.to_utf8().encode_append_to(lossy_bytes, lossy);
+	u8"Café"_utf8_sv.to_utf8().encode_append_to(lossy_bytes, lossy);
 	if (lossy.replacement_count != 1 || lossy_bytes != std::vector<char8_t>{
 		static_cast<char8_t>('C'),
 		static_cast<char8_t>('a'),

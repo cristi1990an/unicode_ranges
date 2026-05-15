@@ -9,15 +9,15 @@ using namespace unicode_ranges::literals;
 
 int main()
 {
-	utf8_string text = u8"  caf\u00E9  "_utf8_s;
+	utf8_string text = u8"  café  "_utf8_s;
 
 	auto copied = text.trim_whitespace();
-	assert(copied == u8"caf\u00E9"_utf8_sv);
-	assert(text == u8"  caf\u00E9  "_utf8_sv);
+	assert(copied == u8"café"_utf8_sv);
+	assert(text == u8"  café  "_utf8_sv);
 
-	auto disposable = u8"  caf\u00E9  "_utf8_s;
+	auto disposable = u8"  café  "_utf8_s;
 	auto trimmed = std::move(disposable).trim_whitespace();
-	assert(trimmed == u8"caf\u00E9"_utf8_sv);
+	assert(trimmed == u8"café"_utf8_sv);
 
 	auto framed = u8"<<<payload>>>"_utf8_s;
 	auto payload = std::move(framed).trim_prefix(u8"<<<"_utf8_sv).trim_suffix(u8">>>"_utf8_sv);

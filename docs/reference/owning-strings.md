@@ -978,19 +978,19 @@ constexpr basic_utf8_string replace_at(size_type pos, R&& rg) &&;
 
 ### Overload differences
 
-The examples below use `utf8_string text = u8"wow \U0001F604\u2728"_utf8_s;`.
+The examples below use `utf8_string text = u8"wow 😄✨"_utf8_s;`.
 
 | Overload | Meaning | Example |
 | --- | --- | --- |
 | `replace_at(pos, count, View other)` | replace one boundary-aligned validated substring with another | `auto copy = text.replace_at(0, 3, "hey"_utf8_sv);` |
-| `replace_at(pos, count, Char other)` | replace one boundary-aligned validated substring with one character | `auto copy = text.replace_at(4, 4, u8"\U0001F525"_u8c);` |
-| `replace_at(pos, View other)` | replace the single validated character starting at `pos` with a substring | `auto copy = text.replace_at(4, u8"\U0001F389"_utf8_sv);` |
-| `replace_at(pos, Char other)` | replace the single validated character starting at `pos` with one character | `auto copy = text.replace_at(4, u8"\U0001F525"_u8c);` |
-| `replace_at(pos, count, views::utf8_view rg)` | replace a boundary-aligned substring with same-encoding validated characters | `text = std::move(text).replace_at(4, 4, u8"\U0001F389\u2728"_utf8_sv.chars());` |
-| `replace_at(pos, count, views::utf16_view rg)` | replace a boundary-aligned substring with cross-encoding validated characters | `text = std::move(text).replace_at(4, 4, u"\U0001F389\u2728"_utf16_sv.chars());` |
-| `replace_at(pos, count, views::utf32_view rg)` | replace a boundary-aligned substring with cross-encoding validated characters | `text = std::move(text).replace_at(4, 4, U"\U0001F389\u2728"_utf32_sv.chars());` |
-| `replace_at(pos, count, R&& rg)` | replace a boundary-aligned substring with a generic validated-character range | `text = std::move(text).replace_at(4, 4, std::array{u8"\U0001F389"_u8c, u8"\u2728"_u8c});` |
-| `replace_at(pos, rg)` | replace the single validated character at `pos` with validated characters | `text = std::move(text).replace_at(4, u8"\U0001F389"_utf8_sv.chars());` |
+| `replace_at(pos, count, Char other)` | replace one boundary-aligned validated substring with one character | `auto copy = text.replace_at(4, 4, u8"🔥"_u8c);` |
+| `replace_at(pos, View other)` | replace the single validated character starting at `pos` with a substring | `auto copy = text.replace_at(4, u8"🎉"_utf8_sv);` |
+| `replace_at(pos, Char other)` | replace the single validated character starting at `pos` with one character | `auto copy = text.replace_at(4, u8"🔥"_u8c);` |
+| `replace_at(pos, count, views::utf8_view rg)` | replace a boundary-aligned substring with same-encoding validated characters | `text = std::move(text).replace_at(4, 4, u8"🎉✨"_utf8_sv.chars());` |
+| `replace_at(pos, count, views::utf16_view rg)` | replace a boundary-aligned substring with cross-encoding validated characters | `text = std::move(text).replace_at(4, 4, u"🎉✨"_utf16_sv.chars());` |
+| `replace_at(pos, count, views::utf32_view rg)` | replace a boundary-aligned substring with cross-encoding validated characters | `text = std::move(text).replace_at(4, 4, U"🎉✨"_utf32_sv.chars());` |
+| `replace_at(pos, count, R&& rg)` | replace a boundary-aligned substring with a generic validated-character range | `text = std::move(text).replace_at(4, 4, std::array{u8"🎉"_u8c, u8"✨"_u8c});` |
+| `replace_at(pos, rg)` | replace the single validated character at `pos` with validated characters | `text = std::move(text).replace_at(4, u8"🎉"_utf8_sv.chars());` |
 
 The range overloads are special because the replacement is driven by validated characters, not by raw code units. Cross-encoding helper views let the caller describe the replacement in the other encoding.
 

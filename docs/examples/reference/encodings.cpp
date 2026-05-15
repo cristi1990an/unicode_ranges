@@ -35,7 +35,7 @@ int main()
 	};
 	const auto windows = utf8_string::from_encoded<encodings::windows_1252>(
 		std::u8string_view{ windows_input.data(), windows_input.size() });
-	assert(windows.base() == u8"Price: \u20AC");
+	assert(windows.base() == u8"Price: €");
 	auto windows_encoded = windows.to_encoded<encodings::windows_1252>();
 	assert(windows_encoded);
 	const std::u8string expected_windows_bytes{ windows_input.begin(), windows_input.end() };

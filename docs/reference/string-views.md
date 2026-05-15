@@ -1279,7 +1279,7 @@ The UTF-32 view type exposes the same four non-allocating helpers with `utf32_st
 
 - These members compare Unicode case-folded scalar sequences.
 - They do not allocate.
-- They do not normalize. Canonically equivalent text such as `"\u00E9"` and `"e\u0301"` still compares different unless the caller normalizes first.
+- They do not normalize. Canonically equivalent text such as `"é"` and `"e\u0301"` still compares different unless the caller normalizes first.
 - This is deliberate: the library keeps normalization explicit instead of folding canonical equivalence into the default case-insensitive comparison path.
 - `starts_with_ignore_case(...)` and `ends_with_ignore_case(...)` operate on the folded sequences, so expansions such as `ß -> ss` are handled correctly.
 - `compare_ignore_case(...)` is lexicographic comparison of the folded scalar sequence. It is not locale collation.
