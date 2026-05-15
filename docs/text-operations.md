@@ -47,19 +47,18 @@ The split APIs also compose cleanly with standard range pipelines:
 
 Available operations include:
 
-- `strip_prefix`, `strip_suffix`, `strip_circumfix`
 - `trim_prefix`, `trim_suffix`
 - `trim_start_matches`, `trim_end_matches`, `trim_matches`
-- `trim_start`, `trim_end`, `trim`
-- `trim_ascii_start`, `trim_ascii_end`, `trim_ascii`
+- `trim_whitespace_start`, `trim_whitespace_end`, `trim_whitespace`
+- `trim_ascii_whitespace_start`, `trim_ascii_whitespace_end`, `trim_ascii_whitespace`
 
 The matcher-based trim APIs accept characters, text, predicates, and character sets.
 
 Return ownership follows the receiver:
 
-- On `utf*_string_view`, strip/trim/substr APIs return borrowed views into the original storage.
-- On `utf*_string` lvalues, strip/trim/substr APIs return owning strings so the result cannot dangle.
-- On `utf*_string` rvalues, strip/trim/substr APIs return owning strings and consume the source; they trim or slice the existing buffer in place for common bound-adjustment cases.
+- On `utf*_string_view`, trim/substr APIs return borrowed views into the original storage.
+- On `utf*_string` lvalues, trim/substr APIs return owning strings so the result cannot dangle.
+- On `utf*_string` rvalues, trim/substr APIs return owning strings and consume the source; they trim or slice the existing buffer in place for common bound-adjustment cases.
 - One-shot APIs that return borrowed subviews, such as `split_once`, `rsplit_once`, `split_once_at`, and `grapheme_at`, are intentionally deleted for owning rvalues.
 
 ```cpp

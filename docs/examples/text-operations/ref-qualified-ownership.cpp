@@ -11,18 +11,17 @@ int main()
 {
 	utf8_string text = u8"  caf\u00E9  "_utf8_s;
 
-	auto copied = text.trim();
+	auto copied = text.trim_whitespace();
 	assert(copied == u8"caf\u00E9"_utf8_sv);
 	assert(text == u8"  caf\u00E9  "_utf8_sv);
 
 	auto disposable = u8"  caf\u00E9  "_utf8_s;
-	auto trimmed = std::move(disposable).trim();
+	auto trimmed = std::move(disposable).trim_whitespace();
 	assert(trimmed == u8"caf\u00E9"_utf8_sv);
 
 	auto framed = u8"<<<payload>>>"_utf8_s;
-	auto stripped = std::move(framed).strip_circumfix(u8"<<<"_utf8_sv, u8">>>"_utf8_sv);
-	assert(stripped.has_value());
-	assert(*stripped == u8"payload"_utf8_sv);
+	auto payload = std::move(framed).trim_prefix(u8"<<<"_utf8_sv).trim_suffix(u8">>>"_utf8_sv);
+	assert(payload == u8"payload"_utf8_sv);
 
 	utf8_string key_value = u8"name=value"_utf8_s;
 	auto split = key_value.split_once(u8"="_u8c);

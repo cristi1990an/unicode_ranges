@@ -191,18 +191,10 @@ consteval bool slice_members_preserve_receiver_ownership()
 	using predicate_type = true_char_predicate<Char>;
 	using throwing_predicate_type = throwing_char_predicate<Char>;
 
-	return std::same_as<decltype(std::declval<const View&>().strip_prefix(std::declval<Char>())), opt_view>
-		&& std::same_as<decltype(std::declval<View>().strip_prefix(std::declval<View>())), opt_view>
-		&& std::same_as<decltype(std::declval<const Owned&>().strip_prefix(std::declval<Char>())), opt_owned>
-		&& std::same_as<decltype(std::declval<Owned>().strip_prefix(std::declval<View>())), opt_owned>
-		&& std::same_as<decltype(std::declval<const Owned&>().strip_suffix(std::declval<Char>())), opt_owned>
-		&& std::same_as<decltype(std::declval<Owned>().strip_suffix(std::declval<View>())), opt_owned>
-		&& std::same_as<decltype(std::declval<const Owned&>().strip_circumfix(std::declval<Char>(), std::declval<Char>())), opt_owned>
-		&& std::same_as<decltype(std::declval<Owned>().strip_circumfix(std::declval<View>(), std::declval<View>())), opt_owned>
-		&& std::same_as<decltype(std::declval<const View&>().trim_prefix(std::declval<Char>())), View>
-		&& std::same_as<decltype(std::declval<View>().trim_suffix(std::declval<View>())), View>
-		&& std::same_as<decltype(std::declval<const Owned&>().trim_prefix(std::declval<Char>())), Owned>
-		&& std::same_as<decltype(std::declval<Owned>().trim_suffix(std::declval<View>())), Owned>
+		return std::same_as<decltype(std::declval<const View&>().trim_prefix(std::declval<Char>())), View>
+			&& std::same_as<decltype(std::declval<View>().trim_suffix(std::declval<View>())), View>
+			&& std::same_as<decltype(std::declval<const Owned&>().trim_prefix(std::declval<Char>())), Owned>
+			&& std::same_as<decltype(std::declval<Owned>().trim_suffix(std::declval<View>())), Owned>
 		&& std::same_as<decltype(std::declval<const Owned&>().trim_start_matches(std::declval<Char>())), Owned>
 		&& std::same_as<decltype(std::declval<Owned>().trim_start_matches(std::declval<View>())), Owned>
 		&& std::same_as<decltype(std::declval<const Owned&>().trim_start_matches(std::declval<span_type>())), Owned>
@@ -211,25 +203,25 @@ consteval bool slice_members_preserve_receiver_ownership()
 		&& std::same_as<decltype(std::declval<Owned>().trim_end_matches(std::declval<View>())), Owned>
 		&& std::same_as<decltype(std::declval<const Owned&>().trim_matches(std::declval<span_type>())), Owned>
 		&& std::same_as<decltype(std::declval<Owned>().trim_matches(std::declval<predicate_type>())), Owned>
-		&& std::same_as<decltype(std::declval<const View&>().trim()), View>
-		&& std::same_as<decltype(std::declval<View>().trim_ascii()), View>
-		&& std::same_as<decltype(std::declval<const Owned&>().trim_start()), Owned>
-		&& std::same_as<decltype(std::declval<Owned>().trim_end()), Owned>
-		&& std::same_as<decltype(std::declval<const Owned&>().trim()), Owned>
-		&& std::same_as<decltype(std::declval<Owned>().trim_ascii_start()), Owned>
-		&& std::same_as<decltype(std::declval<const Owned&>().trim_ascii_end()), Owned>
-		&& std::same_as<decltype(std::declval<Owned>().trim_ascii()), Owned>
+			&& std::same_as<decltype(std::declval<const View&>().trim_whitespace()), View>
+			&& std::same_as<decltype(std::declval<View>().trim_ascii_whitespace()), View>
+			&& std::same_as<decltype(std::declval<const Owned&>().trim_whitespace_start()), Owned>
+			&& std::same_as<decltype(std::declval<Owned>().trim_whitespace_end()), Owned>
+			&& std::same_as<decltype(std::declval<const Owned&>().trim_whitespace()), Owned>
+			&& std::same_as<decltype(std::declval<Owned>().trim_ascii_whitespace_start()), Owned>
+			&& std::same_as<decltype(std::declval<const Owned&>().trim_ascii_whitespace_end()), Owned>
+			&& std::same_as<decltype(std::declval<Owned>().trim_ascii_whitespace()), Owned>
 		&& std::same_as<decltype(std::declval<const View&>().substr(std::size_t{})), opt_view>
 		&& std::same_as<decltype(std::declval<View>().grapheme_substr(std::size_t{}, std::size_t{})), opt_view>
 		&& std::same_as<decltype(std::declval<const Owned&>().substr(std::size_t{})), opt_owned>
 		&& std::same_as<decltype(std::declval<Owned>().substr(std::size_t{}, std::size_t{})), opt_owned>
 		&& std::same_as<decltype(std::declval<const Owned&>().grapheme_substr(std::size_t{})), opt_owned>
 		&& std::same_as<decltype(std::declval<Owned>().grapheme_substr(std::size_t{}, std::size_t{})), opt_owned>
-		&& noexcept(std::declval<const View&>().trim())
-		&& noexcept(std::declval<View>().trim_matches(std::declval<predicate_type>()))
-		&& !noexcept(std::declval<View>().trim_matches(std::declval<throwing_predicate_type>()))
-		&& !noexcept(std::declval<const Owned&>().trim())
-		&& noexcept(std::declval<Owned>().trim())
+			&& noexcept(std::declval<const View&>().trim_whitespace())
+			&& noexcept(std::declval<View>().trim_matches(std::declval<predicate_type>()))
+			&& !noexcept(std::declval<View>().trim_matches(std::declval<throwing_predicate_type>()))
+			&& !noexcept(std::declval<const Owned&>().trim_whitespace())
+			&& noexcept(std::declval<Owned>().trim_whitespace())
 		&& noexcept(std::declval<Owned>().substr(std::size_t{}))
 		&& noexcept(std::declval<Owned>().grapheme_substr(std::size_t{}, std::size_t{}))
 		&& noexcept(std::declval<Owned>().trim_matches(std::declval<predicate_type>()))
@@ -2144,20 +2136,14 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 	static_assert(std::same_as<
 		decltype(utf8_text.rsplit_once(u8"\u00E9"_u8c)),
 		split_once_result<utf8_string_view>>);
-	static_assert(std::same_as<
-		decltype(utf8_text.strip_prefix(u8"\u00E9"_u8c)),
-		std::optional<utf8_string_view>>);
-	static_assert(std::same_as<
-		decltype(utf8_text.strip_circumfix(u8"\u00E9"_u8c, u8"\u00E9"_u8c)),
-		std::optional<utf8_string_view>>);
-	static_assert(std::same_as<
-		decltype(utf8_text.trim_prefix(u8"\u00E9"_u8c)),
-		utf8_string_view>);
+		static_assert(std::same_as<
+			decltype(utf8_text.trim_prefix(u8"\u00E9"_u8c)),
+			utf8_string_view>);
 	static_assert(std::same_as<
 		decltype(utf8_text.trim_matches(u8"\u00E9"_u8c)),
 		utf8_string_view>);
 	static_assert(std::same_as<
-		decltype(utf8_text.trim()),
+			decltype(utf8_text.trim_whitespace()),
 		utf8_string_view>);
 	static_assert(std::ranges::view<decltype(utf8_text.split_whitespace())>);
 	static_assert(std::ranges::range<decltype(utf8_text.split_whitespace())>);
@@ -2408,20 +2394,14 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 	static_assert(std::same_as<
 		decltype(utf16_text.rsplit_once(u"\u00E9"_u16c)),
 		split_once_result<utf16_string_view>>);
-	static_assert(std::same_as<
-		decltype(utf16_text.strip_prefix(u"\u00E9"_u16c)),
-		std::optional<utf16_string_view>>);
-	static_assert(std::same_as<
-		decltype(utf16_text.strip_circumfix(u"\u00E9"_u16c, u"\u00E9"_u16c)),
-		std::optional<utf16_string_view>>);
-	static_assert(std::same_as<
-		decltype(utf16_text.trim_prefix(u"\u00E9"_u16c)),
-		utf16_string_view>);
+		static_assert(std::same_as<
+			decltype(utf16_text.trim_prefix(u"\u00E9"_u16c)),
+			utf16_string_view>);
 	static_assert(std::same_as<
 		decltype(utf16_text.trim_matches(u"\u00E9"_u16c)),
 		utf16_string_view>);
 	static_assert(std::same_as<
-		decltype(utf16_text.trim()),
+			decltype(utf16_text.trim_whitespace()),
 		utf16_string_view>);
 	static_assert(std::ranges::view<decltype(utf16_text.split_whitespace())>);
 	static_assert(std::ranges::range<decltype(utf16_text.split_whitespace())>);
@@ -2784,28 +2764,16 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			&& !text.rsplit_once(u8""_utf8_sv).has_value()
 			&& !u8"abra"_utf8_sv.split_once(u8"--"_utf8_sv).has_value();
 	}());
-	static_assert([] {
-		constexpr auto text = u8"<<<\u00E9A>>>"_utf8_sv;
-		const auto stripped_prefix = text.strip_prefix(u8"<<<"_utf8_sv);
-		const auto stripped_suffix = text.strip_suffix(u8">>>"_utf8_sv);
-		const auto stripped_circ = text.strip_circumfix(u8"<<<"_utf8_sv, u8">>>"_utf8_sv);
-		const auto stripped_chars = u8"[\u00E9]"_utf8_sv.strip_circumfix(u8"["_u8c, u8"]"_u8c);
-		return stripped_prefix.has_value()
-			&& stripped_prefix.value() == u8"\u00E9A>>>"_utf8_sv
-			&& stripped_suffix.has_value()
-			&& stripped_suffix.value() == u8"<<<\u00E9A"_utf8_sv
-			&& stripped_circ.has_value()
-			&& stripped_circ.value() == u8"\u00E9A"_utf8_sv
-			&& stripped_chars.has_value()
-			&& stripped_chars.value() == u8"\u00E9"_utf8_sv
-			&& !text.strip_prefix(u8">>>"_utf8_sv).has_value()
-			&& !text.strip_circumfix(u8"<<<"_utf8_sv, u8"]"_utf8_sv).has_value()
-			&& text.trim_prefix(u8">>>"_utf8_sv) == text
-			&& text.trim_prefix(u8"<<<"_utf8_sv) == u8"\u00E9A>>>"_utf8_sv
-			&& text.trim_suffix(u8">>>"_utf8_sv) == u8"<<<\u00E9A"_utf8_sv
-			&& u8"\u00E9A\u00E9"_utf8_sv.trim_prefix(u8"\u00E9"_u8c) == u8"A\u00E9"_utf8_sv
-			&& u8"\u00E9A\u00E9"_utf8_sv.trim_suffix(u8"\u00E9"_u8c) == u8"\u00E9A"_utf8_sv;
-	}());
+		static_assert([] {
+			constexpr auto text = u8"<<<\u00E9A>>>"_utf8_sv;
+			return text.trim_prefix(u8">>>"_utf8_sv) == text
+				&& text.trim_prefix(u8"<<<"_utf8_sv) == u8"\u00E9A>>>"_utf8_sv
+				&& text.trim_suffix(u8">>>"_utf8_sv) == u8"<<<\u00E9A"_utf8_sv
+				&& text.trim_prefix(u8"<<<"_utf8_sv).trim_suffix(u8">>>"_utf8_sv) == u8"\u00E9A"_utf8_sv
+				&& u8"[\u00E9]"_utf8_sv.trim_prefix(u8"["_u8c).trim_suffix(u8"]"_u8c) == u8"\u00E9"_utf8_sv
+				&& u8"\u00E9A\u00E9"_utf8_sv.trim_prefix(u8"\u00E9"_u8c) == u8"A\u00E9"_utf8_sv
+				&& u8"\u00E9A\u00E9"_utf8_sv.trim_suffix(u8"\u00E9"_u8c) == u8"\u00E9A"_utf8_sv;
+		}());
 	static_assert([] {
 		constexpr auto repeated = u8"----abra----"_utf8_sv;
 		constexpr auto accented = u8"\u00E9\u00E9A\u00E9"_utf8_sv;
@@ -2821,12 +2789,12 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 	static_assert([] {
 		constexpr auto unicode_trimmed = u8"\u00A0\tA\u00A0 "_utf8_sv;
 		constexpr auto unicode_split = u8"\u00A0A\u2003B C"_utf8_sv;
-		return unicode_trimmed.trim() == u8"A"_utf8_sv
-			&& unicode_trimmed.trim_start() == u8"A\u00A0 "_utf8_sv
-			&& unicode_trimmed.trim_end() == u8"\u00A0\tA"_utf8_sv
-			&& unicode_trimmed.trim_ascii() == u8"\u00A0\tA\u00A0"_utf8_sv
-			&& unicode_trimmed.trim_ascii_start() == unicode_trimmed
-			&& unicode_trimmed.trim_ascii_end() == u8"\u00A0\tA\u00A0"_utf8_sv
+		return unicode_trimmed.trim_whitespace() == u8"A"_utf8_sv
+			&& unicode_trimmed.trim_whitespace_start() == u8"A\u00A0 "_utf8_sv
+			&& unicode_trimmed.trim_whitespace_end() == u8"\u00A0\tA"_utf8_sv
+			&& unicode_trimmed.trim_ascii_whitespace() == u8"\u00A0\tA\u00A0"_utf8_sv
+			&& unicode_trimmed.trim_ascii_whitespace_start() == unicode_trimmed
+			&& unicode_trimmed.trim_ascii_whitespace_end() == u8"\u00A0\tA\u00A0"_utf8_sv
 			&& std::ranges::equal(u8""_utf8_sv.split_whitespace(), std::array<utf8_string_view, 0>{})
 			&& std::ranges::equal(u8" \t\r\n"_utf8_sv.split_ascii_whitespace(), std::array<utf8_string_view, 0>{})
 			&& std::ranges::equal(u8" \tA  B\n"_utf8_sv.split_whitespace(), std::array{
@@ -3354,28 +3322,16 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			&& !text.rsplit_once(u""_utf16_sv).has_value()
 			&& !u"abra"_utf16_sv.split_once(u"--"_utf16_sv).has_value();
 	}());
-	static_assert([] {
-		constexpr auto text = u"<<<\u00E9A>>>"_utf16_sv;
-		const auto stripped_prefix = text.strip_prefix(u"<<<"_utf16_sv);
-		const auto stripped_suffix = text.strip_suffix(u">>>"_utf16_sv);
-		const auto stripped_circ = text.strip_circumfix(u"<<<"_utf16_sv, u">>>"_utf16_sv);
-		const auto stripped_chars = u"[\u00E9]"_utf16_sv.strip_circumfix(u"["_u16c, u"]"_u16c);
-		return stripped_prefix.has_value()
-			&& stripped_prefix.value() == u"\u00E9A>>>"_utf16_sv
-			&& stripped_suffix.has_value()
-			&& stripped_suffix.value() == u"<<<\u00E9A"_utf16_sv
-			&& stripped_circ.has_value()
-			&& stripped_circ.value() == u"\u00E9A"_utf16_sv
-			&& stripped_chars.has_value()
-			&& stripped_chars.value() == u"\u00E9"_utf16_sv
-			&& !text.strip_prefix(u">>>"_utf16_sv).has_value()
-			&& !text.strip_circumfix(u"<<<"_utf16_sv, u"]"_utf16_sv).has_value()
-			&& text.trim_prefix(u">>>"_utf16_sv) == text
-			&& text.trim_prefix(u"<<<"_utf16_sv) == u"\u00E9A>>>"_utf16_sv
-			&& text.trim_suffix(u">>>"_utf16_sv) == u"<<<\u00E9A"_utf16_sv
-			&& u"\u00E9A\u00E9"_utf16_sv.trim_prefix(u"\u00E9"_u16c) == u"A\u00E9"_utf16_sv
-			&& u"\u00E9A\u00E9"_utf16_sv.trim_suffix(u"\u00E9"_u16c) == u"\u00E9A"_utf16_sv;
-	}());
+		static_assert([] {
+			constexpr auto text = u"<<<\u00E9A>>>"_utf16_sv;
+			return text.trim_prefix(u">>>"_utf16_sv) == text
+				&& text.trim_prefix(u"<<<"_utf16_sv) == u"\u00E9A>>>"_utf16_sv
+				&& text.trim_suffix(u">>>"_utf16_sv) == u"<<<\u00E9A"_utf16_sv
+				&& text.trim_prefix(u"<<<"_utf16_sv).trim_suffix(u">>>"_utf16_sv) == u"\u00E9A"_utf16_sv
+				&& u"[\u00E9]"_utf16_sv.trim_prefix(u"["_u16c).trim_suffix(u"]"_u16c) == u"\u00E9"_utf16_sv
+				&& u"\u00E9A\u00E9"_utf16_sv.trim_prefix(u"\u00E9"_u16c) == u"A\u00E9"_utf16_sv
+				&& u"\u00E9A\u00E9"_utf16_sv.trim_suffix(u"\u00E9"_u16c) == u"\u00E9A"_utf16_sv;
+		}());
 	static_assert([] {
 		constexpr auto repeated = u"----abra----"_utf16_sv;
 		constexpr auto accented = u"\u00E9\u00E9A\u00E9"_utf16_sv;
@@ -3391,12 +3347,12 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 	static_assert([] {
 		constexpr auto unicode_trimmed = u"\u00A0\tA\u00A0 "_utf16_sv;
 		constexpr auto unicode_split = u"\u00A0A\u2003B C"_utf16_sv;
-		return unicode_trimmed.trim() == u"A"_utf16_sv
-			&& unicode_trimmed.trim_start() == u"A\u00A0 "_utf16_sv
-			&& unicode_trimmed.trim_end() == u"\u00A0\tA"_utf16_sv
-			&& unicode_trimmed.trim_ascii() == u"\u00A0\tA\u00A0"_utf16_sv
-			&& unicode_trimmed.trim_ascii_start() == unicode_trimmed
-			&& unicode_trimmed.trim_ascii_end() == u"\u00A0\tA\u00A0"_utf16_sv
+		return unicode_trimmed.trim_whitespace() == u"A"_utf16_sv
+			&& unicode_trimmed.trim_whitespace_start() == u"A\u00A0 "_utf16_sv
+			&& unicode_trimmed.trim_whitespace_end() == u"\u00A0\tA"_utf16_sv
+			&& unicode_trimmed.trim_ascii_whitespace() == u"\u00A0\tA\u00A0"_utf16_sv
+			&& unicode_trimmed.trim_ascii_whitespace_start() == unicode_trimmed
+			&& unicode_trimmed.trim_ascii_whitespace_end() == u"\u00A0\tA\u00A0"_utf16_sv
 			&& std::ranges::equal(u""_utf16_sv.split_whitespace(), std::array<utf16_string_view, 0>{})
 			&& std::ranges::equal(u" \t\r\n"_utf16_sv.split_ascii_whitespace(), std::array<utf16_string_view, 0>{})
 			&& std::ranges::equal(u" \tA  B\n"_utf16_sv.split_whitespace(), std::array{
@@ -5308,28 +5264,16 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 				u8"abra--cadabra--!"_utf8_sv
 			}));
 		}
-		{
-			const auto text = u8"<<<\u00E9A>>>"_utf8_sv;
-			[[maybe_unused]] const auto stripped_prefix = text.strip_prefix(u8"<<<"_utf8_sv);
-			UTF8_RANGES_TEST_ASSERT(stripped_prefix.has_value());
-			UTF8_RANGES_TEST_ASSERT(stripped_prefix.value() == u8"\u00E9A>>>"_utf8_sv);
-			[[maybe_unused]] const auto stripped_suffix = text.strip_suffix(u8">>>"_utf8_sv);
-			UTF8_RANGES_TEST_ASSERT(stripped_suffix.has_value());
-			UTF8_RANGES_TEST_ASSERT(stripped_suffix.value() == u8"<<<\u00E9A"_utf8_sv);
-			[[maybe_unused]] const auto stripped_circ = text.strip_circumfix(u8"<<<"_utf8_sv, u8">>>"_utf8_sv);
-			UTF8_RANGES_TEST_ASSERT(stripped_circ.has_value());
-			UTF8_RANGES_TEST_ASSERT(stripped_circ.value() == u8"\u00E9A"_utf8_sv);
-			[[maybe_unused]] const auto stripped_chars = u8"[\u00E9]"_utf8_sv.strip_circumfix(u8"["_u8c, u8"]"_u8c);
-			UTF8_RANGES_TEST_ASSERT(stripped_chars.has_value());
-			UTF8_RANGES_TEST_ASSERT(stripped_chars.value() == u8"\u00E9"_utf8_sv);
-			UTF8_RANGES_TEST_ASSERT(!text.strip_prefix(u8">>>"_utf8_sv).has_value());
-			UTF8_RANGES_TEST_ASSERT(!text.strip_circumfix(u8"<<<"_utf8_sv, u8"]"_utf8_sv).has_value());
-			UTF8_RANGES_TEST_ASSERT(text.trim_prefix(u8">>>"_utf8_sv) == text);
-			UTF8_RANGES_TEST_ASSERT(text.trim_prefix(u8"<<<"_utf8_sv) == u8"\u00E9A>>>"_utf8_sv);
-			UTF8_RANGES_TEST_ASSERT(text.trim_suffix(u8">>>"_utf8_sv) == u8"<<<\u00E9A"_utf8_sv);
-			UTF8_RANGES_TEST_ASSERT(u8"\u00E9A\u00E9"_utf8_sv.trim_prefix(u8"\u00E9"_u8c) == u8"A\u00E9"_utf8_sv);
-			UTF8_RANGES_TEST_ASSERT(u8"\u00E9A\u00E9"_utf8_sv.trim_suffix(u8"\u00E9"_u8c) == u8"\u00E9A"_utf8_sv);
-		}
+			{
+				const auto text = u8"<<<\u00E9A>>>"_utf8_sv;
+				UTF8_RANGES_TEST_ASSERT(text.trim_prefix(u8">>>"_utf8_sv) == text);
+				UTF8_RANGES_TEST_ASSERT(text.trim_prefix(u8"<<<"_utf8_sv) == u8"\u00E9A>>>"_utf8_sv);
+				UTF8_RANGES_TEST_ASSERT(text.trim_suffix(u8">>>"_utf8_sv) == u8"<<<\u00E9A"_utf8_sv);
+				UTF8_RANGES_TEST_ASSERT(text.trim_prefix(u8"<<<"_utf8_sv).trim_suffix(u8">>>"_utf8_sv) == u8"\u00E9A"_utf8_sv);
+				UTF8_RANGES_TEST_ASSERT(u8"[\u00E9]"_utf8_sv.trim_prefix(u8"["_u8c).trim_suffix(u8"]"_u8c) == u8"\u00E9"_utf8_sv);
+				UTF8_RANGES_TEST_ASSERT(u8"\u00E9A\u00E9"_utf8_sv.trim_prefix(u8"\u00E9"_u8c) == u8"A\u00E9"_utf8_sv);
+				UTF8_RANGES_TEST_ASSERT(u8"\u00E9A\u00E9"_utf8_sv.trim_suffix(u8"\u00E9"_u8c) == u8"\u00E9A"_utf8_sv);
+			}
 		{
 			[[maybe_unused]] const auto repeated = u8"----abra----"_utf8_sv;
 			[[maybe_unused]] const auto accented = u8"\u00E9\u00E9A\u00E9"_utf8_sv;
@@ -5345,12 +5289,12 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		{
 			[[maybe_unused]] const auto unicode_trimmed = u8"\u00A0\tA\u00A0 "_utf8_sv;
 			[[maybe_unused]] const auto unicode_split = u8"\u00A0A\u2003B C"_utf8_sv;
-			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim() == u8"A"_utf8_sv);
-			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_start() == u8"A\u00A0 "_utf8_sv);
-			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_end() == u8"\u00A0\tA"_utf8_sv);
-			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_ascii() == u8"\u00A0\tA\u00A0"_utf8_sv);
-			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_ascii_start() == unicode_trimmed);
-			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_ascii_end() == u8"\u00A0\tA\u00A0"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_whitespace() == u8"A"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_whitespace_start() == u8"A\u00A0 "_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_whitespace_end() == u8"\u00A0\tA"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_ascii_whitespace() == u8"\u00A0\tA\u00A0"_utf8_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_ascii_whitespace_start() == unicode_trimmed);
+			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_ascii_whitespace_end() == u8"\u00A0\tA\u00A0"_utf8_sv);
 			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(u8""_utf8_sv.split_whitespace(), std::array<utf8_string_view, 0>{}));
 			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(u8" \t\r\n"_utf8_sv.split_ascii_whitespace(), std::array<utf8_string_view, 0>{}));
 			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(u8" \tA  B\n"_utf8_sv.split_whitespace(), std::array{
@@ -5869,15 +5813,14 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			UTF8_RANGES_TEST_ASSERT(trimmed == U"middle"_utf32_sv);
 			UTF8_RANGES_TEST_ASSERT(trimmed.capacity() == capacity);
 		}
-		{
-			auto text = u8"<<<payload>>>"_utf8_s;
-			text.reserve(128);
-			const auto capacity = text.capacity();
-			const auto stripped = std::move(text).strip_circumfix(u8"<<<"_utf8_sv, u8">>>"_utf8_sv);
-			UTF8_RANGES_TEST_ASSERT(stripped.has_value());
-			UTF8_RANGES_TEST_ASSERT(stripped.value() == u8"payload"_utf8_sv);
-			UTF8_RANGES_TEST_ASSERT(stripped->capacity() == capacity);
-		}
+			{
+				auto text = u8"<<<payload>>>"_utf8_s;
+				text.reserve(128);
+				const auto capacity = text.capacity();
+				const auto trimmed = std::move(text).trim_prefix(u8"<<<"_utf8_sv).trim_suffix(u8">>>"_utf8_sv);
+				UTF8_RANGES_TEST_ASSERT(trimmed == u8"payload"_utf8_sv);
+				UTF8_RANGES_TEST_ASSERT(trimmed.capacity() == capacity);
+			}
 		{
 			auto text = u"\u00E9\U0001F600!"_utf16_s;
 			text.reserve(128);
@@ -6183,23 +6126,15 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			UTF8_RANGES_TEST_ASSERT(!text.split_once(U""_utf32_sv).has_value());
 			UTF8_RANGES_TEST_ASSERT(!text.rsplit_once(U""_utf32_sv).has_value());
 		}
-		{
-			const auto text = U"<<<\u00E9A>>>"_utf32_sv;
-			[[maybe_unused]] const auto stripped_prefix = text.strip_prefix(U"<<<"_utf32_sv);
-			UTF8_RANGES_TEST_ASSERT(stripped_prefix.has_value());
-			UTF8_RANGES_TEST_ASSERT(stripped_prefix.value() == U"\u00E9A>>>"_utf32_sv);
-			[[maybe_unused]] const auto stripped_suffix = text.strip_suffix(U">>>"_utf32_sv);
-			UTF8_RANGES_TEST_ASSERT(stripped_suffix.has_value());
-			UTF8_RANGES_TEST_ASSERT(stripped_suffix.value() == U"<<<\u00E9A"_utf32_sv);
-			[[maybe_unused]] const auto stripped_circ = text.strip_circumfix(U"<<<"_utf32_sv, U">>>"_utf32_sv);
-			UTF8_RANGES_TEST_ASSERT(stripped_circ.has_value());
-			UTF8_RANGES_TEST_ASSERT(stripped_circ.value() == U"\u00E9A"_utf32_sv);
-			UTF8_RANGES_TEST_ASSERT(text.trim_prefix(U">>>"_utf32_sv) == text);
-			UTF8_RANGES_TEST_ASSERT(text.trim_prefix(U"<<<"_utf32_sv) == U"\u00E9A>>>"_utf32_sv);
-			UTF8_RANGES_TEST_ASSERT(text.trim_suffix(U">>>"_utf32_sv) == U"<<<\u00E9A"_utf32_sv);
-			UTF8_RANGES_TEST_ASSERT(U"\u00E9A\u00E9"_utf32_sv.trim_prefix(U"\u00E9"_u32c) == U"A\u00E9"_utf32_sv);
-			UTF8_RANGES_TEST_ASSERT(U"\u00E9A\u00E9"_utf32_sv.trim_suffix(U"\u00E9"_u32c) == U"\u00E9A"_utf32_sv);
-		}
+			{
+				const auto text = U"<<<\u00E9A>>>"_utf32_sv;
+				UTF8_RANGES_TEST_ASSERT(text.trim_prefix(U">>>"_utf32_sv) == text);
+				UTF8_RANGES_TEST_ASSERT(text.trim_prefix(U"<<<"_utf32_sv) == U"\u00E9A>>>"_utf32_sv);
+				UTF8_RANGES_TEST_ASSERT(text.trim_suffix(U">>>"_utf32_sv) == U"<<<\u00E9A"_utf32_sv);
+				UTF8_RANGES_TEST_ASSERT(text.trim_prefix(U"<<<"_utf32_sv).trim_suffix(U">>>"_utf32_sv) == U"\u00E9A"_utf32_sv);
+				UTF8_RANGES_TEST_ASSERT(U"\u00E9A\u00E9"_utf32_sv.trim_prefix(U"\u00E9"_u32c) == U"A\u00E9"_utf32_sv);
+				UTF8_RANGES_TEST_ASSERT(U"\u00E9A\u00E9"_utf32_sv.trim_suffix(U"\u00E9"_u32c) == U"\u00E9A"_utf32_sv);
+			}
 		{
 			[[maybe_unused]] const auto repeated = U"----abra----"_utf32_sv;
 			[[maybe_unused]] const auto accented = U"\u00E9\u00E9A\u00E9"_utf32_sv;
@@ -6229,12 +6164,12 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		{
 			[[maybe_unused]] const auto unicode_trimmed = U"\u00A0\tA\u00A0 "_utf32_sv;
 			[[maybe_unused]] const auto unicode_split = U"\u00A0A\u2003B C"_utf32_sv;
-			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim() == U"A"_utf32_sv);
-			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_start() == U"A\u00A0 "_utf32_sv);
-			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_end() == U"\u00A0\tA"_utf32_sv);
-			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_ascii() == U"\u00A0\tA\u00A0"_utf32_sv);
-			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_ascii_start() == unicode_trimmed);
-			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_ascii_end() == U"\u00A0\tA\u00A0"_utf32_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_whitespace() == U"A"_utf32_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_whitespace_start() == U"A\u00A0 "_utf32_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_whitespace_end() == U"\u00A0\tA"_utf32_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_ascii_whitespace() == U"\u00A0\tA\u00A0"_utf32_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_ascii_whitespace_start() == unicode_trimmed);
+			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_ascii_whitespace_end() == U"\u00A0\tA\u00A0"_utf32_sv);
 			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(U""_utf32_sv.split_whitespace(), std::array<utf32_string_view, 0>{}));
 			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(U" \t\r\n"_utf32_sv.split_ascii_whitespace(), std::array<utf32_string_view, 0>{}));
 			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(U" \tA  B\n"_utf32_sv.split_whitespace(), std::array{
@@ -6262,11 +6197,11 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 			[[maybe_unused]] const auto unicode_split = unwrap_utf32_view(unicode_split_storage);
 			const std::u32string empty_storage;
 			[[maybe_unused]] const auto empty = unwrap_utf32_view(empty_storage);
-			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim() == U"A"_utf32_sv);
-			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_start() == U"A\u00A0 "_utf32_sv);
-			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_end() == U"\u00A0\tA"_utf32_sv);
-			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_ascii_start() == unicode_trimmed);
-			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_ascii_end() == U"\u00A0\tA\u00A0"_utf32_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_whitespace() == U"A"_utf32_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_whitespace_start() == U"A\u00A0 "_utf32_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_whitespace_end() == U"\u00A0\tA"_utf32_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_ascii_whitespace_start() == unicode_trimmed);
+			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_ascii_whitespace_end() == U"\u00A0\tA\u00A0"_utf32_sv);
 			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(empty.split_whitespace(), std::array<utf32_string_view, 0>{}));
 			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(U" \t\r\n"_utf32_sv.split_ascii_whitespace(), std::array<utf32_string_view, 0>{}));
 			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(unicode_split.split_whitespace(), std::array{
@@ -6627,28 +6562,16 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 				u"abra--cadabra--!"_utf16_sv
 			}));
 		}
-		{
-			const auto text = u"<<<\u00E9A>>>"_utf16_sv;
-			[[maybe_unused]] const auto stripped_prefix = text.strip_prefix(u"<<<"_utf16_sv);
-			UTF8_RANGES_TEST_ASSERT(stripped_prefix.has_value());
-			UTF8_RANGES_TEST_ASSERT(stripped_prefix.value() == u"\u00E9A>>>"_utf16_sv);
-			[[maybe_unused]] const auto stripped_suffix = text.strip_suffix(u">>>"_utf16_sv);
-			UTF8_RANGES_TEST_ASSERT(stripped_suffix.has_value());
-			UTF8_RANGES_TEST_ASSERT(stripped_suffix.value() == u"<<<\u00E9A"_utf16_sv);
-			[[maybe_unused]] const auto stripped_circ = text.strip_circumfix(u"<<<"_utf16_sv, u">>>"_utf16_sv);
-			UTF8_RANGES_TEST_ASSERT(stripped_circ.has_value());
-			UTF8_RANGES_TEST_ASSERT(stripped_circ.value() == u"\u00E9A"_utf16_sv);
-			[[maybe_unused]] const auto stripped_chars = u"[\u00E9]"_utf16_sv.strip_circumfix(u"["_u16c, u"]"_u16c);
-			UTF8_RANGES_TEST_ASSERT(stripped_chars.has_value());
-			UTF8_RANGES_TEST_ASSERT(stripped_chars.value() == u"\u00E9"_utf16_sv);
-			UTF8_RANGES_TEST_ASSERT(!text.strip_prefix(u">>>"_utf16_sv).has_value());
-			UTF8_RANGES_TEST_ASSERT(!text.strip_circumfix(u"<<<"_utf16_sv, u"]"_utf16_sv).has_value());
-			UTF8_RANGES_TEST_ASSERT(text.trim_prefix(u">>>"_utf16_sv) == text);
-			UTF8_RANGES_TEST_ASSERT(text.trim_prefix(u"<<<"_utf16_sv) == u"\u00E9A>>>"_utf16_sv);
-			UTF8_RANGES_TEST_ASSERT(text.trim_suffix(u">>>"_utf16_sv) == u"<<<\u00E9A"_utf16_sv);
-			UTF8_RANGES_TEST_ASSERT(u"\u00E9A\u00E9"_utf16_sv.trim_prefix(u"\u00E9"_u16c) == u"A\u00E9"_utf16_sv);
-			UTF8_RANGES_TEST_ASSERT(u"\u00E9A\u00E9"_utf16_sv.trim_suffix(u"\u00E9"_u16c) == u"\u00E9A"_utf16_sv);
-		}
+			{
+				const auto text = u"<<<\u00E9A>>>"_utf16_sv;
+				UTF8_RANGES_TEST_ASSERT(text.trim_prefix(u">>>"_utf16_sv) == text);
+				UTF8_RANGES_TEST_ASSERT(text.trim_prefix(u"<<<"_utf16_sv) == u"\u00E9A>>>"_utf16_sv);
+				UTF8_RANGES_TEST_ASSERT(text.trim_suffix(u">>>"_utf16_sv) == u"<<<\u00E9A"_utf16_sv);
+				UTF8_RANGES_TEST_ASSERT(text.trim_prefix(u"<<<"_utf16_sv).trim_suffix(u">>>"_utf16_sv) == u"\u00E9A"_utf16_sv);
+				UTF8_RANGES_TEST_ASSERT(u"[\u00E9]"_utf16_sv.trim_prefix(u"["_u16c).trim_suffix(u"]"_u16c) == u"\u00E9"_utf16_sv);
+				UTF8_RANGES_TEST_ASSERT(u"\u00E9A\u00E9"_utf16_sv.trim_prefix(u"\u00E9"_u16c) == u"A\u00E9"_utf16_sv);
+				UTF8_RANGES_TEST_ASSERT(u"\u00E9A\u00E9"_utf16_sv.trim_suffix(u"\u00E9"_u16c) == u"\u00E9A"_utf16_sv);
+			}
 		{
 			[[maybe_unused]] const auto repeated = u"----abra----"_utf16_sv;
 			[[maybe_unused]] const auto accented = u"\u00E9\u00E9A\u00E9"_utf16_sv;
@@ -6664,12 +6587,12 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		{
 			[[maybe_unused]] const auto unicode_trimmed = u"\u00A0\tA\u00A0 "_utf16_sv;
 			[[maybe_unused]] const auto unicode_split = u"\u00A0A\u2003B C"_utf16_sv;
-			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim() == u"A"_utf16_sv);
-			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_start() == u"A\u00A0 "_utf16_sv);
-			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_end() == u"\u00A0\tA"_utf16_sv);
-			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_ascii() == u"\u00A0\tA\u00A0"_utf16_sv);
-			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_ascii_start() == unicode_trimmed);
-			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_ascii_end() == u"\u00A0\tA\u00A0"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_whitespace() == u"A"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_whitespace_start() == u"A\u00A0 "_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_whitespace_end() == u"\u00A0\tA"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_ascii_whitespace() == u"\u00A0\tA\u00A0"_utf16_sv);
+			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_ascii_whitespace_start() == unicode_trimmed);
+			UTF8_RANGES_TEST_ASSERT(unicode_trimmed.trim_ascii_whitespace_end() == u"\u00A0\tA\u00A0"_utf16_sv);
 			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(u""_utf16_sv.split_whitespace(), std::array<utf16_string_view, 0>{}));
 			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(u" \t\r\n"_utf16_sv.split_ascii_whitespace(), std::array<utf16_string_view, 0>{}));
 			UTF8_RANGES_TEST_ASSERT(std::ranges::equal(u" \tA  B\n"_utf16_sv.split_whitespace(), std::array{

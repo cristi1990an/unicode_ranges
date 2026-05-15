@@ -32,7 +32,7 @@ my_string = std::move(my_string).operation();         // reuse my_string when po
 
 The lvalue form keeps the source string unchanged. The rvalue form treats the source as disposable and may reuse its existing buffer, but it is not a promise that the operation never allocates. After an `&&` call, the moved-from string remains valid with an unspecified value; use the returned string.
 
-This keeps the public surface compact: the method name describes the text operation, while `const&` or `&&` decides whether the call copies or may consume and optimize the source. It also makes chains such as `std::move(text).trim().to_lowercase().replace_all(...)` efficient without adding separate in-place names for every transformation.
+This keeps the public surface compact: the method name describes the text operation, while `const&` or `&&` decides whether the call copies or may consume and optimize the source. It also makes chains such as `std::move(text).trim_whitespace().to_lowercase().replace_all(...)` efficient without adding separate in-place names for every transformation.
 
 ```cpp
 --8<-- "examples/reference/owning-strings.cpp"
@@ -386,21 +386,6 @@ Not `noexcept`.
 ### Synopsis
 
 ```cpp
-constexpr std::optional<basic_utf8_string> strip_prefix(utf8_char ch) const&;
-constexpr std::optional<basic_utf8_string> strip_prefix(utf8_string_view sv) const&;
-constexpr std::optional<basic_utf8_string> strip_prefix(utf8_char ch) && noexcept(/* conditional */);
-constexpr std::optional<basic_utf8_string> strip_prefix(utf8_string_view sv) && noexcept(/* conditional */);
-
-constexpr std::optional<basic_utf8_string> strip_suffix(utf8_char ch) const&;
-constexpr std::optional<basic_utf8_string> strip_suffix(utf8_string_view sv) const&;
-constexpr std::optional<basic_utf8_string> strip_suffix(utf8_char ch) && noexcept(/* conditional */);
-constexpr std::optional<basic_utf8_string> strip_suffix(utf8_string_view sv) && noexcept(/* conditional */);
-
-constexpr std::optional<basic_utf8_string> strip_circumfix(utf8_char prefix, utf8_char suffix) const&;
-constexpr std::optional<basic_utf8_string> strip_circumfix(utf8_string_view prefix, utf8_string_view suffix) const&;
-constexpr std::optional<basic_utf8_string> strip_circumfix(utf8_char prefix, utf8_char suffix) && noexcept(/* conditional */);
-constexpr std::optional<basic_utf8_string> strip_circumfix(utf8_string_view prefix, utf8_string_view suffix) && noexcept(/* conditional */);
-
 constexpr basic_utf8_string trim_prefix(...) const&;
 constexpr basic_utf8_string trim_prefix(...) && noexcept(/* conditional */);
 constexpr basic_utf8_string trim_suffix(...) const&;
@@ -411,18 +396,18 @@ constexpr basic_utf8_string trim_end_matches(...) const&;
 constexpr basic_utf8_string trim_end_matches(...) && noexcept(/* conditional */);
 constexpr basic_utf8_string trim_matches(...) const&;
 constexpr basic_utf8_string trim_matches(...) && noexcept(/* conditional */);
-constexpr basic_utf8_string trim_start() const&;
-constexpr basic_utf8_string trim_start() && noexcept(/* conditional */);
-constexpr basic_utf8_string trim_end() const&;
-constexpr basic_utf8_string trim_end() && noexcept(/* conditional */);
-constexpr basic_utf8_string trim() const&;
-constexpr basic_utf8_string trim() && noexcept(/* conditional */);
-constexpr basic_utf8_string trim_ascii_start() const&;
-constexpr basic_utf8_string trim_ascii_start() && noexcept(/* conditional */);
-constexpr basic_utf8_string trim_ascii_end() const&;
-constexpr basic_utf8_string trim_ascii_end() && noexcept(/* conditional */);
-constexpr basic_utf8_string trim_ascii() const&;
-constexpr basic_utf8_string trim_ascii() && noexcept(/* conditional */);
+constexpr basic_utf8_string trim_whitespace_start() const&;
+constexpr basic_utf8_string trim_whitespace_start() && noexcept(/* conditional */);
+constexpr basic_utf8_string trim_whitespace_end() const&;
+constexpr basic_utf8_string trim_whitespace_end() && noexcept(/* conditional */);
+constexpr basic_utf8_string trim_whitespace() const&;
+constexpr basic_utf8_string trim_whitespace() && noexcept(/* conditional */);
+constexpr basic_utf8_string trim_ascii_whitespace_start() const&;
+constexpr basic_utf8_string trim_ascii_whitespace_start() && noexcept(/* conditional */);
+constexpr basic_utf8_string trim_ascii_whitespace_end() const&;
+constexpr basic_utf8_string trim_ascii_whitespace_end() && noexcept(/* conditional */);
+constexpr basic_utf8_string trim_ascii_whitespace() const&;
+constexpr basic_utf8_string trim_ascii_whitespace() && noexcept(/* conditional */);
 
 constexpr std::optional<basic_utf8_string> substr(size_type pos, size_type count = npos) const&;
 constexpr std::optional<basic_utf8_string> substr(size_type pos, size_type count = npos) && noexcept(/* conditional */);
@@ -445,14 +430,12 @@ split_once_at_unchecked_result<utf8_string_view> split_once_at_unchecked(size_ty
 
 ### Behavior
 
-- `strip_prefix` and `strip_suffix` remove exactly one matching prefix or suffix and preserve failure information with [`std::optional`](https://en.cppreference.com/w/cpp/utility/optional).
-- `strip_circumfix` removes exactly one matching prefix and one matching suffix in the same call; it fails if either side does not match.
 - `trim_prefix` and `trim_suffix` remove exactly one matching prefix or suffix and return the original string unchanged when no removal happens.
 - `trim_start_matches`, `trim_end_matches`, and `trim_matches` repeatedly remove matching characters or matching substrings from one or both ends.
 - The `std::span<const Char>` overloads treat the span as a character set, not as one contiguous substring.
 - Predicate overloads trim while the boundary characters satisfy the predicate.
-- `trim_start`, `trim_end`, and `trim` use Unicode whitespace semantics.
-- `trim_ascii_start`, `trim_ascii_end`, and `trim_ascii` use ASCII whitespace only.
+- `trim_whitespace_start`, `trim_whitespace_end`, and `trim_whitespace` use Unicode whitespace semantics.
+- `trim_ascii_whitespace_start`, `trim_ascii_whitespace_end`, and `trim_ascii_whitespace` use ASCII whitespace only.
 - `substr(pos, count)` interprets `pos` and `count` as code-unit offsets and requires the selected slice to be a valid UTF substring.
 - `grapheme_substr(pos, count)` interprets `pos` and `count` as grapheme-cluster indices.
 - `const&` overloads keep the source string unchanged and return a new owning result.
@@ -467,7 +450,6 @@ The examples below use `utf8_string text = u8"  cafe  "_utf8_s;` and `utf8_strin
 
 | Overload | Meaning | Example |
 | --- | --- | --- |
-| `strip_prefix(View sv)` | remove one exact prefix occurrence or return `std::nullopt` | `framed.strip_prefix(u8"<<"_utf8_sv)` |
 | `trim_prefix(View sv)` | remove one exact prefix occurrence or return the original string unchanged | `framed.trim_prefix(u8"<<"_utf8_sv)` |
 | `trim_start_matches(Char ch)` | repeatedly remove one exact character from the start | `framed.trim_start_matches(u8"<"_u8c)` |
 | `trim_start_matches(View sv)` | repeatedly remove one exact substring from the start | `framed.trim_start_matches(u8"<<"_utf8_sv)` |
@@ -475,17 +457,16 @@ The examples below use `utf8_string text = u8"  cafe  "_utf8_s;` and `utf8_strin
 | `trim_start_matches(Pred pred)` | repeatedly remove leading characters satisfying a predicate | `u8"✨✨cafe"_utf8_s.trim_start_matches([](utf8_char ch) { return !ch.is_ascii(); })` |
 | `substr(pos, count)` | copy or reuse one boundary-aligned UTF substring selected by code-unit offsets | `text.substr(2, 4)` |
 | `grapheme_substr(pos, count)` | copy or reuse one grapheme-aligned slice selected by grapheme indices | `text.grapheme_substr(2, 4)` |
-| `const&` strip/trim/substr | copy the selected owned text and keep `text` usable unchanged | `auto copy = text.trim();` |
-| `&&` strip/trim/substr | consume a disposable string and return an owning result | `auto trimmed = std::move(text).trim();` |
+| `const&` trim/substr | copy the selected owned text and keep `text` usable unchanged | `auto copy = text.trim_whitespace();` |
+| `&&` trim/substr | consume a disposable string and return an owning result | `auto trimmed = std::move(text).trim_whitespace();` |
 | deleted `&&` one-shot split/access | reject APIs whose result would be borrowed from a temporary owning string | `std::move(text).split_once(u8"="_u8c)` is ill-formed |
 
-The same distinctions apply to `strip_suffix`, `strip_circumfix`, `trim_suffix`, `trim_end_matches`, `trim_matches`, `trim_start`, `trim_end`, `trim`, `trim_ascii_start`, `trim_ascii_end`, and `trim_ascii`.
+The same distinctions apply to `trim_suffix`, `trim_end_matches`, `trim_matches`, `trim_whitespace_start`, `trim_whitespace_end`, `trim_whitespace`, `trim_ascii_whitespace_start`, `trim_ascii_whitespace_end`, and `trim_ascii_whitespace`.
 
 For the span overload, adjacency does not matter. `std::array{ u8"<"_u8c, u8">"_u8c }` means "keep trimming while the next edge character is either `<` or `>`". It does **not** mean "trim the substring `<>`".
 
 ### Return value
 
-- `strip_*` returns [`std::nullopt`](https://en.cppreference.com/w/cpp/utility/optional/nullopt) when the requested removal does not match.
 - `trim_*` returns an owning string and leaves the contents unchanged when nothing is removed.
 - `substr()` and `grapheme_substr()` return [`std::nullopt`](https://en.cppreference.com/w/cpp/utility/optional/nullopt) when `pos` or `count` would select an invalid UTF or grapheme-bounded slice.
 - Owning rvalue results do not refer to the moved-from source string.

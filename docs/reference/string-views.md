@@ -985,19 +985,12 @@ None, unless a predicate object throws when invoked.
 - One-shot split APIs are `noexcept` for valid receiver categories.
 - Deleted owning-rvalue one-shot split signatures cannot be called.
 
-## Strip And Trim Families
+## Trim Families
 
 ### Synopsis
 
 ```cpp
 // View receivers
-constexpr std::optional<View> strip_prefix(Char ch) const& noexcept;
-constexpr std::optional<View> strip_prefix(View sv) const& noexcept;
-constexpr std::optional<View> strip_suffix(Char ch) const& noexcept;
-constexpr std::optional<View> strip_suffix(View sv) const& noexcept;
-constexpr std::optional<View> strip_circumfix(Char prefix, Char suffix) const& noexcept;
-constexpr std::optional<View> strip_circumfix(View prefix, View suffix) const& noexcept;
-
 constexpr View trim_prefix(Char ch) const& noexcept;
 constexpr View trim_prefix(View sv) const& noexcept;
 constexpr View trim_suffix(Char ch) const& noexcept;
@@ -1018,21 +1011,14 @@ constexpr View trim_matches(View sv) const& noexcept;
 constexpr View trim_matches(std::span<const Char> chars) const& noexcept;
 template <Predicate Pred> constexpr View trim_matches(Pred pred) const& noexcept(/* conditional */);
 
-constexpr View trim_start() const& noexcept;
-constexpr View trim_end() const& noexcept;
-constexpr View trim() const& noexcept;
-constexpr View trim_ascii_start() const& noexcept;
-constexpr View trim_ascii_end() const& noexcept;
-constexpr View trim_ascii() const& noexcept;
+constexpr View trim_whitespace_start() const& noexcept;
+constexpr View trim_whitespace_end() const& noexcept;
+constexpr View trim_whitespace() const& noexcept;
+constexpr View trim_ascii_whitespace_start() const& noexcept;
+constexpr View trim_ascii_whitespace_end() const& noexcept;
+constexpr View trim_ascii_whitespace() const& noexcept;
 
 // Owning string receivers return the matching utf*_string instead of View.
-constexpr std::optional<String> strip_prefix(...) const&;
-constexpr std::optional<String> strip_prefix(...) && noexcept(/* conditional */);
-constexpr std::optional<String> strip_suffix(...) const&;
-constexpr std::optional<String> strip_suffix(...) && noexcept(/* conditional */);
-constexpr std::optional<String> strip_circumfix(...) const&;
-constexpr std::optional<String> strip_circumfix(...) && noexcept(/* conditional */);
-
 constexpr String trim_prefix(...) const&;
 constexpr String trim_prefix(...) && noexcept(/* conditional */);
 constexpr String trim_suffix(...) const&;
@@ -1043,26 +1029,26 @@ constexpr String trim_end_matches(...) const&;
 constexpr String trim_end_matches(...) && noexcept(/* conditional */);
 constexpr String trim_matches(...) const&;
 constexpr String trim_matches(...) && noexcept(/* conditional */);
-constexpr String trim_start() const&;
-constexpr String trim_start() && noexcept(/* conditional */);
-constexpr String trim_end() const&;
-constexpr String trim_end() && noexcept(/* conditional */);
-constexpr String trim() const&;
-constexpr String trim() && noexcept(/* conditional */);
-constexpr String trim_ascii_start() const&;
-constexpr String trim_ascii_start() && noexcept(/* conditional */);
-constexpr String trim_ascii_end() const&;
-constexpr String trim_ascii_end() && noexcept(/* conditional */);
-constexpr String trim_ascii() const&;
-constexpr String trim_ascii() && noexcept(/* conditional */);
+constexpr String trim_whitespace_start() const&;
+constexpr String trim_whitespace_start() && noexcept(/* conditional */);
+constexpr String trim_whitespace_end() const&;
+constexpr String trim_whitespace_end() && noexcept(/* conditional */);
+constexpr String trim_whitespace() const&;
+constexpr String trim_whitespace() && noexcept(/* conditional */);
+constexpr String trim_ascii_whitespace_start() const&;
+constexpr String trim_ascii_whitespace_start() && noexcept(/* conditional */);
+constexpr String trim_ascii_whitespace_end() const&;
+constexpr String trim_ascii_whitespace_end() && noexcept(/* conditional */);
+constexpr String trim_ascii_whitespace() const&;
+constexpr String trim_ascii_whitespace() && noexcept(/* conditional */);
 ```
 
 ### Behavior
 
-- `strip_*` preserves failure information with [`std::optional`](https://en.cppreference.com/w/cpp/utility/optional).
-- `trim_prefix` and `trim_suffix` keep the original view when no removal happens.
+- `trim_prefix` and `trim_suffix` remove exactly one matching prefix or suffix and keep the original view when no removal happens.
 - `trim_*_matches` remove repeated matches from one or both ends.
-- `trim_*` uses Unicode whitespace; `trim_ascii*` uses ASCII whitespace only.
+- `trim_whitespace_*` and `trim_whitespace()` use Unicode whitespace semantics.
+- `trim_ascii_whitespace_*` and `trim_ascii_whitespace()` use ASCII whitespace only.
 - View receivers return borrowed subviews and never allocate.
 - Owning lvalue receivers return owning strings and leave the receiver unchanged.
 - Owning rvalue receivers return owning strings and adjust the existing buffer where possible. This is the preferred form when the source string is disposable.
@@ -1073,7 +1059,6 @@ The examples below use `constexpr auto framed = "✨✨😄🇷🇴✨✨"_utf8_
 
 | Overload | Meaning | Example |
 | --- | --- | --- |
-| `strip_prefix(View sv)` | remove one exact prefix occurrence or return `std::nullopt` | `framed.strip_prefix("✨✨"_utf8_sv)` |
 | `trim_prefix(View sv)` | remove one exact prefix occurrence or return the original view unchanged | `framed.trim_prefix("✨✨"_utf8_sv)` |
 | `trim_start_matches(Char ch)` | repeatedly remove one exact character from the start | `framed.trim_start_matches("✨"_u8c)` |
 | `trim_start_matches(View sv)` | repeatedly remove one exact substring from the start | `framed.trim_start_matches("✨"_utf8_sv)` |
@@ -1086,13 +1071,13 @@ For the span overload, adjacency does not matter. `std::array{"✨"_u8c, "😄"_
 
 ### Inspiration
 
-This family is strongly inspired by Rust's [`str`](https://doc.rust-lang.org/stable/core/primitive.str.html) APIs such as `strip_prefix`, `strip_suffix`, `trim_matches`, `trim_start_matches`, `trim_end_matches`, `trim_prefix`, and `trim_suffix`.
+This family is strongly inspired by Rust's [`str`](https://doc.rust-lang.org/stable/core/primitive.str.html) APIs such as `trim_matches`, `trim_start_matches`, `trim_end_matches`, `trim_prefix`, and `trim_suffix`.
 
 ### Return value
 
 Returns a borrowed subview for view receivers, or an owning string for owning receivers.
 
-Owning rvalue results do not refer to the moved-from object. If a strip operation does not match, it returns [`std::nullopt`](https://en.cppreference.com/w/cpp/utility/optional/nullopt) without producing a result string.
+Owning rvalue results do not refer to the moved-from object.
 
 ### Complexity
 

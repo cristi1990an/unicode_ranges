@@ -5178,97 +5178,9 @@ public:
 	[[nodiscard]]
 	constexpr basic_utf16_string<Allocator> replace_n(size_type count, Pred pred, View to, const Allocator& alloc) const;
 
-	[[nodiscard]]
-	constexpr auto strip_prefix(utf16_char ch) const& noexcept(std::same_as<Derived, View>)
-	{
-		return strip_prefix(View::from_code_units_unchecked(details::utf16_char_view(ch)));
-	}
-
-	[[nodiscard]]
-	constexpr std::optional<Derived> strip_prefix(utf16_char ch) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
-		requires (!std::same_as<Derived, View>)
-	{
-		auto stripped = strip_prefix_view(View::from_code_units_unchecked(details::utf16_char_view(ch)));
-		return std::move(*this).move_optional_owned_view(stripped);
-	}
-
-	[[nodiscard]]
-	constexpr auto strip_prefix(View sv) const& noexcept(std::same_as<Derived, View>)
-	{
-		return optional_view_or_owned(strip_prefix_view(sv));
-	}
-
-	[[nodiscard]]
-	constexpr std::optional<Derived> strip_prefix(View sv) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
-		requires (!std::same_as<Derived, View>)
-	{
-		auto stripped = strip_prefix_view(sv);
-		return std::move(*this).move_optional_owned_view(stripped);
-	}
-
-	[[nodiscard]]
-	constexpr auto strip_suffix(utf16_char ch) const& noexcept(std::same_as<Derived, View>)
-	{
-		return strip_suffix(View::from_code_units_unchecked(details::utf16_char_view(ch)));
-	}
-
-	[[nodiscard]]
-	constexpr std::optional<Derived> strip_suffix(utf16_char ch) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
-		requires (!std::same_as<Derived, View>)
-	{
-		auto stripped = strip_suffix_view(View::from_code_units_unchecked(details::utf16_char_view(ch)));
-		return std::move(*this).move_optional_owned_view(stripped);
-	}
-
-	[[nodiscard]]
-	constexpr auto strip_suffix(View sv) const& noexcept(std::same_as<Derived, View>)
-	{
-		return optional_view_or_owned(strip_suffix_view(sv));
-	}
-
-	[[nodiscard]]
-	constexpr std::optional<Derived> strip_suffix(View sv) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
-		requires (!std::same_as<Derived, View>)
-	{
-		auto stripped = strip_suffix_view(sv);
-		return std::move(*this).move_optional_owned_view(stripped);
-	}
-
-	[[nodiscard]]
-	constexpr auto strip_circumfix(utf16_char prefix, utf16_char suffix) const& noexcept(std::same_as<Derived, View>)
-	{
-		return strip_circumfix(
-			View::from_code_units_unchecked(details::utf16_char_view(prefix)),
-			View::from_code_units_unchecked(details::utf16_char_view(suffix)));
-	}
-
-	[[nodiscard]]
-	constexpr std::optional<Derived> strip_circumfix(utf16_char prefix, utf16_char suffix) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
-		requires (!std::same_as<Derived, View>)
-	{
-		auto stripped = strip_circumfix_view(
-			View::from_code_units_unchecked(details::utf16_char_view(prefix)),
-			View::from_code_units_unchecked(details::utf16_char_view(suffix)));
-		return std::move(*this).move_optional_owned_view(stripped);
-	}
-
-	[[nodiscard]]
-	constexpr auto strip_circumfix(View prefix, View suffix) const& noexcept(std::same_as<Derived, View>)
-	{
-		return optional_view_or_owned(strip_circumfix_view(prefix, suffix));
-	}
-
-	[[nodiscard]]
-	constexpr std::optional<Derived> strip_circumfix(View prefix, View suffix) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
-		requires (!std::same_as<Derived, View>)
-	{
-		auto stripped = strip_circumfix_view(prefix, suffix);
-		return std::move(*this).move_optional_owned_view(stripped);
-	}
-
-	[[nodiscard]]
-	constexpr auto trim_prefix(utf16_char ch) const& noexcept(std::same_as<Derived, View>)
-	{
+		[[nodiscard]]
+		constexpr auto trim_prefix(utf16_char ch) const& noexcept(std::same_as<Derived, View>)
+		{
 		return trim_prefix(View::from_code_units_unchecked(details::utf16_char_view(ch)));
 	}
 
@@ -5497,88 +5409,88 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr auto trim_start() const& noexcept(std::same_as<Derived, View>)
-	{
-		return view_or_owned(trim_start_view());
-	}
+		constexpr auto trim_whitespace_start() const& noexcept(std::same_as<Derived, View>)
+		{
+			return view_or_owned(trim_whitespace_start_view());
+		}
 
-	[[nodiscard]]
-	constexpr Derived trim_start() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
-		requires (!std::same_as<Derived, View>)
-	{
-		auto trimmed = trim_start_view();
-		return std::move(*this).move_owned_view(trimmed);
-	}
+		[[nodiscard]]
+		constexpr Derived trim_whitespace_start() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+			requires (!std::same_as<Derived, View>)
+		{
+			auto trimmed = trim_whitespace_start_view();
+			return std::move(*this).move_owned_view(trimmed);
+		}
 
-	[[nodiscard]]
-	constexpr auto trim_end() const& noexcept(std::same_as<Derived, View>)
-	{
-		return view_or_owned(trim_end_view());
-	}
+		[[nodiscard]]
+		constexpr auto trim_whitespace_end() const& noexcept(std::same_as<Derived, View>)
+		{
+			return view_or_owned(trim_whitespace_end_view());
+		}
 
-	[[nodiscard]]
-	constexpr Derived trim_end() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
-		requires (!std::same_as<Derived, View>)
-	{
-		auto trimmed = trim_end_view();
-		return std::move(*this).move_owned_view(trimmed);
-	}
+		[[nodiscard]]
+		constexpr Derived trim_whitespace_end() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+			requires (!std::same_as<Derived, View>)
+		{
+			auto trimmed = trim_whitespace_end_view();
+			return std::move(*this).move_owned_view(trimmed);
+		}
 
-	[[nodiscard]]
-	constexpr auto trim() const& noexcept(std::same_as<Derived, View>)
-	{
-		return view_or_owned(trim_view());
-	}
+		[[nodiscard]]
+		constexpr auto trim_whitespace() const& noexcept(std::same_as<Derived, View>)
+		{
+			return view_or_owned(trim_whitespace_view());
+		}
 
-	[[nodiscard]]
-	constexpr Derived trim() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
-		requires (!std::same_as<Derived, View>)
-	{
-		auto trimmed = trim_view();
-		return std::move(*this).move_owned_view(trimmed);
-	}
+		[[nodiscard]]
+		constexpr Derived trim_whitespace() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+			requires (!std::same_as<Derived, View>)
+		{
+			auto trimmed = trim_whitespace_view();
+			return std::move(*this).move_owned_view(trimmed);
+		}
 
-	[[nodiscard]]
-	constexpr auto trim_ascii_start() const& noexcept(std::same_as<Derived, View>)
-	{
-		return view_or_owned(trim_ascii_start_view());
-	}
+		[[nodiscard]]
+		constexpr auto trim_ascii_whitespace_start() const& noexcept(std::same_as<Derived, View>)
+		{
+			return view_or_owned(trim_ascii_whitespace_start_view());
+		}
 
-	[[nodiscard]]
-	constexpr Derived trim_ascii_start() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
-		requires (!std::same_as<Derived, View>)
-	{
-		auto trimmed = trim_ascii_start_view();
-		return std::move(*this).move_owned_view(trimmed);
-	}
+		[[nodiscard]]
+		constexpr Derived trim_ascii_whitespace_start() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+			requires (!std::same_as<Derived, View>)
+		{
+			auto trimmed = trim_ascii_whitespace_start_view();
+			return std::move(*this).move_owned_view(trimmed);
+		}
 
-	[[nodiscard]]
-	constexpr auto trim_ascii_end() const& noexcept(std::same_as<Derived, View>)
-	{
-		return view_or_owned(trim_ascii_end_view());
-	}
+		[[nodiscard]]
+		constexpr auto trim_ascii_whitespace_end() const& noexcept(std::same_as<Derived, View>)
+		{
+			return view_or_owned(trim_ascii_whitespace_end_view());
+		}
 
-	[[nodiscard]]
-	constexpr Derived trim_ascii_end() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
-		requires (!std::same_as<Derived, View>)
-	{
-		auto trimmed = trim_ascii_end_view();
-		return std::move(*this).move_owned_view(trimmed);
-	}
+		[[nodiscard]]
+		constexpr Derived trim_ascii_whitespace_end() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+			requires (!std::same_as<Derived, View>)
+		{
+			auto trimmed = trim_ascii_whitespace_end_view();
+			return std::move(*this).move_owned_view(trimmed);
+		}
 
-	[[nodiscard]]
-	constexpr auto trim_ascii() const& noexcept(std::same_as<Derived, View>)
-	{
-		return view_or_owned(trim_ascii_view());
-	}
+		[[nodiscard]]
+		constexpr auto trim_ascii_whitespace() const& noexcept(std::same_as<Derived, View>)
+		{
+			return view_or_owned(trim_ascii_whitespace_view());
+		}
 
-	[[nodiscard]]
-	constexpr Derived trim_ascii() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
-		requires (!std::same_as<Derived, View>)
-	{
-		auto trimmed = trim_ascii_view();
-		return std::move(*this).move_owned_view(trimmed);
-	}
+		[[nodiscard]]
+		constexpr Derived trim_ascii_whitespace() && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+			requires (!std::same_as<Derived, View>)
+		{
+			auto trimmed = trim_ascii_whitespace_view();
+			return std::move(*this).move_owned_view(trimmed);
+		}
 
 	[[nodiscard]]
 	constexpr std::optional<utf16_char> char_at(size_type index) const noexcept
@@ -5891,57 +5803,27 @@ protected:
 		return std::move(text);
 	}
 
-	[[nodiscard]]
-	constexpr std::optional<View> strip_prefix_view(View sv) const noexcept
-	{
-		if (!starts_with(sv))
+		[[nodiscard]]
+		constexpr View trim_prefix_view(View sv) const noexcept
 		{
-			return std::nullopt;
+			if (!starts_with(sv))
+			{
+				return view_from_whole_string();
+			}
+
+			return View::from_code_units_unchecked(code_unit_view().substr(sv.base().size()));
 		}
 
-		return View::from_code_units_unchecked(code_unit_view().substr(sv.base().size()));
-	}
-
-	[[nodiscard]]
-	constexpr std::optional<View> strip_suffix_view(View sv) const noexcept
-	{
-		if (!ends_with(sv))
+		[[nodiscard]]
+		constexpr View trim_suffix_view(View sv) const noexcept
 		{
-			return std::nullopt;
+			if (!ends_with(sv))
+			{
+				return view_from_whole_string();
+			}
+
+			return View::from_code_units_unchecked(code_unit_view().substr(0, size() - sv.base().size()));
 		}
-
-		return View::from_code_units_unchecked(code_unit_view().substr(0, size() - sv.base().size()));
-	}
-
-	[[nodiscard]]
-	constexpr std::optional<View> strip_circumfix_view(View prefix, View suffix) const noexcept
-	{
-		const auto stripped = strip_prefix_view(prefix);
-		if (!stripped.has_value())
-		{
-			return std::nullopt;
-		}
-
-		if (!stripped->ends_with(suffix))
-		{
-			return std::nullopt;
-		}
-
-		return View::from_code_units_unchecked(
-			stripped->base().substr(0, stripped->base().size() - suffix.base().size()));
-	}
-
-	[[nodiscard]]
-	constexpr View trim_prefix_view(View sv) const noexcept
-	{
-		return strip_prefix_view(sv).value_or(view_from_whole_string());
-	}
-
-	[[nodiscard]]
-	constexpr View trim_suffix_view(View sv) const noexcept
-	{
-		return strip_suffix_view(sv).value_or(view_from_whole_string());
-	}
 
 	[[nodiscard]]
 	constexpr View trim_start_matches_view(utf16_char ch) const noexcept
@@ -6098,46 +5980,46 @@ protected:
 	}
 
 	[[nodiscard]]
-	constexpr View trim_start_view() const noexcept
-	{
-		const auto pos = details::find_utf16_non_whitespace_boundary(code_unit_view(), 0, false);
-		return pos == npos
+		constexpr View trim_whitespace_start_view() const noexcept
+		{
+			const auto pos = details::find_utf16_non_whitespace_boundary(code_unit_view(), 0, false);
+			return pos == npos
 			? empty_view()
 			: View::from_code_units_unchecked(code_unit_view().substr(pos));
 	}
 
 	[[nodiscard]]
-	constexpr View trim_end_view() const noexcept
-	{
-		return View::from_code_units_unchecked(code_unit_view().substr(0, details::utf16_trim_end_boundary(code_unit_view(), false)));
-	}
+		constexpr View trim_whitespace_end_view() const noexcept
+		{
+			return View::from_code_units_unchecked(code_unit_view().substr(0, details::utf16_trim_end_boundary(code_unit_view(), false)));
+		}
 
-	[[nodiscard]]
-	constexpr View trim_view() const noexcept
-	{
-		return trim_start_view().trim_end();
-	}
+		[[nodiscard]]
+		constexpr View trim_whitespace_view() const noexcept
+		{
+			return trim_whitespace_start_view().trim_whitespace_end();
+		}
 
-	[[nodiscard]]
-	constexpr View trim_ascii_start_view() const noexcept
-	{
-		const auto pos = details::find_utf16_non_whitespace_boundary(code_unit_view(), 0, true);
-		return pos == npos
+		[[nodiscard]]
+		constexpr View trim_ascii_whitespace_start_view() const noexcept
+		{
+			const auto pos = details::find_utf16_non_whitespace_boundary(code_unit_view(), 0, true);
+			return pos == npos
 			? empty_view()
 			: View::from_code_units_unchecked(code_unit_view().substr(pos));
 	}
 
 	[[nodiscard]]
-	constexpr View trim_ascii_end_view() const noexcept
-	{
-		return View::from_code_units_unchecked(code_unit_view().substr(0, details::utf16_trim_end_boundary(code_unit_view(), true)));
-	}
+		constexpr View trim_ascii_whitespace_end_view() const noexcept
+		{
+			return View::from_code_units_unchecked(code_unit_view().substr(0, details::utf16_trim_end_boundary(code_unit_view(), true)));
+		}
 
-	[[nodiscard]]
-	constexpr View trim_ascii_view() const noexcept
-	{
-		return trim_ascii_start_view().trim_ascii_end();
-	}
+		[[nodiscard]]
+		constexpr View trim_ascii_whitespace_view() const noexcept
+		{
+			return trim_ascii_whitespace_start_view().trim_ascii_whitespace_end();
+		}
 
 	[[nodiscard]]
 	constexpr std::optional<View> substr_view(size_type pos, size_type count = npos) const noexcept
