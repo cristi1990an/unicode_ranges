@@ -5445,11 +5445,25 @@ public:
 	}
 
 	[[nodiscard]]
+	constexpr auto substr_unchecked(size_type pos, size_type count = npos) const& noexcept(std::same_as<Derived, View>)
+	{
+		return view_or_owned(substr_view_unchecked(pos, count));
+	}
+
+	[[nodiscard]]
 	constexpr std::optional<Derived> substr(size_type pos, size_type count = npos) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto result = substr_view(pos, count);
 		return std::move(*this).move_optional_owned_view(result);
+	}
+
+	[[nodiscard]]
+	constexpr Derived substr_unchecked(size_type pos, size_type count = npos) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		auto result = substr_view_unchecked(pos, count);
+		return std::move(*this).move_owned_view(result);
 	}
 
 	[[nodiscard]]
@@ -5931,9 +5945,49 @@ protected:
 		}
 
 		const auto remaining = code_points.size() - pos;
-		const auto length = (count == npos || count > remaining) ? remaining : count;
+		if (count != npos && count > remaining) [[unlikely]]
+		{
+			return std::nullopt;
+		}
+
+		const auto length = count == npos ? remaining : count;
 		const auto end = pos + length;
 
+		return View::from_code_points_unchecked(std::u32string_view{ code_points.data() + pos, end - pos });
+	}
+
+	[[nodiscard]]
+	constexpr View substr_view_unchecked(size_type pos, size_type count = npos) const noexcept
+	{
+		const auto code_points = code_unit_view();
+		if consteval
+		{
+			if (pos > code_points.size()) [[unlikely]]
+			{
+				std::abort();
+			}
+
+			if (count != npos)
+			{
+				const auto remaining = code_points.size() - pos;
+				if (count > remaining) [[unlikely]]
+				{
+					std::abort();
+				}
+			}
+		}
+		else
+		{
+			UTF8_RANGES_DEBUG_ASSERT(pos <= code_points.size());
+			if (count != npos)
+			{
+				const auto remaining = code_points.size() - pos;
+				UTF8_RANGES_DEBUG_ASSERT(count <= remaining);
+			}
+		}
+
+		const auto length = count == npos ? code_points.size() - pos : count;
+		const auto end = pos + length;
 		return View::from_code_points_unchecked(std::u32string_view{ code_points.data() + pos, end - pos });
 	}
 
@@ -5947,7 +6001,12 @@ protected:
 		}
 
 		const auto remaining = code_points.size() - pos;
-		const auto length = (count == npos || count > remaining) ? remaining : count;
+		if (count != npos && count > remaining) [[unlikely]]
+		{
+			return std::nullopt;
+		}
+
+		const auto length = count == npos ? remaining : count;
 		const auto end = pos + length;
 
 		if (!details::is_grapheme_boundary(code_points, end)) [[unlikely]]

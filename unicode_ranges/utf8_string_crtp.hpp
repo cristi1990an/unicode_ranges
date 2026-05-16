@@ -5393,11 +5393,25 @@ public:
 	}
 
 	[[nodiscard]]
+	constexpr auto substr_unchecked(size_type pos, size_type count = npos) const& noexcept(std::same_as<Derived, View>)
+	{
+		return view_or_owned(substr_view_unchecked(pos, count));
+	}
+
+	[[nodiscard]]
 	constexpr std::optional<Derived> substr(size_type pos, size_type count = npos) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
 		requires (!std::same_as<Derived, View>)
 	{
 		auto result = substr_view(pos, count);
 		return std::move(*this).move_optional_owned_view(result);
+	}
+
+	[[nodiscard]]
+	constexpr Derived substr_unchecked(size_type pos, size_type count = npos) && noexcept(std::is_nothrow_move_constructible_v<Derived>)
+		requires (!std::same_as<Derived, View>)
+	{
+		auto result = substr_view_unchecked(pos, count);
+		return std::move(*this).move_owned_view(result);
 	}
 
 	[[nodiscard]]
@@ -5897,7 +5911,12 @@ protected:
 		}
 
 		const auto remaining = bytes.size() - pos;
-		const auto length = (count == npos || count > remaining) ? remaining : count;
+		if (count != npos && count > remaining) [[unlikely]]
+		{
+			return std::nullopt;
+		}
+
+		const auto length = count == npos ? remaining : count;
 		const auto end = pos + length;
 
 		if (end != 0 && end != bytes.size()
@@ -5906,6 +5925,65 @@ protected:
 			return std::nullopt;
 		}
 
+		return View::from_bytes_unchecked(std::u8string_view{ bytes.data() + pos, end - pos });
+	}
+
+	[[nodiscard]]
+	constexpr View substr_view_unchecked(size_type pos, size_type count = npos) const noexcept
+	{
+		const auto bytes = byte_view();
+		if consteval
+		{
+			if (pos > bytes.size()) [[unlikely]]
+			{
+				std::abort();
+			}
+
+			if (pos != 0 && pos != bytes.size()
+				&& !details::is_utf8_lead_byte(static_cast<std::uint8_t>(bytes[pos]))) [[unlikely]]
+			{
+				std::abort();
+			}
+
+			if (count != npos)
+			{
+				const auto remaining = bytes.size() - pos;
+				if (count > remaining) [[unlikely]]
+				{
+					std::abort();
+				}
+
+				const auto end = pos + count;
+				if (end != 0 && end != bytes.size()
+					&& !details::is_utf8_lead_byte(static_cast<std::uint8_t>(bytes[end]))) [[unlikely]]
+				{
+					std::abort();
+				}
+			}
+		}
+		else
+		{
+			UTF8_RANGES_DEBUG_ASSERT(pos <= bytes.size());
+			UTF8_RANGES_DEBUG_ASSERT(
+				pos == 0
+				|| pos == bytes.size()
+				|| details::is_utf8_lead_byte(static_cast<std::uint8_t>(bytes[pos])));
+
+			if (count != npos)
+			{
+				const auto remaining = bytes.size() - pos;
+				UTF8_RANGES_DEBUG_ASSERT(count <= remaining);
+
+				const auto end = pos + count;
+				UTF8_RANGES_DEBUG_ASSERT(
+					end == 0
+					|| end == bytes.size()
+					|| details::is_utf8_lead_byte(static_cast<std::uint8_t>(bytes[end])));
+			}
+		}
+
+		const auto length = count == npos ? bytes.size() - pos : count;
+		const auto end = pos + length;
 		return View::from_bytes_unchecked(std::u8string_view{ bytes.data() + pos, end - pos });
 	}
 
@@ -5919,7 +5997,12 @@ protected:
 		}
 
 		const auto remaining = bytes.size() - pos;
-		const auto length = (count == npos || count > remaining) ? remaining : count;
+		if (count != npos && count > remaining) [[unlikely]]
+		{
+			return std::nullopt;
+		}
+
+		const auto length = count == npos ? remaining : count;
 		const auto end = pos + length;
 
 		if (!details::is_grapheme_boundary(bytes, end)) [[unlikely]]

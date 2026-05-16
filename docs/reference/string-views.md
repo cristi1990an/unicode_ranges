@@ -600,11 +600,14 @@ constexpr utf8_char back_unchecked() const noexcept;
 
 // View receivers
 constexpr std::optional<utf8_string_view> substr(size_type pos, size_type count = npos) const& noexcept;
+constexpr utf8_string_view substr_unchecked(size_type pos, size_type count = npos) const& noexcept;
 constexpr std::optional<utf8_string_view> grapheme_substr(size_type pos, size_type count = npos) const& noexcept;
 
 // Owning string receivers
 constexpr std::optional<utf8_string> substr(size_type pos, size_type count = npos) const&;
 constexpr std::optional<utf8_string> substr(size_type pos, size_type count = npos) && noexcept(/* conditional */);
+constexpr utf8_string substr_unchecked(size_type pos, size_type count = npos) const&;
+constexpr utf8_string substr_unchecked(size_type pos, size_type count = npos) && noexcept(/* conditional */);
 constexpr std::optional<utf8_string> grapheme_substr(size_type pos, size_type count = npos) const&;
 constexpr std::optional<utf8_string> grapheme_substr(size_type pos, size_type count = npos) && noexcept(/* conditional */);
 
@@ -622,34 +625,37 @@ constexpr utf16_char back_unchecked() const noexcept;
 
 - Checked accessors return `std::nullopt` for empty views, invalid indices, or invalid boundaries.
 - `char_at_unchecked()`, `front_unchecked()`, and `back_unchecked()` assume their preconditions hold.
-- `substr()` requires both ends of the slice to be character boundaries.
-- `grapheme_at()` and `grapheme_substr()` require grapheme boundaries.
+- `substr()` requires both ends of the slice to be character boundaries. If `count != npos`, it must fit within the remaining extent or the call returns `std::nullopt`.
+- `substr_unchecked()` interprets `pos` and `count` like `substr()`. If `count == npos`, it selects the remaining tail; otherwise it assumes the requested bounds already form a valid UTF substring.
+- `grapheme_at()` and `grapheme_substr()` require grapheme boundaries. If `count != npos`, `grapheme_substr()` also requires the requested extent to stay within the remaining text.
 - `grapheme_at()` returns a borrowed view into the receiver. On owning strings, the `&&` and `const&&` overloads are deleted so a temporary owning string cannot produce a dangling subview.
-- `substr()` and `grapheme_substr()` are ownership-preserving: view receivers return views, owning receivers return owning strings.
-- Owning rvalue `substr()` and `grapheme_substr()` are for disposable strings. They adjust the existing owned buffer where possible and do not create an additional owning copy.
+- `substr()`, `substr_unchecked()`, and `grapheme_substr()` are ownership-preserving: view receivers return views, owning receivers return owning strings.
+- Owning rvalue `substr()`, `substr_unchecked()`, and `grapheme_substr()` are for disposable strings. They adjust the existing owned buffer where possible and do not create an additional owning copy.
 
 ### Return value
 
-Returns the requested character, borrowed subview, or owning slice when the request is valid, otherwise [`std::nullopt`](https://en.cppreference.com/w/cpp/utility/optional/nullopt).
+- Checked accessors return the requested character or slice when the request is valid, otherwise [`std::nullopt`](https://en.cppreference.com/w/cpp/utility/optional/nullopt).
+- `substr_unchecked()` returns the requested borrowed or owning slice directly.
 
 ### Complexity
 
 - Checked element access is constant to linear in the size of the selected character.
 - Grapheme checks are linear in nearby segmentation work.
-- Owning lvalue `substr()` and `grapheme_substr()` copy the selected slice.
+- Owning lvalue `substr()`, `substr_unchecked()`, and `grapheme_substr()` copy the selected slice.
 - Owning rvalue `substr()` and `grapheme_substr()` are linear in the amount of boundary work plus the cost of adjusting the existing storage.
+- `substr_unchecked()` skips the checked boundary-validation work.
 
 ### Exceptions And `noexcept`
 
 - View accessors do not throw.
-- Owning lvalue `substr()` and `grapheme_substr()` may throw allocator or container exceptions.
-- Owning rvalue `substr()` and `grapheme_substr()` do not allocate in the bound-adjustment path; their `noexcept` status follows the owning string move constructor.
+- Owning lvalue `substr()`, `substr_unchecked()`, and `grapheme_substr()` may throw allocator or container exceptions.
+- Owning rvalue `substr()`, `substr_unchecked()`, and `grapheme_substr()` do not allocate in the bound-adjustment path; their `noexcept` status follows the owning string move constructor.
 
 
 - View accessors are `noexcept`.
 - Deleted owning-rvalue `grapheme_at()` signatures cannot be called.
-- Owning lvalue `substr()` and `grapheme_substr()` are not `noexcept`.
-- Owning rvalue `substr()` and `grapheme_substr()` are conditionally `noexcept`; with the default owning string types, they are `noexcept`.
+- Owning lvalue `substr()`, `substr_unchecked()`, and `grapheme_substr()` are not `noexcept`.
+- Owning rvalue `substr()`, `substr_unchecked()`, and `grapheme_substr()` are conditionally `noexcept`; with the default owning string types, they are `noexcept`.
 
 ## Prefix And Suffix Tests
 

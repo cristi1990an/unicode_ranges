@@ -411,6 +411,8 @@ constexpr basic_utf8_string trim_ascii_whitespace() && noexcept(/* conditional *
 
 constexpr std::optional<basic_utf8_string> substr(size_type pos, size_type count = npos) const&;
 constexpr std::optional<basic_utf8_string> substr(size_type pos, size_type count = npos) && noexcept(/* conditional */);
+constexpr basic_utf8_string substr_unchecked(size_type pos, size_type count = npos) const&;
+constexpr basic_utf8_string substr_unchecked(size_type pos, size_type count = npos) && noexcept(/* conditional */);
 constexpr std::optional<basic_utf8_string> grapheme_substr(size_type pos, size_type count = npos) const&;
 constexpr std::optional<basic_utf8_string> grapheme_substr(size_type pos, size_type count = npos) && noexcept(/* conditional */);
 
@@ -436,8 +438,9 @@ split_once_at_unchecked_result<utf8_string_view> split_once_at_unchecked(size_ty
 - Predicate overloads trim while the boundary characters satisfy the predicate.
 - `trim_whitespace_start`, `trim_whitespace_end`, and `trim_whitespace` use Unicode whitespace semantics.
 - `trim_ascii_whitespace_start`, `trim_ascii_whitespace_end`, and `trim_ascii_whitespace` use ASCII whitespace only.
-- `substr(pos, count)` interprets `pos` and `count` as code-unit offsets and requires the selected slice to be a valid UTF substring.
-- `grapheme_substr(pos, count)` interprets `pos` and `count` as grapheme-cluster indices.
+- `substr(pos, count)` interprets `pos` and `count` as code-unit offsets, requires the selected slice to be a valid UTF substring, and returns `std::nullopt` if `count != npos` extends past the remaining text.
+- `substr_unchecked(pos, count)` interprets `pos` and `count` as code-unit offsets like `substr()`. If `count == npos`, it takes the remaining tail; otherwise it assumes the requested bounds already form a valid UTF substring.
+- `grapheme_substr(pos, count)` requires grapheme-aligned boundaries and returns `std::nullopt` if `count != npos` extends past the remaining text.
 - `const&` overloads keep the source string unchanged and return a new owning result.
 - `const&&` bound-adjusting calls use the `const&` copy-producing overloads because a const object cannot be reused in place.
 - Bound-adjusting `&&` overloads do not return views into the moved-from source; the result owns its storage.
@@ -456,6 +459,7 @@ The examples below use `utf8_string text = u8"  cafe  "_utf8_s;` and `utf8_strin
 | `trim_start_matches(std::span<const Char> chars)` | repeatedly remove any leading character that belongs to a set | `framed.trim_start_matches(std::array{ u8"<"_u8c, u8">"_u8c })` |
 | `trim_start_matches(Pred pred)` | repeatedly remove leading characters satisfying a predicate | `u8"✨✨cafe"_utf8_s.trim_start_matches([](utf8_char ch) { return !ch.is_ascii(); })` |
 | `substr(pos, count)` | copy or reuse one boundary-aligned UTF substring selected by code-unit offsets | `text.substr(2, 4)` |
+| `substr_unchecked(pos, count)` | copy or reuse one UTF substring selected by code-unit offsets without checked boundary validation | `text.substr_unchecked(2, 4)` |
 | `grapheme_substr(pos, count)` | copy or reuse one grapheme-aligned slice selected by grapheme indices | `text.grapheme_substr(2, 4)` |
 | `const&` trim/substr | copy the selected owned text and keep `text` usable unchanged | `auto copy = text.trim_whitespace();` |
 | `&&` trim/substr | consume a disposable string and return an owning result | `auto trimmed = std::move(text).trim_whitespace();` |
@@ -469,12 +473,14 @@ For the span overload, adjacency does not matter. `std::array{ u8"<"_u8c, u8">"_
 
 - `trim_*` returns an owning string and leaves the contents unchanged when nothing is removed.
 - `substr()` and `grapheme_substr()` return [`std::nullopt`](https://en.cppreference.com/w/cpp/utility/optional/nullopt) when `pos` or `count` would select an invalid UTF or grapheme-bounded slice.
+- `substr_unchecked()` returns an owning slice directly and assumes valid UTF boundaries.
 - Owning rvalue results do not refer to the moved-from source string.
 
 ### Complexity
 
-- `strip_*` and `trim_*` are linear in the number of leading or trailing characters examined.
+- `trim_*` are linear in the number of leading or trailing characters examined.
 - `substr()` is linear in the amount of boundary validation and the size of the selected slice.
+- `substr_unchecked()` skips the checked boundary-validation work.
 - `grapheme_substr()` is linear in the grapheme-boundary work needed to reach the requested slice.
 - `const&` overloads may also allocate.
 
@@ -490,7 +496,7 @@ For the span overload, adjacency does not matter. `std::array{ u8"<"_u8c, u8">"_
 - Predicate overloads may throw if the predicate throws.
 
 - `const&` overloads are not `noexcept`.
-- `&&` overloads are conditionally `noexcept`; with the default owning string types, non-predicate bound-adjusting overloads are `noexcept`.
+- `&&` overloads are conditionally `noexcept`; with the default owning string types, non-predicate bound-adjusting overloads such as `substr_unchecked()` are `noexcept`.
 - Predicate `&&` overloads are `noexcept` only when both moving the owning string and invoking the predicate are `noexcept`.
 
 ### Example
