@@ -900,6 +900,22 @@ The examples below use `const auto text = "😄🇷🇴✨"_utf8_s;`.
 | `&&` overloads | consume a disposable source object | `auto a = utf8_string{"😄🇷🇴✨"_utf8_sv}.replace_all("✨"_u8c, "🔥"_u8c);` |
 | allocator-taking overloads | return the same logical result with a caller-supplied allocator type | `const auto a = text.replace_all("✨"_u8c, "🔥"_u8c, std::allocator<char8_t>{});` |
 
+### Example
+
+```cpp
+auto s = u8"foo foo 123 foo"_utf8_s;
+
+assert(u8"new new 123 foo"_utf8_sv == s.replace_n(2, u8"foo"_utf8_sv, u8"new"_utf8_sv));
+assert(u8"faa fao 123 foo"_utf8_sv == s.replace_n(3, u8"o"_u8c, u8"a"_u8c));
+assert(u8"foo foo new23 foo"_utf8_sv == s.replace_n(1, &utf8_char::is_numeric, u8"new"_utf8_sv));
+
+assert(u8"foo foo 123 foo"_utf8_s == s);
+
+s = std::move(s).replace_n(2, std::array{ u8"1"_u8c, u8"2"_u8c, u8"3"_u8c }, u8"x"_u8c);
+
+assert(u8"foo foo xx3 foo"_utf8_s == s);
+```
+
 The span overload is special because it is character-set based rather than substring-based. `std::array{"🇷"_u8c, "🇴"_u8c}` matches either regional-indicator character independently; it does not wait for the adjacent grapheme `🇷🇴`.
 
 ### Inspiration
