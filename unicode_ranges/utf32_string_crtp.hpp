@@ -5969,8 +5969,7 @@ protected:
 
 			if (count != npos)
 			{
-				const auto remaining = code_points.size() - pos;
-				if (count > remaining) [[unlikely]]
+				if (count > code_points.size() - pos) [[unlikely]]
 				{
 					std::abort();
 				}
@@ -5981,8 +5980,7 @@ protected:
 			UTF8_RANGES_DEBUG_ASSERT(pos <= code_points.size());
 			if (count != npos)
 			{
-				const auto remaining = code_points.size() - pos;
-				UTF8_RANGES_DEBUG_ASSERT(count <= remaining);
+				UTF8_RANGES_DEBUG_ASSERT(count <= code_points.size() - pos);
 			}
 		}
 

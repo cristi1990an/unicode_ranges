@@ -5947,15 +5947,13 @@ protected:
 
 			if (count != npos)
 			{
-				const auto remaining = bytes.size() - pos;
-				if (count > remaining) [[unlikely]]
+				if (count > bytes.size() - pos) [[unlikely]]
 				{
 					std::abort();
 				}
 
-				const auto end = pos + count;
-				if (end != 0 && end != bytes.size()
-					&& !details::is_utf8_lead_byte(static_cast<std::uint8_t>(bytes[end]))) [[unlikely]]
+				if (pos + count != 0 && pos + count != bytes.size()
+					&& !details::is_utf8_lead_byte(static_cast<std::uint8_t>(bytes[pos + count]))) [[unlikely]]
 				{
 					std::abort();
 				}
@@ -5971,14 +5969,11 @@ protected:
 
 			if (count != npos)
 			{
-				const auto remaining = bytes.size() - pos;
-				UTF8_RANGES_DEBUG_ASSERT(count <= remaining);
-
-				const auto end = pos + count;
+				UTF8_RANGES_DEBUG_ASSERT(count <= bytes.size() - pos);
 				UTF8_RANGES_DEBUG_ASSERT(
-					end == 0
-					|| end == bytes.size()
-					|| details::is_utf8_lead_byte(static_cast<std::uint8_t>(bytes[end])));
+					pos + count == 0
+					|| pos + count == bytes.size()
+					|| details::is_utf8_lead_byte(static_cast<std::uint8_t>(bytes[pos + count])));
 			}
 		}
 

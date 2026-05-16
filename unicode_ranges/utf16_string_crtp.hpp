@@ -6097,15 +6097,13 @@ protected:
 
 			if (count != npos)
 			{
-				const auto remaining = code_units.size() - pos;
-				if (count > remaining) [[unlikely]]
+				if (count > code_units.size() - pos) [[unlikely]]
 				{
 					std::abort();
 				}
 
-				const auto end = pos + count;
-				if (end != 0 && end != code_units.size()
-					&& details::is_utf16_low_surrogate(static_cast<std::uint16_t>(code_units[end]))) [[unlikely]]
+				if (pos + count != 0 && pos + count != code_units.size()
+					&& details::is_utf16_low_surrogate(static_cast<std::uint16_t>(code_units[pos + count]))) [[unlikely]]
 				{
 					std::abort();
 				}
@@ -6121,14 +6119,11 @@ protected:
 
 			if (count != npos)
 			{
-				const auto remaining = code_units.size() - pos;
-				UTF8_RANGES_DEBUG_ASSERT(count <= remaining);
-
-				const auto end = pos + count;
+				UTF8_RANGES_DEBUG_ASSERT(count <= code_units.size() - pos);
 				UTF8_RANGES_DEBUG_ASSERT(
-					end == 0
-					|| end == code_units.size()
-					|| !details::is_utf16_low_surrogate(static_cast<std::uint16_t>(code_units[end])));
+					pos + count == 0
+					|| pos + count == code_units.size()
+					|| !details::is_utf16_low_surrogate(static_cast<std::uint16_t>(code_units[pos + count])));
 			}
 		}
 
