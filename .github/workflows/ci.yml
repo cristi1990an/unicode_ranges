@@ -55,7 +55,7 @@ jobs:
             ./tools/update_unicode_data.ps1 -Version $version
             ./tools/regenerate_unicode_tables.ps1 -DataRoot (Join-Path $PWD "tools/unicode_data/$version") -UnicodeVersion $version
             $buildDir = Join-Path $PWD ("build/cmake-msvc-${{ matrix.configuration }}-" + ($version -replace '\.', '_'))
-            cmake -S . -B $buildDir -G "Visual Studio 17 2022" -A x64 -DUTF8_RANGES_BUILD_TESTS=ON -DUTF8_RANGES_BUILD_BENCHMARKS=OFF -DUTF8_RANGES_ENABLE_ICU=OFF
+            cmake -S . -B $buildDir -G "Visual Studio 18 2026" -A x64 -DUTF8_RANGES_BUILD_TESTS=ON -DUTF8_RANGES_BUILD_BENCHMARKS=OFF -DUTF8_RANGES_ENABLE_ICU=OFF
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             cmake --build $buildDir --config ${{ matrix.configuration }}
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -98,7 +98,7 @@ jobs:
             ./tools/update_unicode_data.ps1 -Version $version
             ./tools/regenerate_unicode_tables.ps1 -DataRoot (Join-Path $PWD "tools/unicode_data/$version") -UnicodeVersion $version
             $buildDir = Join-Path $PWD ("build/cmake-clangcl-${{ matrix.configuration }}-" + ($version -replace '\.', '_'))
-            cmake -S . -B $buildDir -G "Visual Studio 17 2022" -T ClangCL -A x64 -DUTF8_RANGES_BUILD_TESTS=ON -DUTF8_RANGES_BUILD_BENCHMARKS=OFF -DUTF8_RANGES_ENABLE_ICU=OFF
+            cmake -S . -B $buildDir -G "Visual Studio 18 2026" -T ClangCL -A x64 -DUTF8_RANGES_BUILD_TESTS=ON -DUTF8_RANGES_BUILD_BENCHMARKS=OFF -DUTF8_RANGES_ENABLE_ICU=OFF
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             cmake --build $buildDir --config ${{ matrix.configuration }}
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -154,7 +154,7 @@ jobs:
 
       - name: Run static analysis
         shell: powershell
-        run: powershell -ExecutionPolicy Bypass -File .\tools\run_static_analysis.ps1 -Project unicode_ranges.vcxproj -PlatformToolset v143
+        run: powershell -ExecutionPolicy Bypass -File .\tools\run_static_analysis.ps1 -Project unicode_ranges.vcxproj
 
   linux:
     name: ${{ matrix.name }} (${{ matrix.opt_name }}${{ matrix.sanitizer_name }}, C++23)
@@ -708,7 +708,7 @@ jobs:
         shell: powershell
         run: |
           $installPrefix = Join-Path $PWD "${{ matrix.install_dir }}"
-          cmake -S . -B ${{ matrix.build_dir }} -G "Visual Studio 17 2022" -A x64 -DUTF8_RANGES_BUILD_TESTS=ON -DUTF8_RANGES_BUILD_BENCHMARKS=OFF -DUTF8_RANGES_ENABLE_ICU=OFF
+          cmake -S . -B ${{ matrix.build_dir }} -G "Visual Studio 18 2026" -A x64 -DUTF8_RANGES_BUILD_TESTS=ON -DUTF8_RANGES_BUILD_BENCHMARKS=OFF -DUTF8_RANGES_ENABLE_ICU=OFF
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --build ${{ matrix.build_dir }} --config Release
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -717,7 +717,7 @@ jobs:
           cmake --install ${{ matrix.build_dir }} --config Release --prefix $installPrefix
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-          cmake -S tools/package_smoke_consumer -B ${{ matrix.consumer_dir }} -G "Visual Studio 17 2022" -A x64 "-DCMAKE_PREFIX_PATH=$installPrefix"
+          cmake -S tools/package_smoke_consumer -B ${{ matrix.consumer_dir }} -G "Visual Studio 18 2026" -A x64 "-DCMAKE_PREFIX_PATH=$installPrefix"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --build ${{ matrix.consumer_dir }} --config Release
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -1168,7 +1168,7 @@ jobs:
         if: matrix.install_kind == 'msvc'
         shell: powershell
         run: |
-          msbuild tools\comparative_benchmarks\comparative_benchmarks.vcxproj "/t:Clean;Build" /p:Configuration=${{ matrix.configuration }} /p:Platform=x64 /p:PlatformToolset=v143 /p:TreatWarningAsError=true
+          msbuild tools\comparative_benchmarks\comparative_benchmarks.vcxproj "/t:Clean;Build" /p:Configuration=${{ matrix.configuration }} /p:Platform=x64 /p:TreatWarningAsError=true
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run comparative benchmark suite (MSVC)

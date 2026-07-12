@@ -188,8 +188,8 @@ For the exact repository licenses, third-party dependency versions, and notice p
 
 ## Toolchains exercised in CI
 
-- MSVC with the MSVC STL: Visual Studio 2022 toolset `v143` or newer
-- Clang-cl with the MSVC STL: Visual Studio 2022 `ClangCL`
+- MSVC with the MSVC STL: Visual Studio 2026 toolset `v145`
+- Clang-cl with the MSVC STL: Visual Studio 2026 `ClangCL`
 - GCC with libstdc++: GCC 14 / libstdc++ 14 or newer
 - Clang with libc++: Clang 22 / libc++ 22 or newer
 

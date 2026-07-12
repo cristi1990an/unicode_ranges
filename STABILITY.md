@@ -90,8 +90,8 @@ API contract. It may change as long as:
 
 The minimum toolchains currently exercised in CI are:
 
-- MSVC with the MSVC STL: Visual Studio 2022 toolset `v143` or newer
-- Clang-cl with the MSVC STL: current Visual Studio 2022 `ClangCL`
+- MSVC with the MSVC STL: Visual Studio 2026 toolset `v145`
+- Clang-cl with the MSVC STL: current Visual Studio 2026 `ClangCL`
 - GCC with libstdc++: GCC 14 / libstdc++ 14 or newer
 - Clang with libc++: Clang 22 / libc++ 22 or newer
 
