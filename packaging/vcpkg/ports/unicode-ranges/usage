@@ -1,0 +1,8 @@
+unicode-ranges provides the CMake package and target:
+
+    find_package(unicode_ranges CONFIG REQUIRED)
+    target_link_libraries(your_target PRIVATE unicode_ranges::unicode_ranges)
+
+The optional ICU-backed locale APIs are available through the `icu` feature:
+
+    vcpkg install unicode-ranges[icu]

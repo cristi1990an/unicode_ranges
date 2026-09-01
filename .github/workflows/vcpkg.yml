@@ -1,0 +1,85 @@
+name: vcpkg Package
+
+on:
+  push:
+    branches:
+      - main
+      - feature/**
+  pull_request:
+  workflow_dispatch:
+
+env:
+  VCPKG_RELEASE: "2026.05.25"
+
+jobs:
+  linux:
+    name: vcpkg (GCC 14, features=${{ matrix.features || 'default' }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        features:
+          - ""
+          - icu
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++-14 ninja-build
+
+      - name: Bootstrap vcpkg
+        run: |
+          git clone --depth 1 --branch "$VCPKG_RELEASE" https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
+          "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+
+      - name: Install package and test consumer
+        env:
+          CC: gcc-14
+          CXX: g++-14
+          VCPKG_ROOT: ${{ runner.temp }}/vcpkg
+        run: |
+          cmake -S packaging/vcpkg/test-project -B "build/vcpkg-${{ matrix.features || 'default' }}" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=g++-14 \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_OVERLAY_PORTS="$PWD/packaging/vcpkg/ports" \
+            -DVCPKG_TARGET_TRIPLET=x64-linux \
+            -DVCPKG_MANIFEST_FEATURES="${{ matrix.features }}"
+          cmake --build "build/vcpkg-${{ matrix.features || 'default' }}"
+          ctest --test-dir "build/vcpkg-${{ matrix.features || 'default' }}" --output-on-failure
+
+  windows:
+    name: vcpkg (MSVC, default features)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Bootstrap vcpkg
+        shell: powershell
+        run: |
+          git clone --depth 1 --branch $env:VCPKG_RELEASE https://github.com/microsoft/vcpkg.git "$env:RUNNER_TEMP\vcpkg"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "$env:RUNNER_TEMP\vcpkg\bootstrap-vcpkg.bat" -disableMetrics
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Install package and test consumer
+        shell: powershell
+        run: |
+          $vcpkgRoot = Join-Path $env:RUNNER_TEMP "vcpkg"
+          $toolchain = Join-Path $vcpkgRoot "scripts\buildsystems\vcpkg.cmake"
+          $overlay = Join-Path $PWD "packaging\vcpkg\ports"
+          cmake -S packaging/vcpkg/test-project -B build/vcpkg-default -G "Visual Studio 18 2026" -A x64 "-DCMAKE_TOOLCHAIN_FILE=$toolchain" "-DVCPKG_OVERLAY_PORTS=$overlay" -DVCPKG_TARGET_TRIPLET=x64-windows-static-md
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build build/vcpkg-default --config Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --test-dir build/vcpkg-default -C Release --output-on-failure
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

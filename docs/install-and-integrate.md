@@ -7,7 +7,9 @@
 
 ## Packaging Status
 
-- There is no first-party package-manager distribution yet.
+- The repository includes prerelease Conan 2 and vcpkg package definitions.
+- Neither package has been submitted to its central registry yet; that requires
+  an immutable tagged release.
 - Runtime UTF validation, UTF-8/UTF-16/UTF-32 transcoding, selected ASCII checks, and UTF-8/UTF-16 character counting use pinned vendored `simdutf` `v7.7.0` under `third_party/simdutf`.
 - The repository ships first-party Visual Studio and CMake build definitions for the compiled library target.
 
@@ -16,6 +18,10 @@ The practical source-based choices are:
 1. Vendor a snapshot of the repository into your source tree.
 2. Add the repository as a git submodule.
 3. Fetch the repository in CMake and link the shipped `unicode_ranges` target.
+
+Package-manager users can also create a Conan package from the checkout or use
+the repository-owned vcpkg overlay port. See
+[`packaging/README.md`](../packaging/README.md) for commands and CI coverage.
 
 ## What your build needs
 

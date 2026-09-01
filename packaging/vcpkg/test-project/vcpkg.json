@@ -1,0 +1,20 @@
+{
+  "name": "unicode-ranges-vcpkg-test-project",
+  "version-string": "0",
+  "dependencies": [
+    "unicode-ranges"
+  ],
+  "features": {
+    "icu": {
+      "description": "Test the unicode-ranges ICU feature",
+      "dependencies": [
+        {
+          "name": "unicode-ranges",
+          "features": [
+            "icu"
+          ]
+        }
+      ]
+    }
+  }
+}

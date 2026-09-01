@@ -8,6 +8,10 @@ It provides validated character types, borrowed string views, owning strings, gr
 
 The repository also ships a first-party CMake build and install/export package for that compiled library target.
 
+Prerelease Conan 2 and vcpkg definitions live under `conanfile.py` and
+`packaging/vcpkg/`. They are validated as independent CI workflows before
+central-registry publication.
+
 Umbrella headers:
 
 - `unicode_ranges_borrowed.hpp`: lighter borrowed/core surface

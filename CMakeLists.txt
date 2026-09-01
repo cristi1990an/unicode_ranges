@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(unicode_ranges VERSION 0.0.0 LANGUAGES CXX)
+project(unicode_ranges VERSION 0.1.0 LANGUAGES CXX)
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
+
+find_package(Threads REQUIRED)
 
 file(GLOB UTF8_RANGES_PUBLIC_HEADERS CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/unicode_ranges/*.hpp"
@@ -39,6 +41,7 @@ target_include_directories(unicode_ranges
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
+target_link_libraries(unicode_ranges PUBLIC Threads::Threads)
 
 if(MSVC)
     target_compile_options(unicode_ranges PUBLIC /utf-8)

@@ -2,6 +2,8 @@
 
 include(CMakeFindDependencyMacro)
 
+find_dependency(Threads)
+
 if(@UTF8_RANGES_PACKAGE_HAS_ICU@)
     find_dependency(ICU COMPONENTS uc i18n)
 endif()
