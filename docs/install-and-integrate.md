@@ -21,7 +21,8 @@ The practical source-based choices are:
 
 Package-manager users can also create a Conan package from the checkout or use
 the repository-owned vcpkg overlay port. See
-[`packaging/README.md`](../packaging/README.md) for commands and CI coverage.
+[`packaging/README.md`](https://github.com/cristi1990an/unicode_ranges/blob/main/packaging/README.md)
+for commands and CI coverage.
 
 ## What your build needs
 
