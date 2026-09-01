@@ -16,8 +16,8 @@ jobs:
       fail-fast: false
       matrix:
         with_icu:
-          - false
-          - true
+          - "False"
+          - "True"
 
     steps:
       - name: Checkout
