@@ -10,7 +10,7 @@ inline constexpr std::tuple<std::size_t, std::size_t, std::size_t> unicode_versi
 
 That constant reflects the generated Unicode tables checked into the repository.
 
-Generated version: Unicode `17.0.0`.
+Generated version: Unicode `18.0.0`.
 
 ## What is generated
 

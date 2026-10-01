@@ -177,7 +177,7 @@ Minimum toolchains covered by CI:
 - GCC with libstdc++: GCC 14 / libstdc++ 14 or newer
 - Clang with libc++: Clang 22 / libc++ 22 or newer
 
-Unicode tables track Unicode `17.0.0`.
+Unicode tables track Unicode `18.0.0`.
 
 ## Build docs locally
 
