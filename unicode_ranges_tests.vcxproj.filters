@@ -14,6 +14,12 @@
     <ClInclude Include="unicode_ranges_tests.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="tests\edge_cases.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\conformance.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="unicode_ranges.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>

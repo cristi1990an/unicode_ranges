@@ -1,5 +1,5 @@
 param(
-	[string]$DataRoot = (Join-Path $PSScriptRoot "unicode_data\17.0.0"),
+	[string]$DataRoot = (Join-Path $PSScriptRoot "unicode_data\18.0.0"),
 	[string]$UnicodeVersion = ""
 )
 

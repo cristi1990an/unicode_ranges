@@ -12,6 +12,7 @@ file(GLOB UTF8_RANGES_PUBLIC_HEADERS CONFIGURE_DEPENDS
 )
 
 option(UTF8_RANGES_BUILD_TESTS "Build the unicode_ranges test runner" ${PROJECT_IS_TOP_LEVEL})
+set(UTF8_RANGES_CONFORMANCE_DATA "" CACHE PATH "Optional matching-version UCD directory containing normalization and grapheme tests")
 option(UTF8_RANGES_BUILD_BENCHMARKS "Build the unicode_ranges benchmark runner" ${PROJECT_IS_TOP_LEVEL})
 option(UTF8_RANGES_ENABLE_ICU "Enable ICU-backed locale-aware casing when ICU is available" ON)
 option(UTF8_RANGES_ENABLE_TEST_HOOKS "Enable internal test hooks used by selected CI lanes" OFF)
@@ -72,6 +73,10 @@ if(UTF8_RANGES_BUILD_TESTS)
     endif()
     target_link_libraries(unicode_ranges_tests PRIVATE unicode_ranges::unicode_ranges)
     add_test(NAME unicode_ranges_tests COMMAND unicode_ranges_tests)
+    if(UTF8_RANGES_CONFORMANCE_DATA)
+        add_test(NAME unicode_ranges_conformance
+            COMMAND unicode_ranges_tests --conformance-dir "${UTF8_RANGES_CONFORMANCE_DATA}")
+    endif()
 endif()
 
 if(UTF8_RANGES_BUILD_BENCHMARKS)

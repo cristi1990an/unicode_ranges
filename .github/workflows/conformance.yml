@@ -1,0 +1,45 @@
+name: Unicode conformance
+
+on:
+  push:
+    branches: [main, 'feature/**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    name: Unicode ${{ matrix.unicode }} (GCC 14)
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        unicode: ['15.1.0', '16.0.0', '17.0.0', '18.0.0']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++-14 ninja-build
+      - name: Download matching Unicode tables and official test data
+        env:
+          UNICODE_VERSION: ${{ matrix.unicode }}
+        shell: pwsh
+        run: |
+          ./tools/update_unicode_data.ps1 -Version $env:UNICODE_VERSION
+          ./tools/regenerate_unicode_tables.ps1 -DataRoot "$PWD/tools/unicode_data/$env:UNICODE_VERSION" -UnicodeVersion $env:UNICODE_VERSION
+          Invoke-WebRequest "https://www.unicode.org/Public/$env:UNICODE_VERSION/ucd/NormalizationTest.txt" -OutFile "tools/unicode_data/$env:UNICODE_VERSION/ucd/NormalizationTest.txt"
+      - name: Build and run all test suites and official conformance cases
+        env:
+          UNICODE_VERSION: ${{ matrix.unicode }}
+        run: |
+          cmake -S . -B build/conformance -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++-14 \
+            -DUTF8_RANGES_BUILD_TESTS=ON -DUTF8_RANGES_BUILD_BENCHMARKS=OFF \
+            -DUTF8_RANGES_ENABLE_ICU=OFF \
+            -DUTF8_RANGES_CONFORMANCE_DATA="$PWD/tools/unicode_data/$UNICODE_VERSION/ucd"
+          cmake --build build/conformance --parallel 2
+          ctest --test-dir build/conformance --output-on-failure --timeout 300

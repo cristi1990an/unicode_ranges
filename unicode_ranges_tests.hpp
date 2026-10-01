@@ -924,7 +924,8 @@ UTF8_RANGES_TEST_OPTNONE UTF8_RANGES_TEST_NOINLINE inline void run_unicode_range
 		const auto patch = std::get<2>(unicode_version);
 		return (major == 15 && minor == 1 && patch == 0)
 			|| (major == 16 && minor == 0 && patch == 0)
-			|| (major == 17 && minor == 0 && patch == 0);
+			|| (major == 17 && minor == 0 && patch == 0)
+			|| (major == 18 && minor == 0 && patch == 0);
 	};
 
 	static_assert(std::same_as<

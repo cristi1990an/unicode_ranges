@@ -110,9 +110,12 @@ COVERED_FILES+=("unicode_ranges_borrowed.hpp")
 COVERED_FILES+=("unicode_ranges_all.hpp")
 COVERED_FILES+=("unicode_ranges.hpp")
 COVERED_FILES+=("unicode_ranges_full.hpp")
+COVERED_FILES+=("unicode_ranges.cpp")
+COVERED_FILES+=("unicode_tables_runtime.cpp")
 
 "${LLVM_COV}" report \
 	"${OUTPUT_DIR}/${BINARY}" \
+	-object="${OUTPUT_DIR}/${BENCH_BINARY}" \
 	-instr-profile="${PROFDATA}" \
 	-show-functions \
 	-show-branch-summary \
@@ -120,12 +123,14 @@ COVERED_FILES+=("unicode_ranges_full.hpp")
 
 "${LLVM_COV}" report \
 	"${OUTPUT_DIR}/${BINARY}" \
+	-object="${OUTPUT_DIR}/${BENCH_BINARY}" \
 	-instr-profile="${PROFDATA}" \
 	-show-branch-summary \
 	"${COVERED_FILES[@]}" | tee "${SUMMARY_TXT}"
 
 "${LLVM_COV}" show \
 	"${OUTPUT_DIR}/${BINARY}" \
+	-object="${OUTPUT_DIR}/${BENCH_BINARY}" \
 	-instr-profile="${PROFDATA}" \
 	-show-line-counts-or-regions \
 	-show-branches=count \

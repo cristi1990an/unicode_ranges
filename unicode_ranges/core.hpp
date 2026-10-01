@@ -3477,7 +3477,7 @@ namespace details
 				break;
 			}
 
-			const auto width = lossy_utf8_sequence_width(remaining);
+			const auto width = lossy_utf8_sequence_width(remaining.substr(ascii_run));
 			const auto traits = utf8_lead_validation_table[static_cast<std::uint8_t>(value[index])];
 			if (traits.size != 0 && width == traits.size)
 			{
@@ -3518,7 +3518,7 @@ namespace details
 				break;
 			}
 
-			const auto width = lossy_utf8_sequence_width(remaining);
+			const auto width = lossy_utf8_sequence_width(remaining.substr(ascii_run));
 			const auto traits = utf8_lead_validation_table[static_cast<std::uint8_t>(bytes[read_index])];
 			if (traits.size != 0 && width == traits.size)
 			{
@@ -4675,8 +4675,12 @@ namespace details
 		{
 			none,
 			consonant_no_linker,
-			consonant_linker
+			consonant_linker,
+			linker_extend
 		};
+
+		inline constexpr bool unicode_uses_updated_indic_conjunct_rule =
+			std::get<0>(unicode::unicode_version) >= 18;
 
 		struct grapheme_state
 		{
@@ -4850,6 +4854,20 @@ namespace details
 			const grapheme_scalar_info& scalar_info) noexcept
 		{
 			using enum unicode::indic_conjunct_break_property;
+			if constexpr (unicode_uses_updated_indic_conjunct_rule)
+			{
+				switch (scalar_info.indic_property)
+				{
+				case linker:
+					return grapheme_indic_suffix_state::linker_extend;
+			case extend:
+				return state == grapheme_indic_suffix_state::linker_extend
+					? state : grapheme_indic_suffix_state::none;
+			default:
+				return grapheme_indic_suffix_state::none;
+				}
+			}
+
 			switch (scalar_info.indic_property)
 			{
 			case consonant:
@@ -4878,7 +4896,22 @@ namespace details
 			std::uint32_t scalar) noexcept
 		{
 			using enum unicode::indic_conjunct_break_property;
-			switch (unicode::indic_conjunct_break(scalar))
+			const auto property = unicode::indic_conjunct_break(scalar);
+			if constexpr (unicode_uses_updated_indic_conjunct_rule)
+			{
+				switch (property)
+				{
+				case linker:
+					return grapheme_indic_suffix_state::linker_extend;
+			case extend:
+				return state == grapheme_indic_suffix_state::linker_extend
+					? state : grapheme_indic_suffix_state::none;
+			default:
+				return grapheme_indic_suffix_state::none;
+				}
+			}
+
+			switch (property)
 			{
 			case consonant:
 				return grapheme_indic_suffix_state::consonant_no_linker;
@@ -5028,7 +5061,15 @@ namespace details
 				return true;
 			}
 
-			if (state.indic_suffix == grapheme_indic_suffix_state::consonant_linker
+			if constexpr (unicode_uses_updated_indic_conjunct_rule)
+			{
+				if (state.indic_suffix == grapheme_indic_suffix_state::linker_extend
+					&& unicode::indic_conjunct_break(scalar) == unicode::indic_conjunct_break_property::consonant)
+				{
+					return true;
+				}
+			}
+			else if (state.indic_suffix == grapheme_indic_suffix_state::consonant_linker
 				&& unicode::indic_conjunct_break(scalar) == unicode::indic_conjunct_break_property::consonant)
 			{
 				return true;
@@ -5120,7 +5161,15 @@ namespace details
 				return true;
 			}
 
-			if (state.indic_suffix == grapheme_indic_suffix_state::consonant_linker
+			if constexpr (unicode_uses_updated_indic_conjunct_rule)
+			{
+				if (state.indic_suffix == grapheme_indic_suffix_state::linker_extend
+					&& scalar_info.indic_property == unicode::indic_conjunct_break_property::consonant)
+				{
+					return true;
+				}
+			}
+			else if (state.indic_suffix == grapheme_indic_suffix_state::consonant_linker
 				&& scalar_info.indic_property == unicode::indic_conjunct_break_property::consonant)
 			{
 				return true;

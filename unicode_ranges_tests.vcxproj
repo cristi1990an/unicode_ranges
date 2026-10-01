@@ -161,6 +161,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="unicode_ranges_tests.hpp" />
+    <ClInclude Include="tests\edge_cases.hpp" />
+    <ClInclude Include="tests\conformance.hpp" />
     <ClInclude Include="unicode_ranges.hpp" />
   </ItemGroup>
   <ItemGroup>
