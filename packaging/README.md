@@ -40,9 +40,9 @@ ctest --test-dir build/vcpkg-package-test --output-on-failure
 
 Add `-DVCPKG_MANIFEST_FEATURES=icu` to validate the optional ICU feature.
 
-After the first release is tagged, the curated-registry port should replace the
-relative source path in `portfile.cmake` with `vcpkg_from_github()`, the release
-tag, and the archive SHA512.
+The curated-registry port consumes a versioned GitHub release archive through
+`vcpkg_from_github()` and pins its SHA512. The repository-owned overlay remains
+available for testing the current checkout during development.
 
 ## Continuous integration
 

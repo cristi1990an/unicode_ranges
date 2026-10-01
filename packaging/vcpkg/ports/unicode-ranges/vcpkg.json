@@ -1,6 +1,6 @@
 {
   "name": "unicode-ranges",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "C++23 validated UTF-8, UTF-16, and UTF-32 text types and algorithms",
   "homepage": "https://cristi1990an.github.io/unicode_ranges/",
   "license": "MIT OR Apache-2.0",
