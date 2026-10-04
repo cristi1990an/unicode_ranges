@@ -21,10 +21,12 @@ fi
 
 runtime_obj="$out_dir/unicode_ranges_runtime.o"
 tables_obj="$out_dir/unicode_tables_runtime.o"
+simdutf_obj="$out_dir/simdutf.o"
 runtime_lib="$out_dir/libunicode_ranges.a"
-"$cxx" -std=c++23 -I. "$@" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
-"$cxx" -std=c++23 -I. "$@" -Wno-error=overflow -Wno-error=pedantic -c unicode_tables_runtime.cpp -o "$tables_obj"
-ar rcs "$runtime_lib" "$runtime_obj" "$tables_obj"
+"$cxx" -std=c++14 -Ithird_party/simdutf "$@" -Wno-error -c third_party/simdutf/simdutf.cpp -o "$simdutf_obj"
+"$cxx" -std=c++23 -I. -Ithird_party/simdutf "$@" -Wno-error=overflow -Wno-error=pedantic -c unicode_ranges.cpp -o "$runtime_obj"
+"$cxx" -std=c++23 -I. -Ithird_party/simdutf "$@" -Wno-error=overflow -Wno-error=pedantic -c unicode_tables_runtime.cpp -o "$tables_obj"
+ar rcs "$runtime_lib" "$runtime_obj" "$tables_obj" "$simdutf_obj"
 
 mapfile -t sources < <(find docs/examples -name '*.cpp' | sort)
 

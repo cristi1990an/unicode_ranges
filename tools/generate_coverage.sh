@@ -11,6 +11,7 @@ BINARY="${BINARY:-unicode_ranges_cov}"
 BENCH_BINARY="${BENCH_BINARY:-unicode_ranges_cov_bench}"
 PROFRAW="${OUTPUT_DIR}/unicode_ranges.profraw"
 PROFRAW_BENCH="${OUTPUT_DIR}/unicode_ranges_bench.profraw"
+SIMDUTF_OBJ="${OUTPUT_DIR}/simdutf.o"
 PROFDATA="${OUTPUT_DIR}/unicode_ranges.profdata"
 REPORT_TXT="${OUTPUT_DIR}/report.txt"
 SUMMARY_TXT="${OUTPUT_DIR}/summary.txt"
@@ -22,6 +23,24 @@ if [[ ! -f "third_party/simdutf/simdutf.h" || ! -f "third_party/simdutf/simdutf.
 	echo "Vendored simdutf is missing from third_party/simdutf." >&2
 	exit 1
 fi
+
+"${CXX}" \
+	-std=c++14 \
+	-O0 \
+	-Wall \
+	-Wextra \
+	-Werror \
+	-pedantic \
+	-pthread \
+	-stdlib=libc++ \
+	-Wno-error \
+	-fprofile-instr-generate \
+	-fcoverage-mapping \
+	-fno-inline \
+	-Ithird_party/simdutf \
+	-c \
+	third_party/simdutf/simdutf.cpp \
+	-o "${SIMDUTF_OBJ}"
 
 "${CXX}" \
 	-std=c++23 \
@@ -39,6 +58,7 @@ fi
 	-fprofile-instr-generate \
 	-fcoverage-mapping \
 	-fno-inline \
+	-Ithird_party/simdutf \
 	-c \
 	unicode_ranges.cpp \
 	-o "${OUTPUT_DIR}/unicode_ranges_runtime.o"
@@ -63,7 +83,7 @@ fi
 	unicode_tables_runtime.cpp \
 	-o "${OUTPUT_DIR}/unicode_tables_runtime.o"
 
-ar rcs "${OUTPUT_DIR}/libunicode_ranges.a" "${OUTPUT_DIR}/unicode_ranges_runtime.o" "${OUTPUT_DIR}/unicode_tables_runtime.o"
+ar rcs "${OUTPUT_DIR}/libunicode_ranges.a" "${OUTPUT_DIR}/unicode_ranges_runtime.o" "${OUTPUT_DIR}/unicode_tables_runtime.o" "${SIMDUTF_OBJ}"
 
 "${CXX}" \
 	-std=c++23 \
