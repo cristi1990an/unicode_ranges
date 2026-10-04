@@ -49,24 +49,23 @@ if(NOT simdutf_FOUND AND NOT TARGET simdutf::simdutf)
         GIT_SHALLOW TRUE
     )
 
-    # simdutf 8.2 uses binary literals that GCC diagnoses as C++14 extensions
-    # when its default C++11 mode is combined with -Wpedantic -Werror.
-    # Compile the fetched dependency as C++14 at minimum, without changing the
-    # standard inherited by this project or by downstream consumers.
-    set(UTF8_RANGES_PREVIOUS_CXX_STANDARD "${CMAKE_CXX_STANDARD}")
-    if(NOT CMAKE_CXX_STANDARD OR CMAKE_CXX_STANDARD LESS 14)
-        set(CMAKE_CXX_STANDARD 14)
-        set(UTF8_RANGES_RAISED_CXX_STANDARD_FOR_SIMDUTF ON)
-    endif()
     FetchContent_MakeAvailable(simdutf)
-    if(UTF8_RANGES_RAISED_CXX_STANDARD_FOR_SIMDUTF)
-        if(UTF8_RANGES_PREVIOUS_CXX_STANDARD)
-            set(CMAKE_CXX_STANDARD "${UTF8_RANGES_PREVIOUS_CXX_STANDARD}")
+
+    # simdutf 8.2 contains binary literals that are rejected in C++11 mode
+    # with GCC's -Wpedantic -Werror. Set the fetched target itself: simdutf's
+    # CMake project may assign C++11 directly to that target, overriding the
+    # parent CMAKE_CXX_STANDARD default.
+    if(TARGET simdutf)
+        if(CMAKE_CXX_STANDARD AND CMAKE_CXX_STANDARD GREATER 14)
+            set(UTF8_RANGES_SIMDUTF_CXX_STANDARD "${CMAKE_CXX_STANDARD}")
         else()
-            unset(CMAKE_CXX_STANDARD)
+            set(UTF8_RANGES_SIMDUTF_CXX_STANDARD 14)
         endif()
-        unset(UTF8_RANGES_RAISED_CXX_STANDARD_FOR_SIMDUTF)
-        unset(UTF8_RANGES_PREVIOUS_CXX_STANDARD)
+        set_target_properties(simdutf PROPERTIES
+            CXX_STANDARD "${UTF8_RANGES_SIMDUTF_CXX_STANDARD}"
+            CXX_STANDARD_REQUIRED ON
+        )
+        unset(UTF8_RANGES_SIMDUTF_CXX_STANDARD)
     endif()
 endif()
 
