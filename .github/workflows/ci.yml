@@ -998,8 +998,10 @@ jobs:
       - name: Configure and build benchmark runner (CMake)
         run: |
           compile_lto_flags="-flto=auto"
+          benchmark_link_options=""
           if [ "${{ matrix.install_kind }}" = "clang" ]; then
-            compile_lto_flags="-flto=thin -fuse-ld=lld"
+            compile_lto_flags="-flto=thin"
+            benchmark_link_options="-fuse-ld=lld"
           elif [ "${{ matrix.install_kind }}" = "appleclang" ]; then
             compile_lto_flags="-flto=thin"
           fi
@@ -1008,6 +1010,7 @@ jobs:
             -DUTF8_RANGES_BUILD_TESTS=OFF \
             -DUTF8_RANGES_BUILD_BENCHMARKS=ON \
             -DUTF8_RANGES_ENABLE_ICU=OFF \
+            -DUTF8_RANGES_BENCHMARK_LINK_OPTIONS="$benchmark_link_options" \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
             -DCMAKE_CXX_FLAGS="${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $compile_lto_flags -Wno-error=overflow -Wno-error=pedantic"
