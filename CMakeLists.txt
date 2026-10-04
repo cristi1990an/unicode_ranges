@@ -48,7 +48,26 @@ if(NOT simdutf_FOUND AND NOT TARGET simdutf::simdutf)
         GIT_TAG v8.2.0
         GIT_SHALLOW TRUE
     )
+
+    # simdutf 8.2 uses binary literals that GCC diagnoses as C++14 extensions
+    # when its default C++11 mode is combined with -Wpedantic -Werror.
+    # Compile the fetched dependency as C++14 at minimum, without changing the
+    # standard inherited by this project or by downstream consumers.
+    set(UTF8_RANGES_PREVIOUS_CXX_STANDARD "${CMAKE_CXX_STANDARD}")
+    if(NOT CMAKE_CXX_STANDARD OR CMAKE_CXX_STANDARD LESS 14)
+        set(CMAKE_CXX_STANDARD 14)
+        set(UTF8_RANGES_RAISED_CXX_STANDARD_FOR_SIMDUTF ON)
+    endif()
     FetchContent_MakeAvailable(simdutf)
+    if(UTF8_RANGES_RAISED_CXX_STANDARD_FOR_SIMDUTF)
+        if(UTF8_RANGES_PREVIOUS_CXX_STANDARD)
+            set(CMAKE_CXX_STANDARD "${UTF8_RANGES_PREVIOUS_CXX_STANDARD}")
+        else()
+            unset(CMAKE_CXX_STANDARD)
+        endif()
+        unset(UTF8_RANGES_RAISED_CXX_STANDARD_FOR_SIMDUTF)
+        unset(UTF8_RANGES_PREVIOUS_CXX_STANDARD)
+    endif()
 endif()
 
 if(UTF8_RANGES_WITH_ICU)
