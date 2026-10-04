@@ -547,7 +547,7 @@ jobs:
           githubToken: ${{ github.token }}
           install: |
             apt-get update
-            apt-get install -y ca-certificates cmake g++-14 ninja-build
+            apt-get install -y ca-certificates cmake g++-14 git ninja-build
           env: |
             UBSAN_OPTIONS: "${{ matrix.ubsan_options }}"
           run: |
