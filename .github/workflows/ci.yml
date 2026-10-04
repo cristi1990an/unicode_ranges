@@ -988,7 +988,7 @@ jobs:
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
           sudo ./llvm.sh 22
-          sudo apt-get install -y ${{ matrix.packages }}
+          sudo apt-get install -y ${{ matrix.packages }} lld-22
 
       - name: Show compiler version
         run: |
@@ -998,13 +998,10 @@ jobs:
       - name: Configure and build benchmark runner (CMake)
         run: |
           compile_lto_flags="-flto=auto"
-          linker_flags="-flto=auto"
           if [ "${{ matrix.install_kind }}" = "clang" ]; then
-            compile_lto_flags="-flto=thin"
-            linker_flags="-flto=thin -fuse-ld=lld"
+            compile_lto_flags="-flto=thin -fuse-ld=lld"
           elif [ "${{ matrix.install_kind }}" = "appleclang" ]; then
             compile_lto_flags="-flto=thin"
-            linker_flags="-flto=thin"
           fi
           build_dir="build/cmake-${{ matrix.output }}"
           cmake -S . -B "$build_dir" \
@@ -1013,8 +1010,7 @@ jobs:
             -DUTF8_RANGES_ENABLE_ICU=OFF \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
-            -DCMAKE_CXX_FLAGS="${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $compile_lto_flags -Wno-error=overflow -Wno-error=pedantic" \
-            -DCMAKE_EXE_LINKER_FLAGS="$linker_flags"
+            -DCMAKE_CXX_FLAGS="${{ matrix.opt_flags }} -Wall -Wextra -Werror -pedantic ${{ matrix.cxxflags }} $compile_lto_flags -Wno-error=overflow -Wno-error=pedantic"
           cmake --build "$build_dir" --config Release --target unicode_ranges_benchmarks
 
       - name: Run benchmark suite
