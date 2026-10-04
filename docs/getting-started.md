@@ -24,7 +24,8 @@ Short version:
 - Conan 2 and vcpkg recipes are available in the repository, with central-registry
   submissions tracked separately from the source release
 - your build needs C++23 and the repository root on the include path
-- the repository already vendors pinned `simdutf` (`v7.7.0`) under `third_party/simdutf`
+- CMake fetches pinned `simdutf` (`v8.2.0`) when no package is installed; vcpkg and Conan resolve it as a dependency
+- the standalone Visual Studio project uses the retained `third_party/simdutf` (`v7.7.0`) snapshot
 - runtime UTF validation, UTF-8/UTF-16/UTF-32 transcoding, selected ASCII checks, and UTF-8/UTF-16 character counting use the `simdutf` backend; compile-time and higher-level APIs remain in `unicode_ranges`
 
 ## Include the library

@@ -1217,7 +1217,7 @@ Not `noexcept`.
 
 ### Optional ICU Locale-Aware Overloads
 
-When the library is built with `UTF8_RANGES_ENABLE_ICU=1`, the string-view types also expose these overloads:
+When the library is built with the CMake option `UTF8_RANGES_ENABLE_ICU=ON` and ICU is available, the string-view types also expose these overloads:
 
 ```cpp
 template <typename Allocator = std::allocator<char8_t>>
@@ -1313,7 +1313,7 @@ Do not throw and are declared `noexcept`.
 
 ### Optional ICU Locale-Aware Overloads
 
-When the library is built with `UTF8_RANGES_ENABLE_ICU=1`, the string-view types also expose:
+When the library is built with the CMake option `UTF8_RANGES_ENABLE_ICU=ON` and ICU is available, the string-view types also expose:
 
 ```cpp
 bool eq_ignore_case(utf8_string_view sv, locale_id locale) const;

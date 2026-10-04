@@ -1977,6 +1977,12 @@ fn main() -> io::Result<()> {
         to_snake_case_identifier,
         Some("other"),
     );
+    println!("// SPDX-License-Identifier: (MIT OR Apache-2.0) AND Unicode-3.0");
+    println!(
+        "// Unicode data version: {}.{}.{}; Copyright © 1991-2026 Unicode, Inc.",
+        unicode_version.major, unicode_version.minor, unicode_version.patch
+    );
+    println!("// See LICENSE-UNICODE for the Unicode License V3 notice.");
     println!("#ifndef UTF8_RANGES_UNICODE_TABLES_CONSTEXPR_HPP");
     println!("#define UTF8_RANGES_UNICODE_TABLES_CONSTEXPR_HPP");
     println!();

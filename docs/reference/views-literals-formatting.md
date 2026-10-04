@@ -297,7 +297,7 @@ bool is_available_locale(locale_id locale) noexcept;
 
 ### Behavior
 
-- This API family exists only when the library is built with `UTF8_RANGES_ENABLE_ICU=1`.
+- This API family exists only when the library is built with the CMake option `UTF8_RANGES_ENABLE_ICU=ON` and ICU is available.
 - `locale_id` is a non-owning null-terminated locale token for ICU-backed casing operations.
 - `_locale` validates string literals at compile time and rejects embedded NUL bytes.
 - Raw `locale_id{ ... }` values must point to storage that stays alive for the duration of the call.

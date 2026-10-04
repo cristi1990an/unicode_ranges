@@ -10,7 +10,8 @@
 - The repository includes prerelease Conan 2 and vcpkg package definitions.
 - Neither package has been submitted to its central registry yet; that requires
   an immutable tagged release.
-- Runtime UTF validation, UTF-8/UTF-16/UTF-32 transcoding, selected ASCII checks, and UTF-8/UTF-16 character counting use pinned vendored `simdutf` `v7.7.0` under `third_party/simdutf`.
+- Runtime UTF validation, UTF-8/UTF-16/UTF-32 transcoding, selected ASCII checks, and UTF-8/UTF-16 character counting use package-managed `simdutf` `8.2.0` or newer. A standalone CMake build fetches pinned `v8.2.0` when no package is already available.
+- The standalone Visual Studio project retains a separate `simdutf` `v7.7.0` source snapshot; CMake, vcpkg, and Conan package builds do not compile that copy.
 - The repository ships first-party Visual Studio and CMake build definitions for the compiled library target.
 
 The practical source-based choices are:
@@ -30,7 +31,7 @@ for commands and CI coverage.
 - the repository root on the include path
 - the `unicode_ranges` library target built from `unicode_ranges.cpp`
 - `#include "unicode_ranges_borrowed.hpp"` or `#include "unicode_ranges_all.hpp"` in user code
-- the vendored `third_party/simdutf` directory kept alongside `unicode_ranges.cpp`
+- an available `simdutf` CMake package (the first-party CMake build fetches pinned `v8.2.0` by default)
 
 The public umbrella headers live at the repository root:
 
@@ -67,8 +68,8 @@ The rest of the library remains `unicode_ranges` code:
 
 So the integration rule is simple:
 
-- link `unicode_ranges`
-- keep the vendored `third_party/simdutf` directory that ships with this repository
+- link `unicode_ranges` and preserve its transitive `simdutf` dependency
+- let CMake fetch simdutf for a direct source build, or let vcpkg/Conan resolve it for a package build
 
 ## Recommended: vendor or submodule
 
@@ -84,12 +85,11 @@ your_project/
       unicode_ranges.hpp
       unicode_ranges_full.hpp
       unicode_ranges/
-      third_party/
-        simdutf/
-          simdutf.h
-          simdutf.cpp
 ```
 
+For a direct CMake build, the project fetches simdutf if it is not already
+installed. If integrating the target through another build system, provide a
+simdutf package target (`simdutf::simdutf`) or use the vcpkg/Conan recipe.
 Then build with:
 
 - include directories:
@@ -168,12 +168,12 @@ Do not track `main` in production builds. Pin an exact commit that you have vali
 
 ## Optional ICU-backed locale casing
 
-The default library build depends only on pinned `simdutf` and exposes only locale-independent Unicode casing.
+The default library build depends on simdutf and exposes only locale-independent Unicode casing.
 
-If you want ICU-backed locale-sensitive casing overloads such as `to_lowercase("tr"_locale)`, `to_uppercase("tr"_locale)`, or `case_fold("tr"_locale)`, leave `UTF8_RANGES_ENABLE_ICU` enabled and make ICU available to CMake. The shipped build:
+If you want ICU-backed locale-sensitive casing overloads such as `to_lowercase("tr"_locale)`, `to_uppercase("tr"_locale)`, or `case_fold("tr"_locale)`, enable the CMake option `UTF8_RANGES_ENABLE_ICU` and make ICU available to CMake. The build:
 
 - find `ICU::uc` and `ICU::i18n`
-- define `UTF8_RANGES_ENABLE_ICU=1`
+- generates an installed config header that records ICU availability, so consumers do not need an extra compile definition
 - link those ICU targets through `unicode_ranges::unicode_ranges`
 
 If ICU is not found, the default build falls back to the locale-independent surface.
@@ -184,13 +184,16 @@ When ICU is enabled, locale-aware casing follows ICU locale resolution behavior.
 
 `unicode_ranges` itself is dual-licensed under `MIT OR Apache-2.0`.
 
-The pinned runtime dependency `simdutf` is also dual-licensed under `MIT OR Apache-2.0`, which keeps the compiled runtime dependency model straightforward.
+The generated Unicode tables are additionally distributed under Unicode
+License V3. The CMake, vcpkg, and Conan packages use simdutf as a separate
+package-managed dependency; its own package supplies its license notices.
 
 For the exact repository licenses, third-party dependency versions, and notice policy, see:
 
 - `LICENSE`
 - `LICENSE-MIT`
 - `LICENSE-APACHE`
+- `LICENSE-UNICODE`
 - `THIRD_PARTY_NOTICES.md`
 
 ## Toolchains exercised in CI

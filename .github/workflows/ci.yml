@@ -694,6 +694,7 @@ jobs:
           cmake --build "${{ matrix.build_dir }}" --config Release
           ctest --test-dir "${{ matrix.build_dir }}" --build-config Release --output-on-failure
           cmake --install "${{ matrix.build_dir }}" --prefix "$(pwd)/${{ matrix.install_dir }}"
+          test -f "${{ matrix.install_dir }}/share/unicode_ranges/LICENSE-UNICODE"
 
           cmake -S tools/package_smoke_consumer -B "${{ matrix.consumer_dir }}" \
             -DCMAKE_BUILD_TYPE=Release \
@@ -716,6 +717,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --install ${{ matrix.build_dir }} --config Release --prefix $installPrefix
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (!(Test-Path (Join-Path $installPrefix "share\unicode_ranges\LICENSE-UNICODE"))) { throw "Unicode license notice was not installed" }
 
           cmake -S tools/package_smoke_consumer -B ${{ matrix.consumer_dir }} -G "Visual Studio 18 2026" -A x64 "-DCMAKE_PREFIX_PATH=$installPrefix"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

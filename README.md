@@ -4,7 +4,7 @@
 
 It provides validated character types, borrowed string views, owning strings, grapheme-aware iteration, Unicode casing, normalization, and conversion between UTF-8, UTF-16, and UTF-32.
 
-`unicode_ranges` is a compiled library. The public API stays header-first, but runtime UTF validation, runtime UTF-8/UTF-16/UTF-32 transcoding, selected ASCII checks, and UTF-8/UTF-16 character counting are provided by the `unicode_ranges` library target built from `unicode_ranges.cpp`, backed by pinned vendored `simdutf` (`v7.7.0`) under [`third_party/simdutf`](third_party/simdutf). Consumers link the library target, or produce an equivalent static/shared library in their own build. No separate `simdutf` setup step is required for normal consumption.
+`unicode_ranges` is a compiled library. The public API stays header-first, but runtime UTF validation, runtime UTF-8/UTF-16/UTF-32 transcoding, selected ASCII checks, and UTF-8/UTF-16 character counting are provided by the `unicode_ranges` library target built from `unicode_ranges.cpp`, backed by `simdutf`. CMake uses an installed simdutf package when available and otherwise fetches pinned `v8.2.0`; vcpkg and Conan declare simdutf as a package dependency. The standalone Visual Studio project retains a `v7.7.0` source snapshot under [`third_party/simdutf`](third_party/simdutf). Consumers link the `unicode_ranges` library target and let their build/package system provide its transitive dependency.
 
 The repository also ships a first-party CMake build and install/export package for that compiled library target.
 
@@ -192,12 +192,19 @@ Then open `http://127.0.0.1:8000/`.
 
 This repository is dual-licensed under `MIT OR Apache-2.0`.
 
+The generated Unicode tables are additionally derived from Unicode Character
+Database data distributed under Unicode License V3.
+
 The full license texts are in:
 
 - `LICENSE`
 - `LICENSE-MIT`
 - `LICENSE-APACHE`
+- `LICENSE-UNICODE`
 
-The pinned vendored runtime dependency `simdutf` is also dual-licensed under `MIT OR Apache-2.0`, which keeps the licensing model straightforward for the compiled runtime backend.
+The compiled CMake, vcpkg, and Conan packages use simdutf as a separate
+package-managed dependency. Its own package supplies the applicable notices.
+The v7.7.0 source snapshot retained for the standalone Visual Studio project
+and comparative benchmarks remains under `MIT OR Apache-2.0`.
 
 Third-party dependency notices, pinned versions, and the provenance-header policy for copied source files are documented in `THIRD_PARTY_NOTICES.md`.

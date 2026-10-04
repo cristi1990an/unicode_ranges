@@ -12,7 +12,7 @@ from conan.tools.scm import Version
 class UnicodeRangesConan(ConanFile):
     name = "unicode-ranges"
     package_type = "static-library"
-    license = "MIT OR Apache-2.0"
+    license = "(MIT OR Apache-2.0) AND Unicode-3.0"
     url = "https://github.com/cristi1990an/unicode_ranges"
     homepage = "https://cristi1990an.github.io/unicode_ranges/"
     description = (
@@ -38,7 +38,6 @@ class UnicodeRangesConan(ConanFile):
         "unicode_tables_runtime.cpp",
         "unicode_ranges*.hpp",
         "unicode_ranges/*",
-        "third_party/simdutf/*",
         "LICENSE*",
         "THIRD_PARTY_NOTICES.md",
         "README.md",
@@ -63,6 +62,7 @@ class UnicodeRangesConan(ConanFile):
             self.options.rm_safe("fPIC")
 
     def requirements(self):
+        self.requires("simdutf/8.2.0")
         if self.options.with_icu:
             self.requires("icu/78.2")
 
@@ -91,6 +91,7 @@ class UnicodeRangesConan(ConanFile):
         toolchain = CMakeToolchain(self)
         toolchain.variables["UTF8_RANGES_BUILD_TESTS"] = False
         toolchain.variables["UTF8_RANGES_BUILD_BENCHMARKS"] = False
+        toolchain.variables["UTF8_RANGES_FETCH_SIMDUTF"] = False
         toolchain.variables["UTF8_RANGES_ENABLE_ICU"] = bool(self.options.with_icu)
         toolchain.variables["CMAKE_FIND_PACKAGE_PREFER_CONFIG"] = True
         if self.options.get_safe("fPIC") is not None:
@@ -114,10 +115,10 @@ class UnicodeRangesConan(ConanFile):
             "cmake_target_name", "unicode_ranges::unicode_ranges"
         )
         self.cpp_info.libs = ["unicode_ranges"]
+        self.cpp_info.requires.append("simdutf::simdutf")
 
         if self.settings.os in ("Linux", "FreeBSD"):
             self.cpp_info.system_libs.append("pthread")
 
         if self.options.with_icu:
-            self.cpp_info.defines.append("UTF8_RANGES_ENABLE_ICU=1")
             self.cpp_info.requires.extend(("icu::icu-uc", "icu::icu-i18n"))

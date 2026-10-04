@@ -1,5 +1,10 @@
 #include "unicode_ranges_borrowed.hpp"
 #include "unicode_ranges_all.hpp"
+#include <unicode_ranges/config.hpp>
+
+#ifdef UTF8_RANGES_ENABLE_ICU
+#error "The installed headers must encode ICU availability without a consumer macro"
+#endif
 
 #include <string_view>
 
@@ -28,6 +33,13 @@ int main()
 	{
 		return 3;
 	}
+
+#if UTF8_RANGES_CONFIG_HAS_ICU
+	if (!is_available_locale(locale_id{"en"}))
+	{
+		return 4;
+	}
+#endif
 
 	return 0;
 }

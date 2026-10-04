@@ -45,7 +45,7 @@ Each named API family gets its own entry with:
 
 ### Optional ICU locale tokens
 
-- When `UTF8_RANGES_ENABLE_ICU=1` is enabled, locale-aware casing overloads accept `locale_id`.
+- When the CMake option `UTF8_RANGES_ENABLE_ICU=ON` is enabled and ICU is available, locale-aware casing overloads accept `locale_id`.
 - `_locale` is the compile-time checked literal form of that token.
 - `is_available_locale(...)` is a non-throwing probe for exact ICU locale availability.
 - Locale-aware casing overloads may still succeed for locales that are not explicitly available, because ICU may canonicalize or fall back to a more general locale.

@@ -34,6 +34,11 @@ Important pipeline files include:
 - `CompositionExclusions.txt`
 - `CaseFolding.txt`
 
+The generated tables are derived from the Unicode Character Database and are
+distributed under Unicode License V3. The full notice is installed alongside
+the library as `share/unicode_ranges/LICENSE-UNICODE` and included in
+`LICENSE-UNICODE` in the source repository.
+
 ## Updating Unicode data
 
 Typical workflow:

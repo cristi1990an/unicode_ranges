@@ -278,9 +278,10 @@ The dependency manifest pins external baselines used by the comparative suite. U
 
 ## Dependency Model
 
-`simdutf` is both a vendored runtime dependency and a comparative baseline:
+`simdutf` is both a package-managed runtime dependency and a comparative baseline:
 
-- the runtime backend uses the vendored copy under `third_party/simdutf`
+- CMake, vcpkg, and Conan package builds link to simdutf `v8.2.0` or newer
+- the standalone Visual Studio project uses the retained source copy under `third_party/simdutf`
 - standalone `simdutf` benchmark rows exercise raw public `simdutf` API usage
 
 Other comparative baselines are fetched for the benchmark suite and are not runtime dependencies of `unicode_ranges`.

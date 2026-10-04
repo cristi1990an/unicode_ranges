@@ -1,14 +1,15 @@
 # Third-Party Notices
 
-This repository is dual-licensed under `MIT OR Apache-2.0`. Third-party
-components keep their own licenses.
+The library source code is dual-licensed under `MIT OR Apache-2.0`. Generated
+Unicode data is distributed under the Unicode License V3; see
+`LICENSE-UNICODE`. Third-party components keep their own licenses.
 
 ## Current state
 
-- `simdutf` is a pinned vendored runtime dependency and is also reused by the comparative benchmark suite.
-- the shipped compiled runtime backend currently uses `simdutf` through its public API and vendored singleheader layout under `third_party/simdutf`
-- Comparative benchmark dependencies besides `simdutf` are fetched separately.
-- The repository tracks the vendored upstream `simdutf` singleheader files under `third_party/simdutf`.
+- The compiled library runtime links to the package-managed `simdutf` dependency.
+- The source tree retains the upstream `simdutf` v7.7.0 singleheader distribution for the standalone Visual Studio project and comparative benchmarks; package builds do not compile that copy.
+- vcpkg and Conan install simdutf as a separate dependency, whose own package provides the runtime dependency's copyright and license notices.
+- Comparative benchmark dependencies besides the retained `simdutf` source are fetched separately.
 - Any additional copied or adapted third-party source files must carry an
   explicit provenance header as described below.
 
@@ -49,19 +50,19 @@ These are upstream files from the pinned `simdutf` `v7.7.0` singleheader distrib
 
 ## Runtime and comparative benchmark dependencies
 
-These projects are used either by the shipped library runtime, the comparative
-benchmark suite, or both.
+These projects are used by the shipped library runtime or the comparative
+benchmark suite.
 
 ### simdutf
 
 - Project: `simdutf`
 - Upstream: <https://github.com/simdutf/simdutf>
-- Version used by the library runtime and comparative benchmark suite: `v7.7.0`
+- Library runtime package version: `8.2.0` or compatible newer release
+- Standalone Visual Studio and comparative benchmark snapshot: `v7.7.0`
 - License: `MIT OR Apache-2.0`
 - Consumption model:
-  - compiled runtime dependency
-  - vendored under `third_party/simdutf`
-  - uses the published `simdutf.h` + `simdutf.cpp` singleheader layout
+  - CMake package dependency for CMake, vcpkg, and Conan library package builds
+  - the separate `third_party/simdutf` snapshot is used only by non-package development tooling
 - Local metadata:
   - `comparative_benchmarks/dependencies.json`
 

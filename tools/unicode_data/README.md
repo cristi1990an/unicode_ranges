@@ -1,4 +1,6 @@
 This directory holds versioned Unicode Character Database inputs used by `tools/gen_unicode_tables.rs`.
+The inputs and generated Unicode data are governed by Unicode License V3; see
+the repository's `LICENSE-UNICODE` file.
 
 The checked-in data currently includes versions `17.0.0` and `18.0.0`. Each version uses this layout:
 

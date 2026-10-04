@@ -18,7 +18,7 @@ Existing C and C++ text handling often starts from raw byte buffers, raw code-un
 
 The design goal is not "maximum abstraction". It is predictable Unicode handling with clear invariants, explicit failure modes, and no repeated worry about whether a value is valid text.
 
-The public surface is header-first, but the runtime UTF hot paths live in the compiled `unicode_ranges` library target, built from `unicode_ranges.cpp` and backed by pinned vendored `simdutf` (`v7.7.0`) under `third_party/simdutf`. Consumers link that library target, or an equivalent library in their own build. There is no separate `simdutf` include-path step for normal use.
+The public surface is header-first, but the runtime UTF hot paths live in the compiled `unicode_ranges` library target, built from `unicode_ranges.cpp` and backed by package-managed `simdutf` (`v8.2.0` or newer). CMake fetches pinned `v8.2.0` when no package is installed; vcpkg and Conan declare it as a dependency. The standalone Visual Studio project retains the `v7.7.0` source snapshot under `third_party/simdutf`.
 
 That backend choice is intentional: `simdutf` has been the strongest raw UTF validation/transcoding baseline in the comparative benchmark suite, so `unicode_ranges` uses it directly for those runtime hot paths plus selected counting and ASCII-scan paths while keeping the higher-level validated type model and the rest of the Unicode algorithms in `unicode_ranges` itself.
 

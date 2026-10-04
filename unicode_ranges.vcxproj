@@ -56,6 +56,11 @@
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir)third_party\simdutf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
   <ImportGroup Label="Shared">
@@ -155,6 +160,7 @@
   <ItemGroup>
     <ClCompile Include="unicode_ranges.cpp" />
     <ClCompile Include="unicode_tables_runtime.cpp" />
+    <ClCompile Include="third_party\simdutf\simdutf.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="third_party\simdutf\README.md" />

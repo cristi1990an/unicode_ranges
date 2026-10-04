@@ -1,30 +1,6 @@
 #include "unicode_ranges_all.hpp"
 
-#if defined(__has_include)
-#if !__has_include("third_party/simdutf/simdutf.h") || !__has_include("third_party/simdutf/simdutf.cpp")
-#error "unicode_ranges.cpp requires the vendored third_party/simdutf/simdutf.h and simdutf.cpp files"
-#endif
-#endif
-
-#include "third_party/simdutf/simdutf.h"
-
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wextra-semi"
-#elif defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wextra-semi"
-#pragma GCC diagnostic ignored "-Woverflow"
-#pragma GCC diagnostic ignored "-Wpedantic"
-#endif
-
-#include "third_party/simdutf/simdutf.cpp"
-
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#elif defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
+#include <simdutf.h>
 
 namespace unicode_ranges::details
 {

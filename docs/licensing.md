@@ -17,24 +17,26 @@ The repository root contains:
 
 Unless otherwise noted, repository source files are available under that dual-license model.
 
+## Unicode data license
+
+The generated tables are derived from Unicode Character Database data and are
+distributed under Unicode License V3 (`Unicode-3.0`). The complete notice is
+in [`LICENSE-UNICODE`](https://github.com/cristi1990an/unicode_ranges/blob/main/LICENSE-UNICODE)
+and is installed with the package.
+
 ## Runtime dependency license
 
-The compiled runtime backend depends on pinned `simdutf` `v7.7.0` for:
+The CMake, vcpkg, and Conan library packages link to simdutf as a separately
+packaged dependency (Conan uses `simdutf/8.2.0`; vcpkg requires 8.2.0 or newer).
+The dependency package supplies its own copyright and license notices.
 
-- UTF-8, UTF-16, and UTF-32 validation
-- UTF-8, UTF-16, and UTF-32 transcoding on runtime paths
-- UTF-8/UTF-16 character counting and selected ASCII-only checks
+The source repository retains a `simdutf` `v7.7.0` singleheader snapshot under
+`third_party/simdutf` for the standalone Visual Studio project and comparative
+benchmark tooling. CMake, vcpkg, and Conan package builds do not compile that
+snapshot into the distributed library.
 
-`simdutf` is also dual-licensed under `MIT OR Apache-2.0`, which keeps the licensing model straightforward for the compiled-library design.
-
-`unicode_ranges` vendors the pinned `simdutf` singleheader distribution under `third_party/simdutf`:
-
-- `simdutf.h`
-- `simdutf.cpp`
-- `LICENSE-MIT`
-- `LICENSE-APACHE`
-
-These are tracked upstream distribution files from `simdutf` `v7.7.0`, not ad hoc local fetches.
+The snapshot's upstream license texts remain alongside those files in the
+source tree.
 
 ## Comparative benchmark dependencies
 
@@ -58,8 +60,9 @@ That file records:
 - third-party license expressions
 - the provenance-header format required for copied or adapted source files
 
-At the moment:
+Current use:
 
-- `simdutf` is a vendored runtime dependency
+- the package-managed simdutf dependency is used by CMake, vcpkg, and Conan package builds
+- the source-tree v7.7.0 simdutf snapshot is used only by the standalone Visual Studio project and comparative benchmark tooling
 - `utfcpp` and `uni-algo` are comparative-benchmark dependencies
-- the repository tracks the vendored `simdutf` singleheader distribution under `third_party/simdutf`
+- Unicode-generated data is separately covered by Unicode License V3

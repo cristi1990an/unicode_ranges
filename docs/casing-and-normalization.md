@@ -20,7 +20,7 @@ The Unicode-aware APIs are locale-independent. They follow generated Unicode tab
 --8<-- "examples/casing/unicode-case.cpp"
 ```
 
-If the library is built with `UTF8_RANGES_ENABLE_ICU=1`, additional ICU-backed locale overloads are available for lowercasing, uppercasing, titlecasing, and case folding:
+If the library is built with the CMake option `UTF8_RANGES_ENABLE_ICU=ON` and ICU is available, additional ICU-backed locale overloads are available for lowercasing, uppercasing, titlecasing, and case folding:
 
 ```cpp
 --8<-- "examples/casing/locale-case.cpp"

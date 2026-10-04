@@ -20,6 +20,7 @@ vcpkg_cmake_configure(
     OPTIONS
         -DUTF8_RANGES_BUILD_TESTS=OFF
         -DUTF8_RANGES_BUILD_BENCHMARKS=OFF
+        -DUTF8_RANGES_FETCH_SIMDUTF=OFF
         ${FEATURE_OPTIONS}
 )
 
@@ -45,5 +46,6 @@ vcpkg_install_copyright(
         "${SOURCE_PATH}/LICENSE"
         "${SOURCE_PATH}/LICENSE-MIT"
         "${SOURCE_PATH}/LICENSE-APACHE"
+        "${SOURCE_PATH}/LICENSE-UNICODE"
         "${SOURCE_PATH}/THIRD_PARTY_NOTICES.md"
 )

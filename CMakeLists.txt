@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(unicode_ranges VERSION 0.2.0 LANGUAGES CXX)
+project(unicode_ranges VERSION 0.2.1 LANGUAGES C CXX)
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
@@ -15,6 +15,7 @@ option(UTF8_RANGES_BUILD_TESTS "Build the unicode_ranges test runner" ${PROJECT_
 set(UTF8_RANGES_CONFORMANCE_DATA "" CACHE PATH "Optional matching-version UCD directory containing normalization and grapheme tests")
 option(UTF8_RANGES_BUILD_BENCHMARKS "Build the unicode_ranges benchmark runner" ${PROJECT_IS_TOP_LEVEL})
 option(UTF8_RANGES_ENABLE_ICU "Enable ICU-backed locale-aware casing when ICU is available" ON)
+option(UTF8_RANGES_FETCH_SIMDUTF "Fetch simdutf when no package config is available" ${PROJECT_IS_TOP_LEVEL})
 option(UTF8_RANGES_ENABLE_TEST_HOOKS "Enable internal test hooks used by selected CI lanes" OFF)
 option(UTF8_RANGES_TEST_FORCE_UTF32_PARALLEL "Force UTF-32 parallel test paths when test hooks are enabled" OFF)
 
@@ -30,6 +31,39 @@ if(UTF8_RANGES_ENABLE_ICU)
     endif()
 endif()
 
+find_package(simdutf CONFIG QUIET)
+if(NOT simdutf_FOUND AND NOT TARGET simdutf::simdutf)
+    if(NOT UTF8_RANGES_FETCH_SIMDUTF)
+        message(FATAL_ERROR
+            "simdutf was not found. Install simdutf or enable UTF8_RANGES_FETCH_SIMDUTF.")
+    endif()
+
+    include(FetchContent)
+    set(SIMDUTF_TESTS OFF CACHE BOOL "" FORCE)
+    set(SIMDUTF_BENCHMARKS OFF CACHE BOOL "" FORCE)
+    set(SIMDUTF_TOOLS OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(
+        simdutf
+        GIT_REPOSITORY https://github.com/simdutf/simdutf.git
+        GIT_TAG v8.2.0
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(simdutf)
+endif()
+
+if(UTF8_RANGES_WITH_ICU)
+    set(UTF8_RANGES_CONFIG_HAS_ICU 1)
+else()
+    set(UTF8_RANGES_CONFIG_HAS_ICU 0)
+endif()
+set(UTF8_RANGES_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+file(MAKE_DIRECTORY "${UTF8_RANGES_GENERATED_INCLUDE_DIR}/unicode_ranges")
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/unicode_ranges_config.hpp.in"
+    "${UTF8_RANGES_GENERATED_INCLUDE_DIR}/unicode_ranges/config.hpp"
+    @ONLY
+)
+
 add_library(unicode_ranges STATIC
     unicode_ranges.cpp
     unicode_tables_runtime.cpp
@@ -39,10 +73,12 @@ add_library(unicode_ranges::unicode_ranges ALIAS unicode_ranges)
 target_compile_features(unicode_ranges PUBLIC cxx_std_23)
 target_include_directories(unicode_ranges
     PUBLIC
+        $<BUILD_INTERFACE:${UTF8_RANGES_GENERATED_INCLUDE_DIR}>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 target_link_libraries(unicode_ranges PUBLIC Threads::Threads)
+target_link_libraries(unicode_ranges PUBLIC simdutf::simdutf)
 
 if(MSVC)
     target_compile_options(unicode_ranges PUBLIC /utf-8)
@@ -52,7 +88,6 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
 endif()
 
 if(UTF8_RANGES_WITH_ICU)
-    target_compile_definitions(unicode_ranges PUBLIC UTF8_RANGES_ENABLE_ICU=1)
     target_link_libraries(unicode_ranges PUBLIC ICU::uc ICU::i18n)
 endif()
 
@@ -103,6 +138,11 @@ install(FILES
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
+install(FILES
+    "${UTF8_RANGES_GENERATED_INCLUDE_DIR}/unicode_ranges/config.hpp"
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/unicode_ranges"
+)
+
 foreach(header IN LISTS UTF8_RANGES_PUBLIC_HEADERS)
     get_filename_component(header_directory "${header}" DIRECTORY)
     file(RELATIVE_PATH header_subdir "${CMAKE_CURRENT_SOURCE_DIR}" "${header_directory}")
@@ -113,6 +153,7 @@ install(FILES
     LICENSE
     LICENSE-MIT
     LICENSE-APACHE
+    LICENSE-UNICODE
     THIRD_PARTY_NOTICES.md
     README.md
     DESTINATION ${CMAKE_INSTALL_DATADIR}/unicode_ranges

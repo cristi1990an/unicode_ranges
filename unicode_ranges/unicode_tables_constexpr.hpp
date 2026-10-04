@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: (MIT OR Apache-2.0) AND Unicode-3.0
+// Unicode data version: 18.0.0; Copyright © 1991-2026 Unicode, Inc.
+// See LICENSE-UNICODE for the Unicode License V3 notice.
 #ifndef UTF8_RANGES_UNICODE_TABLES_CONSTEXPR_HPP
 #define UTF8_RANGES_UNICODE_TABLES_CONSTEXPR_HPP
 

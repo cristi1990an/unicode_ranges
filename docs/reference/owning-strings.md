@@ -713,7 +713,7 @@ Linear in the processed code units, plus extra work for Unicode case expansion a
 
 ### Optional ICU Locale-Aware Overloads
 
-When the library is built with `UTF8_RANGES_ENABLE_ICU=1`, the owning-string types also expose these overload families:
+When the library is built with the CMake option `UTF8_RANGES_ENABLE_ICU=ON` and ICU is available, the owning-string types also expose these overload families:
 
 ```cpp
 basic_utf8_string to_lowercase(locale_id locale) const&;
@@ -806,7 +806,7 @@ Do not throw and are declared `noexcept`.
 
 ### Optional ICU Locale-Aware Overloads
 
-When the library is built with `UTF8_RANGES_ENABLE_ICU=1`, the owning-string types also expose:
+When the library is built with the CMake option `UTF8_RANGES_ENABLE_ICU=ON` and ICU is available, the owning-string types also expose:
 
 ```cpp
 bool eq_ignore_case(utf8_string_view sv, locale_id locale) const;

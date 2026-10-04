@@ -1,6 +1,16 @@
 #ifndef UTF8_RANGES_CORE_HPP
 #define UTF8_RANGES_CORE_HPP
 
+#if defined(__has_include)
+#if __has_include(<unicode_ranges/config.hpp>)
+#include <unicode_ranges/config.hpp>
+#endif
+#endif
+
+#ifndef UTF8_RANGES_CONFIG_HAS_ICU
+#define UTF8_RANGES_CONFIG_HAS_ICU 0
+#endif
+
 #include <ranges>
 #include <algorithm>
 
@@ -53,7 +63,7 @@
 #include <emmintrin.h>
 #endif
 
-#if defined(UTF8_RANGES_ENABLE_ICU) && UTF8_RANGES_ENABLE_ICU
+#if UTF8_RANGES_CONFIG_HAS_ICU
 #if defined(__has_include)
 #if !__has_include(<unicode/ucasemap.h>)
 #error "UTF8_RANGES_ENABLE_ICU requires ICU headers such as <unicode/ucasemap.h>"
