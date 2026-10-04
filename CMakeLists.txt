@@ -78,7 +78,11 @@ target_include_directories(unicode_ranges
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 target_link_libraries(unicode_ranges PUBLIC Threads::Threads)
-target_link_libraries(unicode_ranges PUBLIC simdutf::simdutf)
+target_link_libraries(unicode_ranges
+    PUBLIC
+        $<BUILD_INTERFACE:simdutf::simdutf>
+        $<INSTALL_INTERFACE:simdutf::simdutf>
+)
 
 if(MSVC)
     target_compile_options(unicode_ranges PUBLIC /utf-8)
@@ -184,7 +188,16 @@ install(FILES
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/unicode_ranges
 )
 
-export(EXPORT unicode_rangesTargets
-    FILE "${CMAKE_CURRENT_BINARY_DIR}/unicode_rangesTargets.cmake"
-    NAMESPACE unicode_ranges::
-)
+get_target_property(UTF8_RANGES_SIMDUTF_TARGET_ALIAS simdutf::simdutf ALIASED_TARGET)
+if(UTF8_RANGES_SIMDUTF_TARGET_ALIAS)
+    set(UTF8_RANGES_SIMDUTF_TARGET "${UTF8_RANGES_SIMDUTF_TARGET_ALIAS}")
+else()
+    set(UTF8_RANGES_SIMDUTF_TARGET simdutf::simdutf)
+endif()
+get_target_property(UTF8_RANGES_SIMDUTF_TARGET_IMPORTED "${UTF8_RANGES_SIMDUTF_TARGET}" IMPORTED)
+if(UTF8_RANGES_SIMDUTF_TARGET_IMPORTED)
+    export(EXPORT unicode_rangesTargets
+        FILE "${CMAKE_CURRENT_BINARY_DIR}/unicode_rangesTargets.cmake"
+        NAMESPACE unicode_ranges::
+    )
+endif()

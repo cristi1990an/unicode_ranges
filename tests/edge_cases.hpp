@@ -628,11 +628,12 @@ class failing_resource final : public std::pmr::memory_resource
 {
 public:
 	bool fail = false;
+	std::size_t minimum_failing_allocation_size = 0;
 	std::size_t outstanding = 0;
 private:
 	void* do_allocate(std::size_t bytes, std::size_t alignment) override
 	{
-		if (fail) throw std::bad_alloc{};
+		if (fail && bytes >= minimum_failing_allocation_size) throw std::bad_alloc{};
 		auto* ptr = std::pmr::new_delete_resource()->allocate(bytes, alignment);
 		++outstanding;
 		return ptr;
@@ -662,6 +663,9 @@ void allocation_for()
 		resource.fail = true;
 		for (unsigned operation = 0; operation < 4; ++operation)
 		{
+			// Debug standard libraries may allocate small container bookkeeping
+			// before the string's character buffer; fail the payload allocation.
+			resource.minimum_failing_allocation_size = operation >= 2 ? 64 : 0;
 			current_case = sizeof(Unit) * 10 + operation;
 			bool threw = false;
 			try
@@ -681,6 +685,7 @@ void allocation_for()
 			UNICODE_EDGE_CHECK(resource.outstanding == blocks);
 		}
 		resource.fail = false;
+		resource.minimum_failing_allocation_size = 0;
 		value.append(view);
 		UNICODE_EDGE_CHECK(std::basic_string_view<Unit>{value.base()} == std::basic_string_view<Unit>{snapshot + raw});
 	}
