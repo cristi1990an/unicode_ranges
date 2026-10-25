@@ -705,11 +705,15 @@ inline void utf16_factory_sizing()
 	const std::array patterns{std::u32string{U'A', 0}, std::u32string{U'\u00E9'},
 		std::u32string{U'\u4E2D'}, std::u32string{U'\U0001F600'},
 		std::u32string{0, U'A', U'\u00E9', U'\u4E2D', U'\U0001F600', U'\U0010FFFF'}};
-	for (const auto& pattern : patterns)
+	for (std::size_t pattern_index = 0; pattern_index < patterns.size(); ++pattern_index)
 	{
+		const auto& pattern = patterns[pattern_index];
 		const auto chunk8 = reference_encode<char8_t>(pattern);
 		const auto chunk16 = reference_encode<char16_t>(pattern);
-		for (const auto size : {threshold - 1, threshold, threshold + 1, threshold * 2, std::size_t{1024 * 1024}})
+		for (const auto size : {std::size_t{0}, std::size_t{1}, std::size_t{2}, std::size_t{3},
+			std::size_t{15}, std::size_t{16}, std::size_t{31}, std::size_t{32}, std::size_t{63},
+			std::size_t{64}, std::size_t{65}, threshold - 1, threshold, threshold + 1,
+			threshold * 2, std::size_t{1024 * 1024}})
 		{
 			current_case = size;
 			std::string bytes;
@@ -729,6 +733,14 @@ inline void utf16_factory_sizing()
 			{
 				auto value = Owned::from_bytes(std::string_view{bytes}, Alloc{&resource});
 				UNICODE_EDGE_CHECK(value.has_value());
+				if (std::u16string_view{value->base()} != expected)
+				{
+					std::size_t mismatch = 0;
+					while (mismatch < value->size() && mismatch < expected.size()
+						&& value->base()[mismatch] == expected[mismatch]) ++mismatch;
+					std::fprintf(stderr, "UTF-16 factory pattern=%zu input=%zu expected_units=%zu actual_units=%zu first_mismatch=%zu\n",
+						pattern_index, bytes.size(), expected.size(), value->size(), mismatch);
+				}
 				UNICODE_EDGE_CHECK(std::u16string_view{value->base()} == expected);
 				UNICODE_EDGE_CHECK(value->get_allocator().resource() == &resource);
 				if (size >= threshold)
@@ -743,6 +755,24 @@ inline void utf16_factory_sizing()
 		raw_utf8({0xF4, 0x90, 0x80, 0x80}), raw_utf8({0xF5, 0x80, 0x80, 0x80}), raw_utf8({0xF0, 0x9F, 0x98})};
 	for (const auto& bad : malformed)
 	{
+		// Also exercise the checked small-input bridge and its backend workaround.
+		for (const auto prefix : {0u, 15u, 63u, 255u})
+		{
+			std::u8string bytes(prefix, u8'a');
+			if (prefix >= 3) bytes.replace(0, 3, u8"\u4E2D");
+			bytes += bad;
+			const auto validation = utf8_string_view::from_bytes(std::u8string_view{bytes});
+			UNICODE_EDGE_CHECK(!validation);
+			failing_resource resource;
+			{
+				const auto result = Owned::from_bytes(
+					std::string_view{reinterpret_cast<const char*>(bytes.data()), bytes.size()}, Alloc{&resource});
+				UNICODE_EDGE_CHECK(!result);
+				UNICODE_EDGE_CHECK(result.error().code == validation.error().code);
+				UNICODE_EDGE_CHECK(result.error().first_invalid_element_index == validation.error().first_invalid_element_index);
+			}
+			UNICODE_EDGE_CHECK(resource.outstanding == 0);
+		}
 		for (const auto offset : {std::size_t{0}, std::size_t{15}, std::size_t{63}, threshold - 1, threshold, threshold + 1, threshold + 65})
 		{
 			current_case = offset;

@@ -754,6 +754,34 @@ auto simdutf_convert_utf8_to_utf16_checked_runtime(
 	char16_t* output) noexcept
 	-> std::expected<std::size_t, utf8_error>
 {
+	// simdutf 8.2.0's checked AVX-512 kernel can lose bit 0x4000 on
+	// alternating CJK units when built with MSVC 14.51. Probe the selected
+	// implementation once: a packaged dependency may use a different compiler
+	// from this library, so checking _MSC_VER here would not be sufficient.
+	static const bool checked_conversion_is_correct = []() noexcept
+	{
+		std::array<char, 63> input{};
+		for (std::size_t i = 0; i < input.size(); i += 3)
+		{
+			input[i] = static_cast<char>(0xE4);
+			input[i + 1] = static_cast<char>(0xB8);
+			input[i + 2] = static_cast<char>(0xAD);
+		}
+		std::array<char16_t, 63> converted{};
+		const auto result = simdutf::convert_utf8_to_utf16_with_errors(
+			input.data(), input.size(), converted.data());
+		if (result.error != simdutf::SUCCESS || result.count != 21) return false;
+		for (std::size_t i = 0; i < result.count; ++i)
+			if (converted[i] != char16_t{0x4E2D}) return false;
+		return true;
+	}();
+	if (!checked_conversion_is_correct) [[unlikely]]
+	{
+		if (const auto validation = validate_utf8_runtime_impl(bytes.data(), bytes.size()); !validation)
+			return std::unexpected(validation.error());
+		return simdutf::convert_valid_utf8_to_utf16(bytes.data(), bytes.size(), output);
+	}
+
 	const auto result = simdutf::convert_utf8_to_utf16_with_errors(bytes.data(), bytes.size(), output);
 	if (result.error == simdutf::SUCCESS) [[likely]]
 	{
