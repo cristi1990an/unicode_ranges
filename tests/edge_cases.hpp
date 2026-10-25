@@ -631,12 +631,14 @@ public:
 	std::size_t minimum_failing_allocation_size = 0;
 	std::size_t outstanding = 0;
 	std::size_t maximum_allocation_size = (std::numeric_limits<std::size_t>::max)();
+	std::size_t largest_allocation = 0;
 private:
 	void* do_allocate(std::size_t bytes, std::size_t alignment) override
 	{
 		if (bytes > maximum_allocation_size || (fail && bytes >= minimum_failing_allocation_size))
 			throw std::bad_alloc{};
 		auto* ptr = std::pmr::new_delete_resource()->allocate(bytes, alignment);
+		largest_allocation = (std::max)(largest_allocation, bytes);
 		++outstanding;
 		return ptr;
 	}
@@ -727,9 +729,26 @@ inline void utf16_factory_sizing()
 			const auto scalar_size = details::utf16_length_from_utf8_checked_scalar(bytes);
 			UNICODE_EDGE_CHECK(scalar_size && *scalar_size == expected.size());
 			failing_resource resource;
-			// Permit STL rounding and Debug bookkeeping, not an upper-bound
-			// payload allocation for large non-ASCII input.
-			if (size >= threshold) resource.maximum_allocation_size = expected.size() * sizeof(char16_t) + 256;
+			std::size_t exact_capacity = 0;
+			if (size >= threshold)
+			{
+				// Measure this STL's exact-size allocation policy. In particular,
+				// libstdc++'s old ABI rounds large strings to page-sized blocks,
+				// so a fixed byte allowance would reject correct allocations.
+				failing_resource exact_resource;
+				{
+					typename Owned::base_type exact{Alloc{&exact_resource}};
+					exact.resize_and_overwrite(expected.size(),
+						[&](char16_t* output, std::size_t) noexcept
+						{
+							std::char_traits<char16_t>::copy(output, expected.data(), expected.size());
+							return expected.size();
+						});
+					exact_capacity = exact.capacity();
+				}
+				UNICODE_EDGE_CHECK(exact_resource.outstanding == 0);
+				resource.maximum_allocation_size = exact_resource.largest_allocation;
+			}
 			{
 				auto value = Owned::from_bytes(std::string_view{bytes}, Alloc{&resource});
 				UNICODE_EDGE_CHECK(value.has_value());
@@ -744,7 +763,7 @@ inline void utf16_factory_sizing()
 				UNICODE_EDGE_CHECK(std::u16string_view{value->base()} == expected);
 				UNICODE_EDGE_CHECK(value->get_allocator().resource() == &resource);
 				if (size >= threshold)
-					UNICODE_EDGE_CHECK(value->capacity() <= expected.size() + 128);
+					UNICODE_EDGE_CHECK(value->capacity() <= exact_capacity);
 			}
 			UNICODE_EDGE_CHECK(resource.outstanding == 0);
 		}
