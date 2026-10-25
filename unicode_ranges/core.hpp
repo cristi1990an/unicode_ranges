@@ -779,6 +779,10 @@ namespace details
 	std::size_t simdutf_utf16_length_from_valid_utf8_runtime(std::u8string_view bytes) noexcept;
 
 	[[nodiscard]]
+	std::expected<std::size_t, utf8_error> simdutf_utf16_length_from_utf8_checked_runtime(
+		std::string_view bytes) noexcept;
+
+	[[nodiscard]]
 	std::size_t simdutf_utf32_length_from_valid_utf8_runtime(std::u8string_view bytes) noexcept;
 
 	[[nodiscard]]
@@ -796,6 +800,11 @@ namespace details
 	[[nodiscard]]
 	std::size_t simdutf_convert_valid_utf8_to_utf16_runtime(
 		std::u8string_view bytes,
+		char16_t* output) noexcept;
+
+	[[nodiscard]]
+	std::size_t simdutf_convert_valid_utf8_to_utf16_runtime(
+		std::string_view bytes,
 		char16_t* output) noexcept;
 
 	[[nodiscard]]
@@ -3967,6 +3976,35 @@ namespace details
 		return result;
 	}
 
+	// Bound unused capacity on the small-input fast path to less than 128 KiB.
+	// This is a memory-policy cutoff, not a measured universal speed crossover.
+	inline constexpr std::size_t utf8_to_utf16_exact_size_threshold = 64 * 1024;
+
+	inline constexpr auto utf16_length_from_utf8_checked_scalar(std::string_view bytes)
+		noexcept -> std::expected<std::size_t, utf8_error>
+	{
+		std::size_t output_size = 0;
+		for (std::size_t index = 0; index < bytes.size();)
+		{
+			const auto ascii_run = ascii_prefix_length(bytes.substr(index));
+			index += ascii_run;
+			output_size += ascii_run;
+			if (index == bytes.size()) break;
+
+			const auto sequence = validate_utf8_sequence_at_raw(bytes, index);
+			if (sequence.size == 0) [[unlikely]]
+			{
+				return std::unexpected(utf8_error{
+					.code = sequence.code,
+					.first_invalid_element_index = index
+				});
+			}
+			output_size += sequence.size == 4 ? 2 : 1;
+			index += sequence.size;
+		}
+		return output_size;
+	}
+
 	template <typename Allocator>
 	inline constexpr auto transcode_utf8_to_utf16_checked(
 		std::string_view bytes,
@@ -3974,13 +4012,31 @@ namespace details
 	{
 		utf16_base_string<Allocator> result{ alloc };
 		std::optional<utf8_error> error;
-		result.resize_and_overwrite(bytes.size(),
+		const bool ascii = is_ascii_only(bytes);
+		auto output_size = bytes.size();
+		if (!ascii && bytes.size() >= utf8_to_utf16_exact_size_threshold)
+		{
+			// Validate before trusting the length or allocating a smaller buffer.
+			const auto measured = !std::is_constant_evaluated() && simdutf_runtime_enabled_for_target()
+				? simdutf_utf16_length_from_utf8_checked_runtime(bytes)
+				: utf16_length_from_utf8_checked_scalar(bytes);
+			if (!measured) [[unlikely]] return std::unexpected(measured.error());
+			output_size = *measured;
+		}
+		result.resize_and_overwrite(output_size,
 			[&](char16_t* buffer, std::size_t) noexcept
 			{
-				if (is_ascii_only(bytes))
+				if (ascii)
 				{
 					copy_ascii_bytes_to_utf16(buffer, bytes);
 					return bytes.size();
+				}
+
+				if (bytes.size() >= utf8_to_utf16_exact_size_threshold
+					&& !std::is_constant_evaluated() && simdutf_runtime_enabled_for_target())
+				{
+					// The sizing step has already validated this input.
+					return simdutf_convert_valid_utf8_to_utf16_runtime(bytes, buffer);
 				}
 
 				if (auto converted = simdutf_convert_utf8_to_utf16_checked_if_available(bytes, buffer))

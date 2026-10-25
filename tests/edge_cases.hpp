@@ -630,11 +630,15 @@ public:
 	bool fail = false;
 	std::size_t minimum_failing_allocation_size = 0;
 	std::size_t outstanding = 0;
+	std::size_t maximum_allocation_size = (std::numeric_limits<std::size_t>::max)();
+	std::size_t largest_allocation = 0;
 private:
 	void* do_allocate(std::size_t bytes, std::size_t alignment) override
 	{
-		if (fail && bytes >= minimum_failing_allocation_size) throw std::bad_alloc{};
+		if (bytes > maximum_allocation_size || (fail && bytes >= minimum_failing_allocation_size))
+			throw std::bad_alloc{};
 		auto* ptr = std::pmr::new_delete_resource()->allocate(bytes, alignment);
+		largest_allocation = (std::max)(largest_allocation, bytes);
 		++outstanding;
 		return ptr;
 	}
@@ -692,7 +696,147 @@ void allocation_for()
 	UNICODE_EDGE_CHECK(resource.outstanding == 0);
 }
 
-inline void allocation() { allocation_for<char8_t>(); allocation_for<char16_t>(); allocation_for<char32_t>(); }
+inline void utf16_factory_sizing()
+{
+	using Alloc = std::pmr::polymorphic_allocator<char16_t>;
+	using Owned = basic_utf16_string<Alloc>;
+	constexpr auto threshold = details::utf8_to_utf16_exact_size_threshold;
+	static_assert(details::utf16_length_from_utf8_checked_scalar("A\xC3\xA9\xF0\x9F\x98\x80").value() == 4);
+	static_assert(!details::utf16_length_from_utf8_checked_scalar("\xED\xA0\x80"));
+
+	const std::array patterns{std::u32string{U'A', 0}, std::u32string{U'\u00E9'},
+		std::u32string{U'\u4E2D'}, std::u32string{U'\U0001F600'},
+		std::u32string{0, U'A', U'\u00E9', U'\u4E2D', U'\U0001F600', U'\U0010FFFF'}};
+	for (std::size_t pattern_index = 0; pattern_index < patterns.size(); ++pattern_index)
+	{
+		const auto& pattern = patterns[pattern_index];
+		const auto chunk8 = reference_encode<char8_t>(pattern);
+		const auto chunk16 = reference_encode<char16_t>(pattern);
+		for (const auto size : {std::size_t{0}, std::size_t{1}, std::size_t{2}, std::size_t{3},
+			std::size_t{15}, std::size_t{16}, std::size_t{31}, std::size_t{32}, std::size_t{63},
+			std::size_t{64}, std::size_t{65}, threshold - 1, threshold, threshold + 1,
+			threshold * 2, std::size_t{1024 * 1024}})
+		{
+			current_case = size;
+			std::string bytes;
+			std::u16string expected;
+			while (bytes.size() + chunk8.size() <= size)
+			{
+				bytes.append(reinterpret_cast<const char*>(chunk8.data()), chunk8.size());
+				expected += chunk16;
+			}
+			while (bytes.size() < size) { bytes += ' '; expected += u' '; }
+			const auto scalar_size = details::utf16_length_from_utf8_checked_scalar(bytes);
+			UNICODE_EDGE_CHECK(scalar_size && *scalar_size == expected.size());
+			failing_resource resource;
+			std::size_t exact_capacity = 0;
+			if (size >= threshold)
+			{
+				// Measure this STL's exact-size allocation policy. In particular,
+				// libstdc++'s old ABI rounds large strings to page-sized blocks,
+				// so a fixed byte allowance would reject correct allocations.
+				failing_resource exact_resource;
+				{
+					typename Owned::base_type exact{Alloc{&exact_resource}};
+					exact.resize_and_overwrite(expected.size(),
+						[&](char16_t* output, std::size_t) noexcept
+						{
+							std::char_traits<char16_t>::copy(output, expected.data(), expected.size());
+							return expected.size();
+						});
+					exact_capacity = exact.capacity();
+				}
+				UNICODE_EDGE_CHECK(exact_resource.outstanding == 0);
+				resource.maximum_allocation_size = exact_resource.largest_allocation;
+			}
+			{
+				auto value = Owned::from_bytes(std::string_view{bytes}, Alloc{&resource});
+				UNICODE_EDGE_CHECK(value.has_value());
+				if (std::u16string_view{value->base()} != expected)
+				{
+					std::size_t mismatch = 0;
+					while (mismatch < value->size() && mismatch < expected.size()
+						&& value->base()[mismatch] == expected[mismatch]) ++mismatch;
+					std::fprintf(stderr, "UTF-16 factory pattern=%zu input=%zu expected_units=%zu actual_units=%zu first_mismatch=%zu\n",
+						pattern_index, bytes.size(), expected.size(), value->size(), mismatch);
+				}
+				UNICODE_EDGE_CHECK(std::u16string_view{value->base()} == expected);
+				UNICODE_EDGE_CHECK(value->get_allocator().resource() == &resource);
+				if (size >= threshold)
+					UNICODE_EDGE_CHECK(value->capacity() <= exact_capacity);
+			}
+			UNICODE_EDGE_CHECK(resource.outstanding == 0);
+		}
+	}
+
+	const std::array malformed{raw_utf8({0x80}), raw_utf8({0xC0, 0xAF}), raw_utf8({0xC2}),
+		raw_utf8({0xE0, 0x80, 0x80}), raw_utf8({0xED, 0xA0, 0x80}), raw_utf8({0xF0, 0x80, 0x80, 0x80}),
+		raw_utf8({0xF4, 0x90, 0x80, 0x80}), raw_utf8({0xF5, 0x80, 0x80, 0x80}), raw_utf8({0xF0, 0x9F, 0x98})};
+	for (const auto& bad : malformed)
+	{
+		// Also exercise the checked small-input bridge and its backend workaround.
+		for (const auto prefix : {0u, 15u, 63u, 255u})
+		{
+			std::u8string bytes(prefix, u8'a');
+			if (prefix >= 3) bytes.replace(0, 3, u8"\u4E2D");
+			bytes += bad;
+			const auto validation = utf8_string_view::from_bytes(std::u8string_view{bytes});
+			UNICODE_EDGE_CHECK(!validation);
+			failing_resource resource;
+			{
+				const auto result = Owned::from_bytes(
+					std::string_view{reinterpret_cast<const char*>(bytes.data()), bytes.size()}, Alloc{&resource});
+				UNICODE_EDGE_CHECK(!result);
+				UNICODE_EDGE_CHECK(result.error().code == validation.error().code);
+				UNICODE_EDGE_CHECK(result.error().first_invalid_element_index == validation.error().first_invalid_element_index);
+			}
+			UNICODE_EDGE_CHECK(resource.outstanding == 0);
+		}
+		for (const auto offset : {std::size_t{0}, std::size_t{15}, std::size_t{63}, threshold - 1, threshold, threshold + 1, threshold + 65})
+		{
+			current_case = offset;
+			std::u8string bytes(offset, u8'a');
+			if (offset >= 3) bytes.replace(0, 3, u8"\u4E2D");
+			bytes += bad;
+			// Test truncated tails as well as malformed data followed by valid suffixes.
+			if (bytes.size() < threshold + 32) bytes.append(threshold + 32 - bytes.size(), u8'a');
+			const auto validation = utf8_string_view::from_bytes(std::u8string_view{bytes});
+			UNICODE_EDGE_CHECK(!validation);
+			const auto narrow = std::string_view{reinterpret_cast<const char*>(bytes.data()), bytes.size()};
+			const auto scalar_size = details::utf16_length_from_utf8_checked_scalar(narrow);
+			UNICODE_EDGE_CHECK(!scalar_size);
+			UNICODE_EDGE_CHECK(scalar_size.error().first_invalid_element_index == validation.error().first_invalid_element_index);
+			failing_resource resource;
+			resource.fail = true;
+			resource.minimum_failing_allocation_size = 64;
+			{
+				// Reject before allocating an output payload, even when allocation would fail.
+				const auto result = Owned::from_bytes(narrow, Alloc{&resource});
+				UNICODE_EDGE_CHECK(!result);
+				UNICODE_EDGE_CHECK(result.error().code == validation.error().code);
+				UNICODE_EDGE_CHECK(result.error().first_invalid_element_index == validation.error().first_invalid_element_index);
+			}
+			UNICODE_EDGE_CHECK(resource.outstanding == 0);
+		}
+	}
+
+	std::string valid;
+	for (std::size_t i = 0; i < threshold; ++i) valid += "\xE4\xB8\xAD";
+	failing_resource resource;
+	resource.fail = true;
+	resource.minimum_failing_allocation_size = 64;
+	bool threw = false;
+	try { static_cast<void>(Owned::from_bytes(std::string_view{valid}, Alloc{&resource})); }
+	catch (const std::bad_alloc&) { threw = true; }
+	UNICODE_EDGE_CHECK(threw);
+	UNICODE_EDGE_CHECK(resource.outstanding == 0);
+}
+
+inline void allocation()
+{
+	allocation_for<char8_t>(); allocation_for<char16_t>(); allocation_for<char32_t>();
+	utf16_factory_sizing();
+}
 
 template <typename Unit>
 void encoding_output_for()
