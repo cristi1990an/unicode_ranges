@@ -50,6 +50,12 @@ Validated UTF-8, UTF-16, and UTF-32 text can be converted directly without falli
 --8<-- "examples/common-tasks/convert-encodings.cpp"
 ```
 
+For raw UTF-8 bytes, `utf16_string::from_bytes(std::string_view)` validates and
+returns an owned UTF-16 string. Inputs of 64 KiB or more are sized exactly before
+allocating the output, avoiding excess retained capacity for multibyte text.
+Smaller inputs use a single conversion pass with an upper-bound allocation.
+ASCII inputs already have an exact output size and keep their direct fast path.
+
 ## Next steps
 
 - [Getting Started](getting-started.md)

@@ -630,6 +630,17 @@ std::size_t simdutf_utf16_length_from_valid_utf8_runtime(std::u8string_view byte
 		bytes.size());
 }
 
+auto simdutf_utf16_length_from_utf8_checked_runtime(std::string_view bytes) noexcept
+	-> std::expected<std::size_t, utf8_error>
+{
+	if (const auto validation = validate_utf8_runtime_impl(bytes.data(), bytes.size()); !validation)
+	{
+		return std::unexpected(validation.error());
+	}
+	// utf16_length_from_utf8 does not validate: only call it after validation.
+	return simdutf::utf16_length_from_utf8(bytes.data(), bytes.size());
+}
+
 std::size_t simdutf_utf32_length_from_valid_utf8_runtime(std::u8string_view bytes) noexcept
 {
 	return simdutf::utf32_length_from_utf8(
@@ -666,6 +677,15 @@ std::size_t simdutf_convert_valid_utf8_to_utf16_runtime(
 		bytes.size(),
 		output);
 	UTF8_RANGES_DEBUG_ASSERT(count == simdutf_utf16_length_from_valid_utf8_runtime(bytes));
+	return count;
+}
+
+std::size_t simdutf_convert_valid_utf8_to_utf16_runtime(
+	std::string_view bytes,
+	char16_t* output) noexcept
+{
+	const auto count = simdutf::convert_valid_utf8_to_utf16(bytes.data(), bytes.size(), output);
+	UTF8_RANGES_DEBUG_ASSERT(count == simdutf::utf16_length_from_utf8(bytes.data(), bytes.size()));
 	return count;
 }
 
